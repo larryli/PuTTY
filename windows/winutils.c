@@ -210,6 +210,144 @@ char *GetDlgItemText_alloc(HWND hwnd, int id)
  * treat the rest as a raw string, you can. If you don't want to,
  * `argstart' can be safely left NULL.
  */
+
+/*
+ * The precise argument-breaking rules vary with compiler version, or
+ * rather, with the crt0-type startup code that comes with each
+ * compiler's C library. We do our best to match the compiler version,
+ * so that we faithfully imitate in our GUI utilities what the
+ * corresponding set of CLI utilities can't be prevented from doing.
+ *
+ * The basic rules are:
+ *
+ *  - Single quotes are not special characters.
+ *
+ *  - Double quotes are removed, but within them spaces cease to be
+ *    special.
+ *
+ *  - Backslashes are _only_ special when a sequence of them appear
+ *    just before a double quote. In this situation, they are treated
+ *    like C backslashes: so \" just gives a literal quote, \\" gives
+ *    a literal backslash and then opens or closes a double-quoted
+ *    segment, \\\" gives a literal backslash and then a literal
+ *    quote, \\\\" gives two literal backslashes and then opens/closes
+ *    a double-quoted segment, and so forth. Note that this behaviour
+ *    is identical inside and outside double quotes.
+ *
+ *  - Two successive double quotes become one literal double quote,
+ *    but only _inside_ a double-quoted segment. Outside, they just
+ *    form an empty double-quoted segment (which may cause an empty
+ *    argument word).
+ *
+ * That only leaves the interesting question of what happens when one
+ * or more backslashes precedes two or more double quotes, starting
+ * inside a double-quoted string.
+ *
+ * I investigated this in an ordinary CLI program, using the
+ * toolchain's crt0 to split a command line of the form
+ *
+ *    "a\\\"""b c" d
+ *
+ * Here I tabulate number of backslashes (across the top) against
+ * number of quotes (down the left), and indicate how many backslashes
+ * are output, how many quotes are output, and whether a quoted
+ * segment is open at the end of the sequence:
+ *
+ *                      backslashes
+ *
+ *               0         1      2      3      4
+ *
+ *         0   0,0,y  |  1,0,y  2,0,y  3,0,y  4,0,y
+ *            --------+-----------------------------
+ *         1   0,0,n  |  0,1,y  1,0,n  1,1,y  2,0,n
+ *    q    2   0,1,y  |  0,1,n  1,1,y  1,1,n  2,1,y
+ *    u    3   0,1,n  |  0,2,y  1,1,n  1,2,y  2,1,n
+ *    o    4   0,2,y  |  0,2,n  1,2,y  1,2,n  2,2,y
+ *    t    5   0,2,n  |  0,3,y  1,2,n  1,3,y  2,2,n
+ *    e    6   0,3,y  |  0,3,n  1,3,y  1,3,n  2,3,y
+ *    s    7   0,3,n  |  0,4,y  1,3,n  1,4,y  2,3,n
+ *         8   0,4,y  |  0,4,n  1,4,y  1,4,n  2,4,y
+ *
+ * The row at the top of this table, with quotes=0, demonstrates what
+ * I claimed above, that when a sequence of backslashes are not
+ * followed by a double quote, they don't act specially at all. The
+ * rest of the table shows that the backslashes escape each other in
+ * pairs (so that with 2n or 2n+1 input backslashes you get n output
+ * ones); if there's an odd number of input backslashes then the last
+ * one escapes the first double quote (so you get a literal quote and
+ * enter a quoted string); thereafter, each input quote character
+ * either opens or closes a quoted string, and if it closes one, it
+ * generates a literal " as a side effect.
+ *
+ * But here's the corresponding table from the older Visual Studio 7:
+ *
+ *                      backslashes
+ *
+ *               0         1      2      3      4
+ *
+ *         0   0,0,y  |  1,0,y  2,0,y  3,0,y  4,0,y
+ *            --------+-----------------------------
+ *         1   0,0,n  |  0,1,y  1,0,n  1,1,y  2,0,n
+ *    q    2   0,1,n  |  0,1,n  1,1,n  1,1,n  2,1,n
+ *    u    3   0,1,y  |  0,2,n  1,1,y  1,2,n  2,1,y
+ *    o    4   0,1,n  |  0,2,y  1,1,n  1,2,y  2,1,n
+ *    t    5   0,2,n  |  0,2,n  1,2,n  1,2,n  2,2,n
+ *    e    6   0,2,y  |  0,3,n  1,2,y  1,3,n  2,2,y
+ *    s    7   0,2,n  |  0,3,y  1,2,n  1,3,y  2,2,n
+ *         8   0,3,n  |  0,3,n  1,3,n  1,3,n  2,3,n
+ *         9   0,3,y  |  0,4,n  1,3,y  1,4,n  2,3,y
+ *        10   0,3,n  |  0,4,y  1,3,n  1,4,y  2,3,n
+ *        11   0,4,n  |  0,4,n  1,4,n  1,4,n  2,4,n
+ *
+ * There is very weird mod-3 behaviour going on here in the
+ * number of quotes, and it even applies when there aren't any
+ * backslashes! How ghastly.
+ *
+ * With a bit of thought, this extremely odd diagram suddenly
+ * coalesced itself into a coherent, if still ghastly, model of
+ * how things work:
+ *
+ *  - As before, backslashes are only special when one or more
+ *    of them appear contiguously before at least one double
+ *    quote. In this situation the backslashes do exactly what
+ *    you'd expect: each one quotes the next thing in front of
+ *    it, so you end up with n/2 literal backslashes (if n is
+ *    even) or (n-1)/2 literal backslashes and a literal quote
+ *    (if n is odd). In the latter case the double quote
+ *    character right after the backslashes is used up.
+ *
+ *  - After that, any remaining double quotes are processed. A
+ *    string of contiguous unescaped double quotes has a mod-3
+ *    behaviour:
+ *
+ *     * inside a quoted segment, a quote ends the segment.
+ *     * _immediately_ after ending a quoted segment, a quote
+ *       simply produces a literal quote.
+ *     * otherwise, outside a quoted segment, a quote begins a
+ *       quoted segment.
+ *
+ *    So, for example, if we started inside a quoted segment
+ *    then two contiguous quotes would close the segment and
+ *    produce a literal quote; three would close the segment,
+ *    produce a literal quote, and open a new segment. If we
+ *    started outside a quoted segment, then two contiguous
+ *    quotes would open and then close a segment, producing no
+ *    output (but potentially creating a zero-length argument);
+ *    but three quotes would open and close a segment and then
+ *    produce a literal quote.
+ */
+
+/*
+ * We select between two behaviours depending on the version of Visual
+ * Studio (see large comment below). I don't know exactly when the bug
+ * fix happened, but I know that VS7 had the odd mod-3 behaviour.
+ */
+#if _MSC_VER < 1400
+#define MOD3 1
+#else
+#define MOD3 0
+#endif
+
 void split_into_argv(char *cmdline, int *argc, char ***argv,
                      char ***argstart)
 {
@@ -217,107 +355,6 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
     char *outputline, *q;
     char **outputargv, **outputargstart;
     int outputargc;
-
-    /*
-     * These argument-breaking rules apply to Visual Studio 7, which
-     * is currently the compiler expected to be used for PuTTY. Visual
-     * Studio 10 has different rules, lacking the curious mod 3
-     * behaviour of consecutive quotes described below; I presume they
-     * fixed a bug. As and when we migrate to a newer compiler, we'll
-     * have to adjust this to match; however, for the moment we
-     * faithfully imitate in our GUI utilities what our CLI utilities
-     * can't be prevented from doing.
-     *
-     * When I investigated this, at first glance the rules appeared to
-     * be:
-     *
-     *  - Single quotes are not special characters.
-     *
-     *  - Double quotes are removed, but within them spaces cease
-     *    to be special.
-     *
-     *  - Backslashes are _only_ special when a sequence of them
-     *    appear just before a double quote. In this situation,
-     *    they are treated like C backslashes: so \" just gives a
-     *    literal quote, \\" gives a literal backslash and then
-     *    opens or closes a double-quoted segment, \\\" gives a
-     *    literal backslash and then a literal quote, \\\\" gives
-     *    two literal backslashes and then opens/closes a
-     *    double-quoted segment, and so forth. Note that this
-     *    behaviour is identical inside and outside double quotes.
-     *
-     *  - Two successive double quotes become one literal double
-     *    quote, but only _inside_ a double-quoted segment.
-     *    Outside, they just form an empty double-quoted segment
-     *    (which may cause an empty argument word).
-     *
-     *  - That only leaves the interesting question of what happens
-     *    when one or more backslashes precedes two or more double
-     *    quotes, starting inside a double-quoted string. And the
-     *    answer to that appears somewhat bizarre. Here I tabulate
-     *    number of backslashes (across the top) against number of
-     *    quotes (down the left), and indicate how many backslashes
-     *    are output, how many quotes are output, and whether a
-     *    quoted segment is open at the end of the sequence:
-     *
-     *                      backslashes
-     *
-     *               0         1      2      3      4
-     *
-     *         0   0,0,y  |  1,0,y  2,0,y  3,0,y  4,0,y
-     *            --------+-----------------------------
-     *         1   0,0,n  |  0,1,y  1,0,n  1,1,y  2,0,n
-     *    q    2   0,1,n  |  0,1,n  1,1,n  1,1,n  2,1,n
-     *    u    3   0,1,y  |  0,2,n  1,1,y  1,2,n  2,1,y
-     *    o    4   0,1,n  |  0,2,y  1,1,n  1,2,y  2,1,n
-     *    t    5   0,2,n  |  0,2,n  1,2,n  1,2,n  2,2,n
-     *    e    6   0,2,y  |  0,3,n  1,2,y  1,3,n  2,2,y
-     *    s    7   0,2,n  |  0,3,y  1,2,n  1,3,y  2,2,n
-     *         8   0,3,n  |  0,3,n  1,3,n  1,3,n  2,3,n
-     *         9   0,3,y  |  0,4,n  1,3,y  1,4,n  2,3,y
-     *        10   0,3,n  |  0,4,y  1,3,n  1,4,y  2,3,n
-     *        11   0,4,n  |  0,4,n  1,4,n  1,4,n  2,4,n
-     *
-     *
-     *      [Test fragment was of the form "a\\\"""b c" d.]
-     *
-     * There is very weird mod-3 behaviour going on here in the
-     * number of quotes, and it even applies when there aren't any
-     * backslashes! How ghastly.
-     *
-     * With a bit of thought, this extremely odd diagram suddenly
-     * coalesced itself into a coherent, if still ghastly, model of
-     * how things work:
-     *
-     *  - As before, backslashes are only special when one or more
-     *    of them appear contiguously before at least one double
-     *    quote. In this situation the backslashes do exactly what
-     *    you'd expect: each one quotes the next thing in front of
-     *    it, so you end up with n/2 literal backslashes (if n is
-     *    even) or (n-1)/2 literal backslashes and a literal quote
-     *    (if n is odd). In the latter case the double quote
-     *    character right after the backslashes is used up.
-     *
-     *  - After that, any remaining double quotes are processed. A
-     *    string of contiguous unescaped double quotes has a mod-3
-     *    behaviour:
-     *
-     *     * inside a quoted segment, a quote ends the segment.
-     *     * _immediately_ after ending a quoted segment, a quote
-     *       simply produces a literal quote.
-     *     * otherwise, outside a quoted segment, a quote begins a
-     *       quoted segment.
-     *
-     *    So, for example, if we started inside a quoted segment
-     *    then two contiguous quotes would close the segment and
-     *    produce a literal quote; three would close the segment,
-     *    produce a literal quote, and open a new segment. If we
-     *    started outside a quoted segment, then two contiguous
-     *    quotes would open and then close a segment, producing no
-     *    output (but potentially creating a zero-length argument);
-     *    but three quotes would open and close a segment and then
-     *    produce a literal quote.
-     */
 
     /*
      * First deal with the simplest of all special cases: if there
@@ -388,11 +425,17 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
                         /* Outside a quote segment, a quote starts one. */
                         if (!quote) quotes--;
 
-                        /* Now we produce (n+1)/3 literal quotes... */
+#if !MOD3
+                        /* New behaviour: produce n/2 literal quotes... */
+                        for (i = 2; i <= quotes; i += 2) *q++ = '"';
+                        /* ... and end in a quote segment iff 2 divides n. */
+                        quote = (quotes % 2 == 0);
+#else
+                        /* Old behaviour: produce (n+1)/3 literal quotes... */
                         for (i = 3; i <= quotes+1; i += 3) *q++ = '"';
-
                         /* ... and end in a quote segment iff 3 divides n. */
                         quote = (quotes % 3 == 0);
+#endif
                     }
                 }
             } else {
@@ -422,6 +465,100 @@ const struct argv_test {
      * We generate this set of tests by invoking ourself with
      * `-generate'.
      */
+#if !MOD3
+    /* Newer behaviour, with no weird mod-3 glitch. */
+    {"ab c\" d", {"ab", "c d", NULL}},
+    {"a\"b c\" d", {"ab c", "d", NULL}},
+    {"a\"\"b c\" d", {"ab", "c d", NULL}},
+    {"a\"\"\"b c\" d", {"a\"b c", "d", NULL}},
+    {"a\"\"\"\"b c\" d", {"a\"b", "c d", NULL}},
+    {"a\"\"\"\"\"b c\" d", {"a\"\"b c", "d", NULL}},
+    {"a\"\"\"\"\"\"b c\" d", {"a\"\"b", "c d", NULL}},
+    {"a\"\"\"\"\"\"\"b c\" d", {"a\"\"\"b c", "d", NULL}},
+    {"a\"\"\"\"\"\"\"\"b c\" d", {"a\"\"\"b", "c d", NULL}},
+    {"a\\b c\" d", {"a\\b", "c d", NULL}},
+    {"a\\\"b c\" d", {"a\"b", "c d", NULL}},
+    {"a\\\"\"b c\" d", {"a\"b c", "d", NULL}},
+    {"a\\\"\"\"b c\" d", {"a\"b", "c d", NULL}},
+    {"a\\\"\"\"\"b c\" d", {"a\"\"b c", "d", NULL}},
+    {"a\\\"\"\"\"\"b c\" d", {"a\"\"b", "c d", NULL}},
+    {"a\\\"\"\"\"\"\"b c\" d", {"a\"\"\"b c", "d", NULL}},
+    {"a\\\"\"\"\"\"\"\"b c\" d", {"a\"\"\"b", "c d", NULL}},
+    {"a\\\"\"\"\"\"\"\"\"b c\" d", {"a\"\"\"\"b c", "d", NULL}},
+    {"a\\\\b c\" d", {"a\\\\b", "c d", NULL}},
+    {"a\\\\\"b c\" d", {"a\\b c", "d", NULL}},
+    {"a\\\\\"\"b c\" d", {"a\\b", "c d", NULL}},
+    {"a\\\\\"\"\"b c\" d", {"a\\\"b c", "d", NULL}},
+    {"a\\\\\"\"\"\"b c\" d", {"a\\\"b", "c d", NULL}},
+    {"a\\\\\"\"\"\"\"b c\" d", {"a\\\"\"b c", "d", NULL}},
+    {"a\\\\\"\"\"\"\"\"b c\" d", {"a\\\"\"b", "c d", NULL}},
+    {"a\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b c", "d", NULL}},
+    {"a\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b", "c d", NULL}},
+    {"a\\\\\\b c\" d", {"a\\\\\\b", "c d", NULL}},
+    {"a\\\\\\\"b c\" d", {"a\\\"b", "c d", NULL}},
+    {"a\\\\\\\"\"b c\" d", {"a\\\"b c", "d", NULL}},
+    {"a\\\\\\\"\"\"b c\" d", {"a\\\"b", "c d", NULL}},
+    {"a\\\\\\\"\"\"\"b c\" d", {"a\\\"\"b c", "d", NULL}},
+    {"a\\\\\\\"\"\"\"\"b c\" d", {"a\\\"\"b", "c d", NULL}},
+    {"a\\\\\\\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b c", "d", NULL}},
+    {"a\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b", "c d", NULL}},
+    {"a\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"\"b c", "d", NULL}},
+    {"a\\\\\\\\b c\" d", {"a\\\\\\\\b", "c d", NULL}},
+    {"a\\\\\\\\\"b c\" d", {"a\\\\b c", "d", NULL}},
+    {"a\\\\\\\\\"\"b c\" d", {"a\\\\b", "c d", NULL}},
+    {"a\\\\\\\\\"\"\"b c\" d", {"a\\\\\"b c", "d", NULL}},
+    {"a\\\\\\\\\"\"\"\"b c\" d", {"a\\\\\"b", "c d", NULL}},
+    {"a\\\\\\\\\"\"\"\"\"b c\" d", {"a\\\\\"\"b c", "d", NULL}},
+    {"a\\\\\\\\\"\"\"\"\"\"b c\" d", {"a\\\\\"\"b", "c d", NULL}},
+    {"a\\\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b c", "d", NULL}},
+    {"a\\\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b", "c d", NULL}},
+    {"\"ab c\" d", {"ab c", "d", NULL}},
+    {"\"a\"b c\" d", {"ab", "c d", NULL}},
+    {"\"a\"\"b c\" d", {"a\"b c", "d", NULL}},
+    {"\"a\"\"\"b c\" d", {"a\"b", "c d", NULL}},
+    {"\"a\"\"\"\"b c\" d", {"a\"\"b c", "d", NULL}},
+    {"\"a\"\"\"\"\"b c\" d", {"a\"\"b", "c d", NULL}},
+    {"\"a\"\"\"\"\"\"b c\" d", {"a\"\"\"b c", "d", NULL}},
+    {"\"a\"\"\"\"\"\"\"b c\" d", {"a\"\"\"b", "c d", NULL}},
+    {"\"a\"\"\"\"\"\"\"\"b c\" d", {"a\"\"\"\"b c", "d", NULL}},
+    {"\"a\\b c\" d", {"a\\b c", "d", NULL}},
+    {"\"a\\\"b c\" d", {"a\"b c", "d", NULL}},
+    {"\"a\\\"\"b c\" d", {"a\"b", "c d", NULL}},
+    {"\"a\\\"\"\"b c\" d", {"a\"\"b c", "d", NULL}},
+    {"\"a\\\"\"\"\"b c\" d", {"a\"\"b", "c d", NULL}},
+    {"\"a\\\"\"\"\"\"b c\" d", {"a\"\"\"b c", "d", NULL}},
+    {"\"a\\\"\"\"\"\"\"b c\" d", {"a\"\"\"b", "c d", NULL}},
+    {"\"a\\\"\"\"\"\"\"\"b c\" d", {"a\"\"\"\"b c", "d", NULL}},
+    {"\"a\\\"\"\"\"\"\"\"\"b c\" d", {"a\"\"\"\"b", "c d", NULL}},
+    {"\"a\\\\b c\" d", {"a\\\\b c", "d", NULL}},
+    {"\"a\\\\\"b c\" d", {"a\\b", "c d", NULL}},
+    {"\"a\\\\\"\"b c\" d", {"a\\\"b c", "d", NULL}},
+    {"\"a\\\\\"\"\"b c\" d", {"a\\\"b", "c d", NULL}},
+    {"\"a\\\\\"\"\"\"b c\" d", {"a\\\"\"b c", "d", NULL}},
+    {"\"a\\\\\"\"\"\"\"b c\" d", {"a\\\"\"b", "c d", NULL}},
+    {"\"a\\\\\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b c", "d", NULL}},
+    {"\"a\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b", "c d", NULL}},
+    {"\"a\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"\"b c", "d", NULL}},
+    {"\"a\\\\\\b c\" d", {"a\\\\\\b c", "d", NULL}},
+    {"\"a\\\\\\\"b c\" d", {"a\\\"b c", "d", NULL}},
+    {"\"a\\\\\\\"\"b c\" d", {"a\\\"b", "c d", NULL}},
+    {"\"a\\\\\\\"\"\"b c\" d", {"a\\\"\"b c", "d", NULL}},
+    {"\"a\\\\\\\"\"\"\"b c\" d", {"a\\\"\"b", "c d", NULL}},
+    {"\"a\\\\\\\"\"\"\"\"b c\" d", {"a\\\"\"\"b c", "d", NULL}},
+    {"\"a\\\\\\\"\"\"\"\"\"b c\" d", {"a\\\"\"\"b", "c d", NULL}},
+    {"\"a\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"\"b c", "d", NULL}},
+    {"\"a\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\"\"\"\"b", "c d", NULL}},
+    {"\"a\\\\\\\\b c\" d", {"a\\\\\\\\b c", "d", NULL}},
+    {"\"a\\\\\\\\\"b c\" d", {"a\\\\b", "c d", NULL}},
+    {"\"a\\\\\\\\\"\"b c\" d", {"a\\\\\"b c", "d", NULL}},
+    {"\"a\\\\\\\\\"\"\"b c\" d", {"a\\\\\"b", "c d", NULL}},
+    {"\"a\\\\\\\\\"\"\"\"b c\" d", {"a\\\\\"\"b c", "d", NULL}},
+    {"\"a\\\\\\\\\"\"\"\"\"b c\" d", {"a\\\\\"\"b", "c d", NULL}},
+    {"\"a\\\\\\\\\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b c", "d", NULL}},
+    {"\"a\\\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b", "c d", NULL}},
+    {"\"a\\\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"\"b c", "d", NULL}},
+#else /* MOD3 */
+    /* VS7 mod-3 behaviour. */
     {"ab c\" d", {"ab", "c d", NULL}},
     {"a\"b c\" d", {"ab c", "d", NULL}},
     {"a\"\"b c\" d", {"ab", "c d", NULL}},
@@ -512,6 +649,7 @@ const struct argv_test {
     {"\"a\\\\\\\\\"\"\"\"\"\"b c\" d", {"a\\\\\"\"b c", "d", NULL}},
     {"\"a\\\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"b", "c d", NULL}},
     {"\"a\\\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b", "c d", NULL}},
+#endif /* MOD3 */
 };
 
 int main(int argc, char **argv)
