@@ -27,3 +27,4 @@ add_library(charset STATIC
   toucs.c
   utf8.c
   xenc.c)
+add_dependencies(charset generated_sbcsdat_c)

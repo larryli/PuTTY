@@ -60,6 +60,7 @@ add_library(utils STATIC
   utils/x11_make_greeting.c
   utils/x11_parse_ip.c
   ${GENERATED_COMMIT_C})
+add_dependencies(utils cmake_commit_c)
 
 add_library(logging OBJECT
   logging.c)
