@@ -25,8 +25,15 @@ include(CheckCSourceCompiles)
 set(CMAKE_REQUIRED_DEFINITIONS -D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE)
 
 check_include_files("windows.h;winresrc.h" HAVE_WINRESRC_H)
-check_include_files("windows.h;winres.h" HAVE_WINRES_H)
-check_include_files("windows.h;win.h" HAVE_WIN_H)
+if(NOT HAVE_WINRESRC_H)
+  # A couple of fallback names for the header file you can include in
+  # .rc files. We conditionalise even these checks, to save effort at
+  # cmake time.
+  check_include_files("windows.h;winres.h" HAVE_WINRES_H)
+  if(NOT HAVE_WINRES_H)
+    check_include_files("windows.h;win.h" HAVE_WIN_H)
+  endif()
+endif()
 check_include_files("stdint.h" HAVE_STDINT_H)
 define_negation(HAVE_NO_STDINT_H HAVE_STDINT_H)
 
