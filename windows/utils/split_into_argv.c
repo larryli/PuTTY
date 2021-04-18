@@ -646,10 +646,12 @@ int main(int argc, char **argv)
      * If we get here, we were invoked with no arguments, so just
      * run the tests.
      */
+    int passes = 0, fails = 0;
 
     for (i = 0; i < lenof(argv_tests); i++) {
         int ac;
         char **av;
+        bool failed = false;
 
         split_into_argv((char *)argv_tests[i].cmdline, &ac, &av, NULL);
 
@@ -658,6 +660,7 @@ int main(int argc, char **argv)
                 printf("failed test %d (|%s|) arg %d: |%s| should be |%s|\n",
                        i, argv_tests[i].cmdline,
                        j, av[j], argv_tests[i].argv[j]);
+                failed = true;
             }
 #ifdef VERBOSE
             else {
@@ -667,15 +670,33 @@ int main(int argc, char **argv)
             }
 #endif
         }
-        if (j < ac)
+        if (j < ac) {
             printf("failed test %d (|%s|): %d args returned, should be %d\n",
                    i, argv_tests[i].cmdline, ac, j);
-        if (argv_tests[i].argv[j])
+            failed = true;
+        }
+        if (argv_tests[i].argv[j]) {
             printf("failed test %d (|%s|): %d args returned, should be more\n",
                    i, argv_tests[i].cmdline, ac);
+            failed = true;
+        }
+
+        if (failed)
+            fails++;
+        else
+            passes++;
     }
 
-    return 0;
+    printf("passed %d failed %d (%s mode)\n",
+           passes, fails,
+#if MOD3
+           "mod 3"
+#else
+           "mod 2"
+#endif
+        );
+
+    return fails != 0;
 }
 
 #endif /* TEST */
