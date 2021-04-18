@@ -1154,6 +1154,16 @@ inactive. And Pageant spends most of its time inactive.
 
 \H{faq-admin} Administrative questions
 
+\S{faq-putty-org}{Question} Is \cw{putty.org} your website?
+
+No, it isn't. \cw{putty.org} is run by an opportunist who uses it to
+advertise their own commercial SSH implementation to people looking
+for our free one. We don't own that site, we can't control it, and we
+don't advise anyone to use it in preference to our own site.
+
+The real PuTTY web site, run by the PuTTY team, has always been at
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/}\cw{https://www.chiark.greenend.org.uk/~sgtatham/putty/}.
+
 \S{faq-domain}{Question} Would you like me to register you a nicer
 domain name?
 
