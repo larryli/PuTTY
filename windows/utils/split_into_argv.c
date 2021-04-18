@@ -369,27 +369,29 @@ int main(int argc, char **argv)
         }
 
         if (!strcmp(argv[1], "-split") && argc > 2) {
-            char *str = malloc(20 + strlen(argv[0]) + strlen(argv[2]));
-            char *p, *q;
+            strbuf *cmdline = strbuf_new();
+            char *p;
 
-            q = str + sprintf(str, "%s -splat ", argv[0]);
+            strbuf_catf(cmdline, "%s -splat ", argv[0]);
             printf("    {\"");
-            for (p = argv[2]; *p; p++, q++) {
-                switch (*p) {
-                  case '/':  printf("\\\\"); *q = '\\'; break;
-                  case '\'': printf("\\\""); *q = '"';  break;
-                  case '_':  printf(" ");    *q = ' ';  break;
-                  default:   putchar(*p);    *q = *p;   break;
-                }
+            size_t args_start = cmdline->len;
+            for (p = argv[2]; *p; p++) {
+                char c = (*p == '/' ? '\\' :
+                          *p == '\'' ? '"' :
+                          *p == '_' ? ' ' :
+                          *p);
+                put_byte(cmdline, c);
             }
-            *p = '\0';
+            write_c_string_literal(stdout, ptrlen_from_asciz(
+                                       cmdline->s + args_start));
             printf("\", {");
             fflush(stdout);
 
-            system(str);
+            system(cmdline->s);
 
             printf("}},\n");
 
+            strbuf_free(cmdline);
             return 0;
         }
 
