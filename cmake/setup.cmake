@@ -55,7 +55,7 @@ add_custom_target(cmake_commit_c
   DEPENDS check_git_commit ${INTERMEDIATE_COMMIT_C}
   COMMENT "Updating cmake_commit.c")
 
-function(add_platform_sources_to_library target)
+function(add_sources_from_current_dir target)
   set(sources ${ARGN})
   list(TRANSFORM sources PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/)
   target_sources(${target} PRIVATE ${sources})

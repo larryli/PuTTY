@@ -1,6 +1,6 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_platform_sources_to_library(utils
+add_sources_from_current_dir(utils
   utils/arm_arch_queries.c
   utils/capi.c
   utils/defaults.c
@@ -28,27 +28,27 @@ add_platform_sources_to_library(utils
   utils/win_strerror.c
   winucs.c)
 if(NOT HAVE_STRTOUMAX)
-  add_platform_sources_to_library(utils utils/strtoumax.c)
+  add_sources_from_current_dir(utils utils/strtoumax.c)
 endif()
-add_platform_sources_to_library(eventloop
+add_sources_from_current_dir(eventloop
   wincliloop.c winhandl.c)
-add_platform_sources_to_library(console
+add_sources_from_current_dir(console
   winselcli.c winnohlp.c wincons.c)
-add_platform_sources_to_library(settings
+add_sources_from_current_dir(settings
   winstore.c)
-add_platform_sources_to_library(network
+add_sources_from_current_dir(network
   winnet.c winhsock.c winnpc.c winnps.c winproxy.c winx11.c)
-add_platform_sources_to_library(sshcommon
+add_sources_from_current_dir(sshcommon
   winnoise.c)
-add_platform_sources_to_library(sshclient
+add_sources_from_current_dir(sshclient
   winpgntc.c wingss.c winshare.c)
-add_platform_sources_to_library(sftpclient
+add_sources_from_current_dir(sftpclient
   winsftp.c)
-add_platform_sources_to_library(otherbackends
+add_sources_from_current_dir(otherbackends
   winser.c)
-add_platform_sources_to_library(agent
+add_sources_from_current_dir(agent
   winpgntc.c)
-add_platform_sources_to_library(guiterminal
+add_sources_from_current_dir(guiterminal
   windlg.c winctrls.c wincfg.c winprint.c winjump.c sizetip.c)
 add_dependencies(guiterminal generated_licence_h) # windlg.c uses licence.h
 

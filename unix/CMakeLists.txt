@@ -1,6 +1,6 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_platform_sources_to_library(utils
+add_sources_from_current_dir(utils
   utils/arm_arch_queries.c
   utils/block_signal.c
   utils/cloexec.c
@@ -23,25 +23,25 @@ add_platform_sources_to_library(utils
   # We want the ISO C implementation of ltime(), because we don't have
   # a local better alternative
   ../utils/ltime.c)
-add_platform_sources_to_library(eventloop
+add_sources_from_current_dir(eventloop
   uxcliloop.c uxsel.c)
-add_platform_sources_to_library(console
+add_sources_from_current_dir(console
   uxcons.c)
-add_platform_sources_to_library(settings
+add_sources_from_current_dir(settings
   uxstore.c)
-add_platform_sources_to_library(network
+add_sources_from_current_dir(network
   uxnet.c uxfdsock.c uxagentsock.c uxpeer.c uxproxy.c ux_x11.c)
-add_platform_sources_to_library(sshcommon
+add_sources_from_current_dir(sshcommon
   uxnoise.c)
-add_platform_sources_to_library(sshclient
+add_sources_from_current_dir(sshclient
   uxgss.c uxagentc.c uxshare.c)
-add_platform_sources_to_library(sshserver
+add_sources_from_current_dir(sshserver
   uxsftpserver.c procnet.c)
-add_platform_sources_to_library(sftpclient
+add_sources_from_current_dir(sftpclient
   uxsftp.c)
-add_platform_sources_to_library(otherbackends
+add_sources_from_current_dir(otherbackends
   uxser.c)
-add_platform_sources_to_library(agent
+add_sources_from_current_dir(agent
   uxagentc.c)
 
 add_executable(fuzzterm
@@ -144,9 +144,9 @@ target_link_libraries(uppity
   eventloop sshserver keygen settings network crypto utils)
 
 if(GTK_FOUND)
-  add_platform_sources_to_library(utils
+  add_sources_from_current_dir(utils
     gtkcols.c)
-  add_platform_sources_to_library(guiterminal
+  add_sources_from_current_dir(guiterminal
     gtkwin.c gtkfont.c gtkdlg.c gtkcfg.c gtkcomm.c uxcfg.c uxucs.c uxprint.c)
   add_dependencies(guiterminal generated_licence_h) # gtkdlg.c uses licence.h
 
