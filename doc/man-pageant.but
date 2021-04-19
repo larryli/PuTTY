@@ -294,6 +294,25 @@ with the \cw{--encrypted} option.)
 (This may leave some keys in cleartext, if they were not previously
 added with the \cw{--encrypted} option.)
 
+\dt \cw{--test-sign} \e{key-identifier}
+
+\dt \cw{--test-sign-with-flags=}\e{flags} \e{key-identifier}
+
+\dd Sign arbitrary data with the given key. This mode is only likely
+to be useful when testing \c{pageant} itself.
+
+\lcont{
+
+The data to sign is taken from standard input, signed by the agent
+with the key identified by \e{key-identifier}, and the resulting
+signature emitted on standard output (as a binary blob in the format
+defined by the SSH specifications).
+
+\e{flags} is a number representing a combination of flag bits defined
+by the SSH agent protocol.
+
+}
+
 \S{pageant-manpage-askpass} SSH-ASKPASS REPLACEMENT
 
 \dt \cw{--askpass} \e{prompt}
@@ -348,6 +367,19 @@ style of POSIX / Bourne shells (\cw{-s}) or C shells (\cw{-c})
 respectively. If neither option is given, Pageant will guess based on
 whether the environment variable \cw{SHELL} has a value ending in
 \cq{csh}.
+
+\dt \cw{--symlink} \e{fixed-path}
+
+\dd When operating in agent mode, as well as creating a uniquely named
+listening socket, \c{pageant} will also create (or update) a symbolic
+link at \e{fixed-path} pointing to that socket.
+
+\lcont{
+This allows access to an agent instance by setting the
+\c{SSH_AUTH_SOCK} environment variable to \e{fixed-path}, rather than
+having to use the value invented by \c{pageant} when it starts. It's
+mainly expected to be useful for debugging.
+}
 
 \dt \cw{--encrypted}, \cw{--no-decrypt}
 
