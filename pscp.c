@@ -2196,6 +2196,8 @@ static void usage(void)
     printf("  -l user   connect with specified username\n");
     printf("  -pw passw login with specified password\n");
     printf("  -1 -2     force use of particular SSH protocol version\n");
+    printf("  -ssh -ssh-connection\n");
+    printf("            force use of particular SSH protocol variant\n");
     printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for user authentication\n");

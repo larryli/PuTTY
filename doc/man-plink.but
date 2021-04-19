@@ -56,6 +56,13 @@ to aid in verifying new files released by the PuTTY team.
 
 \dd Force serial mode.
 
+\dt \cw{-ssh-connection}
+
+\dd Force use of the \q{bare \cw{ssh-connection}} protocol. This is
+only likely to be useful when connecting to a \e{psusan(1)} server,
+most likely with an absolute path to a Unix-domain socket in place
+of \e{host}.
+
 \dt \cw{\-proxycmd} \e{command}
 
 \dd Instead of making a TCP connection, use \e{command} as a proxy;
