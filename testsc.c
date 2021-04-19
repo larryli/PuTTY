@@ -216,6 +216,31 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     return x;
 }
 
+#if HAVE_AES_NI
+#define CIPHERS_AES_NI(X, Y) \
+    X(Y, ssh_aes256_sdctr_ni)                   \
+    X(Y, ssh_aes256_cbc_ni)                     \
+    X(Y, ssh_aes192_sdctr_ni)                   \
+    X(Y, ssh_aes192_cbc_ni)                     \
+    X(Y, ssh_aes128_sdctr_ni)                   \
+    X(Y, ssh_aes128_cbc_ni)                     \
+    /* end of list */
+#else
+#define CIPHERS_AES_NI(X, Y)
+#endif
+#if HAVE_NEON_CRYPTO
+#define CIPHERS_AES_NEON(X, Y) \
+    X(Y, ssh_aes256_sdctr_neon)                   \
+    X(Y, ssh_aes256_cbc_neon)                     \
+    X(Y, ssh_aes192_sdctr_neon)                   \
+    X(Y, ssh_aes192_cbc_neon)                     \
+    X(Y, ssh_aes128_sdctr_neon)                   \
+    X(Y, ssh_aes128_cbc_neon)                     \
+    /* end of list */
+#else
+#define CIPHERS_AES_NEON(X, Y)
+#endif
+
 /* Ciphers that we expect to pass this test. Blowfish and Arcfour are
  * intentionally omitted, because we already know they don't. */
 #define CIPHERS(X, Y)                           \
@@ -225,23 +250,19 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_des)                               \
     X(Y, ssh_des_sshcom_ssh2)                   \
     X(Y, ssh_aes256_sdctr)                      \
-    X(Y, ssh_aes256_sdctr_hw)                   \
-    X(Y, ssh_aes256_sdctr_sw)                   \
     X(Y, ssh_aes256_cbc)                        \
-    X(Y, ssh_aes256_cbc_hw)                     \
-    X(Y, ssh_aes256_cbc_sw)                     \
     X(Y, ssh_aes192_sdctr)                      \
-    X(Y, ssh_aes192_sdctr_hw)                   \
-    X(Y, ssh_aes192_sdctr_sw)                   \
     X(Y, ssh_aes192_cbc)                        \
-    X(Y, ssh_aes192_cbc_hw)                     \
-    X(Y, ssh_aes192_cbc_sw)                     \
     X(Y, ssh_aes128_sdctr)                      \
-    X(Y, ssh_aes128_sdctr_hw)                   \
-    X(Y, ssh_aes128_sdctr_sw)                   \
     X(Y, ssh_aes128_cbc)                        \
-    X(Y, ssh_aes128_cbc_hw)                     \
+    X(Y, ssh_aes256_sdctr_sw)                   \
+    X(Y, ssh_aes256_cbc_sw)                     \
+    X(Y, ssh_aes192_sdctr_sw)                   \
+    X(Y, ssh_aes192_cbc_sw)                     \
+    X(Y, ssh_aes128_sdctr_sw)                   \
     X(Y, ssh_aes128_cbc_sw)                     \
+    CIPHERS_AES_NI(X, Y)                        \
+    CIPHERS_AES_NEON(X, Y)                      \
     X(Y, ssh2_chacha20_poly1305)                \
     /* end of list */
 
@@ -258,16 +279,35 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 
 #define MAC_TESTLIST(X, name) X(mac_ ## name)
 
+#if HAVE_SHA_NI
+#define HASH_SHA_NI(X, Y) X(Y, ssh_sha256_ni) X(Y, ssh_sha1_ni)
+#else
+#define HASH_SHA_NI(X, Y)
+#endif
+#if HAVE_NEON_CRYPTO
+#define HASH_SHA_NEON(X, Y) X(Y, ssh_sha256_neon) X(Y, ssh_sha1_neon)
+#else
+#define HASH_SHA_NEON(X, Y)
+#endif
+#if HAVE_NEON_SHA512
+#define HASH_SHA512_NEON(X, Y) X(Y, ssh_sha384_neon) X(Y, ssh_sha512_neon)
+#else
+#define HASH_SHA512_NEON(X, Y)
+#endif
+
 #define HASHES(X, Y)                            \
     X(Y, ssh_md5)                               \
     X(Y, ssh_sha1)                              \
-    X(Y, ssh_sha1_hw)                           \
     X(Y, ssh_sha1_sw)                           \
     X(Y, ssh_sha256)                            \
-    X(Y, ssh_sha256_hw)                         \
     X(Y, ssh_sha256_sw)                         \
     X(Y, ssh_sha384)                            \
     X(Y, ssh_sha512)                            \
+    X(Y, ssh_sha384_sw)                         \
+    X(Y, ssh_sha512_sw)                         \
+    HASH_SHA_NI(X, Y)                           \
+    HASH_SHA_NEON(X, Y)                         \
+    HASH_SHA512_NEON(X, Y)                      \
     X(Y, ssh_sha3_224)                          \
     X(Y, ssh_sha3_256)                          \
     X(Y, ssh_sha3_384)                          \

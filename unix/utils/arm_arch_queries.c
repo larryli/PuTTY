@@ -10,7 +10,7 @@
 
 #if defined __arm__ || defined __aarch64__
 
-bool platform_aes_hw_available(void)
+bool platform_aes_neon_available(void)
 {
 #if defined HWCAP_AES
     return getauxval(AT_HWCAP) & HWCAP_AES;
@@ -26,7 +26,7 @@ bool platform_aes_hw_available(void)
 #endif
 }
 
-bool platform_sha256_hw_available(void)
+bool platform_sha256_neon_available(void)
 {
 #if defined HWCAP_SHA2
     return getauxval(AT_HWCAP) & HWCAP_SHA2;
@@ -40,7 +40,7 @@ bool platform_sha256_hw_available(void)
 #endif
 }
 
-bool platform_sha1_hw_available(void)
+bool platform_sha1_neon_available(void)
 {
 #if defined HWCAP_SHA1
     return getauxval(AT_HWCAP) & HWCAP_SHA1;
@@ -54,7 +54,7 @@ bool platform_sha1_hw_available(void)
 #endif
 }
 
-bool platform_sha512_hw_available(void)
+bool platform_sha512_neon_available(void)
 {
 #if defined HWCAP_SHA512
     return getauxval(AT_HWCAP) & HWCAP_SHA512;

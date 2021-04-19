@@ -207,16 +207,24 @@ static const ssh_hashalg *get_hashalg(BinarySource *in)
         {"md5", &ssh_md5},
         {"sha1", &ssh_sha1},
         {"sha1_sw", &ssh_sha1_sw},
-        {"sha1_hw", &ssh_sha1_hw},
         {"sha256", &ssh_sha256},
-        {"sha256_sw", &ssh_sha256_sw},
-        {"sha256_hw", &ssh_sha256_hw},
         {"sha384", &ssh_sha384},
-        {"sha384_sw", &ssh_sha384_sw},
-        {"sha384_hw", &ssh_sha384_hw},
         {"sha512", &ssh_sha512},
+        {"sha256_sw", &ssh_sha256_sw},
+        {"sha384_sw", &ssh_sha384_sw},
         {"sha512_sw", &ssh_sha512_sw},
-        {"sha512_hw", &ssh_sha512_hw},
+#if HAVE_SHA_NI
+        {"sha1_ni", &ssh_sha1_ni},
+        {"sha256_ni", &ssh_sha256_ni},
+#endif
+#if HAVE_NEON_CRYPTO
+        {"sha1_neon", &ssh_sha1_neon},
+        {"sha256_neon", &ssh_sha256_neon},
+#endif
+#if HAVE_NEON_SHA512
+        {"sha384_neon", &ssh_sha384_neon},
+        {"sha512_neon", &ssh_sha512_neon},
+#endif
         {"sha3_224", &ssh_sha3_224},
         {"sha3_256", &ssh_sha3_256},
         {"sha3_384", &ssh_sha3_384},
@@ -290,23 +298,33 @@ static const ssh_cipheralg *get_cipheralg(BinarySource *in)
         {"3des_ssh1", &ssh_3des_ssh1},
         {"des_cbc", &ssh_des},
         {"aes256_ctr", &ssh_aes256_sdctr},
-        {"aes256_ctr_hw", &ssh_aes256_sdctr_hw},
-        {"aes256_ctr_sw", &ssh_aes256_sdctr_sw},
         {"aes256_cbc", &ssh_aes256_cbc},
-        {"aes256_cbc_hw", &ssh_aes256_cbc_hw},
-        {"aes256_cbc_sw", &ssh_aes256_cbc_sw},
         {"aes192_ctr", &ssh_aes192_sdctr},
-        {"aes192_ctr_hw", &ssh_aes192_sdctr_hw},
-        {"aes192_ctr_sw", &ssh_aes192_sdctr_sw},
         {"aes192_cbc", &ssh_aes192_cbc},
-        {"aes192_cbc_hw", &ssh_aes192_cbc_hw},
-        {"aes192_cbc_sw", &ssh_aes192_cbc_sw},
         {"aes128_ctr", &ssh_aes128_sdctr},
-        {"aes128_ctr_hw", &ssh_aes128_sdctr_hw},
-        {"aes128_ctr_sw", &ssh_aes128_sdctr_sw},
         {"aes128_cbc", &ssh_aes128_cbc},
-        {"aes128_cbc_hw", &ssh_aes128_cbc_hw},
+        {"aes256_ctr_sw", &ssh_aes256_sdctr_sw},
+        {"aes256_cbc_sw", &ssh_aes256_cbc_sw},
+        {"aes192_ctr_sw", &ssh_aes192_sdctr_sw},
+        {"aes192_cbc_sw", &ssh_aes192_cbc_sw},
+        {"aes128_ctr_sw", &ssh_aes128_sdctr_sw},
         {"aes128_cbc_sw", &ssh_aes128_cbc_sw},
+#if HAVE_AES_NI
+        {"aes256_ctr_ni", &ssh_aes256_sdctr_ni},
+        {"aes256_cbc_ni", &ssh_aes256_cbc_ni},
+        {"aes192_ctr_ni", &ssh_aes192_sdctr_ni},
+        {"aes192_cbc_ni", &ssh_aes192_cbc_ni},
+        {"aes128_ctr_ni", &ssh_aes128_sdctr_ni},
+        {"aes128_cbc_ni", &ssh_aes128_cbc_ni},
+#endif
+#if HAVE_NEON_CRYPTO
+        {"aes256_ctr_neon", &ssh_aes256_sdctr_neon},
+        {"aes256_cbc_neon", &ssh_aes256_cbc_neon},
+        {"aes192_ctr_neon", &ssh_aes192_sdctr_neon},
+        {"aes192_cbc_neon", &ssh_aes192_cbc_neon},
+        {"aes128_ctr_neon", &ssh_aes128_sdctr_neon},
+        {"aes128_cbc_neon", &ssh_aes128_cbc_neon},
+#endif
         {"blowfish_ctr", &ssh_blowfish_ssh2_ctr},
         {"blowfish_ssh2", &ssh_blowfish_ssh2},
         {"blowfish_ssh1", &ssh_blowfish_ssh1},
@@ -1284,6 +1302,38 @@ strbuf *argon2_wrapper(Argon2Flavour flavour, uint32_t mem, uint32_t passes,
     return out;
 }
 #define argon2 argon2_wrapper
+
+strbuf *get_implementations_commasep(ptrlen alg)
+{
+    strbuf *out = strbuf_new();
+    put_datapl(out, alg);
+
+    if (ptrlen_startswith(alg, PTRLEN_LITERAL("aes"), NULL)) {
+        strbuf_catf(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+#if HAVE_AES_NI
+        strbuf_catf(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
+#endif
+#if HAVE_NEON_CRYPTO
+        strbuf_catf(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+#endif
+    } else if (ptrlen_startswith(alg, PTRLEN_LITERAL("sha256"), NULL) ||
+               ptrlen_startswith(alg, PTRLEN_LITERAL("sha1"), NULL)) {
+        strbuf_catf(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+#if HAVE_SHA_NI
+        strbuf_catf(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
+#endif
+#if HAVE_NEON_CRYPTO
+        strbuf_catf(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+#endif
+    } else if (ptrlen_startswith(alg, PTRLEN_LITERAL("sha512"), NULL)) {
+        strbuf_catf(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+#if HAVE_NEON_SHA512
+        strbuf_catf(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+#endif
+    }
+
+    return out;
+}
 
 #define OPTIONAL_PTR_FUNC(type)                                         \
     typedef TD_val_##type TD_opt_val_##type;                            \
