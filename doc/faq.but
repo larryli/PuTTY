@@ -1154,7 +1154,7 @@ inactive. And Pageant spends most of its time inactive.
 
 \H{faq-admin} Administrative questions
 
-\S{faq-domain}{Question} Is \cw{putty.org} your website?
+\S{faq-putty-org}{Question} Is \cw{putty.org} your website?
 
 No, it isn't. \cw{putty.org} is run by an opportunist who uses it to
 advertise their own commercial SSH implementation to people looking
