@@ -5,10 +5,6 @@
 #ifndef PUTTY_WINDOWS_PLATFORM_H
 #define PUTTY_WINDOWS_PLATFORM_H
 
-#if HAVE_CMAKE_H
-#include "cmake.h"
-#endif
-
 #include <winsock2.h>
 #include <windows.h>
 #include <stdio.h>                     /* for FILENAME_MAX */

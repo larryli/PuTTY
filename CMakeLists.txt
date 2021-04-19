@@ -3,6 +3,8 @@ project(putty LANGUAGES C)
 
 include(cmake/setup.cmake)
 
+add_compile_definitions(HAVE_CMAKE_H)
+
 add_library(utils STATIC
   utils/base64_decode_atom.c
   utils/base64_encode_atom.c
@@ -160,8 +162,6 @@ add_executable(test_wildcard
   utils/wildcard.c)
 target_compile_definitions(test_wildcard PRIVATE TEST)
 target_link_libraries(test_wildcard utils ${platform_libraries})
-
-add_compile_definitions(HAVE_CMAKE_H)
 
 foreach(subdir ${PLATFORM_SUBDIRS})
   add_subdirectory(${subdir})

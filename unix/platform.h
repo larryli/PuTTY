@@ -5,10 +5,6 @@
 #ifndef PUTTY_UNIX_PLATFORM_H
 #define PUTTY_UNIX_PLATFORM_H
 
-#if HAVE_CMAKE_H
-#include "cmake.h"
-#endif
-
 #include <stdio.h>                     /* for FILENAME_MAX */
 #include <stdint.h>                    /* C99 int types */
 #ifndef NO_LIBDL

@@ -22,6 +22,10 @@
 #error Do not compile this code base with NDEBUG defined!
 #endif
 
+#if HAVE_CMAKE_H
+#include "cmake.h"
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>                     /* for __MINGW_PRINTF_FORMAT */
