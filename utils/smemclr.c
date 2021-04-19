@@ -30,7 +30,7 @@ static void no_op(void *ptr, size_t size) {}
  * time into a pointer to some completely arbitrary function. And
  * therefore it must also avoid optimising away any observable effect
  * beforehand that a completely arbitrary function might depend on -
- * such as the zeroing of our memory re3gion.
+ * such as the zeroing of our memory region.
  */
 static void (*const volatile maybe_read)(void *ptr, size_t size) = no_op;
 
