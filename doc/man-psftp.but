@@ -103,6 +103,19 @@ commands such as \q{\c{w}}).
 
 \dd Force use of SSH protocol version 2.
 
+\dt \cw{-ssh-connection}
+
+\dd Force use of the \q{bare \cw{ssh-connection}} protocol. This is
+only likely to be useful when connecting to a \e{psusan(1)} server,
+most likely with an absolute path to a Unix-domain socket in place
+of \e{host}.
+
+\dt \cw{-ssh}
+
+\dd Force use of the SSH protocol. (This is usually not needed; it's
+only likely to be useful if you need to override some other
+configuration of the \q{bare \cw{ssh-connection}} protocol.)
+
 \dt \cw{-4}, \cw{-6}
 
 \dd Force use of IPv4 or IPv6 for network connections.

@@ -211,6 +211,7 @@ static void usage(void)
     printf("Other options:\n");
     printf("  -v           verbose mode (in agent mode)\n");
     printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
+    printf("  --symlink path   create symlink to socket (in agent mode)\n");
     printf("  --encrypted  when adding keys, don't decrypt\n");
     printf("  -E alg, --fptype alg   fingerprint type for -l (sha256, md5)\n");
     printf("  --tty-prompt force tty-based passphrase prompt\n");

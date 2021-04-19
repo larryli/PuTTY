@@ -3389,13 +3389,13 @@ will be impossible.
 
 This is an SSH-1-specific bug.
 
-\H{config-psusan} The \q{Bare \cw{ssh-connection}} protocol
+\H{config-psusan} The \q{Bare \cw{\i{ssh-connection}}} protocol
 
 In addition to SSH itself, PuTTY also supports a second protocol that
 is derived from SSH. It's listed in the PuTTY GUI under the name
 \q{Bare \cw{ssh-connection}}.
 
-This protocol consists of just the innermost of SSH's three layers: it
+This protocol consists of just the innermost of SSH-2's three layers: it
 leaves out the cryptography layer providing network security, and it
 leaves out the authentication layer where you provide a username and
 prove you're allowed to log in as that user.
@@ -3417,7 +3417,7 @@ network namespace.
 
 Explicit support for this protocol is new in PuTTY 0.75. As of
 2021-04, the only known server for the bare \cw{ssh-connection}
-protocol is the Unix program \cq{psusan} that is also part of the
+protocol is the Unix program \cq{\i{psusan}} that is also part of the
 PuTTY tool suite.
 
 (However, this protocol is also the same one used between instances of
@@ -3427,6 +3427,10 @@ fact, in the Unix version of PuTTY, when a sharing upstream records
 possible to connect another instance of PuTTY directly to that Unix
 socket, by entering its pathname in the host name box and selecting
 \q{Bare \cw{ssh-connection}} as the protocol!)
+
+Many of the options under the SSH panel also affect this protocol,
+although options to do with cryptography and authentication do not,
+for obvious reasons.
 
 I repeat, \s{DON'T TRY TO USE THIS PROTOCOL FOR NETWORK CONNECTIONS!}
 That's not what it's for, and it's not at all safe to do it.

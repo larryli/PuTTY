@@ -157,7 +157,7 @@ void help(void)
            "default 3)\n"
            "            kdf           key derivation function (argon2id, "
            "argon2i, argon2d)\n"
-           "            memory        Kb of memory to use in password hash "
+           "            memory        Kbyte of memory to use in password hash "
            "(default 8192)\n"
            "            time          approx milliseconds to hash for "
            "(default 100)\n"

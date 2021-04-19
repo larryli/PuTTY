@@ -1243,7 +1243,7 @@ typedef struct ppk_save_parameters {
      * Parameters for fmt_version == 3
      */
     Argon2Flavour argon2_flavour;
-    uint32_t argon2_mem;               /* in Kb */
+    uint32_t argon2_mem;               /* in Kbyte */
     bool argon2_passes_auto;
     union {
         uint32_t argon2_passes;        /* if auto == false */

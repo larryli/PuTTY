@@ -1932,7 +1932,7 @@ culpa qui officia deserunt mollit anim id est laborum.
         secret = b"secret"
         assoc = b"associated data"
 
-        # Smallest memory (8Kb) and parallelism (1) parameters the
+        # Smallest memory (8Kbyte) and parallelism (1) parameters the
         # reference implementation will accept, but lots of passes
         self.assertEqualBin(
             argon2('i', 8, 16, 1, 24, pwd, salt, secret, assoc), unhex(

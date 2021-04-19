@@ -195,6 +195,11 @@ saved sessions from
 \IM{protocol selection} selecting a protocol
 \IM{protocol selection} choosing a protocol
 
+\IM{ssh-connection} bare \cw{ssh-connection} protocol
+\IM{ssh-connection} \cw{ssh-connection} protocol, bare
+
+\IM{psusan} \cq{psusan} program
+
 \IM{login name}{username} login name
 \IM{login name}{username} user name
 \IM{login name}{username} account name

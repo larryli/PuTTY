@@ -727,9 +727,8 @@ of these options:
 \b \i\c{-ssh} selects the SSH protocol.
 
 \b \i\c{-ssh-connection} selects the bare ssh-connection protocol.
-(This is only useful in specialised circumstances.)
-\#{FIXME: describe those circumstances somewhere in this manual,
-with reference to the psusan man page}
+(This is only useful in specialised circumstances; see \k{config-psusan}
+for more information.)
 
 \b \i\c{-telnet} selects the Telnet protocol.
 
