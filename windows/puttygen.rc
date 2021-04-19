@@ -69,7 +69,7 @@ BEGIN
     LTEXT "Memory to use for password hash:", IDC_ARGON2_MEM_STATIC,
         5, 36, 115, 8
     EDITTEXT IDC_ARGON2_MEM, 120, 34, 40, 12
-    LTEXT "Kb", IDC_ARGON2_MEM_STATIC2, 170, 36, 34, 8
+    LTEXT "Kbyte", IDC_ARGON2_MEM_STATIC2, 170, 36, 34, 8
     LTEXT "Time to use for password hash:", IDC_ARGON2_TIME_STATIC,
         5, 50, 115, 8
     EDITTEXT IDC_ARGON2_TIME, 120, 48, 40, 12

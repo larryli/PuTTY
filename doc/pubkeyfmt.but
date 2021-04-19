@@ -124,7 +124,7 @@ passphrase:
 password-hashing function.
 
 The three integer values are used as parameters for Argon2, which
-allows you to configure the amount of memory used (in Kb), the number
+allows you to configure the amount of memory used (in Kbyte), the number
 of passes of the algorithm to run (to tune its running time), and the
 degree of parallelism required by the hash function. The salt is
 decoded into a sequence of binary bytes and used as an additional
