@@ -186,6 +186,8 @@
 #define WINHELP_CTX_puttygen_pastekey "puttygen-pastekey"
 #define WINHELP_CTX_puttygen_load "puttygen-load"
 #define WINHELP_CTX_puttygen_conversions "puttygen-conversions"
+#define WINHELP_CTX_puttygen_ppkver "puttygen-save-ppk-version"
+#define WINHELP_CTX_puttygen_kdfparam "puttygen-save-passphrase-hashing"
 
 /* These are used in Windows-specific bits of the frontend.
  * We (ab)use "help context identifiers" (dwContextId) to identify them. */
