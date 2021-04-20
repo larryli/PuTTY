@@ -277,6 +277,11 @@ saved sessions from
 \IM{PPK} \cw{PPK} file
 \IM{PPK} private key file, PuTTY
 
+\IM{Argon2} Argon2 passphrase hashing function
+
+\IM{passphrase hashing} passphrase hashing, for private key files
+\IM{passphrase hashing} password hashing, for private key files
+
 \IM{PGP key fingerprint} PGP key fingerprint
 \IM{PGP key fingerprint} fingerprint, of PGP key
 
