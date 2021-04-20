@@ -153,7 +153,7 @@ The prime-generation method does not affect compatibility: a key
 generated with any of these methods will still work with all the same
 SSH servers.
 
-If you don't care abut this, it's entirely sensible to leave it on the
+If you don't care about this, it's entirely sensible to leave it on the
 default setting.
 
 The available methods are:

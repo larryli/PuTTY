@@ -75,7 +75,7 @@ OpenSSH format, or the standard SSH-1 format.
 \dt \cw{\-\-primes} \e{method}
 
 \dd Method for generating prime numbers. The acceptable values here
-are \c{probable} (the default), \c{proven}, and \c{proven-even}; the
+are \c{probable} (the default), \c{proven}, and \c{proven-even};
 the later methods are slower. (Various synonyms for these method
 names are also accepted.)
 
@@ -99,7 +99,7 @@ probabilistic argument for the safety of the usual method.
 
 }
 
-\dd \cw{\-\-strong-rsa}
+\dt \cw{\-\-strong-rsa}
 
 \dd When generating an RSA key, make sure the prime factors of the key
 modulus are \q{strong primes}. A strong prime is a prime number chosen
