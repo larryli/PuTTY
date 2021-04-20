@@ -182,7 +182,7 @@ a local security standard that demands it, or if you don't trust the
 probabilistic argument for the safety of the usual method.
 
 For RSA keys, there's also an option on the \q{Key} menu to use
-\q{strong primes} as the prime factors of the public key. A strong
+\i{\q{strong} primes} as the prime factors of the public key. A \q{strong}
 prime is a prime number chosen to have a particular structure that
 makes certain factoring algorithms more difficult to apply, so some
 security standards recommend their use. However, the most modern
