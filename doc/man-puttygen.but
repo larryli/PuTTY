@@ -8,12 +8,14 @@
 
 \S{puttygen-manpage-synopsis} SYNOPSIS
 
-\c puttygen ( keyfile | -t keytype [ -b bits ] [ --primes method ] )
-\e bbbbbbbb   iiiiiii   bb iiiiiii   bb iiii     bbbbbbbb iiiiii
-\c          [ -C new-comment ] [ -P ] [ -q ]
-\e            bb iiiiiiiiiii     bb     bb
+\c puttygen ( keyfile | -t keytype [ -b bits ] [ --primes method ] [ -q ] )
+\e bbbbbbbb   iiiiiii   bb iiiiiii   bb iiii     bbbbbbbb iiiiii     bb
+\c          [ -C new-comment ] [ -P ] [ --reencrypt ]
+\e            bb iiiiiiiiiii     bb     bbbbbbbbbbb
 \c          [ -O output-type | -l | -L | -p | --dump ] [ -E fptype ]
 \e            bb iiiiiiiiiii   bb   bb   bb   bbbbbb     bb iiiiii
+\c             [ --ppk-param key=value,... ]
+\e               bbbbbbbbbbb iiibiiiiib
 \c          [ -o output-file ]
 \e            bb iiiiiiiiiii
 
@@ -26,7 +28,7 @@ also interoperate with the key formats used by some other SSH clients.
 When you run \c{puttygen}, it does three things. Firstly, it either
 loads an existing key file (if you specified \e{keyfile}), or
 generates a new key (if you specified \e{keytype}). Then, it
-optionally makes modifications to the key (changing the comment
+optionally makes modifications to the key (such as changing the comment
 and/or the passphrase); finally, it outputs the key, or some
 information about the key, to a file.
 
@@ -75,7 +77,7 @@ OpenSSH format, or the standard SSH-1 format.
 \dt \cw{\-\-primes} \e{method}
 
 \dd Method for generating prime numbers. The acceptable values here
-are \c{probable} (the default), \c{proven}, and \c{proven-even}; the
+are \c{probable} (the default), \c{proven}, and \c{proven-even};
 the later methods are slower. (Various synonyms for these method
 names are also accepted.)
 
@@ -99,7 +101,7 @@ probabilistic argument for the safety of the usual method.
 
 }
 
-\dd \cw{\-\-strong-rsa}
+\dt \cw{\-\-strong-rsa}
 
 \dd When generating an RSA key, make sure the prime factors of the key
 modulus are \q{strong primes}. A strong prime is a prime number chosen
@@ -141,6 +143,70 @@ to type).
 automatic when you are generating a new key, but not when you are
 modifying an existing key.
 
+\dt \cw{\-\-reencrypt}
+
+\dd For an existing private key saved with a passphrase, refresh the
+encryption without changing the passphrase.
+
+\lcont{
+This is most likely to be useful with the \cw{\-\-ppk-param} option,
+to change some aspect of the key file's format or encryption.
+}
+
+\dt \cw{\-\-ppk-param} \e{key}\cw{=}\e{value}\cw{,}...
+
+\dd When saving a PPK file (the default \cw{private} output type for SSH-2
+keys), adjust details of the on-disk format.
+
+\lcont{
+
+Aspects to change are specified as a series of \e{key}\cw{=}\e{value} pairs
+separated by commas. The \e{key}s are:
+
+\dt \cw{version}
+
+\dd The PPK format version. Possible values are \cw{3} (the default)
+and \cw{2} (which is less resistant to brute-force decryption, but
+which you might need if your key needs to be used by old versions of
+PuTTY tools, or other PPK consumers).
+
+\lcont{
+The following \e{key}s only affect PPK version 3 files.
+}
+
+\dt \cw{kdf}
+
+\dd The variant of the Argon2 key derivation function to use. Options
+are \cw{argon2id} (default, and recommended), \cw{argon2i}, and
+\cw{argon2d}.
+
+\lcont{
+You might change this if you consider your exposure to side-channel
+attacks to be different to the norm.
+}
+
+\dt \cw{memory}
+
+\dd The amount of memory needed to decrypt the key, in Kbyte. Default
+is 8192 (i.e., 8 Mbyte).
+
+\dt \cw{time}
+
+\dd Approximate time, on this machine, required to attempt decrypting
+the key, in milliseconds. Default is 100 (ms).
+
+\dt \cw{passes}
+
+\dd Alternative to \cw{time}: explicitly specify the number of hash
+passes required to attempt decrypting the key.
+
+\dt \cw{parallelism}
+
+\dd Number of parallelisable threads that can be used to decrypt the
+key. Default is 1 (force decryption to run single-threaded).
+
+}
+
 In the third phase, \c{puttygen} saves the key or information
 about it. The options to control this are:
 
@@ -154,7 +220,8 @@ Acceptable options are:
 \dt \cw{private}
 
 \dd Save the private key in a format usable by PuTTY. This will either
-be the standard SSH-1 key format, or PuTTY's own SSH-2 key format.
+be the standard SSH-1 key format, or PuTTY's own SSH-2 key format
+(\q{PPK}). This is the default.
 
 \dt \cw{public}
 

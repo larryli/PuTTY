@@ -448,7 +448,7 @@ int main(int argc, char **argv)
                                     params.argon2_milliseconds = n;
                                 } else if (!strcmp(val, "passes")) {
                                     params.argon2_passes_auto = false;
-                                    params.argon2_milliseconds = n;
+                                    params.argon2_passes = n;
                                 } else if (!strcmp(val, "parallelism") ||
                                            !strcmp(val, "parallel")) {
                                     params.argon2_parallelism = n;

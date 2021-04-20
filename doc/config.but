@@ -14,9 +14,9 @@ save your settings to be reloaded later.
 
 \S{config-hostname} The \i{host name} section
 
-The top box on the Session panel, labelled \q{Specify your
-connection by host name}, contains the details that need to be
-filled in before PuTTY can open a session at all.
+The top box on the Session panel, labelled \q{Specify the destination
+you want to connect to}, contains the details that need to be filled
+in before PuTTY can open a session at all.
 
 \b The \q{Host Name} box is where you type the name, or the \i{IP
 address}, of the server you want to connect to.

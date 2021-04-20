@@ -310,6 +310,11 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
         SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
+        if (has_help())
+            SetWindowLongPtr(hwnd, GWL_EXSTYLE,
+                             GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
+                             WS_EX_CONTEXTHELP);
+
         /*
          * Centre the window.
          */
@@ -407,6 +412,36 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
             return 0;
         }
         return 0;
+      case WM_HELP: {
+        int id = ((LPHELPINFO)lParam)->iCtrlId;
+        const char *topic = NULL;
+        switch (id) {
+          case IDC_PPKVER_STATIC:
+          case IDC_PPKVER_2:
+          case IDC_PPKVER_3:
+            topic = WINHELP_CTX_puttygen_ppkver; break;
+          case IDC_KDF_STATIC:
+          case IDC_KDF_ARGON2ID:
+          case IDC_KDF_ARGON2I:
+          case IDC_KDF_ARGON2D:
+          case IDC_ARGON2_MEM_STATIC:
+          case IDC_ARGON2_MEM:
+          case IDC_ARGON2_MEM_STATIC2:
+          case IDC_ARGON2_TIME_STATIC:
+          case IDC_ARGON2_TIME:
+          case IDC_PPK_AUTO_YES:
+          case IDC_PPK_AUTO_NO:
+          case IDC_ARGON2_PARALLEL_STATIC:
+          case IDC_ARGON2_PARALLEL:
+            topic = WINHELP_CTX_puttygen_kdfparam; break;
+        }
+        if (topic) {
+          launch_help(hwnd, topic);
+        } else {
+          MessageBeep(0);
+        }
+        break;
+      }
       case WM_CLOSE:
         EndDialog(hwnd, 0);
         return 0;
