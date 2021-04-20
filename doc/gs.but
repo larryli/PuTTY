@@ -18,7 +18,7 @@ you want to connect to. You should have been told this by the
 provider of your login account.
 
 Now select a login \i{protocol} to use, from the \q{Connection type}
-buttons. For a login session, you should select \i{SSH}, \i{Telnet},
+controls. For a login session, you should select \i{SSH}, \i{Telnet},
 \i{Rlogin}, or \i{SUPDUP}. See \k{which-one} for a description of the
 differences between these protocols, and advice on which one to
 use. The \I{raw protocol}\e{Raw} protocol is not used for interactive
@@ -37,7 +37,7 @@ provides login services on a non-standard port, your system
 administrator should have told you which one. (For example, many
 \i{MUDs} run Telnet service on a port other than 23.)
 
-Once you have filled in the \q{Host Name}, \q{Protocol}, and
+Once you have filled in the \q{Host Name}, \q{Connection type}, and
 possibly \q{Port} settings, you are ready to connect. Press the
 \q{Open} button at the bottom of the dialog box, and PuTTY will
 begin trying to connect you to the server.
