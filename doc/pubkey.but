@@ -108,7 +108,8 @@ Before generating a key pair using PuTTYgen, you need to select
 which type of key you need.
 
 The current version of the SSH protocol, SSH-2, supports several
-different key types. PuTTYgen can generate:
+different key types, although specific servers may not support all of
+them. PuTTYgen can generate:
 
 \b An \i{RSA} key for use with the SSH-2 protocol.
 
