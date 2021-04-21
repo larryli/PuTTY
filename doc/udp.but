@@ -752,46 +752,6 @@ other two full implementation vtables.
 
 }
 
-\H{udp-compile-once} Single compilation of each source file
-
-The PuTTY build system for any given platform works on the following
-very simple model:
-
-\b Each source file is compiled precisely once, to produce a single
-object file.
-
-\b Each binary is created by linking together some combination of
-those object files.
-
-Therefore, if you need to introduce functionality to a particular
-module which is only available in some of the tool binaries (for
-example, a cryptographic proxy authentication mechanism which needs
-to be left out of PuTTYtel to maintain its usability in
-crypto-hostile jurisdictions), the \e{wrong} way to do it is by
-adding \cw{#ifdef}s in (say) \cw{proxy.c}. This would require
-separate compilation of \cw{proxy.c} for PuTTY and PuTTYtel, which
-means that the entire \cw{Makefile}-generation architecture (see
-\k{udp-makefiles-auto}) would have to be significantly redesigned.
-Unless you are prepared to do that redesign yourself, \e{and}
-guarantee that it will still port to any future platforms we might
-decide to run on, you should not attempt this!
-
-The \e{right} way to introduce a feature like this is to put the new
-code in a separate source file, and (if necessary) introduce a
-second new source file defining the same set of functions, but
-defining them as stubs which don't provide the feature. Then the
-module whose behaviour needs to vary (\cw{proxy.c} in this example)
-can call the functions defined in these two modules, and it will
-either provide the new feature or not provide it according to which
-of your new modules it is linked with.
-
-Of course, object files are never shared \e{between} platforms; so
-it is allowable to use \cw{#ifdef} to select between platforms. This
-happens in \cw{puttyps.h} (choosing which of the platform-specific
-include files to use), and also in \cw{misc.c} (the Windows-specific
-\q{Minefield} memory diagnostic system). It should be used
-sparingly, though, if at all.
-
 \H{udp-perfection} Do as we say, not as we do
 
 The current PuTTY code probably does not conform strictly to \e{all}
