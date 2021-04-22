@@ -257,6 +257,11 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         burnstr(p->passphrase);
         p->passphrase = dupstr("");
         SetDlgItemText(hwnd, IDC_PASSPHRASE_EDITBOX, p->passphrase);
+        if (!p->help_topic || !has_help()) {
+            HWND item = GetDlgItem(hwnd, IDHELP);
+            if (item)
+                DestroyWindow(item);
+        }
         return 0;
       }
       case WM_COMMAND:
