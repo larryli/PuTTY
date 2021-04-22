@@ -400,12 +400,9 @@ bool sesschan_enable_x11_forwarding(
     sesschan *sess = container_of(chan, sesschan, chan);
     strbuf *authdata_bin;
     size_t i;
-    char screensuffix[32];
 
     if (oneshot)
         return false;                  /* not supported */
-
-    snprintf(screensuffix, sizeof(screensuffix), ".%u", screen_number);
 
     /*
      * Decode the authorisation data from ASCII hex into binary.
@@ -430,11 +427,14 @@ bool sesschan_enable_x11_forwarding(
 
     sess->xfwd_plug.vt = &xfwd_plugvt;
 
+    char *screensuffix = dupprintf(".%u", screen_number);
+
     sess->n_x11_sockets = platform_make_x11_server(
         &sess->xfwd_plug, appname, 10, screensuffix,
         authproto, ptrlen_from_strbuf(authdata_bin),
         sess->x11_sockets, sess->conf);
 
+    sfree(screensuffix);
     strbuf_free(authdata_bin);
     return sess->n_x11_sockets != 0;
 }
