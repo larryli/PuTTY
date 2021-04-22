@@ -7,7 +7,7 @@
 #include "puttymem.h"
 
 #include "mpint.h"
-#include "mpint_i.h"
+#include "crypto/mpint_i.h"
 
 /*
  * This global symbol is also defined in ssh2kex-client.c, to ensure

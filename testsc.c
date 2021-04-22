@@ -79,7 +79,7 @@
 #include "ssh.h"
 #include "misc.h"
 #include "mpint.h"
-#include "ecc.h"
+#include "crypto/ecc.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
