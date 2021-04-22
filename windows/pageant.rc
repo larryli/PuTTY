@@ -27,7 +27,7 @@ BEGIN
     PUSHBUTTON "&Cancel", IDCANCEL, 80, 42, 40, 14
 END
 
-IDD_ONDEMAND_PASSPHRASE DIALOG DISCARDABLE 0, 0, 250, 70
+IDD_ONDEMAND_PASSPHRASE DIALOG DISCARDABLE 0, 0, 250, 78
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Pageant: Decrypting Stored Key"
 FONT 8, "MS Shell Dlg"
@@ -35,12 +35,15 @@ BEGIN
     CTEXT "A client of Pageant wants to use the following encrypted key:",
         IDC_PASSPHRASE_STATIC1, 10, 6, 230, 8
     CTEXT "", IDC_PASSPHRASE_FINGERPRINT, 10, 16, 230, 8
-    CTEXT "If you intended this, enter the passphrase to decrypt the key.",
+    CTEXT "If you intended this, click in this box to make sure it has",
         IDC_PASSPHRASE_STATIC2, 10, 26, 230, 8
-    EDITTEXT IDC_PASSPHRASE_EDITBOX, 10, 36, 230, 12,
+    CTEXT "input focus, then enter the passphrase to decrypt the key.",
+        IDC_PASSPHRASE_STATIC3, 10, 34, 230, 8
+    EDITTEXT IDC_PASSPHRASE_EDITBOX, 10, 44, 230, 12,
         ES_PASSWORD | ES_AUTOHSCROLL
-    DEFPUSHBUTTON "O&K", IDOK, 75, 52, 40, 14
-    PUSHBUTTON "&Cancel", IDCANCEL, 135, 52, 40, 14
+    DEFPUSHBUTTON "O&K", IDOK, 45, 60, 40, 14
+    PUSHBUTTON "&Cancel", IDCANCEL, 105, 60, 40, 14
+    PUSHBUTTON "&Help", IDHELP, 165, 60, 50, 14
 END
 
 IDD_KEYLIST DIALOG DISCARDABLE 0, 0, 450, 236
