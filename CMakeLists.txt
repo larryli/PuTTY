@@ -30,9 +30,8 @@ add_library(network STATIC
   be_misc.c nullplug.c errsock.c proxy.c logging.c x11disp.c)
 
 add_library(keygen STATIC
-  millerrabin.c mpunsafe.c pockle.c primecandidate.c smallprimes.c
-  sshdssg.c sshecdsag.c sshprime.c sshrsag.c
   import.c)
+add_subdirectory(keygen)
 
 add_library(agent STATIC
   sshpubk.c pageant.c aqsync.c)

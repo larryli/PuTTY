@@ -1,0 +1,10 @@
+add_sources_from_current_dir(keygen
+  dsa.c
+  ecdsa.c
+  millerrabin.c
+  mpunsafe.c
+  pockle.c
+  prime.c
+  primecandidate.c
+  rsa.c
+  smallprimes.c)
