@@ -44,38 +44,12 @@ add_library(guiterminal STATIC
 add_library(noterminal STATIC
   noterm.c ldisc.c)
 
-add_library(sshcommon OBJECT
-  ssh1bpp.c ssh1censor.c
-  ssh1connection.c ssh1login.c ssh2bpp-bare.c ssh2bpp.c ssh2censor.c
-  ssh2connection.c ssh2transhk.c ssh2transport.c ssh2userauth.c
-  sshcommon.c sshcrcda.c sshgssc.c sshpubk.c sshrand.c
-  sshverstring.c sshzlib.c
-  pgssapi.c portfwd.c x11fwd.c)
-
-add_library(sftpcommon OBJECT
-  sftpcommon.c)
-
 add_library(all-backends OBJECT
   pinger.c)
 
-add_library(sshclient STATIC
-  ssh1connection-client.c ssh2connection-client.c ssh2kex-client.c
-  sshshare.c ssh.c
-  mainchan.c agentf.c
-  $<TARGET_OBJECTS:sshcommon>
-  $<TARGET_OBJECTS:all-backends>
-  $<TARGET_OBJECTS:logging>)
-
-add_library(sshserver STATIC
-  ssh1connection-server.c ssh1login-server.c ssh2connection-server.c
-  ssh2kex-server.c ssh2userauth-server.c sshserver.c
-  sesschan.c
-  sftpserver.c
-  $<TARGET_OBJECTS:sftpcommon>
-  $<TARGET_OBJECTS:sshcommon>)
-
 add_library(sftpclient STATIC
-  psftpcommon.c sftp.c $<TARGET_OBJECTS:sftpcommon>)
+  psftpcommon.c)
+add_subdirectory(ssh)
 
 add_library(otherbackends STATIC
   telnet.c rlogin.c raw.c supdup.c
@@ -83,7 +57,7 @@ add_library(otherbackends STATIC
   $<TARGET_OBJECTS:logging>)
 
 add_executable(testcrypt
-  testcrypt.c sshpubk.c sshcrcda.c)
+  testcrypt.c sshpubk.c ssh/crc-attack-detector.c)
 target_link_libraries(testcrypt
   keygen crypto utils ${platform_libraries})
 

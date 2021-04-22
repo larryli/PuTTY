@@ -10,7 +10,7 @@
 
 #include "putty.h"
 #include "ssh.h"
-#include "sshchan.h"
+#include "ssh/channel.h"
 #include "tree234.h"
 
 struct X11Display *x11_setup_display(const char *display, Conf *conf,

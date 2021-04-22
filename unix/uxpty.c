@@ -25,7 +25,7 @@
 
 #include "putty.h"
 #include "ssh.h"
-#include "sshserver.h" /* to check the prototypes of server-needed things */
+#include "ssh/server.h" /* to check the prototypes of server-needed things */
 #include "tree234.h"
 
 #ifndef OMIT_UTMP
@@ -828,7 +828,7 @@ static void copy_ttymodes_into_termios(
     }
 
 #define TTYMODES_LOCAL_ONLY   /* omit any that this platform doesn't know */
-#include "sshttymodes.h"
+#include "ssh/ttymode-list.h"
 
 #undef TTYMODES_LOCAL_ONLY
 #undef TTYMODE_CHAR
@@ -1468,7 +1468,7 @@ static void pty_special(Backend *be, SessionSpecialCode code, int arg)
         #define SIGNAL_SUB(name) if (code == SS_SIG ## name) sig = SIG ## name;
         #define SIGNAL_MAIN(name, text) SIGNAL_SUB(name)
         #define SIGNALS_LOCAL_ONLY
-        #include "sshsignals.h"
+        #include "ssh/signal-list.h"
         #undef SIGNAL_SUB
         #undef SIGNAL_MAIN
         #undef SIGNALS_LOCAL_ONLY
@@ -1564,7 +1564,7 @@ ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
     }
     #define SIGNAL_MAIN(s, desc) SIGNAL_SUB(s)
     #define SIGNALS_LOCAL_ONLY
-    #include "sshsignals.h"
+    #include "ssh/signal-list.h"
     #undef SIGNAL_MAIN
     #undef SIGNAL_SUB
     #undef SIGNALS_LOCAL_ONLY

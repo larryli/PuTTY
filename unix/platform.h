@@ -67,7 +67,7 @@ struct FontSpec *fontspec_new(const char *name);
 
 extern const struct BackendVtable pty_backend;
 
-#define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in sshshare.c */
+#define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in ssh/sharing.c */
 
 /*
  * Under GTK, we send MA_CLICK _and_ MA_2CLK, or MA_CLICK _and_

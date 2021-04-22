@@ -1,5 +1,5 @@
 /*
- * Main program to compile sshzlib.c into a zlib decoding tool.
+ * Main program to compile ssh/zlib.c into a zlib decoding tool.
  *
  * This is potentially a handy tool in its own right for picking apart
  * Zip files or PDFs or PNGs, because it accepts the bare Deflate

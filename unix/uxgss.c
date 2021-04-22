@@ -1,8 +1,8 @@
 #include "putty.h"
 #ifndef NO_GSSAPI
-#include "pgssapi.h"
-#include "sshgss.h"
-#include "sshgssc.h"
+#include "ssh/pgssapi.h"
+#include "ssh/gss.h"
+#include "ssh/gssc.h"
 
 /* Unix code to set up the GSSAPI library list. */
 

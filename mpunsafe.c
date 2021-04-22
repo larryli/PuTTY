@@ -10,7 +10,7 @@
 #include "crypto/mpint_i.h"
 
 /*
- * This global symbol is also defined in ssh2kex-client.c, to ensure
+ * This global symbol is also defined in ssh/kex2-client.c, to ensure
  * that these unsafe non-constant-time mp_int functions can't end up
  * accidentally linked in to any PuTTY tool that actually makes an SSH
  * client connection.

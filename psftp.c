@@ -12,7 +12,7 @@
 #include "psftp.h"
 #include "storage.h"
 #include "ssh.h"
-#include "sftp.h"
+#include "ssh/sftp.h"
 
 const char *const appname = "PSFTP";
 

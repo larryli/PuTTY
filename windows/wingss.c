@@ -6,9 +6,9 @@
 #define SECURITY_WIN32
 #include <security.h>
 
-#include "pgssapi.h"
-#include "sshgss.h"
-#include "sshgssc.h"
+#include "ssh/pgssapi.h"
+#include "ssh/gss.h"
+#include "ssh/gssc.h"
 
 #include "misc.h"
 

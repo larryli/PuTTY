@@ -326,13 +326,13 @@ typedef enum {
     /*
      * Send a POSIX-style signal. (Useful in SSH and also pterm.)
      *
-     * We use the master list in sshsignals.h to define these enum
+     * We use the master list in ssh/signal-list.h to define these enum
      * values, which will come out looking like names of the form
      * SS_SIGABRT, SS_SIGINT etc.
      */
     #define SIGNAL_MAIN(name, text) SS_SIG ## name,
     #define SIGNAL_SUB(name) SS_SIG ## name,
-    #include "sshsignals.h"
+    #include "ssh/signal-list.h"
     #undef SIGNAL_MAIN
     #undef SIGNAL_SUB
 
@@ -356,7 +356,7 @@ struct SessionSpecial {
     int arg;
 };
 
-/* Needed by both sshchan.h and sshppl.h */
+/* Needed by both ssh/channel.h and ssh/ppl.h */
 typedef void (*add_special_fn_t)(
     void *ctx, const char *text, SessionSpecialCode code, int arg);
 
@@ -1925,7 +1925,7 @@ extern const struct BackendVtable rlogin_backend;
 extern const struct BackendVtable telnet_backend;
 
 /*
- * Exports from ssh.c.
+ * Exports from ssh/ssh.c.
  */
 extern const struct BackendVtable ssh_backend;
 extern const struct BackendVtable sshconn_backend;

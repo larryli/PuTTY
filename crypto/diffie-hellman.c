@@ -96,7 +96,7 @@ const ssh_kexes ssh_diffiehellman_gex = { lenof(gex_list), gex_list };
  * Kerberos v5.
  *
  * (The same encoded OID, minus the two-byte DER header, is defined in
- * pgssapi.c as GSS_MECH_KRB5.)
+ * ssh/pgssapi.c as GSS_MECH_KRB5.)
  */
 #define GSS_KRB5_OID_HASH "toWM5Slw5Ew8Mqkay+al2g=="
 

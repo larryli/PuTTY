@@ -20,8 +20,8 @@
 
 #include "putty.h"
 #include "ssh.h"
-#include "sshserver.h"
-#include "sftp.h"
+#include "ssh/server.h"
+#include "ssh/sftp.h"
 #include "tree234.h"
 
 typedef struct UnixSftpServer UnixSftpServer;

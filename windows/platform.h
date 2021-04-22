@@ -121,7 +121,7 @@ static inline uintmax_t strtoumax(const char *nptr, char **endptr, int base)
 #define strnicmp strncasecmp
 #endif
 
-#define BROKEN_PIPE_ERROR_CODE ERROR_BROKEN_PIPE   /* used in sshshare.c */
+#define BROKEN_PIPE_ERROR_CODE ERROR_BROKEN_PIPE   /* used in ssh/sharing.c */
 
 /*
  * Dynamically linked functions. These come in two flavours:
@@ -261,7 +261,7 @@ void write_aclip(int clipboard, char *, int, bool);
  * couldn't write it if I wanted to, but I haven't bothered), so
  * it's a macro which always returns NULL. With any luck this will
  * cause the compiler to notice it can optimise away the
- * implementation of XDM-AUTHORIZATION-1 in x11fwd.c :-)
+ * implementation of XDM-AUTHORIZATION-1 in ssh/x11fwd.c :-)
  */
 #define sk_getxdmdata(socket, lenp) (NULL)
 

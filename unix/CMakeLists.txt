@@ -88,7 +88,7 @@ add_executable(psocks
   ${CMAKE_SOURCE_DIR}/psocks.c
   ${CMAKE_SOURCE_DIR}/norand.c
   ${CMAKE_SOURCE_DIR}/nocproxy.c
-  ${CMAKE_SOURCE_DIR}/portfwd.c
+  ${CMAKE_SOURCE_DIR}/ssh/portfwd.c
   uxnogtk.c)
 target_link_libraries(psocks
   eventloop console network utils)
@@ -97,7 +97,7 @@ add_executable(psusan
   uxpsusan.c
   ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/nogss.c
-  ${CMAKE_SOURCE_DIR}/scpserver.c
+  ${CMAKE_SOURCE_DIR}/ssh/scpserver.c
   uxnogtk.c
   uxpty.c)
 target_link_libraries(psusan
@@ -130,13 +130,13 @@ target_link_libraries(testsc crypto utils)
 
 add_executable(testzlib
   ${CMAKE_SOURCE_DIR}/testzlib.c
-  ${CMAKE_SOURCE_DIR}/sshzlib.c)
+  ${CMAKE_SOURCE_DIR}/ssh/zlib.c)
 target_link_libraries(testzlib utils)
 
 add_executable(uppity
   uxserver.c
   ${CMAKE_SOURCE_DIR}/be_none.c
-  ${CMAKE_SOURCE_DIR}/scpserver.c
+  ${CMAKE_SOURCE_DIR}/ssh/scpserver.c
   uxnogtk.c
   uxpty.c
   ${CMAKE_SOURCE_DIR}/nogss.c)
@@ -161,7 +161,7 @@ if(GTK_FOUND)
     gtkask.c
     ux_x11.c
     uxnoise.c
-    ${CMAKE_SOURCE_DIR}/x11fwd.c)
+    ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c)
   target_link_libraries(pageant
     guimisc eventloop console agent settings network crypto utils
     ${GTK_LIBRARIES})

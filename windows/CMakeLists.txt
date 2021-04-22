@@ -111,7 +111,7 @@ add_executable(psocks
   ${CMAKE_SOURCE_DIR}/psocks.c
   ${CMAKE_SOURCE_DIR}/norand.c
   ${CMAKE_SOURCE_DIR}/nocproxy.c
-  ${CMAKE_SOURCE_DIR}/portfwd.c)
+  ${CMAKE_SOURCE_DIR}/ssh/portfwd.c)
 target_link_libraries(psocks
   eventloop console network utils
   ${platform_libraries})

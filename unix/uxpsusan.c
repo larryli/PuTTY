@@ -39,7 +39,7 @@
 #include "putty.h"
 #include "mpint.h"
 #include "ssh.h"
-#include "sshserver.h"
+#include "ssh/server.h"
 
 const char *const appname = "psusan";
 

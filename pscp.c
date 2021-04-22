@@ -22,7 +22,7 @@
 #include "putty.h"
 #include "psftp.h"
 #include "ssh.h"
-#include "sftp.h"
+#include "ssh/sftp.h"
 #include "storage.h"
 
 static bool list = false;
