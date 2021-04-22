@@ -51,9 +51,9 @@ add_library(sftpclient STATIC
 add_subdirectory(ssh)
 
 add_library(otherbackends STATIC
-  telnet.c rlogin.c raw.c supdup.c
   $<TARGET_OBJECTS:all-backends>
   $<TARGET_OBJECTS:logging>)
+add_subdirectory(otherbackends)
 
 add_executable(testcrypt
   testcrypt.c sshpubk.c ssh/crc-attack-detector.c)

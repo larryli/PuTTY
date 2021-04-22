@@ -45,10 +45,10 @@ static size_t null_sendbuffer(Backend *);
 static void null_size(Backend *, int, int);
 static void null_special(Backend *, SessionSpecialCode, int);
 static const SessionSpecial *null_get_specials(Backend *);
-static int null_connected(Backend *);
+static bool null_connected(Backend *);
 static int null_exitcode(Backend *);
-static int null_sendok(Backend *);
-static int null_ldisc(Backend *, int);
+static bool null_sendok(Backend *);
+static bool null_ldisc(Backend *, int);
 static void null_provide_ldisc(Backend *, Ldisc *);
 static void null_unthrottle(Backend *, size_t);
 static int null_cfg_info(Backend *);
@@ -172,9 +172,9 @@ static const SessionSpecial *null_get_specials (Backend *be) {
     return NULL;
 }
 
-static int null_connected(Backend *be) {
+static bool null_connected(Backend *be) {
 
-    return 0;
+    return false;
 }
 
 static int null_exitcode(Backend *be) {
@@ -182,18 +182,18 @@ static int null_exitcode(Backend *be) {
     return 0;
 }
 
-static int null_sendok(Backend *be) {
+static bool null_sendok(Backend *be) {
 
-    return 1;
+    return true;
 }
 
 static void null_unthrottle(Backend *be, size_t backlog) {
 
 }
 
-static int null_ldisc(Backend *be, int option) {
+static bool null_ldisc(Backend *be, int option) {
 
-    return 0;
+    return false;
 }
 
 static void null_provide_ldisc (Backend *be, Ldisc *ldisc) {
