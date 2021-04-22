@@ -1,5 +1,5 @@
 /*
- * DSS key generation.
+ * DSA key generation.
  */
 
 #include "misc.h"
@@ -7,7 +7,7 @@
 #include "sshkeygen.h"
 #include "mpint.h"
 
-int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
+int dsa_generate(struct dsa_key *key, int bits, PrimeGenerationContext *pgc,
                  ProgressReceiver *prog)
 {
     /*
@@ -91,7 +91,7 @@ int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
     mp_free(two);
     mp_free(qm1);
 
-    key->sshk.vt = &ssh_dss;
+    key->sshk.vt = &ssh_dsa;
 
     key->p = p;
     key->q = q;

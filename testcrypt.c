@@ -270,7 +270,7 @@ static const ssh_keyalg *get_keyalg(BinarySource *in)
         const char *key;
         const ssh_keyalg *value;
     } algs[] = {
-        {"dsa", &ssh_dss},
+        {"dsa", &ssh_dsa},
         {"rsa", &ssh_rsa},
         {"ed25519", &ssh_ecdsa_ed25519},
         {"ed448", &ssh_ecdsa_ed448},
@@ -1239,9 +1239,9 @@ ssh_key *rsa_generate_wrapper(int bits, bool strong,
 
 ssh_key *dsa_generate_wrapper(int bits, PrimeGenerationContext *pgc)
 {
-    struct dss_key *dsskey = snew(struct dss_key);
-    dsa_generate(dsskey, bits, pgc, &null_progress);
-    return &dsskey->sshk;
+    struct dsa_key *dsakey = snew(struct dsa_key);
+    dsa_generate(dsakey, bits, pgc, &null_progress);
+    return &dsakey->sshk;
 }
 #define dsa_generate dsa_generate_wrapper
 

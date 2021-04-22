@@ -878,10 +878,10 @@ int main(int argc, char **argv)
         PrimeGenerationContext *pgc = primegen_new_context(primegen);
 
         if (keytype == DSA) {
-            struct dss_key *dsskey = snew(struct dss_key);
-            dsa_generate(dsskey, bits, pgc, &cmdgen_progress);
+            struct dsa_key *dsakey = snew(struct dsa_key);
+            dsa_generate(dsakey, bits, pgc, &cmdgen_progress);
             ssh2key = snew(ssh2_userkey);
-            ssh2key->key = &dsskey->sshk;
+            ssh2key->key = &dsakey->sshk;
             ssh1key = NULL;
         } else if (keytype == ECDSA) {
             struct ecdsa_key *ek = snew(struct ecdsa_key);

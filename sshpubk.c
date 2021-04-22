@@ -563,7 +563,7 @@ const ssh_keyalg *const all_keyalgs[] = {
     &ssh_rsa,
     &ssh_rsa_sha256,
     &ssh_rsa_sha512,
-    &ssh_dss,
+    &ssh_dsa,
     &ssh_ecdsa_nistp256,
     &ssh_ecdsa_nistp384,
     &ssh_ecdsa_nistp521,

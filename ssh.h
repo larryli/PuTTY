@@ -446,7 +446,7 @@ struct RSAKey {
     ssh_key sshk;
 };
 
-struct dss_key {
+struct dsa_key {
     mp_int *p, *q, *g, *y, *x;
     ssh_key sshk;
 };
@@ -614,7 +614,7 @@ mp_int *ssh_ecdhkex_getkey(ecdh_key *key, ptrlen remoteKey);
 /*
  * Helper function for k generation in DSA, reused in ECDSA
  */
-mp_int *dss_gen_k(const char *id_string,
+mp_int *dsa_gen_k(const char *id_string,
                      mp_int *modulus, mp_int *private_key,
                      unsigned char *digest, int digest_len);
 
@@ -1019,7 +1019,7 @@ extern const ssh_kex ssh_ec_kex_nistp256;
 extern const ssh_kex ssh_ec_kex_nistp384;
 extern const ssh_kex ssh_ec_kex_nistp521;
 extern const ssh_kexes ssh_ecdh_kex;
-extern const ssh_keyalg ssh_dss;
+extern const ssh_keyalg ssh_dsa;
 extern const ssh_keyalg ssh_rsa;
 extern const ssh_keyalg ssh_rsa_sha256;
 extern const ssh_keyalg ssh_rsa_sha512;

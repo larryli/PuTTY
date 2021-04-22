@@ -286,7 +286,7 @@ extern const PrimeGenerationPolicy primegen_provable_maurer_complex;
 
 int rsa_generate(RSAKey *key, int bits, bool strong,
                  PrimeGenerationContext *pgc, ProgressReceiver *prog);
-int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
+int dsa_generate(struct dsa_key *key, int bits, PrimeGenerationContext *pgc,
                  ProgressReceiver *prog);
 int ecdsa_generate(struct ecdsa_key *key, int bits);
 int eddsa_generate(struct eddsa_key *key, int bits);

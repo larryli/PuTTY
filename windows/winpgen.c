@@ -593,7 +593,7 @@ struct rsa_key_thread_params {
     bool rsa_strong;
     union {
         RSAKey *key;
-        struct dss_key *dsskey;
+        struct dsa_key *dsakey;
         struct ecdsa_key *eckey;
         struct eddsa_key *edkey;
     };
@@ -610,7 +610,7 @@ static DWORD WINAPI generate_key_thread(void *param)
     PrimeGenerationContext *pgc = primegen_new_context(params->primepolicy);
 
     if (params->keytype == DSA)
-        dsa_generate(params->dsskey, params->key_bits, pgc, &prog.rec);
+        dsa_generate(params->dsakey, params->key_bits, pgc, &prog.rec);
     else if (params->keytype == ECDSA)
         ecdsa_generate(params->eckey, params->curve_bits);
     else if (params->keytype == EDDSA)
@@ -645,7 +645,7 @@ struct MainDlgState {
     unsigned *entropy;
     union {
         RSAKey key;
-        struct dss_key dsskey;
+        struct dsa_key dsakey;
         struct ecdsa_key eckey;
         struct eddsa_key edkey;
     };
@@ -1158,7 +1158,7 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
     params->primepolicy = state->primepolicy;
     params->rsa_strong = state->rsa_strong;
     params->key = &state->key;
-    params->dsskey = &state->dsskey;
+    params->dsakey = &state->dsakey;
 
     if (!CreateThread(NULL, 0, generate_key_thread,
                       params, 0, &threadid)) {
@@ -1828,7 +1828,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE, 0);
         if (state->ssh2) {
             if (state->keytype == DSA) {
-                state->ssh2key.key = &state->dsskey.sshk;
+                state->ssh2key.key = &state->dsakey.sshk;
             } else if (state->keytype == ECDSA) {
                 state->ssh2key.key = &state->eckey.sshk;
             } else if (state->keytype == EDDSA) {
