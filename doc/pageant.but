@@ -247,7 +247,7 @@ available (not just the ones downstream of the place you added it).
 
 \H{pageant-deferred-decryption} Loading keys without decrypting them
 
-You can also add keys to Pageant \e{without} decrypting them. The key
+You can add keys to Pageant \e{without} decrypting them. The key
 file will be held in Pageant's memory still encrypted, and when a
 client program first tries to use the key, Pageant will display a
 dialog box prompting for the passphrase so that the key can be
