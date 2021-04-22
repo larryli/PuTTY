@@ -117,8 +117,8 @@ if(HAVE_WMMINTRIN_H)
       #include <immintrin.h>
       ${include_shaintrin}
       volatile __m128i r, a, b, c;
-      int main(void) { r = _mm_sha256rnds2_epu32(a, b, c); }
-      " sha-ni sha256-ni.c sha1-ni.c)
+      int main(void) { r = _mm_sha256rnds2_epu32(a, b, c); }"
+    ADD_SOURCES_IF_SUCCESSFUL sha256-ni.c sha1-ni.c)
 endif()
 
 # ----------------------------------------------------------------------
