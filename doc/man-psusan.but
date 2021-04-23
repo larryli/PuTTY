@@ -201,6 +201,36 @@ PuTTY session that starts up a clean UML instance when you run it, and
 (if you enabled connection sharing) further instances of the same
 session will connect to the same instance again.
 
+\S2{psusan-manpage-examples-wsl} Windows Subsystem for Linux
+
+On Windows, the default way to use WSL is to run the \cw{wsl} program,
+or one of its aliases, in a Windows console, either by launching it
+from an existing command prompt, or by using a shortcut that opens it
+in a fresh console. This gives you a Linux terminal environment, but
+in a Windows console window.
+
+If you'd prefer to interact with the same environment using PuTTY as
+the terminal (for example, if you prefer PuTTY's mouse shortcuts for
+copy and paste), you can set it up by installing \cw{psusan} in the
+Linux environment, and then setting up a PuTTY saved session that
+talks to it. A nice way to do this is to use the name of the WSL
+distribution as the \q{host name}:
+
+\b set the local proxy command to \cq{wsl -d %host
+/usr/local/bin/psusan} (or wherever you installed \cw{psusan} in the
+Linux system)
+
+\b enter the name of a particular WSL distribution in the host name
+box. (For example, if you installed WSL Debian in the standard way
+from the Windows store, this will just be \q{Debian}.)
+
+\b set the protocol to \q{Bare ssh-connection}, as usual.
+
+Like all the other examples here, this also permits you to forward
+ports in and out of the WSL environment (e.g. expose a WSL2 network
+service through the hypervisor's internal NAT), forward Pageant into
+it, and so on.
+
 \S2{psusan-manpage-examples-schroot} \cw{schroot}
 
 Another example of a container-like environment is the alternative
