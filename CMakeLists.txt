@@ -75,7 +75,42 @@ add_executable(test_wildcard
 target_compile_definitions(test_wildcard PRIVATE TEST)
 target_link_libraries(test_wildcard utils ${platform_libraries})
 
-foreach(subdir ${PLATFORM_SUBDIRS})
+add_executable(plink
+  ${platform}/plink.c
+  be_all_s.c)
+target_link_libraries(plink
+  eventloop noterminal console sshclient otherbackends settings network crypto
+  utils
+  ${platform_libraries})
+installed_program(plink)
+
+add_executable(pscp
+  pscp.c
+  be_ssh.c)
+target_link_libraries(pscp
+  sftpclient eventloop console sshclient settings network crypto utils
+  ${platform_libraries})
+installed_program(pscp)
+
+add_executable(psftp
+  psftp.c
+  be_ssh.c)
+target_link_libraries(psftp
+  sftpclient eventloop console sshclient settings network crypto utils
+  ${platform_libraries})
+installed_program(psftp)
+
+add_executable(psocks
+  ${platform}/psocks.c
+  psocks.c
+  norand.c
+  nocproxy.c
+  ssh/portfwd.c)
+target_link_libraries(psocks
+  eventloop console network utils
+  ${platform_libraries})
+
+foreach(subdir ${platform} ${extra_dirs})
   add_subdirectory(${subdir})
 endforeach()
 

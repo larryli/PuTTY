@@ -61,40 +61,10 @@ target_link_libraries(fuzzterm
 add_executable(osxlaunch
   osxlaunch.c)
 
-add_executable(plink
-  plink.c
-  ${CMAKE_SOURCE_DIR}/be_all_s.c
-  no-gtk.c)
-target_link_libraries(plink
-  eventloop noterminal console sshclient otherbackends settings network crypto
-  utils)
-installed_program(plink)
-
-add_executable(pscp
-  ${CMAKE_SOURCE_DIR}/pscp.c
-  ${CMAKE_SOURCE_DIR}/be_ssh.c
-  no-gtk.c)
-target_link_libraries(pscp
-  sftpclient eventloop console sshclient settings network crypto utils)
-installed_program(pscp)
-
-add_executable(psftp
-  ${CMAKE_SOURCE_DIR}/psftp.c
-  ${CMAKE_SOURCE_DIR}/be_ssh.c
-  no-gtk.c)
-target_link_libraries(psftp
-  sftpclient eventloop console sshclient settings network crypto utils)
-installed_program(psftp)
-
-add_executable(psocks
-  psocks.c
-  ${CMAKE_SOURCE_DIR}/psocks.c
-  ${CMAKE_SOURCE_DIR}/norand.c
-  ${CMAKE_SOURCE_DIR}/nocproxy.c
-  ${CMAKE_SOURCE_DIR}/ssh/portfwd.c
-  no-gtk.c)
-target_link_libraries(psocks
-  eventloop console network utils)
+add_sources_from_current_dir(plink no-gtk.c)
+add_sources_from_current_dir(pscp no-gtk.c)
+add_sources_from_current_dir(psftp no-gtk.c)
+add_sources_from_current_dir(psocks no-gtk.c)
 
 add_executable(psusan
   psusan.c

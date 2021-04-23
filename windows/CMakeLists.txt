@@ -68,53 +68,16 @@ set_target_properties(pageant PROPERTIES
   LINK_FLAGS "${LFLAG_MANIFEST_NO}")
 installed_program(pageant)
 
-add_executable(plink
-  plink.c
-  ${CMAKE_SOURCE_DIR}/be_all_s.c
-  no-jump-list.c
-  nohelp.c
-  plink.rc)
+add_sources_from_current_dir(plink no-jump-list.c nohelp.c plink.rc)
 add_dependencies(plink generated_licence_h)
-target_link_libraries(plink
-  eventloop console noterminal sshclient otherbackends settings network crypto
-  utils
-  ${platform_libraries})
-installed_program(plink)
 
-add_executable(pscp
-  ${CMAKE_SOURCE_DIR}/pscp.c
-  ${CMAKE_SOURCE_DIR}/be_ssh.c
-  no-jump-list.c
-  nohelp.c
-  pscp.rc)
+add_sources_from_current_dir(pscp no-jump-list.c nohelp.c pscp.rc)
 add_dependencies(pscp generated_licence_h)
-target_link_libraries(pscp
-  sftpclient eventloop console sshclient settings network crypto utils
-  ${platform_libraries})
-installed_program(pscp)
 
-add_executable(psftp
-  ${CMAKE_SOURCE_DIR}/psftp.c
-  ${CMAKE_SOURCE_DIR}/be_ssh.c
-  no-jump-list.c
-  nohelp.c
-  psftp.rc)
+add_sources_from_current_dir(psftp no-jump-list.c nohelp.c psftp.rc)
 add_dependencies(psftp generated_licence_h)
-target_link_libraries(psftp
-  sftpclient eventloop console sshclient settings network crypto utils
-  ${platform_libraries})
-installed_program(psftp)
 
-add_executable(psocks
-  psocks.c
-  nohelp.c
-  ${CMAKE_SOURCE_DIR}/psocks.c
-  ${CMAKE_SOURCE_DIR}/norand.c
-  ${CMAKE_SOURCE_DIR}/nocproxy.c
-  ${CMAKE_SOURCE_DIR}/ssh/portfwd.c)
-target_link_libraries(psocks
-  eventloop console network utils
-  ${platform_libraries})
+add_sources_from_current_dir(psocks nohelp.c)
 
 add_executable(putty
   window.c

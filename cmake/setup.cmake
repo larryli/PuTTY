@@ -61,16 +61,20 @@ function(add_sources_from_current_dir target)
   target_sources(${target} PRIVATE ${sources})
 endfunction()
 
+set(extra_dirs)
 if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR WINELIB)
-  include(cmake/platforms/windows.cmake)
+  set(platform windows)
 else()
-  include(cmake/platforms/unix.cmake)
+  set(platform unix)
 endif()
+
+include(cmake/platforms/${platform}.cmake)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${GENERATED_SOURCES_DIR}
-  ${PLATFORM_SUBDIRS})
+  ${platform}
+  ${extra_dirs})
 
 if(PUTTY_DEBUG)
   add_compile_definitions(DEBUG)

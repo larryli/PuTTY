@@ -1,5 +1,3 @@
-set(PLATFORM_SUBDIRS windows)
-
 set(PUTTY_MINEFIELD OFF
   CACHE BOOL "Build PuTTY with its built-in memory debugger 'Minefield'")
 set(PUTTY_GSSAPI ON

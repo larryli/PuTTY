@@ -1,5 +1,3 @@
-set(PLATFORM_SUBDIRS charset unix)
-
 set(PUTTY_GSSAPI DYNAMIC
   CACHE STRING "Build PuTTY with dynamically or statically linked \
 Kerberos / GSSAPI support, if possible")
@@ -79,6 +77,8 @@ endfunction()
 add_optional_system_lib(m pow)
 add_optional_system_lib(rt clock_gettime)
 add_optional_system_lib(xnet socket)
+
+set(extra_dirs charset)
 
 if(PUTTY_GSSAPI STREQUAL DYNAMIC)
   add_optional_system_lib(dl dlopen)
