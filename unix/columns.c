@@ -6,7 +6,7 @@
 #include <gtk/gtk.h>
 #include "defs.h"
 #include "gtkcompat.h"
-#include "gtkcols.h"
+#include "columns.h"
 
 #if GTK_CHECK_VERSION(2,0,0)
 /* The "focus" method lives in GtkWidget from GTK 2 onwards, but it

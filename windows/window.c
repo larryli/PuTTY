@@ -15,9 +15,9 @@
 #include "putty.h"
 #include "terminal.h"
 #include "storage.h"
-#include "win_res.h"
-#include "winsecur.h"
-#include "winseat.h"
+#include "putty-rc.h"
+#include "security-api.h"
+#include "win-gui-seat.h"
 #include "tree234.h"
 
 #ifdef NO_MULTIMON

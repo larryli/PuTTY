@@ -1,5 +1,5 @@
 /*
- * windows/utils/capi.c: implementation of wincapi.h.
+ * windows/utils/cryptoapi.c: implementation of cryptoapi.h.
  */
 
 #include "putty.h"
@@ -7,7 +7,7 @@
 #include "putty.h"
 #include "ssh.h"
 
-#include "wincapi.h"
+#include "cryptoapi.h"
 
 DEF_WINDOWS_FUNCTION(CryptProtectMemory);
 

@@ -9,8 +9,8 @@
 #include "putty.h"
 #include "pageant.h" /* for AGENT_MAX_MSGLEN */
 
-#include "winsecur.h"
-#include "wincapi.h"
+#include "security-api.h"
+#include "cryptoapi.h"
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 

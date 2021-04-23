@@ -11,8 +11,8 @@
 
 #include "putty.h"
 #include "ssh.h"
-#include "win_res.h"
-#include "winseat.h"
+#include "putty-rc.h"
+#include "win-gui-seat.h"
 #include "storage.h"
 #include "dialog.h"
 #include "licence.h"

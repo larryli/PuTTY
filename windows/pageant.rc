@@ -9,7 +9,7 @@
 
 #include "pageant-rc.h"
 
-#include "winhelp.rc2"
+#include "help.rc2"
 
 IDI_MAINICON ICON "pageant.ico"
 IDI_TRAYICON ICON "pageants.ico"

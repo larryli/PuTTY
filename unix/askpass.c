@@ -15,7 +15,7 @@
 #endif
 
 #include "defs.h"
-#include "gtkfont.h"
+#include "unifont.h"
 #include "gtkcompat.h"
 #include "gtkmisc.h"
 

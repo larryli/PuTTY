@@ -11,7 +11,7 @@
 #include "proxy.h"
 #include "ssh.h"
 
-#include "winsecur.h"
+#include "security-api.h"
 
 typedef struct NamedPipeServerSocket {
     /* Parameters for (repeated) creation of named pipe objects */

@@ -16,8 +16,8 @@
 
 #include "putty.h"
 #include "gtkcompat.h"
-#include "gtkcols.h"
-#include "gtkfont.h"
+#include "columns.h"
+#include "unifont.h"
 #include "gtkmisc.h"
 
 #ifndef NOT_X_WINDOWS

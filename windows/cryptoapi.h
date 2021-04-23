@@ -1,5 +1,5 @@
 /*
- * wincapi.h: Windows Crypto API functions defined in wincapi.c that
+ * cryptoapi.h: Windows Crypto API functions defined in PuTTY that
  * use the crypt32 library. Also centralises the machinery for
  * dynamically loading that library, and our own functions using that
  * in turn.

@@ -1,5 +1,5 @@
 /*
- * gtkcols.h - header file for a columns-based widget container
+ * columns.h - header file for a columns-based widget container
  * capable of supporting the PuTTY portable dialog box layout
  * mechanism.
  */

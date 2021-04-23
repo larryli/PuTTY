@@ -1,5 +1,5 @@
 /*
- * winhelp.h - define Windows Help context names.
+ * help.h - define Windows Help context names.
  * Each definition is simply a string which matches up with the
  * section names in the Halibut source, and is used for HTML Help.
  */

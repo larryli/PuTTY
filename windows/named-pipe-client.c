@@ -11,7 +11,7 @@
 #include "proxy.h"
 #include "ssh.h"
 
-#include "winsecur.h"
+#include "security-api.h"
 
 HANDLE connect_to_named_pipe(const char *pipename, char **err)
 {

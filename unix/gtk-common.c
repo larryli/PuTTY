@@ -34,7 +34,7 @@
 #include "putty.h"
 #include "terminal.h"
 #include "gtkcompat.h"
-#include "gtkfont.h"
+#include "unifont.h"
 #include "gtkmisc.h"
 
 #ifndef NOT_X_WINDOWS

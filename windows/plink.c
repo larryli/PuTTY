@@ -10,7 +10,7 @@
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
-#include "winsecur.h"
+#include "security-api.h"
 
 void cmdline_error(const char *fmt, ...)
 {

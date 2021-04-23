@@ -1,5 +1,5 @@
 /*
- * windows/utils/security.c: implementation of winsecur.h.
+ * windows/utils/security.c: implementation of security-api.h.
  */
 
 #include <stdio.h>
@@ -7,7 +7,7 @@
 
 #include "putty.h"
 
-#include "winsecur.h"
+#include "security-api.h"
 
 /* Initialised once, then kept around to reuse forever */
 static PSID worldsid, networksid, usersid;

@@ -21,7 +21,7 @@
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
-#include "gtkfont.h"
+#include "unifont.h"
 #include "gtkcompat.h"
 #include "gtkmisc.h"
 #include "tree234.h"

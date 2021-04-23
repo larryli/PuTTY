@@ -2,7 +2,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
   utils/arm_arch_queries.c
-  utils/capi.c
+  utils/cryptoapi.c
   utils/defaults.c
   utils/dll_hijacking_protection.c
   utils/dputs.c
@@ -26,38 +26,38 @@ add_sources_from_current_dir(utils
   utils/split_into_argv.c
   utils/version.c
   utils/win_strerror.c
-  winucs.c)
+  unicode.c)
 if(NOT HAVE_STRTOUMAX)
   add_sources_from_current_dir(utils utils/strtoumax.c)
 endif()
 add_sources_from_current_dir(eventloop
-  wincliloop.c winhandl.c)
+  cliloop.c handle-io.c)
 add_sources_from_current_dir(console
-  winselcli.c winnohlp.c wincons.c)
+  select-cli.c nohelp.c console.c)
 add_sources_from_current_dir(settings
-  winstore.c)
+  storage.c)
 add_sources_from_current_dir(network
-  winnet.c winhsock.c winnpc.c winnps.c winproxy.c winx11.c)
+  network.c handle-socket.c named-pipe-client.c named-pipe-server.c local-proxy.c x11.c)
 add_sources_from_current_dir(sshcommon
-  winnoise.c)
+  noise.c)
 add_sources_from_current_dir(sshclient
-  winpgntc.c wingss.c winshare.c)
+  agent-client.c gss.c sharing.c)
 add_sources_from_current_dir(sftpclient
-  winsftp.c)
+  sftp.c)
 add_sources_from_current_dir(otherbackends
-  winser.c)
+  serial.c)
 add_sources_from_current_dir(agent
-  winpgntc.c)
+  agent-client.c)
 add_sources_from_current_dir(guiterminal
-  windlg.c winctrls.c wincfg.c winprint.c winjump.c sizetip.c)
-add_dependencies(guiterminal generated_licence_h) # windlg.c uses licence.h
+  dialog.c controls.c config.c printing.c jump-list.c sizetip.c)
+add_dependencies(guiterminal generated_licence_h) # dialog.c uses licence.h
 
 add_library(guimisc STATIC
-  winselgui.c)
+  select-gui.c)
 
 add_executable(pageant
-  winpgnt.c
-  winhelp.c
+  pageant.c
+  help.c
   pageant.rc)
 add_dependencies(pageant generated_licence_h)
 target_link_libraries(pageant
@@ -69,10 +69,10 @@ set_target_properties(pageant PROPERTIES
 installed_program(pageant)
 
 add_executable(plink
-  winplink.c
+  plink.c
   ${CMAKE_SOURCE_DIR}/be_all_s.c
-  winnojmp.c
-  winnohlp.c
+  no-jump-list.c
+  nohelp.c
   plink.rc)
 add_dependencies(plink generated_licence_h)
 target_link_libraries(plink
@@ -84,8 +84,8 @@ installed_program(plink)
 add_executable(pscp
   ${CMAKE_SOURCE_DIR}/pscp.c
   ${CMAKE_SOURCE_DIR}/be_ssh.c
-  winnojmp.c
-  winnohlp.c
+  no-jump-list.c
+  nohelp.c
   pscp.rc)
 add_dependencies(pscp generated_licence_h)
 target_link_libraries(pscp
@@ -96,8 +96,8 @@ installed_program(pscp)
 add_executable(psftp
   ${CMAKE_SOURCE_DIR}/psftp.c
   ${CMAKE_SOURCE_DIR}/be_ssh.c
-  winnojmp.c
-  winnohlp.c
+  no-jump-list.c
+  nohelp.c
   psftp.rc)
 add_dependencies(psftp generated_licence_h)
 target_link_libraries(psftp
@@ -106,8 +106,8 @@ target_link_libraries(psftp
 installed_program(psftp)
 
 add_executable(psocks
-  winsocks.c
-  winnohlp.c
+  psocks.c
+  nohelp.c
   ${CMAKE_SOURCE_DIR}/psocks.c
   ${CMAKE_SOURCE_DIR}/norand.c
   ${CMAKE_SOURCE_DIR}/nocproxy.c
@@ -118,7 +118,7 @@ target_link_libraries(psocks
 
 add_executable(putty
   window.c
-  winhelp.c
+  help.c
   ${CMAKE_SOURCE_DIR}/be_all_s.c
   putty.rc)
 add_dependencies(putty generated_licence_h)
@@ -133,7 +133,7 @@ installed_program(putty)
 
 add_executable(puttytel
   window.c
-  winhelp.c
+  help.c
   ${CMAKE_SOURCE_DIR}/be_nos_s.c
   ${CMAKE_SOURCE_DIR}/nogss.c
   ${CMAKE_SOURCE_DIR}/norand.c
@@ -149,15 +149,15 @@ set_target_properties(puttytel PROPERTIES
 installed_program(puttytel)
 
 add_executable(puttygen
-  winpgen.c
+  puttygen.c
   ${CMAKE_SOURCE_DIR}/notiming.c
-  winnoise.c
-  winnojmp.c
-  winstore.c
-  winhelp.c
+  noise.c
+  no-jump-list.c
+  storage.c
+  help.c
   ${CMAKE_SOURCE_DIR}/sshpubk.c
   ${CMAKE_SOURCE_DIR}/sshrand.c
-  winctrls.c
+  controls.c
   puttygen.rc)
 add_dependencies(puttygen generated_licence_h)
 target_link_libraries(puttygen

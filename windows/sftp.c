@@ -10,7 +10,7 @@
 #include "putty.h"
 #include "psftp.h"
 #include "ssh.h"
-#include "winsecur.h"
+#include "security-api.h"
 
 int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
 {

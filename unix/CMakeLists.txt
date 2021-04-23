@@ -19,38 +19,41 @@ add_sources_from_current_dir(utils
   utils/signal.c
   utils/x11_ignore_error.c
   # Compiled icon pixmap files
-  xpmpucfg.c xpmputty.c xpmptcfg.c xpmpterm.c
+  putty-xpm.c
+  putty-config-xpm.c
+  pterm-xpm.c
+  pterm-config-xpm.c
   # We want the ISO C implementation of ltime(), because we don't have
   # a local better alternative
   ../utils/ltime.c)
 add_sources_from_current_dir(eventloop
-  uxcliloop.c uxsel.c)
+  cliloop.c uxsel.c)
 add_sources_from_current_dir(console
-  uxcons.c)
+  console.c)
 add_sources_from_current_dir(settings
-  uxstore.c)
+  storage.c)
 add_sources_from_current_dir(network
-  uxnet.c uxfdsock.c uxagentsock.c uxpeer.c uxproxy.c ux_x11.c)
+  network.c fd-socket.c agent-socket.c peerinfo.c local-proxy.c x11.c)
 add_sources_from_current_dir(sshcommon
-  uxnoise.c)
+  noise.c)
 add_sources_from_current_dir(sshclient
-  uxgss.c uxagentc.c uxshare.c)
+  gss.c agent-client.c sharing.c)
 add_sources_from_current_dir(sshserver
-  uxsftpserver.c procnet.c)
+  sftpserver.c procnet.c)
 add_sources_from_current_dir(sftpclient
-  uxsftp.c)
+  sftp.c)
 add_sources_from_current_dir(otherbackends
-  uxser.c)
+  serial.c)
 add_sources_from_current_dir(agent
-  uxagentc.c)
+  agent-client.c)
 
 add_executable(fuzzterm
   ${CMAKE_SOURCE_DIR}/fuzzterm.c
   ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/logging.c
   ${CMAKE_SOURCE_DIR}/noprint.c
-  uxucs.c
-  uxnogtk.c)
+  unicode.c
+  no-gtk.c)
 add_dependencies(fuzzterm generated_licence_h)
 target_link_libraries(fuzzterm
   guiterminal eventloop charset settings utils)
@@ -59,9 +62,9 @@ add_executable(osxlaunch
   osxlaunch.c)
 
 add_executable(plink
-  uxplink.c
+  plink.c
   ${CMAKE_SOURCE_DIR}/be_all_s.c
-  uxnogtk.c)
+  no-gtk.c)
 target_link_libraries(plink
   eventloop noterminal console sshclient otherbackends settings network crypto
   utils)
@@ -70,7 +73,7 @@ installed_program(plink)
 add_executable(pscp
   ${CMAKE_SOURCE_DIR}/pscp.c
   ${CMAKE_SOURCE_DIR}/be_ssh.c
-  uxnogtk.c)
+  no-gtk.c)
 target_link_libraries(pscp
   sftpclient eventloop console sshclient settings network crypto utils)
 installed_program(pscp)
@@ -78,38 +81,38 @@ installed_program(pscp)
 add_executable(psftp
   ${CMAKE_SOURCE_DIR}/psftp.c
   ${CMAKE_SOURCE_DIR}/be_ssh.c
-  uxnogtk.c)
+  no-gtk.c)
 target_link_libraries(psftp
   sftpclient eventloop console sshclient settings network crypto utils)
 installed_program(psftp)
 
 add_executable(psocks
-  uxsocks.c
+  psocks.c
   ${CMAKE_SOURCE_DIR}/psocks.c
   ${CMAKE_SOURCE_DIR}/norand.c
   ${CMAKE_SOURCE_DIR}/nocproxy.c
   ${CMAKE_SOURCE_DIR}/ssh/portfwd.c
-  uxnogtk.c)
+  no-gtk.c)
 target_link_libraries(psocks
   eventloop console network utils)
 
 add_executable(psusan
-  uxpsusan.c
+  psusan.c
   ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/nogss.c
   ${CMAKE_SOURCE_DIR}/ssh/scpserver.c
-  uxnogtk.c
-  uxpty.c)
+  no-gtk.c
+  pty.c)
 target_link_libraries(psusan
   eventloop sshserver keygen settings network crypto utils)
 installed_program(psusan)
 
 add_library(puttygen-common OBJECT
   ${CMAKE_SOURCE_DIR}/notiming.c
-  uxgen.c
-  uxnogtk.c
-  uxnoise.c
-  uxstore.c
+  keygen-noise.c
+  no-gtk.c
+  noise.c
+  storage.c
   ${CMAKE_SOURCE_DIR}/sshpubk.c
   ${CMAKE_SOURCE_DIR}/sshrand.c)
 
@@ -134,11 +137,11 @@ add_executable(testzlib
 target_link_libraries(testzlib utils)
 
 add_executable(uppity
-  uxserver.c
+  uppity.c
   ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/ssh/scpserver.c
-  uxnogtk.c
-  uxpty.c
+  no-gtk.c
+  pty.c
   ${CMAKE_SOURCE_DIR}/nogss.c)
 target_link_libraries(uppity
   eventloop sshserver keygen settings network crypto utils)
@@ -151,19 +154,19 @@ if(GTK_FOUND)
     utils/get_x11_display.c
     utils/our_dialog.c
     utils/string_width.c
-    gtkcols.c)
+    columns.c)
   add_sources_from_current_dir(guiterminal
-    gtkwin.c gtkfont.c gtkdlg.c gtkcfg.c gtkcomm.c uxcfg.c uxucs.c uxprint.c)
-  add_dependencies(guiterminal generated_licence_h) # gtkdlg.c uses licence.h
+    window.c unifont.c dialog.c config-gtk.c gtk-common.c config-unix.c unicode.c printing.c)
+  add_dependencies(guiterminal generated_licence_h) # dialog.c uses licence.h
 
   add_executable(pageant
-    uxpgnt.c
+    pageant.c
     ${CMAKE_SOURCE_DIR}/be_misc.c
     ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/nogss.c
-    gtkask.c
-    ux_x11.c
-    uxnoise.c
+    askpass.c
+    x11.c
+    noise.c
     ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c)
   target_link_libraries(pageant
     eventloop console agent settings network crypto utils
@@ -171,30 +174,30 @@ if(GTK_FOUND)
   installed_program(pageant)
 
   add_executable(pterm
-    uxpterm.c
-    gtkmain.c
+    pterm.c
+    main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/nogss.c
-    uxpty.c)
+    pty.c)
   target_link_libraries(pterm
     guiterminal eventloop settings charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
   installed_program(pterm)
 
   add_executable(ptermapp
-    uxpterm.c
-    gtkapp.c
+    pterm.c
+    main-gtk-application.c
     ${CMAKE_SOURCE_DIR}/nocmdline.c
     ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/nogss.c
-    uxpty.c)
+    pty.c)
   target_link_libraries(ptermapp
     guiterminal eventloop settings charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 
   add_executable(putty
-    uxputty.c
-    gtkmain.c
+    putty.c
+    main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/be_all_s.c)
   target_link_libraries(putty
     guiterminal eventloop sshclient otherbackends settings
@@ -205,8 +208,8 @@ if(GTK_FOUND)
   installed_program(putty)
 
   add_executable(puttyapp
-    uxputty.c
-    gtkapp.c
+    putty.c
+    main-gtk-application.c
     ${CMAKE_SOURCE_DIR}/nocmdline.c
     ${CMAKE_SOURCE_DIR}/be_all_s.c)
   target_link_libraries(puttyapp
@@ -215,8 +218,8 @@ if(GTK_FOUND)
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 
   add_executable(puttytel
-    uxputty.c
-    gtkmain.c
+    putty.c
+    main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/be_nos_s.c
     ${CMAKE_SOURCE_DIR}/nogss.c
     ${CMAKE_SOURCE_DIR}/norand.c
