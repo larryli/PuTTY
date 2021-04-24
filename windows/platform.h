@@ -566,6 +566,7 @@ HWND event_log_window(void);
 extern DWORD osMajorVersion, osMinorVersion, osPlatformId;
 void init_winver(void);
 void dll_hijacking_protection(void);
+const char *get_system_dir(void);
 HMODULE load_system32_dll(const char *libname);
 const char *win_strerror(int error);
 void restrict_process_acl(void);

@@ -8,18 +8,10 @@
 
 HMODULE load_system32_dll(const char *libname)
 {
-    static char *sysdir = NULL;
-    static size_t sysdirsize = 0;
     char *fullpath;
     HMODULE ret;
 
-    if (!sysdir) {
-        size_t len;
-        while ((len = GetSystemDirectory(sysdir, sysdirsize)) >= sysdirsize)
-            sgrowarray(sysdir, sysdirsize, len);
-    }
-
-    fullpath = dupcat(sysdir, "\\", libname);
+    fullpath = dupcat(get_system_dir(), "\\", libname);
     ret = LoadLibrary(fullpath);
     sfree(fullpath);
     return ret;
