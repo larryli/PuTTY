@@ -187,10 +187,10 @@ install-strip:
 # List the man pages for the automake makefile.
 !begin am
 if HAVE_GTK
-man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 \
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 doc/psusan.1 \
 	    doc/pageant.1 doc/pterm.1 doc/putty.1 doc/puttytel.1
 else
-man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 doc/psusan.1
 endif
 !end
 
