@@ -145,13 +145,16 @@ target_link_libraries(uppity
 
 if(GTK_FOUND)
   add_sources_from_current_dir(utils
+    utils/align_label_left.c
+    utils/buildinfo_gtk_version.c
+    utils/get_label_text_dimensions.c
+    utils/get_x11_display.c
+    utils/our_dialog.c
+    utils/string_width.c
     gtkcols.c)
   add_sources_from_current_dir(guiterminal
     gtkwin.c gtkfont.c gtkdlg.c gtkcfg.c gtkcomm.c uxcfg.c uxucs.c uxprint.c)
   add_dependencies(guiterminal generated_licence_h) # gtkdlg.c uses licence.h
-
-  add_library(guimisc STATIC
-    gtkmisc.c)
 
   add_executable(pageant
     uxpgnt.c
@@ -163,7 +166,7 @@ if(GTK_FOUND)
     uxnoise.c
     ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c)
   target_link_libraries(pageant
-    guimisc eventloop console agent settings network crypto utils
+    eventloop console agent settings network crypto utils
     ${GTK_LIBRARIES})
   installed_program(pageant)
 
@@ -174,7 +177,7 @@ if(GTK_FOUND)
     ${CMAKE_SOURCE_DIR}/nogss.c
     uxpty.c)
   target_link_libraries(pterm
-    guiterminal guimisc eventloop settings charset utils
+    guiterminal eventloop settings charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
   installed_program(pterm)
 
@@ -186,7 +189,7 @@ if(GTK_FOUND)
     ${CMAKE_SOURCE_DIR}/nogss.c
     uxpty.c)
   target_link_libraries(ptermapp
-    guiterminal guimisc eventloop settings charset utils
+    guiterminal eventloop settings charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 
   add_executable(putty
@@ -194,7 +197,7 @@ if(GTK_FOUND)
     gtkmain.c
     ${CMAKE_SOURCE_DIR}/be_all_s.c)
   target_link_libraries(putty
-    guiterminal guimisc eventloop sshclient otherbackends settings
+    guiterminal eventloop sshclient otherbackends settings
     network crypto charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
   set_target_properties(putty
@@ -207,7 +210,7 @@ if(GTK_FOUND)
     ${CMAKE_SOURCE_DIR}/nocmdline.c
     ${CMAKE_SOURCE_DIR}/be_all_s.c)
   target_link_libraries(puttyapp
-    guiterminal guimisc eventloop sshclient otherbackends settings
+    guiterminal eventloop sshclient otherbackends settings
     network crypto charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 
@@ -219,6 +222,6 @@ if(GTK_FOUND)
     ${CMAKE_SOURCE_DIR}/norand.c
     ${CMAKE_SOURCE_DIR}/nocproxy.c)
   target_link_libraries(puttytel
-    guiterminal guimisc eventloop otherbackends settings network charset utils
+    guiterminal eventloop otherbackends settings network charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 endif()

@@ -1,80 +1,4 @@
 /*
- * Miscellaneous GTK helper functions.
- */
-
-#include <assert.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <time.h>
-
-#include <gtk/gtk.h>
-#if !GTK_CHECK_VERSION(3,0,0)
-#include <gdk/gdkkeysyms.h>
-#endif
-
-#include "putty.h"
-#include "gtkcompat.h"
-
-#ifndef NOT_X_WINDOWS
-#include <gdk/gdkx.h>
-#include <X11/Xlib.h>
-#endif
-
-void get_label_text_dimensions(const char *text, int *width, int *height)
-{
-    /*
-     * Determine the dimensions of a piece of text in the standard
-     * font used in GTK interface elements like labels. We do this by
-     * instantiating an actual GtkLabel, and then querying its size.
-     *
-     * But GTK2 and GTK3 require us to query the size completely
-     * differently. I'm sure there ought to be an easier approach than
-     * the way I'm doing this in GTK3, too!
-     */
-    GtkWidget *label = gtk_label_new(text);
-
-#if GTK_CHECK_VERSION(3,0,0)
-    PangoLayout *layout = gtk_label_get_layout(GTK_LABEL(label));
-    PangoRectangle logrect;
-    pango_layout_get_extents(layout, NULL, &logrect);
-    if (width)
-        *width = logrect.width / PANGO_SCALE;
-    if (height)
-        *height = logrect.height / PANGO_SCALE;
-#else
-    GtkRequisition req;
-    gtk_widget_size_request(label, &req);
-    if (width)
-        *width = req.width;
-    if (height)
-        *height = req.height;
-#endif
-
-    g_object_ref_sink(G_OBJECT(label));
-#if GTK_CHECK_VERSION(2,10,0)
-    g_object_unref(label);
-#endif
-}
-
-int string_width(const char *text)
-{
-    int ret;
-    get_label_text_dimensions(text, &ret, NULL);
-    return ret;
-}
-
-void align_label_left(GtkLabel *label)
-{
-#if GTK_CHECK_VERSION(3,16,0)
-    gtk_label_set_xalign(label, 0.0);
-#elif GTK_CHECK_VERSION(3,14,0)
-    gtk_widget_set_halign(GTK_WIDGET(label), GTK_ALIGN_START);
-#else
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
-#endif
-}
-
-/* ----------------------------------------------------------------------
  * Functions to arrange controls in a basically dialog-like window.
  *
  * The best method for doing this has varied wildly with versions of
@@ -107,6 +31,11 @@ void align_label_left(GtkLabel *label)
  * by adding a separator and another widget at the bottom of that
  * vbox.
  */
+
+#include <gtk/gtk.h>
+#include "putty.h"
+#include "gtkcompat.h"
+#include "gtkmisc.h"
 
 GtkWidget *our_dialog_new(void)
 {
@@ -204,20 +133,3 @@ void our_dialog_add_to_content_area(GtkWindow *dlg, GtkWidget *w,
          w, expand, fill, padding);
 #endif
 }
-
-char *buildinfo_gtk_version(void)
-{
-    return dupprintf("%d.%d.%d",
-                     GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION);
-}
-
-#ifndef NOT_X_WINDOWS
-Display *get_x11_display(void)
-{
-#if GTK_CHECK_VERSION(3,0,0)
-    if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
-        return NULL;
-#endif
-    return GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-}
-#endif
