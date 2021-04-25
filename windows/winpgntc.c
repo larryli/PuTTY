@@ -153,9 +153,13 @@ Socket *agent_connect(Plug *plug)
 static bool named_pipe_agent_exists(void)
 {
     char *pipename = agent_named_pipe_name();
-    DWORD type = GetFileType(pipename);
+    WIN32_FIND_DATA data;
+    HANDLE ffh = FindFirstFile(pipename, &data);
     sfree(pipename);
-    return type == FILE_TYPE_PIPE;
+    if (ffh == INVALID_HANDLE_VALUE)
+        return false;
+    FindClose(ffh);
+    return true;
 }
 
 bool agent_exists(void)
