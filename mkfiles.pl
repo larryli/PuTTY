@@ -549,7 +549,7 @@ if (defined $makefiles{'clangcl'}) {
                (join " ", map {"-I$dirpfx$_"} @srcdirs) .
                " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 ".
                "/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS").
-               " -Werror \$(PLATFORMCFLAGS)\n".
+               " \$(PLATFORMCFLAGS)\n".
     "LFLAGS = /incremental:no /dynamicbase /nxcompat\n".
     &splitline("RCPPFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
                " -DWIN32 -D_WIN32 -DWINVER=0x0400")." \$(RCFL)\n".
@@ -1425,7 +1425,7 @@ if (defined $makefiles{'gtk'}) {
     "\n".
     "unexport CFLAGS # work around a weird issue with krb5-config\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -Wvla -g " .
+    &splitline("CFLAGS = -O2 -Wall -std=gnu99 -Wvla -g " .
                (join " ", map {"-I$dirpfx$_"} @srcdirs) .
                " \$(shell \$(GTK_CONFIG) --cflags)").
                  " -D _FILE_OFFSET_BITS=64\n".
@@ -1506,7 +1506,7 @@ if (defined $makefiles{'unix'}) {
     "\n".
     "unexport CFLAGS # work around a weird issue with krb5-config\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -Wvla -g " .
+    &splitline("CFLAGS = -O2 -Wall -std=gnu99 -Wvla -g " .
                (join " ", map {"-I$dirpfx$_"} @srcdirs)).
                  " -D _FILE_OFFSET_BITS=64\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
@@ -1748,7 +1748,7 @@ if (defined $makefiles{'osx'}) {
     print
     "CC = \$(TOOLPATH)gcc\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -Wvla -g " .
+    &splitline("CFLAGS = -O2 -Wall -std=gnu99 -Wvla -g " .
                (join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "MLDFLAGS = -framework Cocoa\n".
     "ULDFLAGS =\n".
