@@ -8,7 +8,7 @@ When we begin to work towards a release and want to enable
 pre-releases on the website:
 
  - Make a branch whose tip will be the current state of the
-   pre-release. Regardless of whether the branch is from master or
+   pre-release. Regardless of whether the branch is from main or
    from a prior release branch, the name of the branch must now be in
    the form 'pre-X.YZ', or else the website will fail to link to it
    properly in gitweb and the build script will check out the wrong
@@ -74,7 +74,7 @@ Making a release candidate build
    generated.
 
  - If the release is on a branch (which I expect it generally will
-   be), merge that branch to master.
+   be), merge that branch to main.
 
  - Make a release-candidate build from the release tag, and put the
    build.out and build.log files somewhere safe. Normally I store
@@ -108,7 +108,7 @@ Making a release candidate build
     * make sure they basically work
     * check they report the right version number
     * if there's any easily observable behaviour difference between
-      the release branch and master, arrange to observe it
+      the release branch and main, arrange to observe it
     * test that the Windows installer installs successfully
        + on x86 and Arm, and test that putty.exe runs in both cases
     * test that the Unix source tarball unpacks and builds
@@ -118,7 +118,7 @@ Making a release candidate build
        + test-build with -DNOT_X_WINDOWS
     * feed the release-candidate source to Coverity and make sure it
       didn't turn up any last-minute problems
-    * make sure we have a clean run of sctest
+    * make sure we have a clean run of testsc
     * do some testing on a system with a completely clean slate (no
       prior saved session data)
 
@@ -195,10 +195,10 @@ locally, this is the procedure for putting it up on the web.
     * run 'git push' in the website checkout
     * run 'git push' in the wishlist checkout
     * push from the main PuTTY checkout. Typically this one will be
-      pushing both the release tag and an update to the master branch,
+      pushing both the release tag and an update to the main branch,
       plus removing the pre-release branch, so you'll want some
       commands along these lines:
-        git push origin master        # update the master branch
+        git push origin main          # update the main branch
         git push origin --tags        # should push the new release tag
         git push origin :pre-X.YZ     # delete the pre-release branch
 
