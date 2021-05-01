@@ -380,7 +380,7 @@ doesn't support any of the following options to control that.
 
 All of the following options only affect keys saved with passphrases.
 They control how much work is required to decrypt the key (which
-happens every type you type its passphrase). This allows you to trade
+happens every time you type its passphrase). This allows you to trade
 off the cost of legitimate use of the key against the resistance of
 the encrypted key to password-guessing attacks.
 
