@@ -7,9 +7,6 @@
 #  - the options to put on the 'make' command line for the docs
 
 arcsuffix="$1"
-docver="$2"
-
-(cd doc && make -s ${docver:+"$docver"})
 
 relver=`cat LATEST.VER`
 arcname="putty$arcsuffix"

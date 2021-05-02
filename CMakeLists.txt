@@ -3,6 +3,8 @@ project(putty LANGUAGES C)
 
 include(cmake/setup.cmake)
 
+add_subdirectory(doc)
+
 add_compile_definitions(HAVE_CMAKE_H)
 
 add_library(utils STATIC

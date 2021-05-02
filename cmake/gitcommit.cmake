@@ -47,6 +47,16 @@ if(OUTPUT_TYPE STREQUAL header)
 
 const char commitid[] = \"${commit}\";
 ")
+elseif(OUTPUT_TYPE STREQUAL halibut)
+  if(commit STREQUAL "unavailable")
+    file(WRITE "${OUTPUT_FILE}" "\
+\\versionid no version information available
+")
+  else()
+    file(WRITE "${OUTPUT_FILE}" "\
+\\versionid built from git commit ${commit}
+")
+  endif()
 else()
   message(FATAL_ERROR "Set OUTPUT_TYPE when running this script")
 endif()
