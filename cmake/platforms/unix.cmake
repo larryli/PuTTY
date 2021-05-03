@@ -57,12 +57,21 @@ endif()
 
 include(cmake/gtk.cmake)
 
+# See if we have X11 available. This requires libX11 itself, and also
+# the GDK integration to X11.
 find_package(X11)
-if(NOT X11_FOUND)
-  set(NOT_X_WINDOWS ON)
-else()
-  set(NOT_X_WINDOWS OFF)
-endif()
+
+function(check_x11)
+  list(APPEND CMAKE_REQUIRED_INCLUDES ${GTK_INCLUDE_DIRS})
+  check_include_file(gdk/gdkx.h HAVE_GDK_GDKX_H)
+
+  if(X11_FOUND AND HAVE_GDK_GDKX_H)
+    set(NOT_X_WINDOWS OFF PARENT_SCOPE)
+  else()
+    set(NOT_X_WINDOWS ON PARENT_SCOPE)
+  endif()
+endfunction()
+check_x11()
 
 include_directories(${CMAKE_SOURCE_DIR}/charset ${GTK_INCLUDE_DIRS} ${X11_INCLUDE_DIR})
 link_directories(${GTK_LIBRARY_DIRS})
