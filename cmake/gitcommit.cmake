@@ -37,7 +37,8 @@ else()
   endif()
 endif()
 
-file(WRITE "${OUTPUT_FILE}" "\
+if(OUTPUT_TYPE STREQUAL header)
+  file(WRITE "${OUTPUT_FILE}" "\
 /*
  * cmake_commit.h - string literal giving the source git commit, if known.
  *
@@ -46,3 +47,6 @@ file(WRITE "${OUTPUT_FILE}" "\
 
 const char commitid[] = \"${commit}\";
 ")
+else()
+  message(FATAL_ERROR "Set OUTPUT_TYPE when running this script")
+endif()
