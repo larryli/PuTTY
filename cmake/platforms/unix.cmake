@@ -8,6 +8,7 @@ include(CheckIncludeFile)
 include(CheckLibraryExists)
 include(CheckSymbolExists)
 include(CheckCSourceCompiles)
+include(GNUInstallDirs)
 
 set(CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
   -D_DEFAULT_SOURCE -D_GNU_SOURCE)
@@ -119,5 +120,12 @@ function(installed_program target)
     # overriding here so that end users can override it using
     # CMAKE_INSTALL_BINDIR.
     install(TARGETS ${target})
+  endif()
+
+  if(HAVE_MANPAGE_${target}_1)
+    install(FILES ${CMAKE_BINARY_DIR}/doc/${target}.1
+      DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+  else()
+    message(WARNING "Could not build man page ${target}.1")
   endif()
 endfunction()

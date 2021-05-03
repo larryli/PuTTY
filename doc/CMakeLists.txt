@@ -103,6 +103,14 @@ macro(manpage title section)
       DEPENDS
         mancfg.but man-${title}.but)
     list(APPEND manpage_outputs ${title}.${section})
+    set(HAVE_MANPAGE_${title}_${section} ON PARENT_SCOPE)
+  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
+    add_custom_command(OUTPUT ${title}.${section}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section} ${title}.${section}
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
+    list(APPEND manpage_outputs ${title}.${section})
+    set(HAVE_MANPAGE_${title}_${section} ON PARENT_SCOPE)
   endif()
 endmacro()
 
