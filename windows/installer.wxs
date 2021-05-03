@@ -91,6 +91,10 @@
   <?define Desktop_Shortcut_Component_GUID = "8999BBE1-F99E-4301-B7A6-480C19DE13B9" ?>
 <?endif ?>
 
+<?ifndef HelpFilePath ?>
+  <?define HelpFilePath = "../doc/putty.chm" ?>
+<?endif ?>
+
 <?define ProgramName = "PuTTY$(var.Bitness)" ?>
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
@@ -238,7 +242,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
           <Component Id="HelpFile_Component"
                      Guid="$(var.HelpFile_Component_GUID)">
             <File Id="HelpFile_File"
-                  Source="../doc/putty.chm" KeyPath="yes">
+                  Source="$(var.HelpFilePath)" KeyPath="yes">
               <Shortcut Id="startmenuManual" Directory="ProgramMenuDir"
                         Name="PuTTY Manual"
                         Advertise="no" />
