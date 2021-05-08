@@ -1,3 +1,13 @@
+cmake_minimum_required(VERSION 3.12)
+project(putty-documentation LANGUAGES)
+
+# This build script can be run standalone, or included as a
+# subdirectory of the main PuTTY cmake build system. If the latter, a
+# couple of things change: it has to set variables telling the rest of
+# the build system what manpages are available to be installed, and it
+# will change whether the 'make doc' target is included in 'make all'.
+
+include(FindGit)
 include(FindPerl)
 find_program(HALIBUT halibut)
 
@@ -23,9 +33,9 @@ if(HALIBUT AND PERL_EXECUTABLE)
         -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
         -DOUTPUT_FILE=${INTERMEDIATE_VERSION_BUT}
         -DOUTPUT_TYPE=halibut
-        -P ${CMAKE_SOURCE_DIR}/cmake/gitcommit.cmake
-      DEPENDS ${CMAKE_SOURCE_DIR}/cmake/gitcommit.cmake
-      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/gitcommit.cmake
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/gitcommit.cmake
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
       COMMENT "Checking current git commit")
     add_custom_target(cmake_version_but
       BYPRODUCTS ${VERSION_BUT}
@@ -36,13 +46,13 @@ if(HALIBUT AND PERL_EXECUTABLE)
   endif()
 
   add_custom_command(OUTPUT copy.but
-    COMMAND ${PERL_EXECUTABLE} ${CMAKE_SOURCE_DIR}/licence.pl
+    COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl
       --copyrightdoc -o copy.but
-    DEPENDS ${CMAKE_SOURCE_DIR}/licence.pl ${CMAKE_SOURCE_DIR}/LICENCE)
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl ${CMAKE_CURRENT_SOURCE_DIR}/../LICENCE)
   add_custom_command(OUTPUT licence.but
-    COMMAND ${PERL_EXECUTABLE} ${CMAKE_SOURCE_DIR}/licence.pl
+    COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl
       --licencedoc -o licence.but
-    DEPENDS ${CMAKE_SOURCE_DIR}/licence.pl ${CMAKE_SOURCE_DIR}/LICENCE)
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl ${CMAKE_CURRENT_SOURCE_DIR}/../LICENCE)
 
   set(manual_sources
     ${CMAKE_CURRENT_BINARY_DIR}/copy.but
@@ -93,6 +103,14 @@ if(HALIBUT AND PERL_EXECUTABLE)
   list(APPEND doc_outputs puttydoc.txt)
 endif()
 
+macro(register_manpage title section)
+  list(APPEND manpage_outputs ${title}.${section})
+  if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    # Only set this variable if there _is_ a parent scope.
+    set(HAVE_MANPAGE_${title}_${section} ON PARENT_SCOPE)
+  endif()
+endmacro()
+
 macro(manpage title section)
   if(HALIBUT)
     add_custom_command(OUTPUT ${title}.${section}
@@ -101,15 +119,13 @@ macro(manpage title section)
         ${CMAKE_CURRENT_SOURCE_DIR}/man-${title}.but
       DEPENDS
         mancfg.but man-${title}.but)
-    list(APPEND manpage_outputs ${title}.${section})
-    set(HAVE_MANPAGE_${title}_${section} ON PARENT_SCOPE)
+    register_manpage(${title} ${section})
   elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
     add_custom_command(OUTPUT ${title}.${section}
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section} ${title}.${section}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
-    list(APPEND manpage_outputs ${title}.${section})
-    set(HAVE_MANPAGE_${title}_${section} ON PARENT_SCOPE)
+    register_manpage(${title} ${section})
   endif()
 endmacro()
 
@@ -124,7 +140,17 @@ manpage(pageant 1)
 manpage(psocks 1)
 manpage(psusan 1)
 
-add_custom_target(manpages ALL
-  DEPENDS ${manpage_outputs})
-add_custom_target(doc
-  DEPENDS ${doc_outputs} manpages)
+add_custom_target(manpages ALL DEPENDS ${manpage_outputs})
+add_custom_target(doc DEPENDS ${doc_outputs} manpages)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  # If we're doing a cmake from just the doc subdir, we expect the
+  # user to want to make all the documentation, including HTML and so
+  # forth. (What else would be the point?)
+  #
+  # But if we're included from the main makefile, then by default we
+  # only make the man pages (which are necessary for 'make install'),
+  # and we leave everything else to a separate 'make doc' target which
+  # the user can invoke if they need to.
+  add_custom_target(doc-default ALL DEPENDS doc)
+endif()

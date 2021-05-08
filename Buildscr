@@ -123,9 +123,9 @@ in putty do echo '$#define BINARY_VERSION $(Winvercommas)' >> version.h
 in putty do sed -i '/set(DEFAULT_COMMIT/s/unavailable/$(vcsfullid)/' cmake/gitcommit.cmake
 
 in . do mkdir docbuild
-in docbuild do cmake ../putty
-in docbuild do make -j$(nproc) VERBOSE=1 doc
-in putty/doc do cp ../../docbuild/doc/*.1 .
+in docbuild do cmake ../putty/doc
+in docbuild do make -j$(nproc) VERBOSE=1
+in putty/doc do cp ../../docbuild/*.1 .
 
 in putty do ./mksrcarc.sh
 in putty do ./mkunxarc.sh '$(Uxarcsuffix)'
@@ -198,10 +198,10 @@ ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i h
 in putty do for hash in md5 sha1 sha256 sha512; do for dir_plat in "build32 w32" "build64 w64" "abuild32 wa32" "abuild64 wa64"; do set -- $$dir_plat; (cd windows/$$1 && $${hash}sum *.exe | sed 's!\( \+\)!\1'$$2'/!;s!$$! (installer version)!') >> $${hash}sums.installer; done; done
 
 # Build a WiX MSI installer, for each build flavour.
-in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=x86 -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/doc/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
-in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=x64 -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/doc/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
-in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/doc/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb
-in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm64 -dDllOk=no -dBuilddir=abuild64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/doc/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera64.msi -spdb
+in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=x86 -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=x64 -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm64 -dDllOk=no -dBuilddir=abuild64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" -dHelpFilePath="../../docbuild/putty.chm" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera64.msi -spdb
 
 # Change the width field for our dialog background image so that it
 # doesn't stretch across the whole dialog. (WiX's default one does; we
@@ -223,13 +223,13 @@ ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i http
 
 # Build the standalone binaries, in both 32- and 64-bit flavours.
 # These differ from the previous set in that they embed the help file.
-in putty/windows/build32 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/doc/putty.chm)
+in putty/windows/build32 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/putty.chm)
 in putty/windows/build32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/build64 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/doc/putty.chm)
+in putty/windows/build64 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/putty.chm)
 in putty/windows/build64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/abuild32 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/doc/putty.chm)
+in putty/windows/abuild32 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/putty.chm)
 in putty/windows/abuild32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/abuild64 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/doc/putty.chm)
+in putty/windows/abuild64 with cmake_at_least_3.20 do cmake . -DPUTTY_EMBEDDED_CHM_FILE=$$(realpath ../../../docbuild/putty.chm)
 in putty/windows/abuild64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
 # Build the 'old' binaries, which should still run on all 32-bit
@@ -257,12 +257,12 @@ in putty/windows do mkdir deliver
 in putty/windows do for subdir in build32 abuild32 build64 abuild64 buildold; do mkdir deliver/$$subdir; done
 in putty/windows do while read x; do mv $$x deliver/$$x; mv $$x.map deliver/$$x.map; done < to-sign.txt
 
-in putty/windows/deliver/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/doc/putty.chm
-in putty/windows/deliver/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/doc/putty.chm
-in putty/windows/deliver/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/doc/putty.chm
-in putty/windows/deliver/abuild32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/doc/putty.chm
-in putty/windows/deliver/abuild64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/doc/putty.chm
-in docbuild/doc/html do zip puttydoc.zip *.html
+in putty/windows/deliver/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
+in putty/windows/deliver/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
+in putty/windows/deliver/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
+in putty/windows/deliver/abuild32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
+in putty/windows/deliver/abuild64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
+in docbuild/html do zip puttydoc.zip *.html
 
 # Deliver the actual PuTTY release directory into a subdir `putty'.
 deliver putty/windows/deliver/buildold/*.exe putty/w32old/$@
@@ -279,10 +279,10 @@ deliver putty/windows/deliver/abuild32/*.exe putty/wa32/$@
 deliver putty/windows/deliver/abuild32/putty.zip putty/wa32/$@
 deliver putty/windows/deliver/abuild64/*.exe putty/wa64/$@
 deliver putty/windows/deliver/abuild64/putty.zip putty/wa64/$@
-deliver docbuild/doc/html/puttydoc.zip putty/$@
-deliver docbuild/doc/putty.chm putty/$@
-deliver docbuild/doc/puttydoc.txt putty/$@
-deliver docbuild/doc/html/*.html putty/htmldoc/$@
+deliver docbuild/html/puttydoc.zip putty/$@
+deliver docbuild/putty.chm putty/$@
+deliver docbuild/puttydoc.txt putty/$@
+deliver docbuild/html/*.html putty/htmldoc/$@
 deliver putty/putty-src.zip putty/$@
 deliver putty/*.tar.gz putty/$@
 
