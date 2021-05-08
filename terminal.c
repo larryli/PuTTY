@@ -1874,7 +1874,7 @@ static void palette_reset(Terminal *term, bool overrides_only)
      */
     for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
         term->subpalettes[SUBPAL_PLATFORM].present[i] = false;
-    win_palette_get_overrides(term->win);
+    win_palette_get_overrides(term->win, term);
 
     /*
      * Rebuild the composite palette.

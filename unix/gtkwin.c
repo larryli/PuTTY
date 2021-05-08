@@ -2614,7 +2614,7 @@ static void gtkwin_palette_set(TermWin *tw, unsigned start, unsigned ncolours,
     }
 }
 
-static void gtkwin_palette_get_overrides(TermWin *tw)
+static void gtkwin_palette_get_overrides(TermWin *tw, Terminal *term)
 {
     /* GTK has no analogue of Windows's 'standard system colours', so GTK PuTTY
      * has no config option to override the normally configured colours from

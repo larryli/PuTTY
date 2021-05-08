@@ -263,7 +263,7 @@ static void wintw_set_maximised(TermWin *, bool maximised);
 static void wintw_move(TermWin *, int x, int y);
 static void wintw_set_zorder(TermWin *, bool top);
 static void wintw_palette_set(TermWin *, unsigned, unsigned, const rgb *);
-static void wintw_palette_get_overrides(TermWin *);
+static void wintw_palette_get_overrides(TermWin *, Terminal *);
 
 static const TermWinVtable windows_termwin_vt = {
     .setup_draw_ctx = wintw_setup_draw_ctx,
@@ -1214,7 +1214,7 @@ static inline rgb rgb_from_colorref(COLORREF cr)
     return toret;
 }
 
-static void wintw_palette_get_overrides(TermWin *tw)
+static void wintw_palette_get_overrides(TermWin *tw, Terminal *term)
 {
     if (conf_get_bool(conf, CONF_system_colour)) {
         rgb rgb;

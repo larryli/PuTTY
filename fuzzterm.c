@@ -93,7 +93,7 @@ static void fuzz_move(TermWin *tw, int x, int y) {}
 static void fuzz_set_zorder(TermWin *tw, bool top) {}
 static void fuzz_palette_set(TermWin *tw, unsigned start, unsigned ncolours,
                              const rgb *colours) {}
-static void fuzz_palette_get_overrides(TermWin *tw) {}
+static void fuzz_palette_get_overrides(TermWin *tw, Terminal *term) {}
 
 static const TermWinVtable fuzz_termwin_vt = {
     .setup_draw_ctx = fuzz_setup_draw_ctx,
