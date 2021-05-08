@@ -705,4 +705,13 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx);
 bool cliloop_null_pre(void *vctx, const HANDLE **, size_t *);
 bool cliloop_null_post(void *vctx, size_t);
 
+/* Functions that parametrise window.c */
+void gui_term_process_cmdline(Conf *conf, char *cmdline);
+const struct BackendVtable *backend_vt_from_conf(Conf *conf);
+const wchar_t *get_app_user_model_id(void);
+/* And functions in window.c that those files call back to */
+char *handle_restrict_acl_cmdline_prefix(char *cmdline);
+bool handle_special_sessionname_cmdline(char *cmdline, Conf *conf);
+bool handle_special_filemapping_cmdline(char *cmdline, Conf *conf);
+
 #endif /* PUTTY_WINDOWS_PLATFORM_H */

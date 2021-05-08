@@ -82,6 +82,7 @@ add_sources_from_current_dir(psocks nohelp.c)
 
 add_executable(putty
   window.c
+  putty.c
   help.c
   ${CMAKE_SOURCE_DIR}/be_all_s.c
   putty.rc)
@@ -97,6 +98,7 @@ installed_program(putty)
 
 add_executable(puttytel
   window.c
+  putty.c
   help.c
   ${CMAKE_SOURCE_DIR}/be_nos_s.c
   ${CMAKE_SOURCE_DIR}/nogss.c

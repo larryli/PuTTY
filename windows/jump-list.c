@@ -735,7 +735,8 @@ bool set_explicit_app_user_model_id(void)
 
     if (p_SetCurrentProcessExplicitAppUserModelID)
     {
-        if (p_SetCurrentProcessExplicitAppUserModelID(L"SimonTatham.PuTTY") == S_OK)
+        const wchar_t *id = get_app_user_model_id();
+        if (p_SetCurrentProcessExplicitAppUserModelID(id) == S_OK)
         {
           return true;
         }
