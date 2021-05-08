@@ -3,19 +3,19 @@
 set(DEFAULT_COMMIT "unavailable")
 set(commit "${DEFAULT_COMMIT}")
 
+set(TOPLEVEL_SOURCE_DIR ${CMAKE_SOURCE_DIR})
+
 execute_process(
-  COMMAND ${GIT_EXECUTABLE} -C ${TOPLEVEL_SOURCE_DIR}
-    rev-parse --show-toplevel
+  COMMAND ${GIT_EXECUTABLE} rev-parse --show-toplevel
   OUTPUT_VARIABLE git_worktree
   ERROR_VARIABLE stderr
   RESULT_VARIABLE status)
 string(REGEX REPLACE "\n$" "" git_worktree "${git_worktree}")
 
 if(status EQUAL 0)
-  if(git_worktree STREQUAL TOPLEVEL_SOURCE_DIR)
+  if(git_worktree STREQUAL CMAKE_SOURCE_DIR)
     execute_process(
-      COMMAND ${GIT_EXECUTABLE} -C ${TOPLEVEL_SOURCE_DIR}
-        rev-parse HEAD
+      COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
       OUTPUT_VARIABLE git_commit
       ERROR_VARIABLE stderr
       RESULT_VARIABLE status)
@@ -28,7 +28,7 @@ if(status EQUAL 0)
     endif()
   else()
     if(commit STREQUAL "unavailable")
-      message("Unable to determine git commit: top-level source dir ${TOPLEVEL_SOURCE_DIR} is not the root of a repository")
+      message("Unable to determine git commit: top-level source dir ${CMAKE_SOURCE_DIR} is not the root of a repository")
     endif()
   endif()
 else()
