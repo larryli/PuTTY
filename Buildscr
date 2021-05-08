@@ -257,11 +257,11 @@ in putty/windows do mkdir deliver
 in putty/windows do for subdir in build32 abuild32 build64 abuild64 buildold; do mkdir deliver/$$subdir; done
 in putty/windows do while read x; do mv $$x deliver/$$x; mv $$x.map deliver/$$x.map; done < to-sign.txt
 
-in putty/windows/deliver/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
-in putty/windows/deliver/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
-in putty/windows/deliver/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
-in putty/windows/deliver/abuild32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
-in putty/windows/deliver/abuild64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../../docbuild/putty.chm
+in putty/windows/deliver/buildold do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
+in putty/windows/deliver/build32 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
+in putty/windows/deliver/build64 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
+in putty/windows/deliver/abuild32 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
+in putty/windows/deliver/abuild64 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
 in docbuild/html do zip puttydoc.zip *.html
 
 # Deliver the actual PuTTY release directory into a subdir `putty'.

@@ -134,6 +134,28 @@ set_target_properties(puttygen PROPERTIES
   LINK_FLAGS "${LFLAG_MANIFEST_NO}")
 installed_program(puttygen)
 
+if(HAVE_CONPTY)
+  add_executable(pterm
+    window.c
+    pterm.c
+    help.c
+    conpty.c
+    be_conpty.c
+    ${CMAKE_SOURCE_DIR}/nogss.c
+    ${CMAKE_SOURCE_DIR}/norand.c
+    pterm.rc)
+  add_dependencies(pterm generated_licence_h)
+  target_link_libraries(pterm
+    guiterminal guimisc eventloop settings network utils
+    ${platform_libraries})
+  set_target_properties(pterm PROPERTIES
+    WIN32_EXECUTABLE ON
+    LINK_FLAGS "${LFLAG_MANIFEST_NO}")
+  installed_program(pterm)
+else()
+  message("ConPTY not available; cannot build Windows pterm")
+endif()
+
 add_executable(test_split_into_argv
   utils/split_into_argv.c)
 target_compile_definitions(test_split_into_argv PRIVATE TEST)
