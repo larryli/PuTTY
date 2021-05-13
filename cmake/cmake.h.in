@@ -21,6 +21,7 @@
 #cmakedefine01 HAVE_SYS_SYSCTL_H
 #cmakedefine01 HAVE_SYS_TYPES_H
 #cmakedefine01 HAVE_GLOB_H
+#cmakedefine01 HAVE_UTMP_H
 #cmakedefine01 HAVE_FUTIMES
 #cmakedefine01 HAVE_GETADDRINFO
 #cmakedefine01 HAVE_POSIX_OPENPT

@@ -18,6 +18,7 @@ check_include_file(asm/hwcap.h HAVE_ASM_HWCAP_H)
 check_include_file(sys/sysctl.h HAVE_SYS_SYSCTL_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(glob.h HAVE_GLOB_H)
+check_include_file(utmp.h HAVE_UTMP_H)
 
 check_symbol_exists(futimes "sys/time.h" HAVE_FUTIMES)
 check_symbol_exists(getaddrinfo "sys/types.h;sys/socket.h;netdb.h"

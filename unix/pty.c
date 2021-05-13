@@ -13,7 +13,9 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <grp.h>
+#if HAVE_UTMP_H
 #include <utmp.h>
+#endif
 #include <pwd.h>
 #include <time.h>
 #include <sys/types.h>
