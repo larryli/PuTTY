@@ -260,7 +260,7 @@ static agent_pending_query *named_pipe_agent_query(
 
     pq = snew(agent_pending_query);
     pq->handle = handle_input_new(pipehandle, named_pipe_agent_gotdata, pq, 0);
-    pipehandle = NULL;  /* prevent it being closed below */
+    pipehandle = INVALID_HANDLE_VALUE;  /* prevent it being closed below */
     pq->response = strbuf_new_nm();
     pq->callback = callback;
     pq->callback_ctx = callback_ctx;
