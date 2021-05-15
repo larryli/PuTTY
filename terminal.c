@@ -1629,6 +1629,7 @@ void term_reconfig(Terminal *term, Conf *conf)
      * Mode, BCE, blinking text, character classes.
      */
     bool reset_wrap, reset_decom, reset_bce, reset_tblink, reset_charclass;
+    bool palette_changed = false;
     int i;
 
     reset_wrap = (conf_get_bool(term->conf, CONF_wrap_mode) !=
@@ -1674,6 +1675,29 @@ void term_reconfig(Terminal *term, Conf *conf)
         }
     }
 
+    /*
+     * Just setting conf is sufficient to cause colour setting changes
+     * to appear on the next ESC]R palette reset. But we should also
+     * check whether any colour settings have been changed, so that
+     * they can be updated immediately if they haven't been overridden
+     * by some escape sequence.
+     */
+    {
+        int i, j;
+        for (i = 0; i < CONF_NCOLOURS; i++) {
+            for (j = 0; j < 3; j++)
+                if (conf_get_int_int(term->conf, CONF_colours, i*3+j) !=
+                    conf_get_int_int(conf, CONF_colours, i*3+j))
+                    break;
+            if (j < 3) {
+                /* Actually enacting the change has to be deferred 
+                 * until the new conf is installed. */
+                palette_changed = true;
+                break;
+            }
+        }
+    }
+
     conf_free(term->conf);
     term->conf = conf_copy(conf);
 
@@ -1702,6 +1726,8 @@ void term_reconfig(Terminal *term, Conf *conf)
     if (!conf_get_str(term->conf, CONF_printer)) {
         term_print_finish(term);
     }
+    if (palette_changed)
+        term_notify_palette_changed(term);
     term_schedule_tblink(term);
     term_schedule_cblink(term);
     term_copy_stuff_from_conf(term);
@@ -1829,44 +1855,41 @@ static void palette_rebuild(Terminal *term)
     }
 }
 
-static void palette_reset(Terminal *term, bool overrides_only)
+/*
+ * Rebuild the palette from configuration and platform colours.
+ * If 'keep_overrides' set, any escape-sequence-specified overrides will
+ * remain in place.
+ */
+static void palette_reset(Terminal *term, bool keep_overrides)
 {
-    if (!overrides_only) {
-        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
-            term->subpalettes[SUBPAL_CONF].present[i] = true;
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+        term->subpalettes[SUBPAL_CONF].present[i] = true;
 
-        /*
-         * Copy all the palette information out of the Conf.
-         */
-        for (unsigned i = 0; i < CONF_NCOLOURS; i++) {
-            rgb *col = &term->subpalettes[SUBPAL_CONF].values[
-                colour_indices_conf_to_osc4[i]];
-            col->r = conf_get_int_int(term->conf, CONF_colours, i*3+0);
-            col->g = conf_get_int_int(term->conf, CONF_colours, i*3+1);
-            col->b = conf_get_int_int(term->conf, CONF_colours, i*3+2);
-        }
+    /*
+     * Copy all the palette information out of the Conf.
+     */
+    for (unsigned i = 0; i < CONF_NCOLOURS; i++) {
+        rgb *col = &term->subpalettes[SUBPAL_CONF].values[
+            colour_indices_conf_to_osc4[i]];
+        col->r = conf_get_int_int(term->conf, CONF_colours, i*3+0);
+        col->g = conf_get_int_int(term->conf, CONF_colours, i*3+1);
+        col->b = conf_get_int_int(term->conf, CONF_colours, i*3+2);
+    }
 
-        /*
-         * Directly invent the rest of the xterm-256 colours.
-         */
-        for (unsigned i = 0; i < 216; i++) {
-            rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 16];
-            int r = i / 36, g = (i / 6) % 6, b = i % 6;
-            col->r = r ? r * 40 + 55 : 0;
-            col->g = g ? g * 40 + 55 : 0;
-            col->b = b ? b * 40 + 55 : 0;
-        }
-        for (unsigned i = 0; i < 24; i++) {
-            rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 232];
-            int shade = i * 10 + 8;
-            col->r = col->g = col->b = shade;
-        }
-
-        /*
-         * Get rid of all escape-sequence configuration.
-         */
-        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
-            term->subpalettes[SUBPAL_SESSION].present[i] = false;
+    /*
+     * Directly invent the rest of the xterm-256 colours.
+     */
+    for (unsigned i = 0; i < 216; i++) {
+        rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 16];
+        int r = i / 36, g = (i / 6) % 6, b = i % 6;
+        col->r = r ? r * 40 + 55 : 0;
+        col->g = g ? g * 40 + 55 : 0;
+        col->b = b ? b * 40 + 55 : 0;
+    }
+    for (unsigned i = 0; i < 24; i++) {
+        rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 232];
+        int shade = i * 10 + 8;
+        col->r = col->g = col->b = shade;
     }
 
     /*
@@ -1875,6 +1898,14 @@ static void palette_reset(Terminal *term, bool overrides_only)
     for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
         term->subpalettes[SUBPAL_PLATFORM].present[i] = false;
     win_palette_get_overrides(term->win, term);
+
+    if (!keep_overrides) {
+        /*
+         * Get rid of all escape-sequence configuration.
+         */
+        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+            term->subpalettes[SUBPAL_SESSION].present[i] = false;
+    }
 
     /*
      * Rebuild the composite palette.
@@ -7593,7 +7624,7 @@ void term_notify_minimised(Terminal *term, bool minimised)
     term->minimised = minimised;
 }
 
-void term_notify_palette_overrides_changed(Terminal *term)
+void term_notify_palette_changed(Terminal *term)
 {
     palette_reset(term, true);
 }

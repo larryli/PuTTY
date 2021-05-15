@@ -1790,7 +1790,7 @@ void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
 void term_get_cursor_position(Terminal *term, int *x, int *y);
 void term_setup_window_titles(Terminal *term, const char *title_hostname);
 void term_notify_minimised(Terminal *term, bool minimised);
-void term_notify_palette_overrides_changed(Terminal *term);
+void term_notify_palette_changed(Terminal *term);
 void term_notify_window_pos(Terminal *term, int x, int y);
 void term_notify_window_size_pixels(Terminal *term, int x, int y);
 void term_palette_override(Terminal *term, unsigned osc4_index, rgb rgb);

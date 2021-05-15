@@ -2310,7 +2310,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             if (conf_get_bool(conf, CONF_system_colour) !=
                 conf_get_bool(prev_conf, CONF_system_colour))
-                term_notify_palette_overrides_changed(term);
+                term_notify_palette_changed(term);
 
             /* Pass new config data to the terminal */
             term_reconfig(term, conf);
@@ -3300,7 +3300,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSCOLORCHANGE:
         if (conf_get_bool(conf, CONF_system_colour)) {
             /* Refresh palette from system colours. */
-            term_notify_palette_overrides_changed(term);
+            term_notify_palette_changed(term);
             init_palette();
             /* Force a repaint of the terminal window. */
             term_invalidate(term);
