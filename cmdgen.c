@@ -1283,6 +1283,10 @@ int main(int argc, char **argv)
                 }
                 ssh_key *sk = ssh_key_new_pub(
                     alg, ptrlen_from_strbuf(ssh2blob));
+                if (!sk) {
+                    fprintf(stderr, "puttygen: unable to decode public key\n");
+                    RETURN(1);
+                }
                 kc = ssh_key_components(sk);
                 ssh_key_free(sk);
             }
