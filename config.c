@@ -2477,16 +2477,26 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       "Options controlling proxy usage");
 
         s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
-        ctrl_radiobuttons(s, "Proxy type:", 't', 3,
-                          HELPCTX(proxy_type),
-                          conf_radiobutton_handler,
-                          I(CONF_proxy_type),
-                          "None", I(PROXY_NONE),
-                          "SOCKS 4", I(PROXY_SOCKS4),
-                          "SOCKS 5", I(PROXY_SOCKS5),
-                          "HTTP", I(PROXY_HTTP),
-                          "Telnet", I(PROXY_TELNET),
-                          NULL);
+        c = ctrl_radiobuttons(s, "Proxy type:", 't', 3,
+                              HELPCTX(proxy_type),
+                              conf_radiobutton_handler,
+                              I(CONF_proxy_type),
+                              "None", I(PROXY_NONE),
+                              "SOCKS 4", I(PROXY_SOCKS4),
+                              "SOCKS 5", I(PROXY_SOCKS5),
+                              "HTTP", I(PROXY_HTTP),
+                              "Telnet", I(PROXY_TELNET),
+                              NULL);
+        if (ssh_proxy_supported) {
+            /* Add an extra radio button to the above list. */
+            c->radio.nbuttons++;
+            c->radio.buttons =
+                sresize(c->radio.buttons, c->radio.nbuttons, char *);
+            c->radio.buttons[c->radio.nbuttons-1] = dupstr("SSH");
+            c->radio.buttondata =
+                sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
+            c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_SSH);
+        }
         ctrl_columns(s, 2, 80, 20);
         c = ctrl_editbox(s, "Proxy hostname", 'y', 100,
                          HELPCTX(proxy_main),

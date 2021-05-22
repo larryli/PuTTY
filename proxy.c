@@ -405,6 +405,11 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         Socket *sret;
         int type;
 
+        if ((sret = sshproxy_new_connection(addr, hostname, port, privport,
+                                            oobinline, nodelay, keepalive,
+                                            plug, conf)) != NULL)
+            return sret;
+
         if ((sret = platform_new_connection(addr, hostname, port, privport,
                                             oobinline, nodelay, keepalive,
                                             plug, conf)) != NULL)

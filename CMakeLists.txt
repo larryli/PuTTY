@@ -27,7 +27,7 @@ add_library(settings STATIC
   cmdline.c settings.c)
 
 add_library(crypto STATIC
-  cproxy.c)
+  cproxy.c sshproxy.c)
 add_subdirectory(crypto)
 
 add_library(network STATIC
@@ -109,6 +109,7 @@ add_executable(psocks
   psocks.c
   norand.c
   nocproxy.c
+  nosshproxy.c
   ssh/portfwd.c)
 target_link_libraries(psocks
   eventloop console network utils

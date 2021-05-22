@@ -474,7 +474,8 @@ enum {
      * Proxy types.
      */
     PROXY_NONE, PROXY_SOCKS4, PROXY_SOCKS5,
-    PROXY_HTTP, PROXY_TELNET, PROXY_CMD, PROXY_FUZZ
+    PROXY_HTTP, PROXY_TELNET, PROXY_SSH,
+    PROXY_CMD, PROXY_FUZZ
 };
 
 enum {
@@ -619,6 +620,9 @@ enum {
 #define BACKEND_NEEDS_TERMINAL      0x02   /* Backend must have terminal */
 #define BACKEND_SUPPORTS_NC_HOST    0x04   /* Backend can honour
                                               CONF_ssh_nc_host */
+
+/* In (no)sshproxy.c */
+extern const bool ssh_proxy_supported;
 
 struct Backend {
     const BackendVtable *vt;

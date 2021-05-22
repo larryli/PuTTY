@@ -137,7 +137,8 @@ if(GTK_FOUND)
     askpass.c
     x11.c
     noise.c
-    ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c)
+    ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c
+    ${CMAKE_SOURCE_DIR}/nosshproxy.c)
   target_link_libraries(pageant
     eventloop console agent settings network crypto utils
     ${GTK_LIBRARIES})
@@ -148,6 +149,7 @@ if(GTK_FOUND)
     main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/nogss.c
+    ${CMAKE_SOURCE_DIR}/nosshproxy.c
     pty.c)
   target_link_libraries(pterm
     guiterminal eventloop settings charset utils
@@ -160,6 +162,7 @@ if(GTK_FOUND)
     ${CMAKE_SOURCE_DIR}/nocmdline.c
     ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/nogss.c
+    ${CMAKE_SOURCE_DIR}/nosshproxy.c
     pty.c)
   target_link_libraries(ptermapp
     guiterminal eventloop settings charset utils
@@ -193,7 +196,8 @@ if(GTK_FOUND)
     ${CMAKE_SOURCE_DIR}/be_nos_s.c
     ${CMAKE_SOURCE_DIR}/nogss.c
     ${CMAKE_SOURCE_DIR}/norand.c
-    ${CMAKE_SOURCE_DIR}/nocproxy.c)
+    ${CMAKE_SOURCE_DIR}/nocproxy.c
+    ${CMAKE_SOURCE_DIR}/nosshproxy.c)
   target_link_libraries(puttytel
     guiterminal eventloop otherbackends settings network charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})

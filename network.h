@@ -127,6 +127,12 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
                                 bool oobinline, bool nodelay, bool keepalive,
                                 Plug *plug, Conf *conf);
 
+/* callback for SSH jump-host proxying */
+Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
+                                int port, bool privport,
+                                bool oobinline, bool nodelay, bool keepalive,
+                                Plug *plug, Conf *conf);
+
 /* socket functions */
 
 void sk_init(void);                    /* called once at program startup */

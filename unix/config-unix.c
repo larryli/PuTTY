@@ -51,6 +51,8 @@ void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
                 c->radio.buttondata =
                     sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
                 c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_CMD);
+                if (c->radio.ncolumns < 4)
+                    c->radio.ncolumns = 4;
                 break;
             }
         }

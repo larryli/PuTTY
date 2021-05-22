@@ -374,6 +374,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                 c->radio.buttondata =
                     sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
                 c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_CMD);
+                if (c->radio.ncolumns < 4)
+                    c->radio.ncolumns = 4;
                 break;
             }
         }
