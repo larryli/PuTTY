@@ -1221,6 +1221,7 @@ const BackendVtable ssh_backend = {
     .id = "ssh",
     .displayname = "SSH",
     .protocol = PROT_SSH,
+    .flags = BACKEND_SUPPORTS_NC_HOST,
     .default_port = 22,
 };
 
@@ -1245,4 +1246,5 @@ const BackendVtable sshconn_backend = {
     .id = "ssh-connection",
     .displayname = "Bare ssh-connection",
     .protocol = PROT_SSHCONN,
+    .flags = BACKEND_SUPPORTS_NC_HOST,
 };

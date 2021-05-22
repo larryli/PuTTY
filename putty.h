@@ -617,6 +617,8 @@ enum {
 #define BACKEND_RESIZE_FORBIDDEN    0x01   /* Backend does not allow
                                               resizing terminal */
 #define BACKEND_NEEDS_TERMINAL      0x02   /* Backend must have terminal */
+#define BACKEND_SUPPORTS_NC_HOST    0x04   /* Backend can honour
+                                              CONF_ssh_nc_host */
 
 struct Backend {
     const BackendVtable *vt;
