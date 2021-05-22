@@ -925,6 +925,29 @@ struct SeatVtable {
     void (*notify_remote_exit)(Seat *seat);
 
     /*
+     * Notify the seat that the whole connection has finished.
+     * (Distinct from notify_remote_exit, e.g. in the case where you
+     * have port forwardings still active when the main foreground
+     * session goes away: then you'd get notify_remote_exit when the
+     * foreground session dies, but notify_remote_disconnect when the
+     * last forwarding vanishes and the network connection actually
+     * closes.)
+     *
+     * This function might be called multiple times by accident; seats
+     * should be prepared to cope.
+     *
+     * More precisely: this function notifies the seat that
+     * backend_connected() might now return false where previously it
+     * returned true. (Note the 'might': an accidental duplicate call
+     * might happen when backend_connected() was already returning
+     * false. Or even, in weird situations, when it hadn't stopped
+     * returning true yet. The point is, when you get this
+     * notification, all it's really telling you is that it's worth
+     * _checking_ backend_connected, if you weren't already.)
+     */
+    void (*notify_remote_disconnect)(Seat *seat);
+
+    /*
      * Notify the seat that the connection has suffered a fatal error.
      */
     void (*connection_fatal)(Seat *seat, const char *message);
@@ -1095,6 +1118,8 @@ static inline int seat_get_userpass_input(
 { return seat->vt->get_userpass_input(seat, p, input); }
 static inline void seat_notify_remote_exit(Seat *seat)
 { seat->vt->notify_remote_exit(seat); }
+static inline void seat_notify_remote_disconnect(Seat *seat)
+{ seat->vt->notify_remote_disconnect(seat); }
 static inline void seat_update_specials_menu(Seat *seat)
 { seat->vt->update_specials_menu(seat); }
 static inline char *seat_get_ttymode(Seat *seat, const char *mode)
@@ -1163,6 +1188,7 @@ size_t nullseat_output(
 bool nullseat_eof(Seat *seat);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
 void nullseat_notify_remote_exit(Seat *seat);
+void nullseat_notify_remote_disconnect(Seat *seat);
 void nullseat_connection_fatal(Seat *seat, const char *message);
 void nullseat_update_specials_menu(Seat *seat);
 char *nullseat_get_ttymode(Seat *seat, const char *mode);

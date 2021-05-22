@@ -639,6 +639,7 @@ static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
         if (error_msg)
             telnet->closed_on_socket_error = true;
         seat_notify_remote_exit(telnet->seat);
+        seat_notify_remote_disconnect(telnet->seat);
     }
     if (error_msg) {
         logevent(telnet->logctx, error_msg);

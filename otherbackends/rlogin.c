@@ -63,6 +63,7 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
         if (error_msg)
             rlogin->closed_on_socket_error = true;
         seat_notify_remote_exit(rlogin->seat);
+        seat_notify_remote_disconnect(rlogin->seat);
     }
     if (error_msg) {
         /* A socket error has occurred. */

@@ -52,6 +52,7 @@ static void raw_check_close(Raw *raw)
             sk_close(raw->s);
             raw->s = NULL;
             seat_notify_remote_exit(raw->seat);
+            seat_notify_remote_disconnect(raw->seat);
         }
     }
 }
@@ -68,6 +69,7 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
             raw->s = NULL;
             raw->closed_on_socket_error = true;
             seat_notify_remote_exit(raw->seat);
+            seat_notify_remote_disconnect(raw->seat);
         }
         logevent(raw->logctx, error_msg);
         seat_connection_fatal(raw->seat, "%s", error_msg);

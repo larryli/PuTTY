@@ -391,6 +391,7 @@ static const SeatVtable gtk_seat_vt = {
     .eof = gtk_seat_eof,
     .get_userpass_input = gtk_seat_get_userpass_input,
     .notify_remote_exit = gtk_seat_notify_remote_exit,
+    .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = gtk_seat_connection_fatal,
     .update_specials_menu = gtk_seat_update_specials_menu,
     .get_ttymode = gtk_seat_get_ttymode,

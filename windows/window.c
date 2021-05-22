@@ -332,6 +332,7 @@ static const SeatVtable win_seat_vt = {
     .eof = win_seat_eof,
     .get_userpass_input = win_seat_get_userpass_input,
     .notify_remote_exit = win_seat_notify_remote_exit,
+    .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = win_seat_connection_fatal,
     .update_specials_menu = win_seat_update_specials_menu,
     .get_ttymode = win_seat_get_ttymode,

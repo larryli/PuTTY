@@ -387,6 +387,7 @@ static void ssh_bpp_output_raw_data_callback(void *vctx)
     if (ssh->pending_close) {
         sk_close(ssh->s);
         ssh->s = NULL;
+        seat_notify_remote_disconnect(ssh->seat);
     }
 }
 
@@ -428,6 +429,7 @@ static void ssh_shutdown(Ssh *ssh)
     if (ssh->s) {
         sk_close(ssh->s);
         ssh->s = NULL;
+        seat_notify_remote_disconnect(ssh->seat);
     }
 
     bufchain_clear(&ssh->in_raw);
@@ -788,6 +790,7 @@ static char *connect_to_host(
         if ((err = sk_socket_error(ssh->s)) != NULL) {
             ssh->s = NULL;
             seat_notify_remote_exit(ssh->seat);
+            seat_notify_remote_disconnect(ssh->seat);
             return dupstr(err);
         }
     }

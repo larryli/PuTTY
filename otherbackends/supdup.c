@@ -581,6 +581,7 @@ static void supdup_closing(Plug *plug, const char *error_msg, int error_code,
         if (error_msg)
             supdup->closed_on_socket_error = true;
         seat_notify_remote_exit(supdup->seat);
+        seat_notify_remote_disconnect(supdup->seat);
     }
     if (error_msg) {
         logevent(supdup->logctx, error_msg);
