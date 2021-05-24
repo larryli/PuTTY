@@ -395,7 +395,9 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
                        bool oobinline, bool nodelay, bool keepalive,
                        Plug *plug, Conf *conf)
 {
-    if (conf_get_int(conf, CONF_proxy_type) != PROXY_NONE &&
+    int type = conf_get_int(conf, CONF_proxy_type);
+
+    if (type != PROXY_NONE &&
         proxy_for_destination(addr, hostname, port, conf))
     {
         ProxySocket *ret;
@@ -403,9 +405,9 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         char *proxy_canonical_name;
         const char *proxy_type;
         Socket *sret;
-        int type;
 
-        if ((sret = sshproxy_new_connection(addr, hostname, port, privport,
+        if (type == PROXY_SSH &&
+            (sret = sshproxy_new_connection(addr, hostname, port, privport,
                                             oobinline, nodelay, keepalive,
                                             plug, conf)) != NULL)
             return sret;
@@ -435,7 +437,6 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         ret->state = PROXY_STATE_NEW;
         ret->negotiate = NULL;
 
-        type = conf_get_int(conf, CONF_proxy_type);
         if (type == PROXY_HTTP) {
             ret->negotiate = proxy_http_negotiate;
             proxy_type = "HTTP";
