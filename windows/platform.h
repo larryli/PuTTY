@@ -621,20 +621,33 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
                                  void *privdata, int flags);
 size_t handle_write(struct handle *h, const void *data, size_t len);
 void handle_write_eof(struct handle *h);
-HANDLE *handle_get_events(int *nevents);
 void handle_free(struct handle *h);
-void handle_got_event(HANDLE event);
 void handle_unthrottle(struct handle *h, size_t backlog);
 size_t handle_backlog(struct handle *h);
 void *handle_get_privdata(struct handle *h);
-struct handle *handle_add_foreign_event(HANDLE event,
-                                        void (*callback)(void *), void *ctx);
 /* Analogue of stdio_sink in marshal.h, for a Windows handle */
 struct handle_sink {
     struct handle *h;
     BinarySink_IMPLEMENTATION;
 };
 void handle_sink_init(handle_sink *sink, struct handle *h);
+
+/*
+ * Exports from handle-wait.c.
+ */
+typedef struct HandleWait HandleWait;
+typedef void (*handle_wait_callback_fn_t)(void *);
+HandleWait *add_handle_wait(HANDLE h, handle_wait_callback_fn_t callback,
+                            void *callback_ctx);
+void delete_handle_wait(HandleWait *hw);
+
+typedef struct HandleWaitList {
+    HANDLE handles[MAXIMUM_WAIT_OBJECTS];
+    int nhandles;
+} HandleWaitList;
+HandleWaitList *get_handle_wait_list(void);
+void handle_wait_activate(HandleWaitList *hwl, int index);
+void handle_wait_list_free(HandleWaitList *hwl);
 
 /*
  * Exports from winpgntc.c.

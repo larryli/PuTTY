@@ -37,6 +37,12 @@
  * Generic definitions.
  */
 
+typedef struct handle_list_node handle_list_node;
+struct handle_list_node {
+    handle_list_node *next, *prev;
+};
+static void add_to_ready_list(handle_list_node *node);
+
 /*
  * Maximum amount of backlog we will allow to build up on an input
  * handle before we stop reading from it.
@@ -56,7 +62,7 @@ struct handle_generic {
      * thread.
      */
     HANDLE h;                          /* the handle itself */
-    HANDLE ev_to_main;                 /* event used to signal main thread */
+    handle_list_node ready_node;       /* for linking on to the ready list */
     HANDLE ev_from_main;               /* event used to signal back to us */
     bool moribund;                     /* are we going to kill this soon? */
     bool done;                         /* request subthread to terminate */
@@ -65,7 +71,7 @@ struct handle_generic {
     void *privdata;                    /* for client to remember who they are */
 };
 
-typedef enum { HT_INPUT, HT_OUTPUT, HT_FOREIGN } HandleType;
+typedef enum { HT_INPUT, HT_OUTPUT } HandleType;
 
 /* ----------------------------------------------------------------------
  * Input threads.
@@ -79,7 +85,7 @@ struct handle_input {
      * Copy of the handle_generic structure.
      */
     HANDLE h;                          /* the handle itself */
-    HANDLE ev_to_main;                 /* event used to signal main thread */
+    handle_list_node ready_node;       /* for linking on to the ready list */
     HANDLE ev_from_main;               /* event used to signal back to us */
     bool moribund;                     /* are we going to kill this soon? */
     bool done;                         /* request subthread to terminate */
@@ -93,7 +99,7 @@ struct handle_input {
     int flags;
 
     /*
-     * Data set by the input thread before signalling ev_to_main,
+     * Data set by the input thread before marking the handle ready,
      * and read by the main thread after receiving that signal.
      */
     char buffer[4096];                 /* the data read from the handle */
@@ -176,7 +182,7 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
          */
         finished = (ctx->len == 0);
 
-        SetEvent(ctx->ev_to_main);
+        add_to_ready_list(&ctx->ready_node);
 
         if (finished)
             break;
@@ -189,7 +195,7 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
              * not touch ctx at all, because the main thread might
              * have freed it.
              */
-            SetEvent(ctx->ev_to_main);
+            add_to_ready_list(&ctx->ready_node);
             break;
         }
     }
@@ -240,7 +246,7 @@ struct handle_output {
      * Copy of the handle_generic structure.
      */
     HANDLE h;                          /* the handle itself */
-    HANDLE ev_to_main;                 /* event used to signal main thread */
+    handle_list_node ready_node;       /* for linking on to the ready list */
     HANDLE ev_from_main;               /* event used to signal back to us */
     bool moribund;                     /* are we going to kill this soon? */
     bool done;                         /* request subthread to terminate */
@@ -261,8 +267,8 @@ struct handle_output {
     DWORD len;                         /* how much data there is */
 
     /*
-     * Data set by the input thread before signalling ev_to_main,
-     * and read by the main thread after receiving that signal.
+     * Data set by the input thread before marking this handle as
+     * ready, and read by the main thread after receiving that signal.
      */
     DWORD lenwritten;                  /* how much data we actually wrote */
     int writeerr;                      /* return value from WriteFile */
@@ -303,7 +309,7 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
              * not touch ctx at all, because the main thread might
              * have freed it.
              */
-            SetEvent(ctx->ev_to_main);
+            add_to_ready_list(&ctx->ready_node);
             break;
         }
         if (povl) {
@@ -326,7 +332,7 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
                 ctx->writeerr = 0;
         }
 
-        SetEvent(ctx->ev_to_main);
+        add_to_ready_list(&ctx->ready_node);
         if (!writeret) {
             /*
              * The write operation has suffered an error. Telling that
@@ -362,33 +368,6 @@ static void handle_try_output(struct handle_output *ctx)
 }
 
 /* ----------------------------------------------------------------------
- * 'Foreign events'. These are handle structures which just contain a
- * single event object passed to us by another module such as
- * winnps.c, so that they can make use of our handle_get_events /
- * handle_got_event mechanism for communicating with application main
- * loops.
- */
-struct handle_foreign {
-    /*
-     * Copy of the handle_generic structure.
-     */
-    HANDLE h;                          /* the handle itself */
-    HANDLE ev_to_main;                 /* event used to signal main thread */
-    HANDLE ev_from_main;               /* event used to signal back to us */
-    bool moribund;                     /* are we going to kill this soon? */
-    bool done;                         /* request subthread to terminate */
-    bool defunct;                      /* has the subthread already gone? */
-    bool busy;                         /* operation currently in progress? */
-    void *privdata;                    /* for client to remember who they are */
-
-    /*
-     * Our own data, just consisting of knowledge of who to call back.
-     */
-    void (*callback)(void *);
-    void *ctx;
-};
-
-/* ----------------------------------------------------------------------
  * Unified code handling both input and output threads.
  */
 
@@ -398,36 +377,91 @@ struct handle {
         struct handle_generic g;
         struct handle_input i;
         struct handle_output o;
-        struct handle_foreign f;
     } u;
 };
 
-static tree234 *handles_by_evtomain;
+/*
+ * Linked list storing the current list of handles ready to have
+ * something done to them by the main thread.
+ */
+static handle_list_node ready_head[1];
+static CRITICAL_SECTION ready_critsec[1];
 
-static int handle_cmp_evtomain(void *av, void *bv)
+/*
+ * Event object used by all subthreads to signal that they've just put
+ * something on the ready list, i.e. that the ready list is non-empty.
+ */
+static HANDLE ready_event = INVALID_HANDLE_VALUE;
+
+static void add_to_ready_list(handle_list_node *node)
 {
-    struct handle *a = (struct handle *)av;
-    struct handle *b = (struct handle *)bv;
-
-    if ((uintptr_t)a->u.g.ev_to_main < (uintptr_t)b->u.g.ev_to_main)
-        return -1;
-    else if ((uintptr_t)a->u.g.ev_to_main > (uintptr_t)b->u.g.ev_to_main)
-        return +1;
-    else
-        return 0;
+    /*
+     * Called from subthreads, when their handle has done something
+     * that they need the main thread to respond to. We append the
+     * given list node to the end of the ready list, and set
+     * ready_event to signal to the main thread that the ready list is
+     * now non-empty.
+     */
+    EnterCriticalSection(ready_critsec);
+    node->next = ready_head;
+    node->prev = ready_head->prev;
+    node->next->prev = node->prev->next = node;
+    SetEvent(ready_event);
+    LeaveCriticalSection(ready_critsec);
 }
 
-static int handle_find_evtomain(void *av, void *bv)
+static void remove_from_ready_list(handle_list_node *node)
 {
-    HANDLE *a = (HANDLE *)av;
-    struct handle *b = (struct handle *)bv;
+    /*
+     * Called from the main thread, just before destroying a 'struct
+     * handle' completely: as a precaution, we make absolutely sure
+     * it's not linked on the ready list, just in case somehow it
+     * still was.
+     */
+    EnterCriticalSection(ready_critsec);
+    node->next->prev = node->prev;
+    node->prev->next = node->next;
+    node->next = node->prev = node;
+    LeaveCriticalSection(ready_critsec);
+}
 
-    if ((uintptr_t)*a < (uintptr_t)b->u.g.ev_to_main)
-        return -1;
-    else if ((uintptr_t)*a > (uintptr_t)b->u.g.ev_to_main)
-        return +1;
-    else
-        return 0;
+static void handle_ready(struct handle *h); /* process one handle (below) */
+
+static void handle_ready_callback(void *vctx)
+{
+    /*
+     * Called when the main thread detects ready_event, indicating
+     * that at least one handle is on the ready list. We empty the
+     * whole list and process the handles one by one.
+     *
+     * It's possible that other handles may be destroyed, and hence
+     * taken _off_ the ready list, during this processing. That
+     * shouldn't cause a deadlock, because according to the API docs,
+     * it's safe to call EnterCriticalSection twice in the same thread
+     * - the second call will return immediately because that thread
+     * already owns the critsec. (And then it takes two calls to
+     * LeaveCriticalSection to release it again, which is just what we
+     * want here.)
+     */
+    EnterCriticalSection(ready_critsec);
+    while (ready_head->next != ready_head) {
+        handle_list_node *node = ready_head->next;
+        node->prev->next = node->next;
+        node->next->prev = node->prev;
+        node->next = node->prev = node;
+        handle_ready(container_of(node, struct handle, u.g.ready_node));
+    }
+    LeaveCriticalSection(ready_critsec);
+}
+
+static inline void ensure_ready_event_setup(void)
+{
+    if (ready_event == INVALID_HANDLE_VALUE) {
+        ready_head->prev = ready_head->next = ready_head;
+        InitializeCriticalSection(ready_critsec);
+        ready_event = CreateEvent(NULL, false, false, NULL);
+        add_handle_wait(ready_event, handle_ready_callback, NULL);
+    }
 }
 
 struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
@@ -438,7 +472,6 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 
     h->type = HT_INPUT;
     h->u.i.h = handle;
-    h->u.i.ev_to_main = CreateEvent(NULL, false, false, NULL);
     h->u.i.ev_from_main = CreateEvent(NULL, false, false, NULL);
     h->u.i.gotdata = gotdata;
     h->u.i.defunct = false;
@@ -447,10 +480,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
     h->u.i.privdata = privdata;
     h->u.i.flags = flags;
 
-    if (!handles_by_evtomain)
-        handles_by_evtomain = newtree234(handle_cmp_evtomain);
-    add234(handles_by_evtomain, h);
-
+    ensure_ready_event_setup();
     CreateThread(NULL, 0, handle_input_threadfunc,
                  &h->u.i, 0, &in_threadid);
     h->u.i.busy = true;
@@ -466,7 +496,6 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
 
     h->type = HT_OUTPUT;
     h->u.o.h = handle;
-    h->u.o.ev_to_main = CreateEvent(NULL, false, false, NULL);
     h->u.o.ev_from_main = CreateEvent(NULL, false, false, NULL);
     h->u.o.busy = false;
     h->u.o.defunct = false;
@@ -478,36 +507,9 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
     h->u.o.sentdata = sentdata;
     h->u.o.flags = flags;
 
-    if (!handles_by_evtomain)
-        handles_by_evtomain = newtree234(handle_cmp_evtomain);
-    add234(handles_by_evtomain, h);
-
+    ensure_ready_event_setup();
     CreateThread(NULL, 0, handle_output_threadfunc,
                  &h->u.o, 0, &out_threadid);
-
-    return h;
-}
-
-struct handle *handle_add_foreign_event(HANDLE event,
-                                        void (*callback)(void *), void *ctx)
-{
-    struct handle *h = snew(struct handle);
-
-    h->type = HT_FOREIGN;
-    h->u.f.h = INVALID_HANDLE_VALUE;
-    h->u.f.ev_to_main = event;
-    h->u.f.ev_from_main = INVALID_HANDLE_VALUE;
-    h->u.f.defunct = true;  /* we have no thread in the first place */
-    h->u.f.moribund = false;
-    h->u.f.done = false;
-    h->u.f.privdata = NULL;
-    h->u.f.callback = callback;
-    h->u.f.ctx = ctx;
-    h->u.f.busy = true;
-
-    if (!handles_by_evtomain)
-        handles_by_evtomain = newtree234(handle_cmp_evtomain);
-    add234(handles_by_evtomain, h);
 
     return h;
 }
@@ -537,46 +539,19 @@ void handle_write_eof(struct handle *h)
     }
 }
 
-HANDLE *handle_get_events(int *nevents)
-{
-    HANDLE *ret;
-    struct handle *h;
-    int i;
-    size_t n, size;
-
-    /*
-     * Go through our tree counting the handle objects currently
-     * engaged in useful activity.
-     */
-    ret = NULL;
-    n = size = 0;
-    if (handles_by_evtomain) {
-        for (i = 0; (h = index234(handles_by_evtomain, i)) != NULL; i++) {
-            if (h->u.g.busy) {
-                sgrowarray(ret, size, n);
-                ret[n++] = h->u.g.ev_to_main;
-            }
-        }
-    }
-
-    *nevents = n;
-    return ret;
-}
-
 static void handle_destroy(struct handle *h)
 {
     if (h->type == HT_OUTPUT)
         bufchain_clear(&h->u.o.queued_data);
     CloseHandle(h->u.g.ev_from_main);
-    CloseHandle(h->u.g.ev_to_main);
-    del234(handles_by_evtomain, h);
+    remove_from_ready_list(&h->u.g.ready_node);
     sfree(h);
 }
 
 void handle_free(struct handle *h)
 {
     assert(h && !h->u.g.moribund);
-    if (h->u.g.busy && h->type != HT_FOREIGN) {
+    if (h->u.g.busy) {
         /*
          * If the handle is currently busy, we cannot immediately free
          * it, because its subthread is in the middle of something.
@@ -608,24 +583,8 @@ void handle_free(struct handle *h)
     }
 }
 
-void handle_got_event(HANDLE event)
+static void handle_ready(struct handle *h)
 {
-    struct handle *h;
-
-    assert(handles_by_evtomain);
-    h = find234(handles_by_evtomain, &event, handle_find_evtomain);
-    if (!h) {
-        /*
-         * This isn't an error condition. If two or more event
-         * objects were signalled during the same select operation,
-         * and processing of the first caused the second handle to
-         * be closed, then it will sometimes happen that we receive
-         * an event notification here for a handle which is already
-         * deceased. In that situation we simply do nothing.
-         */
-        return;
-    }
-
     if (h->u.g.moribund) {
         /*
          * A moribund handle is one which we have either already
@@ -688,11 +647,6 @@ void handle_got_event(HANDLE event)
             h->u.o.sentdata(h, bufchain_size(&h->u.o.queued_data), 0);
             handle_try_output(&h->u.o);
         }
-        break;
-
-      case HT_FOREIGN:
-        /* Just call the callback. */
-        h->u.f.callback(h->u.f.ctx);
         break;
     }
 }

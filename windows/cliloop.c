@@ -8,8 +8,6 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
     now = GETTICKCOUNT();
 
     while (true) {
-        int nhandles;
-        HANDLE *handles;
         DWORD n;
         DWORD ticks;
 
@@ -34,25 +32,25 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
              * get WAIT_TIMEOUT */
         }
 
-        handles = handle_get_events(&nhandles);
+        HandleWaitList *hwl = get_handle_wait_list();
         size_t winselcli_index = -(size_t)1;
-        size_t extra_base = nhandles;
+        size_t extra_base = hwl->nhandles;
         if (winselcli_event != INVALID_HANDLE_VALUE) {
+            assert(extra_base < MAXIMUM_WAIT_OBJECTS);
             winselcli_index = extra_base++;
-            handles = sresize(handles, extra_base, HANDLE);
-            handles[winselcli_index] = winselcli_event;
+            hwl->handles[winselcli_index] = winselcli_event;
         }
         size_t total_handles = extra_base + n_extra_handles;
-        handles = sresize(handles, total_handles, HANDLE);
+        assert(total_handles < MAXIMUM_WAIT_OBJECTS);
         for (size_t i = 0; i < n_extra_handles; i++)
-            handles[extra_base + i] = extra_handles[i];
+            hwl->handles[extra_base + i] = extra_handles[i];
 
-        n = WaitForMultipleObjects(total_handles, handles, false, ticks);
+        n = WaitForMultipleObjects(total_handles, hwl->handles, false, ticks);
 
         size_t extra_handle_index = n_extra_handles;
 
-        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
-            handle_got_event(handles[n - WAIT_OBJECT_0]);
+        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)hwl->nhandles) {
+            handle_wait_activate(hwl, n - WAIT_OBJECT_0);
         } else if (winselcli_event != INVALID_HANDLE_VALUE &&
                    n == WAIT_OBJECT_0 + winselcli_index) {
             WSANETWORKEVENTS things;
@@ -122,7 +120,7 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
             now = GETTICKCOUNT();
         }
 
-        sfree(handles);
+        handle_wait_list_free(hwl);
 
         if (!post(ctx, extra_handle_index))
             break;

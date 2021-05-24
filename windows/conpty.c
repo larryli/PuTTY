@@ -15,7 +15,8 @@ typedef struct ConPTY ConPTY;
 struct ConPTY {
     HPCON pseudoconsole;
     HANDLE outpipe, inpipe, hprocess;
-    struct handle *out, *in, *subprocess;
+    struct handle *out, *in;
+    HandleWait *subprocess;
     bool exited;
     DWORD exitstatus;
     Seat *seat;
@@ -43,7 +44,7 @@ static void conpty_terminate(ConPTY *conpty)
         conpty->inpipe = INVALID_HANDLE_VALUE;
     }
     if (conpty->subprocess) {
-        handle_free(conpty->subprocess);
+        delete_handle_wait(conpty->subprocess);
         conpty->subprocess = NULL;
         conpty->hprocess = INVALID_HANDLE_VALUE;
     }
@@ -65,7 +66,7 @@ static void conpty_process_wait_callback(void *vctx)
      * We can stop waiting for the process now.
      */
     if (conpty->subprocess) {
-        handle_free(conpty->subprocess);
+        delete_handle_wait(conpty->subprocess);
         conpty->subprocess = NULL;
         conpty->hprocess = INVALID_HANDLE_VALUE;
     }
@@ -238,7 +239,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     conpty->inpipe = out_r;
     conpty->in = handle_input_new(out_r, conpty_gotdata, conpty, 0);
     out_r = INVALID_HANDLE_VALUE;
-    conpty->subprocess = handle_add_foreign_event(
+    conpty->subprocess = add_handle_wait(
         pi.hProcess, conpty_process_wait_callback, conpty);
     conpty->hprocess = pi.hProcess;
     CloseHandle(pi.hThread);

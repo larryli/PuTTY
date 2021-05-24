@@ -22,7 +22,7 @@ typedef struct NamedPipeServerSocket {
     /* The current named pipe object + attempt to connect to it */
     HANDLE pipehandle;
     OVERLAPPED connect_ovl;
-    struct handle *callback_handle;    /* winhandl.c's reference */
+    HandleWait *callback_handle;    /* handle-wait.c's reference */
 
     /* PuTTY Socket machinery */
     Plug *plug;
@@ -45,7 +45,7 @@ static void sk_namedpipeserver_close(Socket *s)
     NamedPipeServerSocket *ps = container_of(s, NamedPipeServerSocket, sock);
 
     if (ps->callback_handle)
-        handle_free(ps->callback_handle);
+        delete_handle_wait(ps->callback_handle);
     CloseHandle(ps->pipehandle);
     CloseHandle(ps->connect_ovl.hEvent);
     sfree(ps->error);
@@ -226,9 +226,8 @@ Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
 
     memset(&ret->connect_ovl, 0, sizeof(ret->connect_ovl));
     ret->connect_ovl.hEvent = CreateEvent(NULL, true, false, NULL);
-    ret->callback_handle =
-        handle_add_foreign_event(ret->connect_ovl.hEvent,
-                                 named_pipe_connect_callback, ret);
+    ret->callback_handle = add_handle_wait(
+        ret->connect_ovl.hEvent, named_pipe_connect_callback, ret);
     named_pipe_accept_loop(ret, false);
 
   cleanup:

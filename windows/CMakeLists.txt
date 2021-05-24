@@ -32,7 +32,7 @@ if(NOT HAVE_STRTOUMAX)
   add_sources_from_current_dir(utils utils/strtoumax.c)
 endif()
 add_sources_from_current_dir(eventloop
-  cliloop.c handle-io.c)
+  cliloop.c handle-wait.c)
 add_sources_from_current_dir(console
   select-cli.c nohelp.c console.c)
 add_sources_from_current_dir(settings
@@ -52,6 +52,14 @@ add_sources_from_current_dir(agent
 add_sources_from_current_dir(guiterminal
   dialog.c controls.c config.c printing.c jump-list.c sizetip.c)
 add_dependencies(guiterminal generated_licence_h) # dialog.c uses licence.h
+
+# This object awkwardly needs to live in the network library as well
+# as the eventloop library, in case it didn't get pulled in from the
+# latter before handle-socket.c needed it.
+add_library(handle-io OBJECT
+  handle-io.c)
+target_sources(eventloop PRIVATE $<TARGET_OBJECTS:handle-io>)
+target_sources(network PRIVATE $<TARGET_OBJECTS:handle-io>)
 
 add_library(guimisc STATIC
   select-gui.c)

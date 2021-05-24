@@ -1633,7 +1633,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);
     CreateThread(NULL, 0, wm_copydata_threadfunc,
                  &inst, 0, &wm_copydata_threadid);
-    handle_add_foreign_event(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
+    add_handle_wait(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
 
     if (show_keylist_on_startup)
         create_keylist_window();
@@ -1642,19 +1642,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Main message loop.
      */
     while (true) {
-        HANDLE *handles;
-        int nhandles, n;
+        int n;
 
-        handles = handle_get_events(&nhandles);
+        HandleWaitList *hwl = get_handle_wait_list();
 
-        n = MsgWaitForMultipleObjects(nhandles, handles, false,
+        n = MsgWaitForMultipleObjects(hwl->nhandles, hwl->handles, false,
                                       INFINITE, QS_ALLINPUT);
 
-        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
-            handle_got_event(handles[n - WAIT_OBJECT_0]);
-            sfree(handles);
-        } else
-            sfree(handles);
+        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)hwl->nhandles)
+            handle_wait_activate(hwl, n - WAIT_OBJECT_0);
+        handle_wait_list_free(hwl);
 
         while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT)
