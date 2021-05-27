@@ -129,7 +129,6 @@ void handle_wait_activate(HandleWaitList *hwl, int index)
 {
     struct HandleWaitListInner *hwli =
         container_of(hwl, struct HandleWaitListInner, hwl);
-    tree234 *t = ensure_handlewaits_tree_exists();
     assert(0 <= index);
     assert(index < hwli->hwl.nhandles);
     HandleWait *hw = hwli->hws[index];
