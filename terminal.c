@@ -1865,7 +1865,6 @@ static void palette_rebuild(Terminal *term)
         term->win_palette_pending_min = min_changed;
         term->win_palette_pending_limit = max_changed + 1;
         term_invalidate(term);
-        term_schedule_update(term);
     }
 }
 
