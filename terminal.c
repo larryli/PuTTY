@@ -1815,6 +1815,16 @@ static void palette_rebuild(Terminal *term)
 {
     unsigned min_changed = OSC4_NCOLOURS, max_changed = 0;
 
+    if (term->win_palette_pending) {
+        /* Possibly extend existing range. */
+        min_changed = term->win_palette_pending_min;
+        max_changed = term->win_palette_pending_limit - 1;
+    } else {
+        /* Start with empty range. */
+        min_changed = OSC4_NCOLOURS;
+        max_changed = 0;
+    }
+
     for (unsigned i = 0; i < OSC4_NCOLOURS; i++) {
         rgb new_value;
         bool found = false;
@@ -1842,10 +1852,14 @@ static void palette_rebuild(Terminal *term)
 
     if (min_changed <= max_changed) {
         /*
-         * At least one colour changed, so schedule a redraw event to
-         * pass the result back to the TermWin. This also requires
-         * invalidating the rest of the window, because usually all
-         * the text will need redrawing in the new colours.
+         * At least one colour changed (or we had an update scheduled
+         * already). Schedule a redraw event to pass the result back
+         * to the TermWin. This also requires invalidating the rest
+         * of the window, because usually all the text will need
+         * redrawing in the new colours.
+         * (If there was an update pending and this palette rebuild
+         * didn't actually change anything, we'll harmlessly reinforce
+         * the existing update request.)
          */
         term->win_palette_pending = true;
         term->win_palette_pending_min = min_changed;
