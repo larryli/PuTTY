@@ -2538,6 +2538,8 @@ static void usage(void)
     printf("  -i key    private key file for user authentication\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
+    printf("  -no-trivial-auth\n");
+    printf("            disconnect if SSH authentication succeeds trivially\n");
     printf("  -hostkey keyid\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -batch    disable all interactive prompts\n");

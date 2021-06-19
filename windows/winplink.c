@@ -149,6 +149,8 @@ static void usage(void)
     printf("  -i key    private key file for user authentication\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
+    printf("  -no-trivial-auth\n");
+    printf("            disconnect if SSH authentication succeeds trivially\n");
     printf("  -noshare  disable use of connection sharing\n");
     printf("  -share    enable use of connection sharing\n");
     printf("  -hostkey keyid\n");

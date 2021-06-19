@@ -2772,6 +2772,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           HELPCTX(ssh_auth_bypass),
                           conf_checkbox_handler,
                           I(CONF_ssh_no_userauth));
+            ctrl_checkbox(s, "Disconnect if authentication succeeds trivially",
+                          'n', HELPCTX(ssh_no_trivial_userauth),
+                          conf_checkbox_handler,
+                          I(CONF_ssh_no_trivial_userauth));
 
             s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
                             "Authentication methods");
