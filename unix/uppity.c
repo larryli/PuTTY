@@ -110,6 +110,8 @@ void make_unix_sftp_filehandle_key(void *data, size_t size)
 
 static bool verbose;
 
+struct server_config;
+
 struct AuthPolicyShared {
     struct AuthPolicy_ssh1_pubkey *ssh1keys;
     struct AuthPolicy_ssh2_pubkey *ssh2keys;
@@ -124,6 +126,24 @@ struct server_instance {
     unsigned id;
     AuthPolicy ap;
     LogPolicy logpolicy;
+    struct server_config *cfg;
+};
+
+struct server_config {
+    Conf *conf;
+    const SshServerConfig *ssc;
+
+    ssh_key **hostkeys;
+    int nhostkeys;
+
+    RSAKey *hostkey1;
+
+    struct AuthPolicyShared *ap_shared;
+
+    unsigned next_id;
+
+    Socket *listening_socket;
+    Plug listening_plug;
 };
 
 static void log_to_stderr(unsigned id, const char *msg)
@@ -175,11 +195,21 @@ struct AuthPolicy_ssh2_pubkey {
 
 unsigned auth_methods(AuthPolicy *ap)
 {
-    return (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD | AUTHMETHOD_KBDINT |
-            AUTHMETHOD_TIS | AUTHMETHOD_CRYPTOCARD);
+    struct server_instance *inst = container_of(
+        ap, struct server_instance, ap);
+    unsigned methods = (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD |
+                        AUTHMETHOD_KBDINT | AUTHMETHOD_TIS |
+                        AUTHMETHOD_CRYPTOCARD);
+    if (inst->cfg->ssc->stunt_allow_none_auth)
+        methods |= AUTHMETHOD_NONE;
+    return methods;
 }
 bool auth_none(AuthPolicy *ap, ptrlen username)
 {
+    struct server_instance *inst = container_of(
+        ap, struct server_instance, ap);
+    if (inst->cfg->ssc->stunt_allow_none_auth)
+        return true;
     return false;
 }
 int auth_password(AuthPolicy *ap, ptrlen username, ptrlen password,
@@ -249,13 +279,21 @@ AuthKbdInt *auth_kbdint_prompts(AuthPolicy *ap, ptrlen username)
         aki->prompts[1].prompt = dupstr("Silent prompt: ");
         aki->prompts[1].echo = false;
         return aki;
-      case 1:
+      case 1: {
+        struct server_instance *inst = container_of(
+            ap, struct server_instance, ap);
         aki = snew(AuthKbdInt);
-        aki->title = dupstr("Zero-prompt step");
-        aki->instruction = dupstr("Shouldn't see any prompts this time");
+        if (inst->cfg->ssc->stunt_allow_trivial_ki_auth) {
+            aki->title = dupstr("");
+            aki->instruction = dupstr("");
+        } else {
+            aki->title = dupstr("Zero-prompt step");
+            aki->instruction = dupstr("Shouldn't see any prompts this time");
+        }
         aki->nprompts = 0;
         aki->prompts = NULL;
         return aki;
+      }
       default:
         ap->kbdint_state = 0;
         return NULL;
@@ -416,23 +454,6 @@ static bool longoptnoarg(const char *arg, const char *expected)
     return false;
 }
 
-struct server_config {
-    Conf *conf;
-    const SshServerConfig *ssc;
-
-    ssh_key **hostkeys;
-    int nhostkeys;
-
-    RSAKey *hostkey1;
-
-    struct AuthPolicyShared *ap_shared;
-
-    unsigned next_id;
-
-    Socket *listening_socket;
-    Plug listening_plug;
-};
-
 static Plug *server_conn_plug(
     struct server_config *cfg, struct server_instance **inst_out)
 {
@@ -442,7 +463,10 @@ static Plug *server_conn_plug(
 
     inst->id = cfg->next_id++;
     inst->ap.shared = cfg->ap_shared;
+    if (cfg->ssc->stunt_allow_trivial_ki_auth)
+        inst->ap.kbdint_state = 1;
     inst->logpolicy.vt = &server_logpolicy_vt;
+    inst->cfg = cfg;
 
     if (inst_out)
         *inst_out = inst;
@@ -785,6 +809,12 @@ int main(int argc, char **argv)
             ssc.stunt_pretend_to_accept_any_pubkey = true;
         } else if (!strcmp(arg, "--open-unconditional-agent-socket")) {
             ssc.stunt_open_unconditional_agent_socket = true;
+        } else if (!strcmp(arg, "--allow-none-auth")) {
+            ssc.stunt_allow_none_auth = true;
+        } else if (!strcmp(arg, "--allow-trivial-ki-auth")) {
+            ssc.stunt_allow_trivial_ki_auth = true;
+        } else if (!strcmp(arg, "--return-success-to-pubkey-offer")) {
+            ssc.stunt_return_success_to_pubkey_offer = true;
         } else {
             fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);

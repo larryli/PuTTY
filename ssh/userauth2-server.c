@@ -209,7 +209,8 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
             if (!(s->methods & s->this_method))
                 goto failure;
 
-            has_signature = get_bool(pktin);
+            has_signature = get_bool(pktin) ||
+                s->ssc->stunt_return_success_to_pubkey_offer;
             algorithm = get_string(pktin);
             blob = get_string(pktin);
 
@@ -251,7 +252,8 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
 
             signature = get_string(pktin);
             success = ssh_key_verify(key, signature,
-                                     ptrlen_from_strbuf(sigdata));
+                                     ptrlen_from_strbuf(sigdata)) ||
+                s->ssc->stunt_return_success_to_pubkey_offer;
             ssh_key_free(key);
             strbuf_free(sigdata);
 

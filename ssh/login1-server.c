@@ -39,7 +39,6 @@ struct ssh1_login_server_state {
     unsigned ap_methods, current_method;
     unsigned char auth_rsa_expected_response[16];
     RSAKey *authkey;
-    bool auth_successful;
 
     PacketProtocolLayer ppl;
 };
@@ -267,7 +266,9 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     s->username.ptr = s->username_str = mkstr(s->username);
     ppl_logevent("Received username '%.*s'", PTRLEN_PRINTF(s->username));
 
-    s->auth_successful = auth_none(s->authpolicy, s->username);
+    if (auth_none(s->authpolicy, s->username))
+        goto auth_success;
+
     while (1) {
         /* Signal failed authentication */
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_FAILURE);
