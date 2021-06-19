@@ -1460,6 +1460,7 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, sshprot) \
     X(BOOL, NONE, ssh2_des_cbc) /* "des-cbc" unrecommended SSH-2 cipher */ \
     X(BOOL, NONE, ssh_no_userauth) /* bypass "ssh-userauth" (SSH-2 only) */ \
+    X(BOOL, NONE, ssh_no_trivial_userauth) /* disable trivial types of auth */ \
     X(BOOL, NONE, ssh_show_banner) /* show USERAUTH_BANNERs (SSH-2 only) */ \
     X(BOOL, NONE, try_tis_auth) \
     X(BOOL, NONE, try_ki_auth) \
