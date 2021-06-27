@@ -186,6 +186,7 @@ static bool sesschan_get_window_pixel_size(Seat *seat, int *w, int *h);
 static const SeatVtable sesschan_seat_vt = {
     .output = sesschan_seat_output,
     .eof = sesschan_seat_eof,
+    .sent = nullseat_sent,
     .get_userpass_input = nullseat_get_userpass_input,
     .notify_remote_exit = sesschan_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,

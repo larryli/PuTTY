@@ -887,6 +887,17 @@ struct SeatVtable {
     bool (*eof)(Seat *seat);
 
     /*
+     * Called by the back end to notify that the output backlog has
+     * changed size. A front end in control of the event loop won't
+     * necessarily need this (they can just keep checking it via
+     * backend_sendbuffer at every opportunity), but one buried in the
+     * depths of something else (like an SSH proxy) will need to be
+     * proactively notified that the amount of buffered data has
+     * become smaller.
+     */
+    void (*sent)(Seat *seat, size_t new_sendbuffer);
+
+    /*
      * Try to get answers from a set of interactive login prompts. The
      * prompts are provided in 'p'; the bufchain 'input' holds the
      * data currently outstanding in the session's normal standard-
@@ -1117,6 +1128,8 @@ static inline size_t seat_output(
 { return seat->vt->output(seat, err, data, len); }
 static inline bool seat_eof(Seat *seat)
 { return seat->vt->eof(seat); }
+static inline void seat_sent(Seat *seat, size_t bufsize)
+{ seat->vt->sent(seat, bufsize); }
 static inline int seat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input)
 { return seat->vt->get_userpass_input(seat, p, input); }
@@ -1190,6 +1203,7 @@ static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
 size_t nullseat_output(
     Seat *seat, bool is_stderr, const void *data, size_t len);
 bool nullseat_eof(Seat *seat);
+void nullseat_sent(Seat *seat, size_t bufsize);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
 void nullseat_notify_remote_exit(Seat *seat);
 void nullseat_notify_remote_disconnect(Seat *seat);

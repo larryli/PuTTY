@@ -47,6 +47,7 @@ static bool psftp_eof(Seat *);
 static const SeatVtable psftp_seat_vt = {
     .output = psftp_output,
     .eof = psftp_eof,
+    .sent = nullseat_sent,
     .get_userpass_input = filexfer_get_userpass_input,
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,

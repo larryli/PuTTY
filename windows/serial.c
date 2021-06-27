@@ -88,6 +88,7 @@ static void serial_sentdata(struct handle *h, size_t new_backlog, int err)
         seat_connection_fatal(serial->seat, "%s", error_msg);
     } else {
         serial->bufsize = new_backlog;
+        seat_sent(serial->seat, serial->bufsize);
     }
 }
 

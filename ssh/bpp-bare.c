@@ -201,4 +201,6 @@ static void ssh2_bare_bpp_handle_output(BinaryPacketProtocol *bpp)
         ssh2_bare_bpp_format_packet(s, pkt);
         ssh_free_pktout(pkt);
     }
+
+    ssh_sendbuffer_changed(bpp->ssh);
 }

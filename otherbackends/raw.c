@@ -104,6 +104,7 @@ static void raw_sent(Plug *plug, size_t bufsize)
 {
     Raw *raw = container_of(plug, Raw, plug);
     raw->bufsize = bufsize;
+    seat_sent(raw->seat, raw->bufsize);
 }
 
 static const PlugVtable Raw_plugvt = {

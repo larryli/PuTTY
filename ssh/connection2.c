@@ -1157,6 +1157,7 @@ static size_t ssh2_try_send(struct ssh2_channel *c)
     if (!bufsize && c->pending_eof)
         ssh2_channel_try_eof(c);
 
+    ssh_sendbuffer_changed(s->ppl.ssh);
     return bufsize;
 }
 

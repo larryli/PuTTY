@@ -979,4 +979,6 @@ static void ssh2_bpp_handle_output(BinaryPacketProtocol *bpp)
             ssh2_bpp_enable_pending_compression(s);
         }
     }
+
+    ssh_sendbuffer_changed(bpp->ssh);
 }

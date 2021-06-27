@@ -1484,6 +1484,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * layer's outgoing queue on to our own.
      */
     pq_concatenate(s->ppl.out_pq, s->ppl.out_pq, &s->pq_out_higher);
+    ssh_sendbuffer_changed(s->ppl.ssh);
 
     /*
      * Expect SSH2_MSG_NEWKEYS from server.
@@ -1620,6 +1621,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
 
         /* Pass through outgoing packets from the higher layer. */
         pq_concatenate(s->ppl.out_pq, s->ppl.out_pq, &s->pq_out_higher);
+        ssh_sendbuffer_changed(s->ppl.ssh);
 
         /* Wait for either a KEXINIT, or something setting
          * s->rekey_class. This call to ssh2_transport_pop also has

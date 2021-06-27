@@ -107,6 +107,7 @@ static int server_confirm_weak_cached_hostkey(
 static const SeatVtable server_seat_vt = {
     .output = nullseat_output,
     .eof = nullseat_eof,
+    .sent = nullseat_sent,
     .get_userpass_input = nullseat_get_userpass_input,
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
@@ -185,6 +186,10 @@ LogContext *ssh_get_logctx(Ssh *ssh)
 {
     server *srv = container_of(ssh, server, ssh);
     return srv->logctx;
+}
+
+void ssh_sendbuffer_changed(Ssh *ssh)
+{
 }
 
 void ssh_throttle_conn(Ssh *ssh, int adjust)

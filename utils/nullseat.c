@@ -7,6 +7,7 @@
 size_t nullseat_output(
     Seat *seat, bool is_stderr, const void *data, size_t len) { return 0; }
 bool nullseat_eof(Seat *seat) { return true; }
+void nullseat_sent(Seat *seat, size_t bufsize) {}
 int nullseat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input) { return 0; }
 void nullseat_notify_remote_exit(Seat *seat) {}

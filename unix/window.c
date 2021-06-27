@@ -389,6 +389,7 @@ static bool gtk_seat_get_cursor_position(Seat *seat, int *x, int *y);
 static const SeatVtable gtk_seat_vt = {
     .output = gtk_seat_output,
     .eof = gtk_seat_eof,
+    .sent = nullseat_sent,
     .get_userpass_input = gtk_seat_get_userpass_input,
     .notify_remote_exit = gtk_seat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,

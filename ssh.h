@@ -402,6 +402,7 @@ bool ssh_is_bare(Ssh *ssh);
 
 /* Communications back to ssh.c from the BPP */
 void ssh_conn_processed_data(Ssh *ssh);
+void ssh_sendbuffer_changed(Ssh *ssh);
 void ssh_check_frozen(Ssh *ssh);
 
 /* Functions to abort the connection, for various reasons. */

@@ -600,6 +600,7 @@ static void supdup_sent(Plug *plug, size_t bufsize)
 {
     Supdup *supdup = container_of(plug, Supdup, plug);
     supdup->bufsize = bufsize;
+    seat_sent(supdup->seat, supdup->bufsize);
 }
 
 static void supdup_send_36bits(Supdup *supdup, unsigned long long thirtysix)

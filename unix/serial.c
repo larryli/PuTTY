@@ -454,6 +454,7 @@ static void serial_try_write(Serial *serial)
         bufchain_consume(&serial->output_data, ret);
     }
 
+    seat_sent(serial->seat, bufchain_size(&serial->output_data));
     serial_uxsel_setup(serial);
 }
 

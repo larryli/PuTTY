@@ -640,6 +640,7 @@ static void ssh_sent(Plug *plug, size_t bufsize)
     if (bufsize < SSH_MAX_BACKLOG) {
         ssh_throttle_all(ssh, false, bufsize);
         queue_idempotent_callback(&ssh->ic_out_raw);
+        ssh_sendbuffer_changed(ssh);
     }
 }
 
@@ -1040,6 +1041,11 @@ static size_t ssh_sendbuffer(Backend *be)
         backlog += ssh->overall_bufsize;
 
     return backlog;
+}
+
+void ssh_sendbuffer_changed(Ssh *ssh)
+{
+    seat_sent(ssh->seat, ssh_sendbuffer(&ssh->backend));
 }
 
 /*

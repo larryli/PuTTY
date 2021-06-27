@@ -258,6 +258,12 @@ static bool sshproxy_eof(Seat *seat)
     return false;
 }
 
+static void sshproxy_sent(Seat *seat, size_t new_bufsize)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    plug_sent(sp->plug, new_bufsize);
+}
+
 static void sshproxy_notify_remote_disconnect(Seat *seat)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
@@ -415,6 +421,7 @@ static bool sshproxy_set_trust_status(Seat *seat, bool trusted)
 static const SeatVtable SshProxy_seat_vt = {
     .output = sshproxy_output,
     .eof = sshproxy_eof,
+    .sent = sshproxy_sent,
     .get_userpass_input = sshproxy_get_userpass_input,
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = sshproxy_notify_remote_disconnect,

@@ -83,6 +83,7 @@ static bool plink_seat_interactive(Seat *seat)
 static const SeatVtable plink_seat_vt = {
     .output = plink_output,
     .eof = plink_eof,
+    .sent = nullseat_sent,
     .get_userpass_input = plink_get_userpass_input,
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,

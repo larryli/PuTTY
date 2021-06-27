@@ -662,6 +662,7 @@ static void telnet_sent(Plug *plug, size_t bufsize)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);
     telnet->bufsize = bufsize;
+    seat_sent(telnet->seat, telnet->bufsize);
 }
 
 static const PlugVtable Telnet_plugvt = {

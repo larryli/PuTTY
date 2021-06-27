@@ -330,6 +330,7 @@ static bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y);
 static const SeatVtable win_seat_vt = {
     .output = win_seat_output,
     .eof = win_seat_eof,
+    .sent = nullseat_sent,
     .get_userpass_input = win_seat_get_userpass_input,
     .notify_remote_exit = win_seat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,

@@ -376,6 +376,8 @@ static void ssh1_bpp_handle_output(BinaryPacketProtocol *bpp)
             break;
         }
     }
+
+    ssh_sendbuffer_changed(bpp->ssh);
 }
 
 static void ssh1_bpp_queue_disconnect(BinaryPacketProtocol *bpp,

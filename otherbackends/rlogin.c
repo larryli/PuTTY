@@ -116,6 +116,7 @@ static void rlogin_sent(Plug *plug, size_t bufsize)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
     rlogin->bufsize = bufsize;
+    seat_sent(rlogin->seat, rlogin->bufsize);
 }
 
 static void rlogin_startup(Rlogin *rlogin, const char *ruser)
