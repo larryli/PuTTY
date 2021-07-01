@@ -481,8 +481,10 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
     h->u.i.flags = flags;
 
     ensure_ready_event_setup();
-    CreateThread(NULL, 0, handle_input_threadfunc,
-                 &h->u.i, 0, &in_threadid);
+    HANDLE hThread = CreateThread(NULL, 0, handle_input_threadfunc,
+                                  &h->u.i, 0, &in_threadid);
+    if (hThread)
+        CloseHandle(hThread);          /* we don't need the thread handle */
     h->u.i.busy = true;
 
     return h;
@@ -508,8 +510,10 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
     h->u.o.flags = flags;
 
     ensure_ready_event_setup();
-    CreateThread(NULL, 0, handle_output_threadfunc,
-                 &h->u.o, 0, &out_threadid);
+    HANDLE hThread = CreateThread(NULL, 0, handle_output_threadfunc,
+                                  &h->u.o, 0, &out_threadid);
+    if (hThread)
+        CloseHandle(hThread);          /* we don't need the thread handle */
 
     return h;
 }
