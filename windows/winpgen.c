@@ -1160,13 +1160,15 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
     params->key = &state->key;
     params->dsskey = &state->dsskey;
 
-    if (!CreateThread(NULL, 0, generate_key_thread,
-                      params, 0, &threadid)) {
+    HANDLE hThread = CreateThread(NULL, 0, generate_key_thread,
+                                  params, 0, &threadid);
+    if (!hThread) {
         MessageBox(hwnd, "Out of thread resources",
                    "Key generation error",
                    MB_OK | MB_ICONERROR);
         sfree(params);
     } else {
+        CloseHandle(hThread);          /* we don't need the thread handle */
         state->generation_thread_exists = true;
     }
 }
