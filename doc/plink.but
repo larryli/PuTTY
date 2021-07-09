@@ -77,6 +77,8 @@ use Plink:
 \c   -i key    private key file for user authentication
 \c   -noagent  disable use of Pageant
 \c   -agent    enable use of Pageant
+\c   -no-trivial-auth
+\c             disconnect if SSH authentication succeeds trivially
 \c   -noshare  disable use of connection sharing
 \c   -share    enable use of connection sharing
 \c   -hostkey keyid
