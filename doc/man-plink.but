@@ -208,8 +208,8 @@ to override a setting in a saved session.)
 \dd Disconnect from any SSH server which accepts authentication without
 ever having asked for any kind of password or signature or token. (You
 might want to enable this for a server you always expect to challenge
-you, for instance to ensure ensure you don't accidentally type your key
-file's passphrase into a compromised server spoofing Plink's passphrase
+you, for instance to ensure you don't accidentally type your key file's
+passphrase into a compromised server spoofing Plink's passphrase
 prompt.)
 
 \dt \cw{\-noshare}
