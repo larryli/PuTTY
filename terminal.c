@@ -6043,7 +6043,9 @@ static void do_paint(Terminal *term)
 
             if (!term->ucsdata->dbcs_screenfont && !dirty_line) {
                 if (term->disptext[i]->chars[j].chr == tchar &&
-                    (term->disptext[i]->chars[j].attr &~ DATTR_MASK) == tattr)
+                    (term->disptext[i]->chars[j].attr &~ DATTR_MASK)==tattr &&
+                    truecolour_equal(
+                        term->disptext[i]->chars[j].truecolour, tc))
                     break_run = true;
                 else if (!dirty_run && ccount == 1)
                     break_run = true;
