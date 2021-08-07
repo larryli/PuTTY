@@ -191,6 +191,9 @@ And the setup script \cw{uml-psusan.sh} might look like this:
 \c # Choose what shell you want to run inside psusan
 \e iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 \c export SHELL=/bin/bash
+\c # Set up a default path
+\e iiiiiiiiiiiiiiiiiiiiiii
+\c export PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 \c # And now run psusan over the serial port
 \e iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 \c exec /home/simon/src/putty/misc/psusan
