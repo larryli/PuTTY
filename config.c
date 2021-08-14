@@ -735,6 +735,37 @@ static void sshbug_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
+static void sshbug_handler_manual_only(union control *ctrl, dlgparam *dlg,
+                                       void *data, int event)
+{
+    /*
+     * This is just like sshbug_handler, except that there's no 'Auto'
+     * option. Used for bug workaround flags that can't be
+     * autodetected, and have to be manually enabled if they're to be
+     * used at all.
+     */
+    Conf *conf = (Conf *)data;
+    if (event == EVENT_REFRESH) {
+        int oldconf = conf_get_int(conf, ctrl->listbox.context.i);
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        dlg_listbox_addwithid(ctrl, dlg, "Off", FORCE_OFF);
+        dlg_listbox_addwithid(ctrl, dlg, "On", FORCE_ON);
+        switch (oldconf) {
+          case FORCE_OFF: dlg_listbox_select(ctrl, dlg, 0); break;
+          case FORCE_ON:  dlg_listbox_select(ctrl, dlg, 1); break;
+        }
+        dlg_update_done(ctrl, dlg);
+    } else if (event == EVENT_SELCHANGE) {
+        int i = dlg_listbox_index(ctrl, dlg);
+        if (i < 0)
+            i = FORCE_OFF;
+        else
+            i = dlg_listbox_getid(ctrl, dlg, i);
+        conf_set_int(conf, ctrl->listbox.context.i, i);
+    }
+}
+
 struct sessionsaver_data {
     union control *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
     union control *okbutton, *cancelbutton;
@@ -3048,6 +3079,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
             ctrl_droplist(s, "Ignores SSH-2 maximum packet size", 'x', 20,
                           HELPCTX(ssh_bugs_maxpkt2),
                           sshbug_handler, I(CONF_sshbug_maxpkt2));
+
+            s = ctrl_getset(b, "Connection/SSH/Bugs", "manual",
+                            "Manually enabled workarounds");
+            ctrl_droplist(s, "Discards data sent before its greeting", 'd', 20,
+                          HELPCTX(ssh_bugs_dropstart),
+                          sshbug_handler_manual_only,
+                          I(CONF_sshbug_dropstart));
 
             ctrl_settitle(b, "Connection/SSH/More bugs",
                           "Further workarounds for SSH server bugs");

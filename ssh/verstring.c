@@ -104,6 +104,14 @@ BinaryPacketProtocol *ssh_verstring_new(
      */
     s->send_early = server_mode || !ssh_version_includes_v1(protoversion);
 
+    /*
+     * Override: we don't send our version string early if the server
+     * has a bug that will make it discard it. See for example
+     * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=991958
+     */
+    if (conf_get_int(s->conf, CONF_sshbug_dropstart) == FORCE_ON)
+        s->send_early = false;
+
     s->bpp.vt = &ssh_verstring_vtable;
     ssh_bpp_common_setup(&s->bpp);
     return &s->bpp;

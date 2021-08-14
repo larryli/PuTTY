@@ -199,10 +199,18 @@ And the setup script \cw{uml-psusan.sh} might look like this:
 \c exec /home/simon/src/putty/misc/psusan
 
 Now set up a PuTTY saved session as in the Docker example above, using
-that \cw{linux} command as the local proxy command, and you'll have a
-PuTTY session that starts up a clean UML instance when you run it, and
-(if you enabled connection sharing) further instances of the same
-session will connect to the same instance again.
+that \cw{linux} command as the local proxy command. You may also find
+that you have to enable the bug workaround that indicates that the
+server \q{Discards data sent before its greeting}, because otherwise
+PuTTY's outgoing protocol greeting can be accidentally lost during UML
+startup. (See
+\W{https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=991958}{Debian
+bug #991958}.)
+
+Once you've done that, you'll have a PuTTY session that starts up a
+clean UML instance when you run it, and (if you enabled connection
+sharing) further instances of the same session will connect to the
+same instance again.
 
 \S2{psusan-manpage-examples-wsl} Windows Subsystem for Linux
 

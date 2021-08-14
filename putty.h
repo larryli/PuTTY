@@ -1647,6 +1647,7 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, sshbug_oldgex2) \
     X(INT, NONE, sshbug_winadj) \
     X(INT, NONE, sshbug_chanreq) \
+    X(INT, NONE, sshbug_dropstart) \
     /*                                                                \
      * ssh_simple means that we promise never to open any channel     \
      * other than the main one, which means it can safely use a very  \

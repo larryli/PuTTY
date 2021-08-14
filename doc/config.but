@@ -3206,7 +3206,10 @@ three states:
 \b \q{On}: PuTTY will assume the server \e{does} have the bug.
 
 \b \q{Auto}: PuTTY will use the server's version number announcement
-to try to guess whether or not the server has the bug.
+to try to guess whether or not the server has the bug. (This option is
+not available for bugs that \e{cannot} be detected from the server
+version, e.g. because they must be acted on before the server version
+is known.)
 
 \S{config-ssh-bug-ignore2} \q{Chokes on SSH-2 \i{ignore message}s}
 
@@ -3298,6 +3301,29 @@ If this bug is detected, PuTTY never allows the channel's
 send an over-sized packet.  If this bug is enabled when talking to a
 correct server, the session will work correctly, but download
 performance will be less than it could be.
+
+\S{config-ssh-bug-dropstart} \q{Discards data sent before its greeting}
+
+Just occasionally, an SSH connection can be established over some
+channel that will accidentally discard outgoing data very early in the
+connection.
+
+This is not typically seen as a bug in an actual SSH server, but it
+can sometimes occur in situations involving a complicated proxy
+process. An example is
+\W{https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=991958}{Debian
+bug #991958}, in which a connection going over the console of a User
+Mode Linux kernel can lose outgoing data before the kernel has fully
+booted.
+
+You can work around this problem by manually enabling this bug flag,
+which will cause PuTTY to wait to send its initial SSH greeting until
+after it sees the greeting from the server.
+
+Note that this bug flag can never be automatically detected, since
+auto-detection relies on the version string in the server's greeting,
+and PuTTY has to decide whether to expect this bug \e{before} it sees
+the server's greeting. So this is a manual workaround only.
 
 \S{config-ssh-bug-sig} \q{Requires padding on SSH-2 \i{RSA} \i{signatures}}
 
