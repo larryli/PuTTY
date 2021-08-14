@@ -9,14 +9,14 @@
 
 set -e
 
-keyname=38BA7229B7588FD1
+keyname=B43979F89F446CFD
 preliminary=false
 
 while :; do
     case "$1" in
         -r)
             shift
-            keyname=6289A25F4AE8DA82
+            keyname=E4F83EA2AA4915EC
             ;;
         -p)
             shift

@@ -21,14 +21,14 @@
  * Fingerprints of the current and previous PGP master keys, to
  * establish a trust path between an executable and other files.
  */
-#define PGP_MASTER_KEY_YEAR "2018"
-#define PGP_MASTER_KEY_DETAILS "RSA, 4096-bit"
-#define PGP_MASTER_KEY_FP                                       \
-    "24E1 B1C5 75EA 3C9F F752  A922 76BC 7FE4 EBFD 2D9E"
-#define PGP_PREV_MASTER_KEY_YEAR "2015"
+#define PGP_MASTER_KEY_YEAR "2021"
+#define PGP_MASTER_KEY_DETAILS "RSA, 3072-bit"
+#define PGP_MASTER_KEY_FP                                  \
+    "A872 D42F 1660 890F 0E05  223E DD43 55EA AC11 19DE"
+#define PGP_PREV_MASTER_KEY_YEAR "2018"
 #define PGP_PREV_MASTER_KEY_DETAILS "RSA, 4096-bit"
 #define PGP_PREV_MASTER_KEY_FP                                  \
-    "440D E3B5 B7A1 CA85 B3CC  1718 AB58 5DC6 0467 6F7C"
+    "24E1 B1C5 75EA 3C9F F752  A922 76BC 7FE4 EBFD 2D9E"
 
 /*
  * Definitions of three separate indexing schemes for colour palette
