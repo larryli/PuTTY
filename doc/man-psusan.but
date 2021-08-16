@@ -198,12 +198,22 @@ And the setup script \cw{uml-psusan.sh} might look like this:
 \e iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 \c exec /home/simon/src/putty/misc/psusan
 
-Now set up a PuTTY saved session as in the Docker example above, using
-that \cw{linux} command as the local proxy command. You may also find
-that you have to enable the bug workaround that indicates that the
-server \q{Discards data sent before its greeting}, because otherwise
-PuTTY's outgoing protocol greeting can be accidentally lost during UML
-startup. (See
+Now set up a PuTTY saved session as in the Docker example above.
+Basically you'll want to use the above \cw{linux} command as the local
+proxy command. However, it's worth wrapping it in \c{setsid}(\e{1}),
+because when UML terminates, it kills its entire process group. So
+it's better that PuTTY should not be part of that group, and should
+have the opportunity to shut down cleanly by itself. So probably you
+end up setting the proxy command to be something more like:
+
+\c setsid linux mem=512M rootfstype=hostfs rootflags=/ rw \
+\c     con=fd:2,fd:2 ssl0=fd:0,fd:1 init=/some/path/to/uml-psusan.sh
+\e                                       iiiiiiiiiiiiiiiiiiiiiiiiiii
+
+You may also find that you have to enable the bug workaround that
+indicates that the server \q{Discards data sent before its greeting},
+because otherwise PuTTY's outgoing protocol greeting can be
+accidentally lost during UML startup. (See
 \W{https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=991958}{Debian
 bug #991958}.)
 
