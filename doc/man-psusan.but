@@ -200,7 +200,7 @@ And the setup script \cw{uml-psusan.sh} might look like this:
 
 Now set up a PuTTY saved session as in the Docker example above.
 Basically you'll want to use the above \cw{linux} command as the local
-proxy command. However, it's worth wrapping it in \c{setsid}(\e{1}),
+proxy command. However, it's worth wrapping it in \cw{setsid}(\e{1}),
 because when UML terminates, it kills its entire process group. So
 it's better that PuTTY should not be part of that group, and should
 have the opportunity to shut down cleanly by itself. So probably you

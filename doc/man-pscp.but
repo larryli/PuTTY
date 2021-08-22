@@ -118,9 +118,9 @@ commands such as \q{\c{w}}).
 \dt \cw{-ssh-connection}
 
 \dd Force use of the \q{bare \cw{ssh-connection}} protocol. This is
-only likely to be useful when connecting to a \e{psusan(1)} server,
-most likely with an absolute path to a Unix-domain socket in place
-of \e{host}.
+only likely to be useful when connecting to a \cw{psusan}(\e{1})
+server, most likely with an absolute path to a Unix-domain socket in
+place of \e{host}.
 
 \dt \cw{-ssh}
 
