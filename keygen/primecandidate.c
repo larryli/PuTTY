@@ -396,6 +396,8 @@ mp_int *pcs_generate(PrimeCandidateSource *s)
 
         if (!ok) {
             mp_free(x);
+            if (s->one_shot)
+                return NULL;
             continue; /* try a new x */
         }
 
