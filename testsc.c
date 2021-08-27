@@ -77,6 +77,7 @@
 #include "defs.h"
 #include "putty.h"
 #include "ssh.h"
+#include "sshkeygen.h"
 #include "misc.h"
 #include "mpint.h"
 #include "crypto/ecc.h"
@@ -130,6 +131,31 @@ void random_read(void *vbuf, size_t size)
     }
 }
 
+struct random_state {
+    const char *seedstr;
+    uint64_t counter;
+    size_t limit;
+    uint8_t buf[MAX_HASH_LEN];
+};
+
+static struct random_state random_get_state(void)
+{
+    struct random_state st;
+    st.seedstr = random_seedstr;
+    st.counter = random_counter;
+    st.limit = random_buf_limit;
+    memcpy(st.buf, random_buf, sizeof(st.buf));
+    return st;
+}
+
+static void random_set_state(struct random_state st)
+{
+    random_seedstr = st.seedstr;
+    random_counter = st.counter;
+    random_buf_limit = st.limit;
+    memcpy(random_buf, st.buf, sizeof(random_buf));
+}
+
 /*
  * Macro that defines a function, and also a volatile function pointer
  * pointing to it. Callers indirect through the function pointer
@@ -176,6 +202,22 @@ void log_end(void)
 {
     log_to_file(NULL);
     sfree(last_filename);
+}
+void log_discard(void)
+{
+    /*
+     * Discard the most recently generated log file, and rewind the
+     * index so that its name will be reused by the next attempt.
+     *
+     * Used in tests of prime generation, in which only the
+     * _successful_ attempts need to be side-channel safe: it doesn't
+     * matter if a failed attempt leaks its data through early
+     * termination of a checking loop, because all the data it leaked
+     * will be thrown away anyway.
+     */
+    char *prev_filename = log_filename(test_basename, --test_index);
+    remove(prev_filename);
+    sfree(prev_filename);
 }
 
 static bool test_skipped = false;
@@ -364,6 +406,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     MACS(MAC_TESTLIST, X)                       \
     HASHES(HASH_TESTLIST, X)                    \
     X(argon2)                                   \
+    X(primegen_probabilistic)                   \
     /* end of list */
 
 static void test_mp_get_nbits(void)
@@ -1474,6 +1517,54 @@ static void test_argon2(void)
 
     sfree(indata);
     strbuf_free(outdata);
+}
+
+static void test_primegen(const PrimeGenerationPolicy *policy)
+{
+    static ProgressReceiver null_progress = { .vt = &null_progress_vt };
+
+    PrimeGenerationContext *pgc = primegen_new_context(policy);
+
+    init_smallprimes();
+    mp_int *pcopy = mp_new(128);
+
+    for (size_t i = 0; i < looplimit(2); i++) {
+        while (true) {
+            struct random_state st = random_get_state();
+
+            PrimeCandidateSource *pcs = pcs_new(128);
+            pcs_set_oneshot(pcs);
+            pcs_ready(pcs);
+            mp_int *p = primegen_generate(pgc, pcs, &null_progress);
+
+            if (p) {
+                mp_copy_into(pcopy, p);
+                sfree(p);
+
+                random_set_state(st);
+
+                log_start();
+                PrimeCandidateSource *pcs = pcs_new(128);
+                pcs_set_oneshot(pcs);
+                pcs_ready(pcs);
+                mp_int *q = primegen_generate(pgc, pcs, &null_progress);
+                log_end();
+
+                assert(q);
+                assert(mp_cmp_eq(pcopy, q));
+                mp_free(q);
+                break;
+            }
+        }
+    }
+
+    mp_free(pcopy);
+    primegen_free_context(pgc);
+}
+
+static void test_primegen_probabilistic(void)
+{
+    test_primegen(&primegen_probabilistic);
 }
 
 static const struct test tests[] = {

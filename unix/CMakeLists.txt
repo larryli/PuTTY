@@ -99,7 +99,7 @@ target_link_libraries(cgtest
 
 add_executable(testsc
   ${CMAKE_SOURCE_DIR}/testsc.c)
-target_link_libraries(testsc crypto utils)
+target_link_libraries(testsc keygen crypto utils)
 
 add_executable(testzlib
   ${CMAKE_SOURCE_DIR}/testzlib.c
