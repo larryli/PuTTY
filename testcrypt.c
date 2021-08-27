@@ -94,6 +94,7 @@ uint64_t prng_reseed_time_ms(void)
     X(pcs, PrimeCandidateSource *, pcs_free(v))                         \
     X(pgc, PrimeGenerationContext *, primegen_free_context(v))          \
     X(pockle, Pockle *, pockle_free(v))                                 \
+    X(millerrabin, MillerRabin *, miller_rabin_free(v))                 \
     /* end of list */
 
 typedef struct Value Value;
@@ -705,6 +706,16 @@ static void return_pocklestatus(strbuf *out, PockleStatus status)
 #undef STATUS_CASE
 
     }
+}
+
+static void return_mr_result(strbuf *out, struct mr_result result)
+{
+    if (!result.passed)
+        strbuf_catf(out, "failed\n");
+    else if (!result.potential_primitive_root)
+        strbuf_catf(out, "passed\n");
+    else
+        strbuf_catf(out, "passed+ppr\n");
 }
 
 static void return_val_string_asciz_const(strbuf *out, const char *s)
@@ -1370,6 +1381,7 @@ typedef key_components *TD_keycomponents;
 typedef const PrimeGenerationPolicy *TD_primegenpolicy;
 typedef struct mpint_list TD_mpint_list;
 typedef PockleStatus TD_pocklestatus;
+typedef struct mr_result TD_mr_result;
 typedef Argon2Flavour TD_argon2flavour;
 typedef FingerprintType TD_fptype;
 

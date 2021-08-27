@@ -235,7 +235,7 @@ def make_retval(rettype, word, unpack_strings):
     elif rettype == "boolean":
         assert word == b"true" or word == b"false"
         return word == b"true"
-    elif rettype == "pocklestatus":
+    elif rettype in {"pocklestatus", "mr_result"}:
         return word.decode("ASCII")
     raise TypeError("Can't deal with return value {!r} of type {!r}"
                     .format(word, rettype))

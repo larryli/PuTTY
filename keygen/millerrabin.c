@@ -135,17 +135,19 @@ void miller_rabin_free(MillerRabin *mr)
     sfree(mr);
 }
 
-struct mr_result {
-    bool passed;
-    bool potential_primitive_root;
-};
-
-static struct mr_result miller_rabin_test_inner(MillerRabin *mr, mp_int *w)
+/*
+ * The main internal function that implements a single M-R test.
+ *
+ * Expects the witness integer to be in Montgomery representation.
+ * (Since in live use witnesses are invented at random, this imposes
+ * no extra cost on the callers, and saves effort in here.)
+ */
+static struct mr_result miller_rabin_test_inner(MillerRabin *mr, mp_int *mw)
 {
     /*
      * Compute w^q mod p.
      */
-    mp_int *wqp = monty_pow(mr->mc, w, mr->q);
+    mp_int *wqp = monty_pow(mr->mc, mw, mr->q);
 
     /*
      * See if this is 1, or if it is -1, or if it becomes -1
@@ -172,6 +174,19 @@ static struct mr_result miller_rabin_test_inner(MillerRabin *mr, mp_int *w)
 
     mp_free(wqp);
 
+    return result;
+}
+
+/*
+ * Wrapper on miller_rabin_test_inner for the convenience of
+ * testcrypt. Expects the witness integer to be literal, so we
+ * monty_import it before running the real test.
+ */
+struct mr_result miller_rabin_test(MillerRabin *mr, mp_int *w)
+{
+    mp_int *mw = monty_import(mr->mc, w);
+    struct mr_result result = miller_rabin_test_inner(mr, mw);
+    mp_free(mw);
     return result;
 }
 

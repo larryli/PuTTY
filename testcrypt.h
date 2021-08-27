@@ -297,6 +297,8 @@ FUNC2(void, pockle_release, val_pockle, uint)
 FUNC2(pocklestatus, pockle_add_small_prime, val_pockle, val_mpint)
 FUNC4(pocklestatus, pockle_add_prime, val_pockle, val_mpint, mpint_list, val_mpint)
 FUNC2(val_string, pockle_mpu, val_pockle, val_mpint)
+FUNC1(val_millerrabin, miller_rabin_new, val_mpint)
+FUNC2(mr_result, miller_rabin_test, val_millerrabin, val_mpint)
 
 /*
  * Miscellaneous.
