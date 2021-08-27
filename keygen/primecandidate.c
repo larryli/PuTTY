@@ -341,8 +341,8 @@ void pcs_ready(PrimeCandidateSource *s)
         int64_t mod = s->avoids[i].mod, res = s->avoids[i].res;
         if (mod != last_mod) {
             last_mod = mod;
-            addend_m = mp_unsafe_mod_integer(s->addend, mod);
-            factor_m = mp_unsafe_mod_integer(s->factor, mod);
+            addend_m = mp_mod_known_integer(s->addend, mod);
+            factor_m = mp_mod_known_integer(s->factor, mod);
         }
 
         if (factor_m == 0) {
@@ -385,7 +385,7 @@ mp_int *pcs_generate(PrimeCandidateSource *s)
 
             if (mod != last_mod) {
                 last_mod = mod;
-                x_res = mp_unsafe_mod_integer(x, mod);
+                x_res = mp_mod_known_integer(x, mod);
             }
 
             if (x_res == avoid_res) {

@@ -45,13 +45,3 @@ mp_int *mp_unsafe_copy(mp_int *x)
     mp_copy_into(copy, x);
     return copy;
 }
-
-uint32_t mp_unsafe_mod_integer(mp_int *x, uint32_t modulus)
-{
-    uint64_t accumulator = 0;
-    for (size_t i = mp_max_bytes(x); i-- > 0 ;) {
-        accumulator = 0x100 * accumulator + mp_get_byte(x, i);
-        accumulator %= modulus;
-    }
-    return accumulator;
-}

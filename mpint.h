@@ -258,6 +258,12 @@ mp_int *mp_div(mp_int *n, mp_int *d);
 mp_int *mp_mod(mp_int *x, mp_int *modulus);
 
 /*
+ * Compute the residue of x mod m, where m is a small integer. x is
+ * kept secret, but m is not.
+ */
+uint32_t mp_mod_known_integer(mp_int *x, uint32_t m);
+
+/*
  * Integer nth root. mp_nthroot returns the largest integer x such
  * that x^n <= y, and if 'remainder' is non-NULL then it fills it with
  * the residue (y - x^n).

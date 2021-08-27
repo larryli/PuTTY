@@ -36,11 +36,4 @@
 mp_int *mp_unsafe_shrink(mp_int *m);
 mp_int *mp_unsafe_copy(mp_int *m);
 
-/*
- * Compute the residue of x mod m. This is implemented in the most
- * obvious way using the C % operator, which won't be constant-time on
- * many C implementations.
- */
-uint32_t mp_unsafe_mod_integer(mp_int *x, uint32_t m);
-
 #endif /* PUTTY_MPINT_UNSAFE_H */
