@@ -97,8 +97,8 @@ void miller_rabin_free(MillerRabin *mr);
 /* Perform a single Miller-Rabin test, using a specified witness value.
  * Used in the test suite. */
 struct mr_result {
-    bool passed;
-    bool potential_primitive_root;
+    unsigned passed;
+    unsigned potential_primitive_root;
 };
 struct mr_result miller_rabin_test(MillerRabin *mr, mp_int *w);
 
