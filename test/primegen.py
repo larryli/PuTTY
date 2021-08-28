@@ -18,6 +18,8 @@ def main():
                         dest='policy', const='provable_fast')
     parser.add_argument("--complex", action='store_const',
                         dest='policy', const='provable_maurer_complex')
+    parser.add_argument("--probabilistic", action='store_const',
+                        dest='policy', const='probabilistic')
     parser.add_argument("-q", "--quiet", action='store_true')
     parser.add_argument("-b", "--binary", action='store_const',
                         dest='fmt', const='{:b}')
