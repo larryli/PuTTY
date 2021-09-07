@@ -203,22 +203,6 @@ void log_end(void)
     log_to_file(NULL);
     sfree(last_filename);
 }
-void log_discard(void)
-{
-    /*
-     * Discard the most recently generated log file, and rewind the
-     * index so that its name will be reused by the next attempt.
-     *
-     * Used in tests of prime generation, in which only the
-     * _successful_ attempts need to be side-channel safe: it doesn't
-     * matter if a failed attempt leaks its data through early
-     * termination of a checking loop, because all the data it leaked
-     * will be thrown away anyway.
-     */
-    char *prev_filename = log_filename(test_basename, --test_index);
-    remove(prev_filename);
-    sfree(prev_filename);
-}
 
 static bool test_skipped = false;
 
