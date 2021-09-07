@@ -505,13 +505,13 @@ call sites. Instead, what we generally do in this code base is to
 write a set of \cw{static inline} wrapper functions in the same header
 file that defined the \cw{MyAbstraction} structure types, like this:
 
-\c static MyAbstraction *myabs_new(const MyAbstractionVtable *vt)
+\c static inline MyAbstraction *myabs_new(const MyAbstractionVtable *vt)
 \c { return vt->new(vt); }
-\c static void myabs_free(MyAbstraction *myabs)
+\c static inline void myabs_free(MyAbstraction *myabs)
 \c { myabs->vt->free(myabs); }
-\c static void myimpl_modify(MyAbstraction *myabs, unsigned param)
+\c static inline void myimpl_modify(MyAbstraction *myabs, unsigned param)
 \c { myabs->vt->modify(myabs, param); }
-\c static unsigned myimpl_query(MyAbstraction *myabs, unsigned param)
+\c static inline unsigned myimpl_query(MyAbstraction *myabs, unsigned param)
 \c { return myabs->vt->query(myabs, param); }
 
 And now call sites can use those reasonably clean-looking wrapper
