@@ -88,7 +88,20 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
             sk_close(sockets[nsockets]);
         }
 
-        if (!strcmp(err, strerror(EADDRINUSE))) /* yuck! */
+        /*
+         * If we weren't able to bind to this port because it's in use
+         * by another program, go round this loop and try again. But
+         * for any other reason, give up completely and return failure
+         * to our caller.
+         *
+         * sk_socket_error currently has no machine-readable component
+         * (it would need a cross-platform abstraction of the socket
+         * error types we care about, plus translation from each OS
+         * error enumeration into that). So we use the disgusting
+         * approach of a string compare between the error string and
+         * the one EADDRINUSE would have given :-(
+         */
+        if (strcmp(err, strerror(EADDRINUSE)))
             goto out;
     }
 
