@@ -1414,8 +1414,8 @@ static void pty_close(Pty *pty)
  */
 static size_t pty_sendbuffer(Backend *be)
 {
-    /* Pty *pty = container_of(be, Pty, backend); */
-    return 0;
+    Pty *pty = container_of(be, Pty, backend);
+    return bufchain_size(&pty->output_data);
 }
 
 /*
