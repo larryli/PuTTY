@@ -500,6 +500,7 @@ void ssh2channel_send_terminal_size_change(SshChannel *sc, int w, int h)
 
 bool ssh2_connection_need_antispoof_prompt(struct ssh2_connection_state *s)
 {
-    bool success = seat_set_trust_status(s->ppl.seat, false);
+    seat_set_trust_status(s->ppl.seat, false);
+    bool success = seat_can_set_trust_status(s->ppl.seat);
     return (!success && !ssh_is_bare(s->ppl.ssh));
 }

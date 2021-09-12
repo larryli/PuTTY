@@ -1097,13 +1097,19 @@ struct SeatVtable {
      * (and hence, can be trusted if it's asking you for secrets such
      * as your passphrase); false means output is coming from the
      * server.
+     */
+    void (*set_trust_status)(Seat *seat, bool trusted);
+
+    /*
+     * Query whether this Seat can do anything user-visible in
+     * response to set_trust_status.
      *
      * Returns true if the seat has a way to indicate this
      * distinction. Returns false if not, in which case the backend
      * should use a fallback defence against spoofing of PuTTY's local
      * prompts by malicious servers.
      */
-    bool (*set_trust_status)(Seat *seat, bool trusted);
+    bool (*can_set_trust_status)(Seat *seat);
 
     /*
      * Ask the seat whether it would like verbose messages.
@@ -1169,8 +1175,10 @@ static inline bool seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 static inline StripCtrlChars *seat_stripctrl_new(
     Seat *seat, BinarySink *bs, SeatInteractionContext sic)
 { return seat->vt->stripctrl_new(seat, bs, sic); }
-static inline bool seat_set_trust_status(Seat *seat, bool trusted)
-{ return  seat->vt->set_trust_status(seat, trusted); }
+static inline void seat_set_trust_status(Seat *seat, bool trusted)
+{ seat->vt->set_trust_status(seat, trusted); }
+static inline bool seat_can_set_trust_status(Seat *seat)
+{ return seat->vt->can_set_trust_status(seat); }
 static inline bool seat_verbose(Seat *seat)
 { return seat->vt->verbose(seat); }
 static inline bool seat_interactive(Seat *seat)
@@ -1229,8 +1237,9 @@ bool nullseat_get_windowid(Seat *seat, long *id_out);
 bool nullseat_get_window_pixel_size(Seat *seat, int *width, int *height);
 StripCtrlChars *nullseat_stripctrl_new(
         Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
-bool nullseat_set_trust_status(Seat *seat, bool trusted);
-bool nullseat_set_trust_status_vacuously(Seat *seat, bool trusted);
+void nullseat_set_trust_status(Seat *seat, bool trusted);
+bool nullseat_can_set_trust_status_yes(Seat *seat);
+bool nullseat_can_set_trust_status_no(Seat *seat);
 bool nullseat_verbose_no(Seat *seat);
 bool nullseat_verbose_yes(Seat *seat);
 bool nullseat_interactive_no(Seat *seat);
@@ -1255,7 +1264,8 @@ int console_confirm_weak_cached_hostkey(
     void (*callback)(void *ctx, int result), void *ctx);
 StripCtrlChars *console_stripctrl_new(
         Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
-bool console_set_trust_status(Seat *seat, bool trusted);
+void console_set_trust_status(Seat *seat, bool trusted);
+bool console_can_set_trust_status(Seat *seat);
 
 /*
  * Other centralised seat functions.

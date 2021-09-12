@@ -383,7 +383,8 @@ static const char *gtk_seat_get_x_display(Seat *seat);
 #ifndef NOT_X_WINDOWS
 static bool gtk_seat_get_windowid(Seat *seat, long *id);
 #endif
-static bool gtk_seat_set_trust_status(Seat *seat, bool trusted);
+static void gtk_seat_set_trust_status(Seat *seat, bool trusted);
+static bool gtk_seat_can_set_trust_status(Seat *seat);
 static bool gtk_seat_get_cursor_position(Seat *seat, int *x, int *y);
 
 static const SeatVtable gtk_seat_vt = {
@@ -411,6 +412,7 @@ static const SeatVtable gtk_seat_vt = {
     .get_window_pixel_size = gtk_seat_get_window_pixel_size,
     .stripctrl_new = gtk_seat_stripctrl_new,
     .set_trust_status = gtk_seat_set_trust_status,
+    .can_set_trust_status = gtk_seat_can_set_trust_status,
     .verbose = nullseat_verbose_yes,
     .interactive = nullseat_interactive_yes,
     .get_cursor_position = gtk_seat_get_cursor_position,
@@ -5415,10 +5417,14 @@ void new_session_window(Conf *conf, const char *geometry_string)
         ldisc_echoedit_update(inst->ldisc); /* cause ldisc to notice changes */
 }
 
-static bool gtk_seat_set_trust_status(Seat *seat, bool trusted)
+static void gtk_seat_set_trust_status(Seat *seat, bool trusted)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     term_set_trust_status(inst->term, trusted);
+}
+
+static bool gtk_seat_can_set_trust_status(Seat *seat)
+{
     return true;
 }
 

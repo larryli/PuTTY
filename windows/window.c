@@ -323,7 +323,8 @@ static void win_seat_notify_remote_exit(Seat *seat);
 static void win_seat_connection_fatal(Seat *seat, const char *msg);
 static void win_seat_update_specials_menu(Seat *seat);
 static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
-static bool win_seat_set_trust_status(Seat *seat, bool trusted);
+static void win_seat_set_trust_status(Seat *seat, bool trusted);
+static bool win_seat_can_set_trust_status(Seat *seat);
 static bool win_seat_get_cursor_position(Seat *seat, int *x, int *y);
 static bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y);
 
@@ -348,6 +349,7 @@ static const SeatVtable win_seat_vt = {
     .get_window_pixel_size = win_seat_get_window_pixel_size,
     .stripctrl_new = win_seat_stripctrl_new,
     .set_trust_status = win_seat_set_trust_status,
+    .can_set_trust_status = win_seat_can_set_trust_status,
     .verbose = nullseat_verbose_yes,
     .interactive = nullseat_interactive_yes,
     .get_cursor_position = win_seat_get_cursor_position,
@@ -5753,9 +5755,13 @@ static int win_seat_get_userpass_input(
     return ret;
 }
 
-static bool win_seat_set_trust_status(Seat *seat, bool trusted)
+static void win_seat_set_trust_status(Seat *seat, bool trusted)
 {
     term_set_trust_status(term, trusted);
+}
+
+static bool win_seat_can_set_trust_status(Seat *seat)
+{
     return true;
 }
 

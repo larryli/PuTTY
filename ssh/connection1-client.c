@@ -543,5 +543,6 @@ SshChannel *ssh1_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 
 bool ssh1_connection_need_antispoof_prompt(struct ssh1_connection_state *s)
 {
-    return !seat_set_trust_status(s->ppl.seat, false);
+    seat_set_trust_status(s->ppl.seat, false);
+    return !seat_can_set_trust_status(s->ppl.seat);
 }

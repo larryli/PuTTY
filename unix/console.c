@@ -321,7 +321,16 @@ int console_askappend(LogPolicy *lp, Filename *filename,
 }
 
 bool console_antispoof_prompt = true;
-bool console_set_trust_status(Seat *seat, bool trusted)
+
+void console_set_trust_status(Seat *seat, bool trusted)
+{
+    /* Do nothing in response to a change of trust status, because
+     * there's nothing we can do in a console environment. However,
+     * the query function below will make a fiddly decision about
+     * whether to tell the backend to enable fallback handling. */
+}
+
+bool console_can_set_trust_status(Seat *seat)
 {
     if (console_batch_mode || !is_interactive() || !console_antispoof_prompt) {
         /*
@@ -334,8 +343,8 @@ bool console_set_trust_status(Seat *seat, bool trusted)
          * prompt, the user couldn't respond to it via the terminal
          * anyway.
          *
-         * We also vacuously return success if the user has purposely
-         * disabled the antispoof prompt.
+         * We also return true without enabling any defences if the
+         * user has purposely disabled the antispoof prompt.
          */
         return true;
     }

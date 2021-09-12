@@ -405,20 +405,24 @@ static int sshproxy_confirm_weak_cached_hostkey(
     return 0;
 }
 
-static bool sshproxy_set_trust_status(Seat *seat, bool trusted)
+static void sshproxy_set_trust_status(Seat *seat, bool trusted)
 {
     /*
      * This is called by the proxy SSH connection, to set our Seat
-     * into a given trust status. We can safely do nothing here and
-     * return true to claim we did something (effectively eliminating
-     * the spoofing defences completely, by suppressing the 'press
-     * Return to begin session' prompt and not providing anything in
-     * place of it), on the basis that session I/O from the proxy SSH
-     * connection is never passed directly on to the end user, so a
-     * malicious proxy SSH server wouldn't be able to spoof our human
-     * in any case.
+     * into a given trust status. We can safely do nothing here, and
+     * have can_set_trust_status return true to claim we did something
+     * (effectively eliminating the spoofing defences completely, by
+     * suppressing the 'press Return to begin session' prompt and not
+     * providing anything in place of it), on the basis that session
+     * I/O from the proxy SSH connection is never passed directly on
+     * to the end user, so a malicious proxy SSH server wouldn't be
+     * able to spoof our human in any case.
      */
-    return true;
+}
+
+static bool sshproxy_can_set_trust_status(Seat *seat)
+{
+    return true; /* see comment above */
 }
 
 static const SeatVtable SshProxy_seat_vt = {
@@ -442,6 +446,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .get_window_pixel_size = nullseat_get_window_pixel_size,
     .stripctrl_new = nullseat_stripctrl_new,
     .set_trust_status = sshproxy_set_trust_status,
+    .can_set_trust_status = sshproxy_can_set_trust_status,
     .verbose = nullseat_verbose_no,
     .interactive = nullseat_interactive_no,
     .get_cursor_position = nullseat_get_cursor_position,

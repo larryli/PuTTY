@@ -407,6 +407,7 @@ static const SeatVtable plink_seat_vt = {
     .get_window_pixel_size = nullseat_get_window_pixel_size,
     .stripctrl_new = console_stripctrl_new,
     .set_trust_status = console_set_trust_status,
+    .can_set_trust_status = console_can_set_trust_status,
     .verbose = cmdline_seat_verbose,
     .interactive = plink_seat_interactive,
     .get_cursor_position = nullseat_get_cursor_position,
