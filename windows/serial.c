@@ -306,15 +306,14 @@ static void serial_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the serial connection.
  */
-static size_t serial_send(Backend *be, const char *buf, size_t len)
+static void serial_send(Backend *be, const char *buf, size_t len)
 {
     Serial *serial = container_of(be, Serial, backend);
 
     if (serial->out == NULL)
-        return 0;
+        return;
 
     serial->bufsize = handle_write(serial->out, buf, len);
-    return serial->bufsize;
 }
 
 /*

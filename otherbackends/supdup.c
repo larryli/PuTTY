@@ -797,14 +797,14 @@ static void supdup_reconfig(Backend *be, Conf *conf)
 /*
 * Called to send data down the Supdup connection.
 */
-static size_t supdup_send(Backend *be, const char *buf, size_t len)
+static void supdup_send(Backend *be, const char *buf, size_t len)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
     char c;
     int i;
 
     if (supdup->s == NULL)
-        return 0;
+        return;
 
     for (i = 0; i < len; i++) {
         if (buf[i] == 034)
@@ -814,7 +814,6 @@ static size_t supdup_send(Backend *be, const char *buf, size_t len)
             supdup->bufsize = sk_write(supdup->s, &c, 1);
         }
     }
-    return supdup->bufsize;
 }
 
 /*

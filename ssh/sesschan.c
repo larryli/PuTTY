@@ -270,7 +270,8 @@ static size_t sesschan_send(Channel *chan, bool is_stderr,
     if (!sess->backend || sess->ignoring_input)
         return 0;
 
-    return backend_send(sess->backend, data, length);
+    backend_send(sess->backend, data, length);
+    return backend_sendbuffer(sess->backend);
 }
 
 static void sesschan_send_eof(Channel *chan)

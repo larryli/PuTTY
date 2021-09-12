@@ -636,9 +636,8 @@ struct BackendVtable {
     void (*free) (Backend *be);
     /* Pass in a replacement configuration. */
     void (*reconfig) (Backend *be, Conf *conf);
-    /* send() returns the current amount of buffered data. */
-    size_t (*send) (Backend *be, const char *buf, size_t len);
-    /* sendbuffer() does the same thing but without attempting a send */
+    void (*send) (Backend *be, const char *buf, size_t len);
+    /* sendbuffer() returns the current amount of buffered data */
     size_t (*sendbuffer) (Backend *be);
     void (*size) (Backend *be, int width, int height);
     void (*special) (Backend *be, SessionSpecialCode code, int arg);
@@ -687,8 +686,8 @@ static inline void backend_free(Backend *be)
 { be->vt->free(be); }
 static inline void backend_reconfig(Backend *be, Conf *conf)
 { be->vt->reconfig(be, conf); }
-static inline size_t backend_send(Backend *be, const char *buf, size_t len)
-{ return be->vt->send(be, buf, len); }
+static inline void backend_send(Backend *be, const char *buf, size_t len)
+{ be->vt->send(be, buf, len); }
 static inline size_t backend_sendbuffer(Backend *be)
 { return be->vt->sendbuffer(be); }
 static inline void backend_size(Backend *be, int width, int height)

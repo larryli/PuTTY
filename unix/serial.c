@@ -461,17 +461,15 @@ static void serial_try_write(Serial *serial)
 /*
  * Called to send data down the serial connection.
  */
-static size_t serial_send(Backend *be, const char *buf, size_t len)
+static void serial_send(Backend *be, const char *buf, size_t len)
 {
     Serial *serial = container_of(be, Serial, backend);
 
     if (serial->fd < 0)
-        return 0;
+        return;
 
     bufchain_add(&serial->output_data, buf, len);
     serial_try_write(serial);
-
-    return bufchain_size(&serial->output_data);
 }
 
 /*

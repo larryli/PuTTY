@@ -207,16 +207,14 @@ static void raw_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the raw connection.
  */
-static size_t raw_send(Backend *be, const char *buf, size_t len)
+static void raw_send(Backend *be, const char *buf, size_t len)
 {
     Raw *raw = container_of(be, Raw, backend);
 
     if (raw->s == NULL)
-        return 0;
+        return;
 
     raw->bufsize = sk_write(raw->s, buf, len);
-
-    return raw->bufsize;
 }
 
 /*

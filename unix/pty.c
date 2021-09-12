@@ -1367,17 +1367,15 @@ static void pty_try_write(Pty *pty)
 /*
  * Called to send data down the pty.
  */
-static size_t pty_send(Backend *be, const char *buf, size_t len)
+static void pty_send(Backend *be, const char *buf, size_t len)
 {
     Pty *pty = container_of(be, Pty, backend);
 
     if (pty->master_i < 0 || pty->pending_eof)
-        return 0;                      /* ignore all writes if fd closed */
+        return;                   /* ignore all writes if fd closed */
 
     bufchain_add(&pty->output_data, buf, len);
     pty_try_write(pty);
-
-    return bufchain_size(&pty->output_data);
 }
 
 static void pty_close(Pty *pty)

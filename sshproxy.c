@@ -106,7 +106,8 @@ static size_t sshproxy_write(Socket *s, const void *data, size_t len)
     SshProxy *sp = container_of(s, SshProxy, sock);
     if (!sp->backend)
         return 0;
-    return backend_send(sp->backend, data, len);
+    backend_send(sp->backend, data, len);
+    return backend_sendbuffer(sp->backend);
 }
 
 static size_t sshproxy_write_oob(Socket *s, const void *data, size_t len)

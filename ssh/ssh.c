@@ -1003,18 +1003,16 @@ static void ssh_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the SSH connection.
  */
-static size_t ssh_send(Backend *be, const char *buf, size_t len)
+static void ssh_send(Backend *be, const char *buf, size_t len)
 {
     Ssh *ssh = container_of(be, Ssh, backend);
 
     if (ssh == NULL || ssh->s == NULL)
-        return 0;
+        return;
 
     bufchain_add(&ssh->user_input, buf, len);
     if (ssh->base_layer)
         ssh_ppl_got_user_input(ssh->base_layer);
-
-    return backend_sendbuffer(&ssh->backend);
 }
 
 /*

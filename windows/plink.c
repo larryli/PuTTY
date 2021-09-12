@@ -204,7 +204,8 @@ size_t stdin_gotdata(struct handle *h, const void *data, size_t len, int err)
     noise_ultralight(NOISE_SOURCE_IOLEN, len);
     if (backend_connected(backend)) {
         if (len > 0) {
-            return backend_send(backend, data, len);
+            backend_send(backend, data, len);
+            return backend_sendbuffer(backend);
         } else {
             backend_special(backend, SS_EOF, 0);
             return 0;

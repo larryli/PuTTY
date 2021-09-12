@@ -269,13 +269,13 @@ static void rlogin_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the rlogin connection.
  */
-static size_t rlogin_send(Backend *be, const char *buf, size_t len)
+static void rlogin_send(Backend *be, const char *buf, size_t len)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
     bufchain bc;
 
     if (rlogin->s == NULL)
-        return 0;
+        return;
 
     bufchain_init(&bc);
     bufchain_add(&bc, buf, len);
@@ -305,8 +305,6 @@ static size_t rlogin_send(Backend *be, const char *buf, size_t len)
     }
 
     bufchain_clear(&bc);
-
-    return rlogin->bufsize;
 }
 
 /*

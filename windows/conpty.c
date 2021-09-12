@@ -287,15 +287,14 @@ static void conpty_reconfig(Backend *be, Conf *conf)
 {
 }
 
-static size_t conpty_send(Backend *be, const char *buf, size_t len)
+static void conpty_send(Backend *be, const char *buf, size_t len)
 {
     ConPTY *conpty = container_of(be, ConPTY, backend);
 
     if (conpty->out == NULL)
-        return 0;
+        return;
 
     conpty->bufsize = handle_write(conpty->out, buf, len);
-    return conpty->bufsize;
 }
 
 static size_t conpty_sendbuffer(Backend *be)

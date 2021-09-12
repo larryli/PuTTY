@@ -813,7 +813,7 @@ static void telnet_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the Telnet connection.
  */
-static size_t telnet_send(Backend *be, const char *buf, size_t len)
+static void telnet_send(Backend *be, const char *buf, size_t len)
 {
     Telnet *telnet = container_of(be, Telnet, backend);
     unsigned char *p, *end;
@@ -824,7 +824,7 @@ static size_t telnet_send(Backend *be, const char *buf, size_t len)
 #endif
 
     if (telnet->s == NULL)
-        return 0;
+        return;
 
     p = (unsigned char *)buf;
     end = (unsigned char *)(buf + len);
@@ -841,8 +841,6 @@ static size_t telnet_send(Backend *be, const char *buf, size_t len)
             p++;
         }
     }
-
-    return telnet->bufsize;
 }
 
 /*
