@@ -65,6 +65,8 @@ typedef struct SshProxy {
     bufchain ssh_to_socket;
     bool rcvd_eof_ssh_to_socket, sent_eof_ssh_to_socket;
 
+    SockAddr *addr;
+
     /* Traits implemented: we're a Socket from the point of view of
      * the client connection, and a Seat from the POV of the SSH
      * backend we instantiate. */
@@ -86,6 +88,7 @@ static void sshproxy_close(Socket *s)
 {
     SshProxy *sp = container_of(s, SshProxy, sock);
 
+    sk_addr_free(sp->addr);
     sfree(sp->errmsg);
     conf_free(sp->conf);
     if (sp->backend)
@@ -459,6 +462,8 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     sp->plug = plug;
     psb_init(&sp->psb);
     bufchain_init(&sp->ssh_to_socket);
+
+    sp->addr = addr;
 
     sp->conf = conf_new();
     /* Try to treat proxy_hostname as the title of a saved session. If
