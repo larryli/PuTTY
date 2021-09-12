@@ -211,11 +211,3 @@ static int null_cfg_info(Backend *be)
 {
     return 0;
 }
-
-
-/*
- * Emacs magic:
- * Local Variables:
- * c-file-style: "simon"
- * End:
- */
