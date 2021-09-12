@@ -391,6 +391,7 @@ static const SeatVtable plink_seat_vt = {
     .eof = plink_eof,
     .sent = nullseat_sent,
     .get_userpass_input = plink_get_userpass_input,
+    .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = console_connection_fatal,

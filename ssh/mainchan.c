@@ -129,6 +129,7 @@ static void mainchan_open_confirmation(Channel *chan)
 
     seat_update_specials_menu(mc->ppl->seat);
     ppl_logevent("Opened main channel");
+    seat_notify_session_started(mc->ppl->seat);
 
     if (mc->is_simple)
         sshfwd_hint_channel_is_simple(mc->sc);

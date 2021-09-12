@@ -188,6 +188,7 @@ static const SeatVtable sesschan_seat_vt = {
     .eof = sesschan_seat_eof,
     .sent = nullseat_sent,
     .get_userpass_input = nullseat_get_userpass_input,
+    .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = sesschan_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = sesschan_connection_fatal,

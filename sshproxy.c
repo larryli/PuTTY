@@ -66,6 +66,7 @@ typedef struct SshProxy {
     bool rcvd_eof_ssh_to_socket, sent_eof_ssh_to_socket;
 
     SockAddr *addr;
+    int port;
 
     /* Traits implemented: we're a Socket from the point of view of
      * the client connection, and a Seat from the POV of the SSH
@@ -243,6 +244,12 @@ static void try_send_ssh_to_socket(void *ctx)
         sp->sent_eof_ssh_to_socket = true;
         plug_closing(sp->plug, sp->errmsg, 0, 0);
     }
+}
+
+static void sshproxy_notify_session_started(Seat *seat)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    plug_log(sp->plug, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port, NULL, 0);
 }
 
 static size_t sshproxy_output(Seat *seat, bool is_stderr,
@@ -431,6 +438,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .eof = sshproxy_eof,
     .sent = sshproxy_sent,
     .get_userpass_input = sshproxy_get_userpass_input,
+    .notify_session_started = sshproxy_notify_session_started,
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = sshproxy_notify_remote_disconnect,
     .connection_fatal = sshproxy_connection_fatal,
@@ -470,6 +478,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     bufchain_init(&sp->ssh_to_socket);
 
     sp->addr = addr;
+    sp->port = port;
 
     sp->conf = conf_new();
     /* Try to treat proxy_hostname as the title of a saved session. If
@@ -512,6 +521,14 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                proxy_hostname);
         return &sp->sock;
     }
+
+    /*
+     * We also expect that the backend will announce a willingness to
+     * notify us that the session has started. Any backend providing
+     * NC_HOST should also provide this.
+     */
+    assert(backvt->flags & BACKEND_NOTIFIES_SESSION_START &&
+           "Backend provides NC_HOST without SESSION_START!");
 
     /*
      * Turn off SSH features we definitely don't want. It would be

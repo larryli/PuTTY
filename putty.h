@@ -620,6 +620,8 @@ enum {
 #define BACKEND_NEEDS_TERMINAL      0x02   /* Backend must have terminal */
 #define BACKEND_SUPPORTS_NC_HOST    0x04   /* Backend can honour
                                               CONF_ssh_nc_host */
+#define BACKEND_NOTIFIES_SESSION_START 0x08 /* Backend will call
+                                               seat_notify_session_started */
 
 /* In (no)sshproxy.c */
 extern const bool ssh_proxy_supported;
@@ -933,6 +935,17 @@ struct SeatVtable {
     int (*get_userpass_input)(Seat *seat, prompts_t *p, bufchain *input);
 
     /*
+     * Notify the seat that the main session channel has been
+     * successfully set up.
+     *
+     * This is only used as part of the SSH proxying system, so it's
+     * not necessary to implement it in all backends. A backend must
+     * call this if it advertises the BACKEND_NOTIFIES_SESSION_START
+     * flag, and otherwise, doesn't have to.
+     */
+    void (*notify_session_started)(Seat *seat);
+
+    /*
      * Notify the seat that the process running at the other end of
      * the connection has finished.
      */
@@ -1138,6 +1151,8 @@ static inline void seat_sent(Seat *seat, size_t bufsize)
 static inline int seat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input)
 { return seat->vt->get_userpass_input(seat, p, input); }
+static inline void seat_notify_session_started(Seat *seat)
+{ seat->vt->notify_session_started(seat); }
 static inline void seat_notify_remote_exit(Seat *seat)
 { seat->vt->notify_remote_exit(seat); }
 static inline void seat_notify_remote_disconnect(Seat *seat)
@@ -1212,6 +1227,7 @@ size_t nullseat_output(
 bool nullseat_eof(Seat *seat);
 void nullseat_sent(Seat *seat, size_t bufsize);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
+void nullseat_notify_session_started(Seat *seat);
 void nullseat_notify_remote_exit(Seat *seat);
 void nullseat_notify_remote_disconnect(Seat *seat);
 void nullseat_connection_fatal(Seat *seat, const char *message);
