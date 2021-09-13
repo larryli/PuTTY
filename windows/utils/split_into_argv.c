@@ -51,6 +51,9 @@
  * or more backslashes precedes two or more double quotes, starting
  * inside a double-quoted string.
  *
+ * Modern Visual Studio (as of 2021)
+ * ---------------------------------
+ *
  * I investigated this in an ordinary CLI program, using the
  * toolchain's crt0 to split a command line of the form
  *
@@ -87,6 +90,9 @@
  * either opens or closes a quoted string, and if it closes one, it
  * generates a literal " as a side effect.
  *
+ * Older Visual Studio
+ * -------------------
+ *
  * But here's the corresponding table from the older Visual Studio 7:
  *
  *                      backslashes
@@ -107,48 +113,47 @@
  *        10   0,3,n  |  0,4,y  1,3,n  1,4,y  2,3,n
  *        11   0,4,n  |  0,4,n  1,4,n  1,4,n  2,4,n
  *
- * There is very weird mod-3 behaviour going on here in the
- * number of quotes, and it even applies when there aren't any
- * backslashes! How ghastly.
+ * There is very weird mod-3 behaviour going on here in the number of
+ * quotes, and it even applies when there aren't any backslashes! How
+ * ghastly.
  *
  * With a bit of thought, this extremely odd diagram suddenly
- * coalesced itself into a coherent, if still ghastly, model of
- * how things work:
+ * coalesced itself into a coherent, if still ghastly, model of how
+ * things work:
  *
- *  - As before, backslashes are only special when one or more
- *    of them appear contiguously before at least one double
- *    quote. In this situation the backslashes do exactly what
- *    you'd expect: each one quotes the next thing in front of
- *    it, so you end up with n/2 literal backslashes (if n is
- *    even) or (n-1)/2 literal backslashes and a literal quote
- *    (if n is odd). In the latter case the double quote
- *    character right after the backslashes is used up.
+ *  - As before, backslashes are only special when one or more of them
+ *    appear contiguously before at least one double quote. In this
+ *    situation the backslashes do exactly what you'd expect: each one
+ *    quotes the next thing in front of it, so you end up with n/2
+ *    literal backslashes (if n is even) or (n-1)/2 literal
+ *    backslashes and a literal quote (if n is odd). In the latter
+ *    case the double quote character right after the backslashes is
+ *    used up.
  *
- *  - After that, any remaining double quotes are processed. A
- *    string of contiguous unescaped double quotes has a mod-3
- *    behaviour:
+ *  - After that, any remaining double quotes are processed. A string
+ *    of contiguous unescaped double quotes has a mod-3 behaviour:
  *
  *     * inside a quoted segment, a quote ends the segment.
- *     * _immediately_ after ending a quoted segment, a quote
- *       simply produces a literal quote.
- *     * otherwise, outside a quoted segment, a quote begins a
- *       quoted segment.
+ *     * _immediately_ after ending a quoted segment, a quote simply
+ *       produces a literal quote.
+ *     * otherwise, outside a quoted segment, a quote begins a quoted
+ *       segment.
  *
- *    So, for example, if we started inside a quoted segment
- *    then two contiguous quotes would close the segment and
- *    produce a literal quote; three would close the segment,
- *    produce a literal quote, and open a new segment. If we
- *    started outside a quoted segment, then two contiguous
- *    quotes would open and then close a segment, producing no
- *    output (but potentially creating a zero-length argument);
- *    but three quotes would open and close a segment and then
- *    produce a literal quote.
- */
-
-/*
- * We select between two behaviours depending on the version of Visual
- * Studio (see large comment below). I don't know exactly when the bug
- * fix happened, but I know that VS7 had the odd mod-3 behaviour.
+ *    So, for example, if we started inside a quoted segment then two
+ *    contiguous quotes would close the segment and produce a literal
+ *    quote; three would close the segment, produce a literal quote,
+ *    and open a new segment. If we started outside a quoted segment,
+ *    then two contiguous quotes would open and then close a segment,
+ *    producing no output (but potentially creating a zero-length
+ *    argument); but three quotes would open and close a segment and
+ *    then produce a literal quote.
+ *
+ * I don't know exactly when the bug fix happened, but I know that VS7
+ * had the odd mod-3 behaviour. So the #if below will ensure that
+ * modern (2015 onwards) versions of VS use the new more sensible
+ * behaviour, and VS7 uses the old one. Things in between may be
+ * wrong; if anyone cares, patches to change the cutoff version in
+ * this #if are welcome.
  */
 #if _MSC_VER < 1400
 #define MOD3 1
