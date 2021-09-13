@@ -598,6 +598,15 @@ static void ssh_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
         backend_socket_log(ssh->seat, ssh->logctx, type, addr, port,
                            error_msg, error_code, ssh->conf,
                            ssh->session_started);
+
+    if (type == PLUGLOG_CONNECT_SUCCESS) {
+        if (is_tempseat(ssh->seat)) {
+            Seat *ts = ssh->seat;
+            tempseat_flush(ts);
+            ssh->seat = tempseat_get_real(ts);
+            tempseat_free(ts);
+        }
+    }
 }
 
 static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
@@ -790,7 +799,7 @@ static char *connect_to_host(
         ssh->s = new_connection(addr, *realhost, port,
                                 false, true, nodelay, keepalive,
                                 &ssh->plug, ssh->conf,
-                                log_get_policy(ssh->logctx));
+                                log_get_policy(ssh->logctx), &ssh->seat);
         if ((err = sk_socket_error(ssh->s)) != NULL) {
             ssh->s = NULL;
             seat_notify_remote_exit(ssh->seat);
@@ -954,6 +963,9 @@ static void ssh_free(Backend *be)
     bool need_random_unref;
 
     ssh_shutdown(ssh);
+
+    if (is_tempseat(ssh->seat))
+        tempseat_free(ssh->seat);
 
     conf_free(ssh->conf);
     if (ssh->connshare)

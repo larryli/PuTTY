@@ -626,8 +626,15 @@ static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     backend_socket_log(telnet->seat, telnet->logctx, type, addr, port,
                        error_msg, error_code, telnet->conf,
                        telnet->socket_connected);
-    if (type == PLUGLOG_CONNECT_SUCCESS)
+    if (type == PLUGLOG_CONNECT_SUCCESS) {
         telnet->socket_connected = true;
+        if (is_tempseat(telnet->seat)) {
+            Seat *ts = telnet->seat;
+            tempseat_flush(ts);
+            telnet->seat = tempseat_get_real(ts);
+            tempseat_free(ts);
+        }
+    }
 }
 
 static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
@@ -698,9 +705,6 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
     char *loghost;
     int addressfamily;
 
-    /* No local authentication phase in this protocol */
-    seat_set_trust_status(seat, false);
-
     telnet = snew(Telnet);
     telnet->plug.vt = &Telnet_plugvt;
     telnet->backend.vt = vt;
@@ -740,9 +744,12 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
      */
     telnet->s = new_connection(addr, *realhost, port, false, true, nodelay,
                                keepalive, &telnet->plug, telnet->conf,
-                               log_get_policy(logctx));
+                               log_get_policy(logctx), &telnet->seat);
     if ((err = sk_socket_error(telnet->s)) != NULL)
         return dupstr(err);
+
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(telnet->seat, false);
 
     telnet->pinger = pinger_new(telnet->conf, &telnet->backend);
 
@@ -797,6 +804,8 @@ static void telnet_free(Backend *be)
 {
     Telnet *telnet = container_of(be, Telnet, backend);
 
+    if (is_tempseat(telnet->seat))
+        tempseat_free(telnet->seat);
     strbuf_free(telnet->sb_buf);
     if (telnet->s)
         sk_close(telnet->s);

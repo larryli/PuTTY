@@ -563,8 +563,15 @@ static void supdup_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     backend_socket_log(supdup->seat, supdup->logctx, type, addr, port,
                        error_msg, error_code,
                        supdup->conf, supdup->socket_connected);
-    if (type == PLUGLOG_CONNECT_SUCCESS)
+    if (type == PLUGLOG_CONNECT_SUCCESS) {
         supdup->socket_connected = true;
+        if (is_tempseat(supdup->seat)) {
+            Seat *ts = supdup->seat;
+            tempseat_flush(ts);
+            supdup->seat = tempseat_get_real(ts);
+            tempseat_free(ts);
+        }
+    }
 }
 
 static void supdup_closing(Plug *plug, const char *error_msg, int error_code,
@@ -713,7 +720,7 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
      */
     supdup->s = new_connection(addr, *realhost, port, false, true,
                                nodelay, keepalive, &supdup->plug, supdup->conf,
-                               log_get_policy(logctx));
+                               log_get_policy(logctx), &supdup->seat);
     if ((err = sk_socket_error(supdup->s)) != NULL)
         return dupstr(err);
 
@@ -783,6 +790,8 @@ static void supdup_free(Backend *be)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
 
+    if (is_tempseat(supdup->seat))
+        tempseat_free(supdup->seat);
     if (supdup->s)
         sk_close(supdup->s);
     if (supdup->pinger)

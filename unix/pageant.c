@@ -1190,7 +1190,7 @@ void run_agent(FILE *logfp, const char *symlink_path)
         s = new_connection(sk_addr_dup(disp->addr),
                            disp->realhost, disp->port,
                            false, true, false, false, &conn->plug, conf,
-                           NULL);
+                           NULL, NULL);
         if ((err = sk_socket_error(s)) != NULL) {
             fprintf(stderr, "pageant: unable to connect to X server: %s", err);
             exit(1);

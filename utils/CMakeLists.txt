@@ -42,6 +42,7 @@ add_sources_from_current_dir(utils
   strbuf.c
   string_length_for_printf.c
   stripctrl.c
+  tempseat.c
   tree234.c
   validate_manual_hostkey.c
   version.c

@@ -45,8 +45,15 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     backend_socket_log(rlogin->seat, rlogin->logctx, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, rlogin->socket_connected);
-    if (type == PLUGLOG_CONNECT_SUCCESS)
+    if (type == PLUGLOG_CONNECT_SUCCESS) {
         rlogin->socket_connected = true;
+        if (is_tempseat(rlogin->seat)) {
+            Seat *ts = rlogin->seat;
+            tempseat_flush(ts);
+            rlogin->seat = tempseat_get_real(ts);
+            tempseat_free(ts);
+        }
+    }
 }
 
 static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
@@ -205,7 +212,7 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
      */
     rlogin->s = new_connection(addr, *realhost, port, true, false,
                                nodelay, keepalive, &rlogin->plug, conf,
-                               log_get_policy(logctx));
+                               log_get_policy(logctx), &rlogin->seat);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
         return dupstr(err);
 
@@ -256,6 +263,8 @@ static void rlogin_free(Backend *be)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
 
+    if (is_tempseat(rlogin->seat))
+        tempseat_free(rlogin->seat);
     if (rlogin->prompt)
         free_prompts(rlogin->prompt);
     if (rlogin->s)

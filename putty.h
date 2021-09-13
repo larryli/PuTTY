@@ -1295,6 +1295,31 @@ bool console_can_set_trust_status(Seat *seat);
 int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
 bool cmdline_seat_verbose(Seat *seat);
 
+/*
+ * TempSeat: a seat implementation that can be given to a backend
+ * temporarily while network proxy setup is using the real seat.
+ * Buffers output and trust-status changes until the real seat is
+ * available again.
+ */
+
+/* Called by the proxy code to make a TempSeat. */
+Seat *tempseat_new(Seat *real);
+
+/* Query functions to tell if a Seat _is_ temporary, and if so, to
+ * return the underlying real Seat. */
+bool is_tempseat(Seat *seat);
+Seat *tempseat_get_real(Seat *seat);
+
+/* Called by the backend once the proxy connection has finished
+ * setting up (or failed), to pass on any buffered stuff to the real
+ * seat. */
+void tempseat_flush(Seat *ts);
+
+/* Frees a TempSeat, without flushing anything it has buffered. (Call
+ * this after tempseat_flush, or alternatively, when you were going to
+ * abandon the whole connection anyway.) */
+void tempseat_free(Seat *ts);
+
 typedef struct rgb {
     uint8_t r, g, b;
 } rgb;

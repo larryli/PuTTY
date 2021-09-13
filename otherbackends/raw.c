@@ -39,8 +39,15 @@ static void raw_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     Raw *raw = container_of(plug, Raw, plug);
     backend_socket_log(raw->seat, raw->logctx, type, addr, port, error_msg,
                        error_code, raw->conf, raw->socket_connected);
-    if (type == PLUGLOG_CONNECT_SUCCESS)
+    if (type == PLUGLOG_CONNECT_SUCCESS) {
         raw->socket_connected = true;
+        if (is_tempseat(raw->seat)) {
+            Seat *ts = raw->seat;
+            tempseat_flush(ts);
+            raw->seat = tempseat_get_real(ts);
+            tempseat_free(ts);
+        }
+    }
 }
 
 static void raw_check_close(Raw *raw)
@@ -132,9 +139,6 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
     int addressfamily;
     char *loghost;
 
-    /* No local authentication phase in this protocol */
-    seat_set_trust_status(seat, false);
-
     raw = snew(Raw);
     raw->plug.vt = &Raw_plugvt;
     raw->backend.vt = vt;
@@ -168,9 +172,12 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
      */
     raw->s = new_connection(addr, *realhost, port, false, true, nodelay,
                             keepalive, &raw->plug, conf,
-                            log_get_policy(logctx));
+                            log_get_policy(logctx), &raw->seat);
     if ((err = sk_socket_error(raw->s)) != NULL)
         return dupstr(err);
+
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(raw->seat, false);
 
     loghost = conf_get_str(conf, CONF_loghost);
     if (*loghost) {
@@ -191,6 +198,8 @@ static void raw_free(Backend *be)
 {
     Raw *raw = container_of(be, Raw, backend);
 
+    if (is_tempseat(raw->seat))
+        tempseat_free(raw->seat);
     if (raw->s)
         sk_close(raw->s);
     conf_free(raw->conf);
