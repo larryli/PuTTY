@@ -67,8 +67,11 @@ struct PlugVtable {
      *    addresses to fall back to. When it _is_ fatal, the closing()
      *    function will be called.
      *
-     *  - PLUGLOG_CONNECT_SUCCESS means we have succeeded in
-     *    connecting to address `addr'.
+     *  - PLUGLOG_CONNECT_SUCCESS means we have succeeded in making a
+     *    connection. `addr' gives the address we connected to, if
+     *    available. (But sometimes, in cases of complicated proxy
+     *    setups, it might not be available, so receivers of this log
+     *    event should be prepared to deal with addr==NULL.)
      *
      *  - PLUGLOG_PROXY_MSG means that error_msg contains a line of
      *    logging information from whatever the connection is being

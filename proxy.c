@@ -28,6 +28,8 @@ void proxy_activate (ProxySocket *p)
 
     p->state = PROXY_STATE_ACTIVE;
 
+    plug_log(p->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
+
     /* we want to ignore new receive events until we have sent
      * all of our buffered receive data.
      */

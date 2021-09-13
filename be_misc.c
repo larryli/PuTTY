@@ -29,7 +29,10 @@ void backend_socket_log(Seat *seat, LogContext *logctx,
         msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
         break;
       case PLUGLOG_CONNECT_SUCCESS:
-        sk_getaddr(addr, addrbuf, lenof(addrbuf));
+        if (addr)
+            sk_getaddr(addr, addrbuf, lenof(addrbuf));
+        else /* fallback if address unavailable */
+            sprintf(addrbuf, "remote host");
         msg = dupprintf("Connected to %s", addrbuf);
         break;
       case PLUGLOG_PROXY_MSG: {

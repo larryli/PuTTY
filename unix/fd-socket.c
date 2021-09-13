@@ -315,6 +315,12 @@ static const SocketVtable FdSocket_sockvt = {
     .peer_info = NULL,
 };
 
+static void fdsocket_connect_success_callback(void *ctx)
+{
+    FdSocket *fds = (FdSocket *)ctx;
+    plug_log(fds->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
+}
+
 Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug)
 {
     FdSocket *fds;
@@ -353,6 +359,8 @@ Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug)
         add234(fdsocket_by_inerrfd, fds);
         uxsel_set(fds->inerrfd, SELECT_R, fdsocket_select_result_input_error);
     }
+
+    queue_toplevel_callback(fdsocket_connect_success_callback, fds);
 
     return &fds->sock;
 }

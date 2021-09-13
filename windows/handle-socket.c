@@ -314,6 +314,12 @@ static const SocketVtable HandleSocket_sockvt = {
     .peer_info = sk_handle_peer_info,
 };
 
+static void sk_handle_connect_success_callback(void *ctx)
+{
+    HandleSocket *hs = (HandleSocket *)ctx;
+    plug_log(hs->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
+}
+
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
                            Plug *plug, bool overlapped)
 {
@@ -338,6 +344,8 @@ Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
                                         hs, flags);
 
     hs->defer_close = hs->deferred_close = false;
+
+    queue_toplevel_callback(sk_handle_connect_success_callback, hs);
 
     return &hs->sock;
 }
