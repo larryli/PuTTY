@@ -260,15 +260,16 @@ static void fdsocket_select_result_input(int fd, int event)
     if (retd > 0) {
         plug_receive(fds->plug, 0, buf, retd);
     } else {
+        del234(fdsocket_by_infd, fds);
+        uxsel_del(fds->infd);
+        close(fds->infd);
+        fds->infd = -1;
+
         if (retd < 0) {
             plug_closing(fds->plug, strerror(errno), errno, 0);
         } else {
             plug_closing(fds->plug, NULL, 0, 0);
         }
-        del234(fdsocket_by_infd, fds);
-        uxsel_del(fds->infd);
-        close(fds->infd);
-        fds->infd = -1;
     }
 }
 
