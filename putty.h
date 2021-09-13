@@ -1962,6 +1962,7 @@ void logfopen(LogContext *logctx);
 void logfclose(LogContext *logctx);
 void logtraffic(LogContext *logctx, unsigned char c, int logmode);
 void logflush(LogContext *logctx);
+LogPolicy *log_get_policy(LogContext *logctx);
 void logevent(LogContext *logctx, const char *event);
 void logeventf(LogContext *logctx, const char *fmt, ...) PRINTF_LIKE(2, 3);
 void logeventvf(LogContext *logctx, const char *fmt, va_list ap);

@@ -110,13 +110,22 @@ struct PlugVtable {
      */
 };
 
-/* proxy indirection layer */
-/* NB, control of 'addr' is passed via new_connection, which takes
- * responsibility for freeing it */
+/* Proxy indirection layer.
+ *
+ * Calling new_connection transfers ownership of 'addr': the proxy
+ * layer is now responsible for freeing it, and the caller shouldn't
+ * assume it exists any more.
+ *
+ * You can optionally pass a LogPolicy to this function, which will be
+ * passed on in turn to proxy types that can use one (e.g. SSH jump
+ * host proxy). If you don't have one, all proxy types are required to
+ * be able to manage without (and will just degrade their logging
+ * control).
+ */
 Socket *new_connection(SockAddr *addr, const char *hostname,
                        int port, bool privport,
                        bool oobinline, bool nodelay, bool keepalive,
-                       Plug *plug, Conf *conf);
+                       Plug *plug, Conf *conf, LogPolicy *lp);
 Socket *new_listener(const char *srcaddr, int port, Plug *plug,
                      bool local_host_only, Conf *conf, int addressfamily);
 SockAddr *name_lookup(const char *host, int port, char **canonicalname,
@@ -134,7 +143,8 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
 Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
-                                Plug *plug, Conf *conf);
+                                Plug *plug, Conf *conf,
+                                LogPolicy *clientlp);
 
 /* socket functions */
 

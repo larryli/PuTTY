@@ -564,7 +564,7 @@ static size_t x11_send(
         xconn->s = new_connection(sk_addr_dup(xconn->disp->addr),
                                   xconn->disp->realhost, xconn->disp->port,
                                   false, true, false, false, &xconn->plug,
-                                  sshfwd_get_conf(xconn->c));
+                                  sshfwd_get_conf(xconn->c), NULL);
         if ((err = sk_socket_error(xconn->s)) != NULL) {
             char *err_message = dupprintf("unable to connect to"
                                           " forwarded X server: %s", err);

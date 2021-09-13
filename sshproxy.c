@@ -16,15 +16,15 @@ const bool ssh_proxy_supported = true;
 /*
  * TODO for future work:
  *
- * At present, this use of SSH as a proxy is 100% noninteractive. In
- * our implementations of the Seat and LogPolicy traits, every method
- * that involves interactively prompting the user is implemented by
- * pretending the user gave a safe default answer. So the effect is
- * very much as if you'd used 'plink -batch' as a proxy subprocess -
- * password prompts are cancelled and any dubious host key or crypto
- * primitive is unconditionally rejected - except that it all happens
- * in-process, making it mildly more convenient to set up, perhaps a
- * hair faster, and you get all the Event Log data in one place.
+ * At present, this use of SSH as a proxy is mostly noninteractive. In
+ * our implementations of the Seat trait, every method that involves
+ * interactively prompting the user is implemented by pretending the
+ * user gave a safe default answer. So the effect is very much as if
+ * you'd used 'plink -batch' as a proxy subprocess - password prompts
+ * are cancelled and any dubious host key or crypto primitive is
+ * unconditionally rejected - except that it all happens in-process,
+ * making it mildly more convenient to set up, perhaps a hair faster,
+ * and you get all the Event Log data in one place.
  *
  * But the biggest benefit of in-process SSH proxying would be that
  * the interactive prompts from the sub-SSH can be passed through to
@@ -32,24 +32,21 @@ const bool ssh_proxy_supported = true;
  * both require password authentication, you should be able to type
  * both password in sequence into the PuTTY terminal window; if you're
  * running a session of this kind for the first time, you should be
- * able to confirm both host keys one after another; if you need to
- * store SSH packet logs from both SSH connections, you should be able
- * to respond in turn to two askappend() prompts if necessary. And in
- * the current state of the code, none of that is yet implemented.
+ * able to confirm both host keys one after another. In the current
+ * state of the code, none of that is yet implemented: we're borrowing
+ * the client LogPolicy for things like askappend(), but not the Seat,
+ * which is where all the really important stuff lives.
  *
  * To fix that, we'd have to start by arranging for this proxy
- * implementation to get hold of the 'real' (outer) Seat and LogPolicy
- * objects, which probably means that they'd have to be passed to
- * new_connection. Then, each method in this file that receives an
+ * implementation to get hold of the 'real' (outer) Seat object, which
+ * means passing it to new_connection as we're already doing with
+ * LogPolicy. Then, each method in this file that receives an
  * interactive prompt request would handle it by passing it on to the
- * outer Seat or LogPolicy, with some kind of tweak that would allow
+ * client Seat if present, with some kind of tweak that would allow
  * the end user to see clearly that the prompt had come from the proxy
- * SSH connection rather than the primary one.
- *
- * One problem here is that not all uses of new_connection _have_ a
- * Seat or a LogPolicy available. So we'd also have to check if those
- * pointers are NULL, and if so, fall back to the existing behaviour
- * of behaving as if in batch mode.
+ * SSH connection rather than the primary one. If no client Seat was
+ * present, we'd have no choice but to fall back to the existing
+ * behaviour of behaving as if in batch mode.
  */
 
 typedef struct SshProxy {
@@ -57,6 +54,7 @@ typedef struct SshProxy {
     Conf *conf;
     LogContext *logctx;
     Backend *backend;
+    LogPolicy *clientlp;
 
     ProxyStderrBuf psb;
     Plug *plug;
@@ -171,10 +169,17 @@ static int sshproxy_askappend(LogPolicy *lp, Filename *filename,
                               void (*callback)(void *ctx, int result),
                               void *ctx)
 {
+    SshProxy *sp = container_of(lp, SshProxy, logpolicy);
+
     /*
-     * TODO: if we had access to the outer LogPolicy, we could pass on
-     * this request to the end user. (But we'd still have to have this
-     * code as a fallback in case there isn't a LogPolicy available.)
+     * If we have access to the outer LogPolicy, pass on this request
+     * to the end user.
+     */
+    if (sp->clientlp)
+        return lp_askappend(sp->clientlp, filename, callback, ctx);
+
+    /*
+     * Otherwise, fall back to the safe noninteractive assumption.
      */
     char *msg = dupprintf("Log file \"%s\" already exists; logging cancelled",
                           filename_to_str(filename));
@@ -185,12 +190,20 @@ static int sshproxy_askappend(LogPolicy *lp, Filename *filename,
 
 static void sshproxy_logging_error(LogPolicy *lp, const char *event)
 {
+    SshProxy *sp = container_of(lp, SshProxy, logpolicy);
+
     /*
-     * TODO: if we had access to the outer LogPolicy, we could pass on
-     * this request to _its_ logging_error method, where it would be
-     * more prominent than just dumping it in the outer SSH
-     * connection's Event Log. (But we'd still have to have this code
-     * as a fallback in case there isn't a LogPolicy available.)
+     * If we have access to the outer LogPolicy, pass on this request
+     * to it.
+     */
+    if (sp->clientlp) {
+        lp_logging_error(sp->clientlp, event);
+        return;
+    }
+
+    /*
+     * Otherwise, the best we can do is to put it in the outer SSH
+     * connection's Event Log.
      */
     char *msg = dupprintf("Logging error: %s", event);
     sshproxy_eventlog(lp, msg);
@@ -459,13 +472,13 @@ static const SeatVtable SshProxy_seat_vt = {
     .verbose = nullseat_verbose_no,
     .interactive = nullseat_interactive_no,
     .get_cursor_position = nullseat_get_cursor_position,
-
 };
 
 Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
-                                Plug *plug, Conf *clientconf)
+                                Plug *plug, Conf *clientconf,
+                                LogPolicy *clientlp)
 {
     SshProxy *sp = snew(SshProxy);
     memset(sp, 0, sizeof(*sp));
@@ -574,6 +587,8 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     }
 
     sfree(realhost);
+
+    sp->clientlp = clientlp;
 
     return &sp->sock;
 }
