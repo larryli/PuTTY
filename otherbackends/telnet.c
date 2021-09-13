@@ -218,7 +218,7 @@ static void log_option(Telnet *telnet, const char *sender, int cmd, int option)
      * trigraph - a double question mark followed by > maps to a
      * closing brace character!
      */
-    logeventf(telnet->logctx, "%s:\t%s %s", sender,
+    logeventf(telnet->logctx, "%s negotiation: %s %s", sender,
               (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
                cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<?""?>"),
               telopt(option));
@@ -374,11 +374,13 @@ static void process_subneg(Telnet *telnet)
             b[n] = IAC;
             b[n + 1] = SE;
             telnet->bufsize = sk_write(telnet->s, b, n + 2);
-            logevent(telnet->logctx, "server:\tSB TSPEED SEND");
-            logeventf(telnet->logctx, "client:\tSB TSPEED IS %s", termspeed);
+            logevent(telnet->logctx, "server subnegotiation: SB TSPEED SEND");
+            logeventf(telnet->logctx,
+                      "client subnegotiation: SB TSPEED IS %s", termspeed);
             sfree(b);
         } else
-            logevent(telnet->logctx, "server:\tSB TSPEED <something weird>");
+            logevent(telnet->logctx,
+                     "server subnegotiation: SB TSPEED <something weird>");
         break;
       case TELOPT_TTYPE:
         if (telnet->sb_buf->len == 1 && telnet->sb_buf->u[0] == TELQUAL_SEND) {
@@ -396,11 +398,14 @@ static void process_subneg(Telnet *telnet)
             b[n + 5] = SE;
             telnet->bufsize = sk_write(telnet->s, b, n + 6);
             b[n + 4] = 0;
-            logevent(telnet->logctx, "server:\tSB TTYPE SEND");
-            logeventf(telnet->logctx, "client:\tSB TTYPE IS %s", b + 4);
+            logevent(telnet->logctx,
+                     "server subnegotiation: SB TTYPE SEND");
+            logeventf(telnet->logctx,
+                      "client subnegotiation: SB TTYPE IS %s", b + 4);
             sfree(b);
         } else
-            logevent(telnet->logctx, "server:\tSB TTYPE <something weird>\r\n");
+            logevent(telnet->logctx,
+                     "server subnegotiation: SB TTYPE <something weird>\r\n");
         break;
       case TELOPT_OLD_ENVIRON:
       case TELOPT_NEW_ENVIRON:
@@ -408,7 +413,7 @@ static void process_subneg(Telnet *telnet)
         q = p + telnet->sb_buf->len;
         if (p < q && *p == TELQUAL_SEND) {
             p++;
-            logeventf(telnet->logctx, "server:\tSB %s SEND",
+            logeventf(telnet->logctx, "server subnegotiation: SB %s SEND",
                       telopt(telnet->sb_opt));
             if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
                 if (conf_get_bool(telnet->conf, CONF_rfc_environ)) {
@@ -482,20 +487,21 @@ static void process_subneg(Telnet *telnet)
             b[n++] = SE;
             telnet->bufsize = sk_write(telnet->s, b, n);
             if (n == 6) {
-                logeventf(telnet->logctx, "client:\tSB %s IS <nothing>",
+                logeventf(telnet->logctx,
+                          "client subnegotiation: SB %s IS <nothing>",
                           telopt(telnet->sb_opt));
             } else {
-                logeventf(telnet->logctx, "client:\tSB %s IS:",
+                logeventf(telnet->logctx, "client subnegotiation: SB %s IS:",
                           telopt(telnet->sb_opt));
                 for (eval = conf_get_str_strs(telnet->conf, CONF_environmt,
                                              NULL, &ekey);
                      eval != NULL;
                      eval = conf_get_str_strs(telnet->conf, CONF_environmt,
                                              ekey, &ekey)) {
-                    logeventf(telnet->logctx, "\t%s=%s", ekey, eval);
+                    logeventf(telnet->logctx, "    %s=%s", ekey, eval);
                 }
                 if (user)
-                    logeventf(telnet->logctx, "\tUSER=%s", user);
+                    logeventf(telnet->logctx, "    USER=%s", user);
             }
             sfree(b);
             sfree(user);
@@ -882,7 +888,7 @@ static void telnet_size(Backend *be, int width, int height)
     b[n++] = IAC;
     b[n++] = SE;
     telnet->bufsize = sk_write(telnet->s, b, n);
-    logeventf(telnet->logctx, "client:\tSB NAWS %d,%d",
+    logeventf(telnet->logctx, "client subnegotiation: SB NAWS %d,%d",
               telnet->term_width, telnet->term_height);
 }
 
