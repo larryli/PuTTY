@@ -90,5 +90,6 @@ Socket *new_named_pipe_client(const char *pipename, Plug *plug)
     if (pipehandle == INVALID_HANDLE_VALUE)
         return new_error_socket_consume_string(plug, err);
     else
-        return make_handle_socket(pipehandle, pipehandle, NULL, plug, true);
+        return make_handle_socket(pipehandle, pipehandle, NULL, NULL, 0,
+                                  plug, true);
 }

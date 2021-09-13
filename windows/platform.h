@@ -341,7 +341,8 @@ extern HANDLE winselcli_event;
  * Network-subsystem-related functions provided in other Windows modules.
  */
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, bool overlapped); /* winhsock */
+                           SockAddr *addr, int port, Plug *plug,
+                           bool overlapped); /* winhsock */
 Socket *new_named_pipe_client(const char *pipename, Plug *plug); /* winnpc */
 Socket *new_named_pipe_listener(const char *pipename, Plug *plug); /* winnps */
 

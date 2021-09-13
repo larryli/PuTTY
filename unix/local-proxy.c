@@ -98,8 +98,5 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
         inerrfd = -1;
     }
 
-    /* We are responsible for this and don't need it any more */
-    sk_addr_free(addr);
-
-    return make_fd_socket(infd, outfd, inerrfd, plug);
+    return make_fd_socket(infd, outfd, inerrfd, addr, port, plug);
 }

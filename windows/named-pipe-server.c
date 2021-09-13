@@ -112,7 +112,7 @@ static Socket *named_pipe_accept(accept_ctx_t ctx, Plug *plug)
 {
     HANDLE conn = (HANDLE)ctx.p;
 
-    return make_handle_socket(conn, conn, NULL, plug, true);
+    return make_handle_socket(conn, conn, NULL, NULL, 0, plug, true);
 }
 
 static void named_pipe_accept_loop(NamedPipeServerSocket *ps,

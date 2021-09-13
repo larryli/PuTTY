@@ -869,7 +869,7 @@ int main(int argc, char **argv)
     } else {
         struct server_instance *inst;
         Plug *plug = server_conn_plug(&scfg, &inst);
-        ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
+        ssh_server_start(plug, make_fd_socket(0, 1, -1, NULL, 0, plug));
         log_to_stderr(inst->id, "speaking SSH on stdio");
     }
 

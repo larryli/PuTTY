@@ -30,9 +30,6 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
 
     cmd = format_telnet_command(addr, port, conf);
 
-    /* We are responsible for this and don't need it any more */
-    sk_addr_free(addr);
-
     {
         char *msg = dupprintf("Starting local proxy command: %s", cmd);
         plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, msg, 0);
@@ -103,5 +100,5 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
         CloseHandle(cmd_err_to_us);
 
     return make_handle_socket(us_to_cmd, us_from_cmd, us_from_cmd_err,
-                              plug, false);
+                              addr, port, plug, false);
 }
