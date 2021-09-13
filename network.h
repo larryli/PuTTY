@@ -161,7 +161,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
                                 Plug *plug, Conf *conf,
-                                LogPolicy *clientlp);
+                                LogPolicy *clientlp, Seat **clientseat);
 
 /* socket functions */
 

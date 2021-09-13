@@ -395,7 +395,7 @@ static const PlugVtable ProxySocket_plugvt = {
 Socket *new_connection(SockAddr *addr, const char *hostname,
                        int port, bool privport,
                        bool oobinline, bool nodelay, bool keepalive,
-                       Plug *plug, Conf *conf, LogPolicy *lp)
+                       Plug *plug, Conf *conf, LogPolicy *lp, Seat **seat)
 {
     int type = conf_get_int(conf, CONF_proxy_type);
 
@@ -411,7 +411,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         if (type == PROXY_SSH &&
             (sret = sshproxy_new_connection(addr, hostname, port, privport,
                                             oobinline, nodelay, keepalive,
-                                            plug, conf, lp)) != NULL)
+                                            plug, conf, lp, seat)) != NULL)
             return sret;
 
         if ((sret = platform_new_connection(addr, hostname, port, privport,

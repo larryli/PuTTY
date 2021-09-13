@@ -16,37 +16,17 @@ const bool ssh_proxy_supported = true;
 /*
  * TODO for future work:
  *
- * At present, this use of SSH as a proxy is mostly noninteractive. In
- * our implementations of the Seat trait, every method that involves
- * interactively prompting the user is implemented by pretending the
- * user gave a safe default answer. So the effect is very much as if
- * you'd used 'plink -batch' as a proxy subprocess - password prompts
- * are cancelled and any dubious host key or crypto primitive is
- * unconditionally rejected - except that it all happens in-process,
- * making it mildly more convenient to set up, perhaps a hair faster,
- * and you get all the Event Log data in one place.
+ * At present, this use of SSH as a proxy is not fully interactive.
+ * We're borrowing the main backend's LogPolicy for queries like
+ * askappend(), and we're borrowing the main backend's Seat for host
+ * key prompts and weak-crypto warnings, but one thing we still don't
+ * have is a functioning implementation of seat_get_userpass_input
+ * that can display the proxy SSH connection's password prompts (or
+ * similar) in the terminal window before handing the terminal back to
+ * the main connection.
  *
- * But the biggest benefit of in-process SSH proxying would be that
- * the interactive prompts from the sub-SSH can be passed through to
- * the end user. If your jump host and your ultimate destination host
- * both require password authentication, you should be able to type
- * both password in sequence into the PuTTY terminal window; if you're
- * running a session of this kind for the first time, you should be
- * able to confirm both host keys one after another. In the current
- * state of the code, none of that is yet implemented: we're borrowing
- * the client LogPolicy for things like askappend(), but not the Seat,
- * which is where all the really important stuff lives.
- *
- * To fix that, we'd have to start by arranging for this proxy
- * implementation to get hold of the 'real' (outer) Seat object, which
- * means passing it to new_connection as we're already doing with
- * LogPolicy. Then, each method in this file that receives an
- * interactive prompt request would handle it by passing it on to the
- * client Seat if present, with some kind of tweak that would allow
- * the end user to see clearly that the prompt had come from the proxy
- * SSH connection rather than the primary one. If no client Seat was
- * present, we'd have no choice but to fall back to the existing
- * behaviour of behaving as if in batch mode.
+ * Also, the host key and weak-crypto prompts need adjusting so that
+ * it's clear to the user which SSH connection they come from.
  */
 
 typedef struct SshProxy {
@@ -55,6 +35,7 @@ typedef struct SshProxy {
     LogContext *logctx;
     Backend *backend;
     LogPolicy *clientlp;
+    Seat *clientseat;
 
     ProxyStderrBuf psb;
     Plug *plug;
@@ -352,16 +333,20 @@ static int sshproxy_verify_ssh_host_key(
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
+    if (sp->clientseat) {
+        /*
+         * If we have access to the outer Seat, pass this prompt
+         * request on to it. FIXME: appropriately adjusted
+         */
+        return seat_verify_ssh_host_key(
+            sp->clientseat, host, port, keytype, keystr, keydisp,
+            key_fingerprints, callback, ctx);
+    }
+
     /*
-     * TODO: if we had access to the outer Seat, we could pass on this
-     * request to *its* verify_ssh_host_key method, appropriately
-     * adjusted to indicate that it comes from the proxy SSH
-     * connection. (But we'd still have to have this code as a
-     * fallback in case there isn't a Seat available.)
-     *
-     * Instead, we have to behave as if we're in batch mode: directly
-     * verify the host key against the cache, and if that fails, take
-     * the safe option in the absence of interactive confirmation, and
+     * Otherwise, behave as if we're in batch mode: directly verify
+     * the host key against the cache, and if that fails, take the
+     * safe option in the absence of interactive confirmation, and
      * abort the connection.
      */
     int hkstatus = verify_host_key(host, port, keytype, keystr);
@@ -394,12 +379,18 @@ static int sshproxy_confirm_weak_crypto_primitive(
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
+    if (sp->clientseat) {
+        /*
+         * If we have access to the outer Seat, pass this prompt
+         * request on to it. FIXME: appropriately adjusted
+         */
+        return seat_confirm_weak_crypto_primitive(
+            sp->clientseat, algtype, algname, callback, ctx);
+    }
+
     /*
-     * TODO: if we had access to the outer Seat, we could pass on this
-     * request to *its* confirm_weak_crypto_primitive method,
-     * appropriately adjusted to indicate that it comes from the proxy
-     * SSH connection. (But we'd still have to have this code as a
-     * fallback in case there isn't a Seat available.)
+     * Otherwise, behave as if we're in batch mode: take the safest
+     * option.
      */
     sshproxy_error(sp, "First %s supported by server is %s, below warning "
                    "threshold. Abandoning proxy SSH connection.",
@@ -413,12 +404,18 @@ static int sshproxy_confirm_weak_cached_hostkey(
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
+    if (sp->clientseat) {
+        /*
+         * If we have access to the outer Seat, pass this prompt
+         * request on to it. FIXME: appropriately adjusted
+         */
+        return seat_confirm_weak_cached_hostkey(
+            sp->clientseat, algname, betteralgs, callback, ctx);
+    }
+
     /*
-     * TODO: if we had access to the outer Seat, we could pass on this
-     * request to *its* confirm_weak_cached_hostkey method,
-     * appropriately adjusted to indicate that it comes from the proxy
-     * SSH connection. (But we'd still have to have this code as a
-     * fallback in case there isn't a Seat available.)
+     * Otherwise, behave as if we're in batch mode: take the safest
+     * option.
      */
     sshproxy_error(sp, "First host key type stored for server is %s, below "
                    "warning threshold. Abandoning proxy SSH connection.",
@@ -478,7 +475,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
                                 Plug *plug, Conf *clientconf,
-                                LogPolicy *clientlp)
+                                LogPolicy *clientlp, Seat **clientseat)
 {
     SshProxy *sp = snew(SshProxy);
     memset(sp, 0, sizeof(*sp));
@@ -588,7 +585,27 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
 
     sfree(realhost);
 
+    /*
+     * If we've been given useful bits and pieces for interacting with
+     * the end user, squirrel them away now.
+     */
     sp->clientlp = clientlp;
+    if (clientseat && (backvt->flags & BACKEND_NOTIFIES_SESSION_START)) {
+        /*
+         * We can only keep the client's Seat if our own backend will
+         * tell us when to give it back. (SSH-based backends _should_
+         * do that, but we check the flag here anyway.)
+         *
+         * Also, check if the client already has a TempSeat, and if
+         * so, don't wrap it with another one.
+         */
+        if (is_tempseat(*clientseat)) {
+            sp->clientseat = tempseat_get_real(*clientseat);
+        } else {
+            sp->clientseat = *clientseat;
+            *clientseat = tempseat_new(sp->clientseat);
+        }
+    }
 
     return &sp->sock;
 }
