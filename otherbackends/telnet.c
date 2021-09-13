@@ -171,6 +171,7 @@ static const struct Opt *const opts[] = {
 typedef struct Telnet Telnet;
 struct Telnet {
     Socket *s;
+    bool socket_connected;
     bool closed_on_socket_error;
 
     Seat *seat;
@@ -186,7 +187,6 @@ struct Telnet {
     bool in_synch;
     int sb_opt;
     strbuf *sb_buf;
-    bool session_started;
 
     enum {
         TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
@@ -619,7 +619,9 @@ static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     Telnet *telnet = container_of(plug, Telnet, plug);
     backend_socket_log(telnet->seat, telnet->logctx, type, addr, port,
                        error_msg, error_code, telnet->conf,
-                       telnet->session_started);
+                       telnet->socket_connected);
+    if (type == PLUGLOG_CONNECT_SUCCESS)
+        telnet->socket_connected = true;
 }
 
 static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
@@ -654,7 +656,6 @@ static void telnet_receive(
     Telnet *telnet = container_of(plug, Telnet, plug);
     if (urgent)
         telnet->in_synch = true;
-    telnet->session_started = true;
     do_telnet_read(telnet, data, len);
 }
 
@@ -699,6 +700,7 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
     telnet->backend.vt = vt;
     telnet->conf = conf_copy(conf);
     telnet->s = NULL;
+    telnet->socket_connected = false;
     telnet->closed_on_socket_error = false;
     telnet->echoing = true;
     telnet->editing = true;
@@ -711,7 +713,6 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
     telnet->state = TOP_LEVEL;
     telnet->ldisc = NULL;
     telnet->pinger = NULL;
-    telnet->session_started = true;
     *backend_handle = &telnet->backend;
 
     /*
@@ -1001,8 +1002,8 @@ static bool telnet_connected(Backend *be)
 
 static bool telnet_sendok(Backend *be)
 {
-    /* Telnet *telnet = container_of(be, Telnet, backend); */
-    return true;
+    Telnet *telnet = container_of(be, Telnet, backend);
+    return telnet->socket_connected;
 }
 
 static void telnet_unthrottle(Backend *be, size_t backlog)

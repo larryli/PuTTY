@@ -66,6 +66,7 @@ typedef struct supdup_tag Supdup;
 struct supdup_tag
 {
     Socket *s;
+    bool socket_connected;
     bool closed_on_socket_error;
 
     Seat *seat;
@@ -561,7 +562,9 @@ static void supdup_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     Supdup *supdup = container_of(plug, Supdup, plug);
     backend_socket_log(supdup->seat, supdup->logctx, type, addr, port,
                        error_msg, error_code,
-                       supdup->conf, supdup->state != CONNECTING);
+                       supdup->conf, supdup->socket_connected);
+    if (type == PLUGLOG_CONNECT_SUCCESS)
+        supdup->socket_connected = true;
 }
 
 static void supdup_closing(Plug *plug, const char *error_msg, int error_code,
@@ -662,6 +665,7 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     supdup->logctx = logctx;
     supdup->conf = conf_copy(conf);
     supdup->s = NULL;
+    supdup->socket_connected = false;
     supdup->closed_on_socket_error = false;
     supdup->seat = seat;
     supdup->term_width = conf_get_int(supdup->conf, CONF_width);
@@ -861,7 +865,8 @@ static bool supdup_connected(Backend *be)
 
 static bool supdup_sendok(Backend *be)
 {
-    return 1;
+    Supdup *supdup = container_of(be, Supdup, backend);
+    return supdup->socket_connected;
 }
 
 static void supdup_unthrottle(Backend *be, size_t backlog)

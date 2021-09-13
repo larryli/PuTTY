@@ -648,7 +648,14 @@ struct BackendVtable {
     int (*exitcode) (Backend *be);
     /* If back->sendok() returns false, the backend doesn't currently
      * want input data, so the frontend should avoid acquiring any if
-     * possible (passing back-pressure on to its sender). */
+     * possible (passing back-pressure on to its sender).
+     *
+     * Policy rule: no backend shall return true from sendok() while
+     * its network connection attempt is still ongoing. This ensures
+     * that if making the network connection involves a proxy type
+     * which wants to interact with the user via the terminal, the
+     * proxy implementation and the backend itself won't fight over
+     * who gets the terminal input. */
     bool (*sendok) (Backend *be);
     bool (*ldisc_option_state) (Backend *be, int);
     void (*provide_ldisc) (Backend *be, Ldisc *ldisc);

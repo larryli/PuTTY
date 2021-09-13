@@ -17,7 +17,7 @@ struct Raw {
     size_t bufsize;
     Seat *seat;
     LogContext *logctx;
-    bool sent_console_eof, sent_socket_eof, session_started;
+    bool sent_console_eof, sent_socket_eof, socket_connected;
 
     Conf *conf;
 
@@ -37,8 +37,10 @@ static void raw_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code)
 {
     Raw *raw = container_of(plug, Raw, plug);
-    backend_socket_log(raw->seat, raw->logctx, type, addr, port,
-                       error_msg, error_code, raw->conf, raw->session_started);
+    backend_socket_log(raw->seat, raw->logctx, type, addr, port, error_msg,
+                       error_code, raw->conf, raw->socket_connected);
+    if (type == PLUGLOG_CONNECT_SUCCESS)
+        raw->socket_connected = true;
 }
 
 static void raw_check_close(Raw *raw)
@@ -95,9 +97,6 @@ static void raw_receive(Plug *plug, int urgent, const char *data, size_t len)
 {
     Raw *raw = container_of(plug, Raw, plug);
     c_write(raw, data, len);
-    /* We count 'session start', for proxy logging purposes, as being
-     * when data is received from the network and printed. */
-    raw->session_started = true;
 }
 
 static void raw_sent(Plug *plug, size_t bufsize)
@@ -144,7 +143,7 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
     *backend_handle = &raw->backend;
     raw->sent_console_eof = raw->sent_socket_eof = false;
     raw->bufsize = 0;
-    raw->session_started = false;
+    raw->socket_connected = false;
     raw->conf = conf_copy(conf);
 
     raw->seat = seat;
@@ -267,7 +266,8 @@ static bool raw_connected(Backend *be)
 
 static bool raw_sendok(Backend *be)
 {
-    return true;
+    Raw *raw = container_of(be, Raw, backend);
+    return raw->socket_connected;
 }
 
 static void raw_unthrottle(Backend *be, size_t backlog)

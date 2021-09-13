@@ -16,6 +16,7 @@ struct Rlogin {
     Socket *s;
     bool closed_on_socket_error;
     int bufsize;
+    bool socket_connected;
     bool firstbyte;
     bool cansize;
     int term_width, term_height;
@@ -43,7 +44,9 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
     backend_socket_log(rlogin->seat, rlogin->logctx, type, addr, port,
                        error_msg, error_code,
-                       rlogin->conf, !rlogin->firstbyte);
+                       rlogin->conf, rlogin->socket_connected);
+    if (type == PLUGLOG_CONNECT_SUCCESS)
+        rlogin->socket_connected = true;
 }
 
 static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
@@ -176,6 +179,7 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
     rlogin->logctx = logctx;
     rlogin->term_width = conf_get_int(conf, CONF_width);
     rlogin->term_height = conf_get_int(conf, CONF_height);
+    rlogin->socket_connected = false;
     rlogin->firstbyte = true;
     rlogin->cansize = false;
     rlogin->prompt = NULL;
@@ -364,8 +368,8 @@ static bool rlogin_connected(Backend *be)
 
 static bool rlogin_sendok(Backend *be)
 {
-    /* Rlogin *rlogin = container_of(be, Rlogin, backend); */
-    return true;
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
+    return rlogin->socket_connected;
 }
 
 static void rlogin_unthrottle(Backend *be, size_t backlog)
