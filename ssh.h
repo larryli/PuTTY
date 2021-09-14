@@ -299,9 +299,15 @@ struct ConnectionLayerVtable {
      * subsequent channel-opens). */
     void (*enable_x_fwd)(ConnectionLayer *cl);
 
-    /* Communicate to the connection layer whether the main session
-     * channel currently wants user input. */
+    /* Communicate / query whether the main session channel currently
+     * wants user input. The set function is called by mainchan; the
+     * query function is called by the top-level ssh.c. */
     void (*set_wants_user_input)(ConnectionLayer *cl, bool wanted);
+    bool (*get_wants_user_input)(ConnectionLayer *cl);
+
+    /* Notify the connection layer that more data has been added to
+     * the user input queue. */
+    void (*got_user_input)(ConnectionLayer *cl);
 };
 
 struct ConnectionLayer {
@@ -371,6 +377,10 @@ static inline void ssh_enable_x_fwd(ConnectionLayer *cl)
 { cl->vt->enable_x_fwd(cl); }
 static inline void ssh_set_wants_user_input(ConnectionLayer *cl, bool wanted)
 { cl->vt->set_wants_user_input(cl, wanted); }
+static inline bool ssh_get_wants_user_input(ConnectionLayer *cl)
+{ return cl->vt->get_wants_user_input(cl); }
+static inline void ssh_got_user_input(ConnectionLayer *cl)
+{ cl->vt->got_user_input(cl); }
 
 /* Exports from portfwd.c */
 PortFwdManager *portfwdmgr_new(ConnectionLayer *cl);

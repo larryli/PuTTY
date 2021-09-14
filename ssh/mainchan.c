@@ -322,7 +322,7 @@ static void mainchan_ready(mainchan *mc)
     mc->ready = true;
 
     ssh_set_wants_user_input(mc->cl, true);
-    ssh_ppl_got_user_input(mc->ppl); /* in case any is already queued */
+    ssh_got_user_input(mc->cl); /* in case any is already queued */
 
     /* If an EOF arrived before we were ready, handle it now. */
     if (mc->eof_pending) {

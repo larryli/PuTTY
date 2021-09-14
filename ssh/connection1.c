@@ -31,8 +31,6 @@ static void ssh1_connection_free(PacketProtocolLayer *);
 static void ssh1_connection_process_queue(PacketProtocolLayer *);
 static void ssh1_connection_special_cmd(PacketProtocolLayer *ppl,
                                         SessionSpecialCode code, int arg);
-static bool ssh1_connection_want_user_input(PacketProtocolLayer *ppl);
-static void ssh1_connection_got_user_input(PacketProtocolLayer *ppl);
 static void ssh1_connection_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
 static const PacketProtocolLayerVtable ssh1_connection_vtable = {
@@ -40,8 +38,6 @@ static const PacketProtocolLayerVtable ssh1_connection_vtable = {
     .process_queue = ssh1_connection_process_queue,
     .get_specials = ssh1_common_get_specials,
     .special_cmd = ssh1_connection_special_cmd,
-    .want_user_input = ssh1_connection_want_user_input,
-    .got_user_input = ssh1_connection_got_user_input,
     .reconfigure = ssh1_connection_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
     .name = NULL, /* no layer names in SSH-1 */
@@ -63,6 +59,8 @@ static bool ssh1_ldisc_option(ConnectionLayer *cl, int option);
 static void ssh1_set_ldisc_option(ConnectionLayer *cl, int option, bool value);
 static void ssh1_enable_x_fwd(ConnectionLayer *cl);
 static void ssh1_set_wants_user_input(ConnectionLayer *cl, bool wanted);
+static bool ssh1_get_wants_user_input(ConnectionLayer *cl);
+static void ssh1_got_user_input(ConnectionLayer *cl);
 
 static const ConnectionLayerVtable ssh1_connlayer_vtable = {
     .rportfwd_alloc = ssh1_rportfwd_alloc,
@@ -81,6 +79,8 @@ static const ConnectionLayerVtable ssh1_connlayer_vtable = {
     .set_ldisc_option = ssh1_set_ldisc_option,
     .enable_x_fwd = ssh1_enable_x_fwd,
     .set_wants_user_input = ssh1_set_wants_user_input,
+    .get_wants_user_input = ssh1_get_wants_user_input,
+    .got_user_input = ssh1_got_user_input,
     /* other methods are NULL */
 };
 
@@ -138,7 +138,7 @@ void ssh1_channel_free(struct ssh1_channel *c)
 }
 
 PacketProtocolLayer *ssh1_connection_new(
-    Ssh *ssh, Conf *conf, ConnectionLayer **cl_out)
+    Ssh *ssh, Conf *conf, bufchain *user_input, ConnectionLayer **cl_out)
 {
     struct ssh1_connection_state *s = snew(struct ssh1_connection_state);
     memset(s, 0, sizeof(*s));
@@ -149,6 +149,8 @@ PacketProtocolLayer *ssh1_connection_new(
     s->channels = newtree234(ssh1_channelcmp);
 
     s->x11authtree = newtree234(x11_authcmp);
+
+    s->user_input = user_input;
 
     /* Need to get the log context for s->cl now, because we won't be
      * helpfully notified when a copy is written into s->ppl by our
@@ -771,28 +773,28 @@ static void ssh1_set_wants_user_input(ConnectionLayer *cl, bool wanted)
         ssh_check_sendok(s->ppl.ssh);
 }
 
-static bool ssh1_connection_want_user_input(PacketProtocolLayer *ppl)
+static bool ssh1_get_wants_user_input(ConnectionLayer *cl)
 {
     struct ssh1_connection_state *s =
-        container_of(ppl, struct ssh1_connection_state, ppl);
+        container_of(cl, struct ssh1_connection_state, cl);
 
     return s->want_user_input;
 }
 
-static void ssh1_connection_got_user_input(PacketProtocolLayer *ppl)
+static void ssh1_got_user_input(ConnectionLayer *cl)
 {
     struct ssh1_connection_state *s =
-        container_of(ppl, struct ssh1_connection_state, ppl);
+        container_of(cl, struct ssh1_connection_state, cl);
 
-    while (s->mainchan && bufchain_size(s->ppl.user_input) > 0) {
+    while (s->mainchan && bufchain_size(s->user_input) > 0) {
         /*
          * Add user input to the main channel's buffer.
          */
-        ptrlen data = bufchain_prefix(s->ppl.user_input);
+        ptrlen data = bufchain_prefix(s->user_input);
         if (data.len > 512)
             data.len = 512;
         sshfwd_write(&s->mainchan_sc, data.ptr, data.len);
-        bufchain_consume(s->ppl.user_input, data.len);
+        bufchain_consume(s->user_input, data.len);
     }
 }
 

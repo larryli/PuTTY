@@ -165,7 +165,6 @@ static void ssh_connect_bpp(Ssh *ssh)
 static void ssh_connect_ppl(Ssh *ssh, PacketProtocolLayer *ppl)
 {
     ppl->bpp = ssh->bpp;
-    ppl->user_input = &ssh->user_input;
     ppl->seat = ssh->seat;
     ppl->ssh = ssh;
     ppl->logctx = ssh->logctx;
@@ -241,7 +240,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
 
             connection_layer = ssh2_connection_new(
                 ssh, ssh->connshare, is_simple, ssh->conf,
-                ssh_verstring_get_remote(old_bpp), &ssh->cl);
+                ssh_verstring_get_remote(old_bpp), &ssh->user_input, &ssh->cl);
             ssh_connect_ppl(ssh, connection_layer);
 
             if (conf_get_bool(ssh->conf, CONF_ssh_no_userauth)) {
@@ -299,7 +298,8 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
             ssh->bpp = ssh1_bpp_new(ssh->logctx);
             ssh_connect_bpp(ssh);
 
-            connection_layer = ssh1_connection_new(ssh, ssh->conf, &ssh->cl);
+            connection_layer = ssh1_connection_new(
+                ssh, ssh->conf, &ssh->user_input, &ssh->cl);
             ssh_connect_ppl(ssh, connection_layer);
 
             ssh->base_layer = ssh1_login_new(
@@ -314,7 +314,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
 
         connection_layer = ssh2_connection_new(
             ssh, ssh->connshare, false, ssh->conf,
-            ssh_verstring_get_remote(old_bpp), &ssh->cl);
+            ssh_verstring_get_remote(old_bpp), &ssh->user_input, &ssh->cl);
         ssh_connect_ppl(ssh, connection_layer);
         ssh->base_layer = connection_layer;
     }
@@ -1024,8 +1024,8 @@ static void ssh_send(Backend *be, const char *buf, size_t len)
         return;
 
     bufchain_add(&ssh->user_input, buf, len);
-    if (ssh->base_layer)
-        ssh_ppl_got_user_input(ssh->base_layer);
+    if (ssh->cl)
+        ssh_got_user_input(ssh->cl);
 }
 
 /*
@@ -1153,7 +1153,7 @@ static bool ssh_connected(Backend *be)
 static bool ssh_sendok(Backend *be)
 {
     Ssh *ssh = container_of(be, Ssh, backend);
-    return ssh->base_layer && ssh_ppl_want_user_input(ssh->base_layer);
+    return ssh->cl && ssh_get_wants_user_input(ssh->cl);
 }
 
 void ssh_check_sendok(Ssh *ssh)

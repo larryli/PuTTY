@@ -61,7 +61,6 @@ struct ssh1_login_state {
     int dlgret;
     Filename *keyfile;
     RSAKey servkey, hostkey;
-    bool want_user_input;
 
     StripCtrlChars *tis_scc;
     bool tis_scc_initialised;
@@ -74,8 +73,6 @@ static void ssh1_login_process_queue(PacketProtocolLayer *);
 static void ssh1_login_dialog_callback(void *, int);
 static void ssh1_login_special_cmd(PacketProtocolLayer *ppl,
                                    SessionSpecialCode code, int arg);
-static bool ssh1_login_want_user_input(PacketProtocolLayer *ppl);
-static void ssh1_login_got_user_input(PacketProtocolLayer *ppl);
 static void ssh1_login_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
 static const PacketProtocolLayerVtable ssh1_login_vtable = {
@@ -83,8 +80,6 @@ static const PacketProtocolLayerVtable ssh1_login_vtable = {
     .process_queue = ssh1_login_process_queue,
     .get_specials = ssh1_common_get_specials,
     .special_cmd = ssh1_login_special_cmd,
-    .want_user_input = ssh1_login_want_user_input,
-    .got_user_input = ssh1_login_got_user_input,
     .reconfigure = ssh1_login_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
     .name = NULL, /* no layer names in SSH-1 */
@@ -1203,21 +1198,6 @@ static void ssh1_login_special_cmd(PacketProtocolLayer *ppl,
             pq_push(s->ppl.out_pq, pktout);
         }
     }
-}
-
-static bool ssh1_login_want_user_input(PacketProtocolLayer *ppl)
-{
-    struct ssh1_login_state *s =
-        container_of(ppl, struct ssh1_login_state, ppl);
-    return s->want_user_input;
-}
-
-static void ssh1_login_got_user_input(PacketProtocolLayer *ppl)
-{
-    struct ssh1_login_state *s =
-        container_of(ppl, struct ssh1_login_state, ppl);
-    if (s->want_user_input)
-        queue_idempotent_callback(&s->ppl.ic_process_queue);
 }
 
 static void ssh1_login_reconfigure(PacketProtocolLayer *ppl, Conf *conf)

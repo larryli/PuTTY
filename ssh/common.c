@@ -682,7 +682,6 @@ void ssh_ppl_replace(PacketProtocolLayer *old, PacketProtocolLayer *new)
     new->bpp = old->bpp;
     ssh_ppl_setup_queues(new, old->in_pq, old->out_pq);
     new->selfptr = old->selfptr;
-    new->user_input = old->user_input;
     new->seat = old->seat;
     new->ssh = old->ssh;
 

@@ -81,7 +81,6 @@ struct ssh2_userauth_state {
     unsigned signflags;
     int len;
     PktOut *pktout;
-    bool want_user_input;
     bool is_trivial_auth;
 
     agent_pending_query *auth_agent_query;
@@ -103,8 +102,6 @@ static bool ssh2_userauth_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx);
 static void ssh2_userauth_special_cmd(PacketProtocolLayer *ppl,
                                       SessionSpecialCode code, int arg);
-static bool ssh2_userauth_want_user_input(PacketProtocolLayer *ppl);
-static void ssh2_userauth_got_user_input(PacketProtocolLayer *ppl);
 static void ssh2_userauth_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
 static void ssh2_userauth_agent_query(struct ssh2_userauth_state *, strbuf *);
@@ -125,8 +122,6 @@ static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
     .process_queue = ssh2_userauth_process_queue,
     .get_specials = ssh2_userauth_get_specials,
     .special_cmd = ssh2_userauth_special_cmd,
-    .want_user_input = ssh2_userauth_want_user_input,
-    .got_user_input = ssh2_userauth_got_user_input,
     .reconfigure = ssh2_userauth_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
     .name = "ssh-userauth",
@@ -1880,21 +1875,6 @@ static void ssh2_userauth_special_cmd(PacketProtocolLayer *ppl,
                                       SessionSpecialCode code, int arg)
 {
     /* No specials provided by this layer. */
-}
-
-static bool ssh2_userauth_want_user_input(PacketProtocolLayer *ppl)
-{
-    struct ssh2_userauth_state *s =
-        container_of(ppl, struct ssh2_userauth_state, ppl);
-    return s->want_user_input;
-}
-
-static void ssh2_userauth_got_user_input(PacketProtocolLayer *ppl)
-{
-    struct ssh2_userauth_state *s =
-        container_of(ppl, struct ssh2_userauth_state, ppl);
-    if (s->want_user_input)
-        queue_idempotent_callback(&s->ppl.ic_process_queue);
 }
 
 static void ssh2_userauth_reconfigure(PacketProtocolLayer *ppl, Conf *conf)

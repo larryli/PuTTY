@@ -17,8 +17,6 @@ struct PacketProtocolLayerVtable {
         PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx);
     void (*special_cmd)(
         PacketProtocolLayer *ppl, SessionSpecialCode code, int arg);
-    bool (*want_user_input)(PacketProtocolLayer *ppl);
-    void (*got_user_input)(PacketProtocolLayer *ppl);
     void (*reconfigure)(PacketProtocolLayer *ppl, Conf *conf);
     size_t (*queued_data_size)(PacketProtocolLayer *ppl);
 
@@ -48,10 +46,6 @@ struct PacketProtocolLayer {
      * pointer and then freeing itself. */
     PacketProtocolLayer **selfptr;
 
-    /* Bufchain of keyboard input from the user, for login prompts and
-     * similar. */
-    bufchain *user_input;
-
     /* Logging and error-reporting facilities. */
     LogContext *logctx;
     Seat *seat;             /* for dialog boxes, session output etc */
@@ -69,10 +63,6 @@ static inline bool ssh_ppl_get_specials(
 static inline void ssh_ppl_special_cmd(
     PacketProtocolLayer *ppl, SessionSpecialCode code, int arg)
 { ppl->vt->special_cmd(ppl, code, arg); }
-static inline bool ssh_ppl_want_user_input(PacketProtocolLayer *ppl)
-{ return ppl->vt->want_user_input(ppl); }
-static inline void ssh_ppl_got_user_input(PacketProtocolLayer *ppl)
-{ ppl->vt->got_user_input(ppl); }
 static inline void ssh_ppl_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
 { ppl->vt->reconfigure(ppl, conf); }
 static inline size_t ssh_ppl_queued_data_size(PacketProtocolLayer *ppl)
@@ -103,7 +93,7 @@ PacketProtocolLayer *ssh1_login_new(
     Conf *conf, const char *host, int port,
     PacketProtocolLayer *successor_layer);
 PacketProtocolLayer *ssh1_connection_new(
-    Ssh *ssh, Conf *conf, ConnectionLayer **cl_out);
+    Ssh *ssh, Conf *conf, bufchain *user_input, ConnectionLayer **cl_out);
 
 struct DataTransferStats;
 struct ssh_connection_shared_gss_state;
@@ -123,7 +113,8 @@ PacketProtocolLayer *ssh2_userauth_new(
     bool gssapi_fwd, struct ssh_connection_shared_gss_state *shgss);
 PacketProtocolLayer *ssh2_connection_new(
     Ssh *ssh, ssh_sharing_state *connshare, bool is_simple,
-    Conf *conf, const char *peer_verstring, ConnectionLayer **cl_out);
+    Conf *conf, const char *peer_verstring, bufchain *user_input,
+    ConnectionLayer **cl_out);
 
 /* Can't put this in the userauth constructor without having a
  * dependency loop at setup time (transport and userauth can't _both_

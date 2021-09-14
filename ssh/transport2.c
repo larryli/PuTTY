@@ -73,8 +73,6 @@ static bool ssh2_transport_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx);
 static void ssh2_transport_special_cmd(PacketProtocolLayer *ppl,
                                        SessionSpecialCode code, int arg);
-static bool ssh2_transport_want_user_input(PacketProtocolLayer *ppl);
-static void ssh2_transport_got_user_input(PacketProtocolLayer *ppl);
 static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl);
 
@@ -87,8 +85,6 @@ static const PacketProtocolLayerVtable ssh2_transport_vtable = {
     .process_queue = ssh2_transport_process_queue,
     .get_specials = ssh2_transport_get_specials,
     .special_cmd = ssh2_transport_special_cmd,
-    .want_user_input = ssh2_transport_want_user_input,
-    .got_user_input = ssh2_transport_got_user_input,
     .reconfigure = ssh2_transport_reconfigure,
     .queued_data_size = ssh2_transport_queued_data_size,
     .name = NULL, /* no protocol name for this layer */
@@ -2130,24 +2126,6 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
 
     /* Also pass the configuration along to our higher layer */
     ssh_ppl_reconfigure(s->higher_layer, conf);
-}
-
-static bool ssh2_transport_want_user_input(PacketProtocolLayer *ppl)
-{
-    struct ssh2_transport_state *s =
-        container_of(ppl, struct ssh2_transport_state, ppl);
-
-    /* Just delegate this to the higher layer */
-    return ssh_ppl_want_user_input(s->higher_layer);
-}
-
-static void ssh2_transport_got_user_input(PacketProtocolLayer *ppl)
-{
-    struct ssh2_transport_state *s =
-        container_of(ppl, struct ssh2_transport_state, ppl);
-
-    /* Just delegate this to the higher layer */
-    ssh_ppl_got_user_input(s->higher_layer);
 }
 
 static int weak_algorithm_compare(void *av, void *bv)

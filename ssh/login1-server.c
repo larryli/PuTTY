@@ -51,9 +51,6 @@ static bool ssh1_login_server_get_specials(
     void *ctx) { return false; }
 static void ssh1_login_server_special_cmd(PacketProtocolLayer *ppl,
                                    SessionSpecialCode code, int arg) {}
-static bool ssh1_login_server_want_user_input(
-    PacketProtocolLayer *ppl) { return false; }
-static void ssh1_login_server_got_user_input(PacketProtocolLayer *ppl) {}
 static void ssh1_login_server_reconfigure(
     PacketProtocolLayer *ppl, Conf *conf) {}
 
@@ -62,8 +59,6 @@ static const PacketProtocolLayerVtable ssh1_login_server_vtable = {
     .process_queue = ssh1_login_server_process_queue,
     .get_specials = ssh1_login_server_get_specials,
     .special_cmd = ssh1_login_server_special_cmd,
-    .want_user_input = ssh1_login_server_want_user_input,
-    .got_user_input = ssh1_login_server_got_user_input,
     .reconfigure = ssh1_login_server_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
     .name = NULL, /* no layer names in SSH-1 */
