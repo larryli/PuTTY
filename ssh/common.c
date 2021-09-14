@@ -786,8 +786,10 @@ void ssh2_bpp_queue_disconnect(BinaryPacketProtocol *bpp,
     pq_push(&bpp->out_pq, pkt);
 }
 
-#define BITMAP_UNIVERSAL(y, name, value)         \
-    | (value >= y && value < y+32 ? 1UL << (value-y) : 0)
+#define BITMAP_UNIVERSAL(y, name, value)                        \
+    | (value >= y && value < y+32                               \
+       ? 1UL << (value >= y && value < y+32 ? (value-y) : 0)    \
+       : 0)
 #define BITMAP_CONDITIONAL(y, name, value, ctx) \
     BITMAP_UNIVERSAL(y, name, value)
 #define SSH2_BITMAP_WORD(y) \
