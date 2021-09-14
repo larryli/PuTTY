@@ -7520,17 +7520,44 @@ static inline void term_write(Terminal *term, ptrlen data)
 }
 
 /*
+ * Signal that a prompts_t is done. This involves sending a
+ * notification to the caller, and also turning off our own callback
+ * that listens for more data arriving in the ldisc's input queue.
+ */
+static inline int signal_prompts_t(Terminal *term, prompts_t *p, int result)
+{
+    assert(p->callback && "Asynchronous userpass input requires a callback");
+    queue_toplevel_callback(p->callback, p->callback_ctx);
+    ldisc_enable_prompt_callback(term->ldisc, NULL);
+    p->idata = result;
+    return result;
+}
+
+/*
  * Process some terminal data in the course of username/password
  * input.
  */
-int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
+int term_get_userpass_input(Terminal *term, prompts_t *p)
 {
+    if (!term->ldisc) {
+        /* Can't handle interactive prompts without an ldisc */
+        return signal_prompts_t(term, p, 0);
+    }
+
+    if (p->idata >= 0) {
+        /* We've already finished these prompts, so return the same
+         * result again */
+        return p->idata;
+    }
+
     struct term_userpass_state *s = (struct term_userpass_state *)p->data;
+
     if (!s) {
         /*
          * First call. Set some stuff up.
          */
         p->data = s = snew(struct term_userpass_state);
+        p->idata = -1;
         s->curr_prompt = 0;
         s->done_prompt = false;
         /* We only print the `name' caption if we have to... */
@@ -7569,12 +7596,26 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 
         /* Breaking out here ensures that the prompt is printed even
          * if we're now waiting for user data. */
-        if (!input || !bufchain_size(input)) break;
+        if (!ldisc_has_input_buffered(term->ldisc))
+            break;
 
         /* FIXME: should we be using local-line-editing code instead? */
-        while (!finished_prompt && bufchain_size(input) > 0) {
+        while (!finished_prompt && ldisc_has_input_buffered(term->ldisc)) {
+            LdiscInputToken tok = ldisc_get_input_token(term->ldisc);
+
             char c;
-            bufchain_fetch_consume(input, &c, 1);
+            if (tok.is_special) {
+                switch (tok.code) {
+                  case SS_EOL: c = 13; break;
+                  case SS_EC: c = 8; break;
+                  case SS_IP: c = 3; break;
+                  case SS_EOF: c = 3; break;
+                  default: continue;
+                }
+            } else {
+                c = tok.chr;
+            }
+
             switch (c) {
               case 10:
               case 13:
@@ -7606,7 +7647,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
                 term_write(term, PTRLEN_LITERAL("\r\n"));
                 sfree(s);
                 p->data = NULL;
-                return 0; /* user abort */
+                return signal_prompts_t(term, p, 0); /* user abort */
               default:
                 /*
                  * This simplistic check for printability is disabled
@@ -7626,11 +7667,12 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
     }
 
     if (s->curr_prompt < p->n_prompts) {
+        ldisc_enable_prompt_callback(term->ldisc, p);
         return -1; /* more data required */
     } else {
         sfree(s);
         p->data = NULL;
-        return +1; /* all done */
+        return signal_prompts_t(term, p, +1); /* all done */
     }
 }
 

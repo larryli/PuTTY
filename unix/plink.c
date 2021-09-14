@@ -370,7 +370,7 @@ static bool plink_eof(Seat *seat)
     return false;   /* do not respond to incoming EOF with outgoing */
 }
 
-static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
+static int plink_get_userpass_input(Seat *seat, prompts_t *p)
 {
     int ret;
     ret = cmdline_get_passwd_input(p);

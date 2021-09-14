@@ -742,6 +742,11 @@ extern const int be_default_protocol;
 extern const char *const appname;
 
 /*
+ * Used by callback.c; declared up here so that prompts_t can use it
+ */
+typedef void (*toplevel_callback_fn_t)(void *ctx);
+
+/*
  * Mechanism for getting text strings such as usernames and passwords
  * from the front-end.
  * The fields are mostly modelled after SSH's keyboard-interactive auth.
@@ -790,6 +795,17 @@ typedef struct {
     prompt_t **prompts;
     void *data;         /* slot for housekeeping data, managed by
                          * seat_get_userpass_input(); initially NULL */
+    int idata;          /* another slot private to the implementation */
+
+    /*
+     * Callback you can fill in to be notified when all the prompts'
+     * responses are available. After you receive this notification, a
+     * further call to the get_userpass_input function will return the
+     * final state of the prompts system, which is guaranteed not to
+     * be negative for 'still ongoing'.
+     */
+    toplevel_callback_fn_t callback;
+    void *callback_ctx;
 } prompts_t;
 prompts_t *new_prompts(void);
 void add_prompt(prompts_t *p, char *promptstr, bool echo);
@@ -907,13 +923,7 @@ struct SeatVtable {
 
     /*
      * Try to get answers from a set of interactive login prompts. The
-     * prompts are provided in 'p'; the bufchain 'input' holds the
-     * data currently outstanding in the session's normal standard-
-     * input channel. Seats may implement this function by consuming
-     * data from 'input' (e.g. password prompts in GUI PuTTY,
-     * displayed in the same terminal as the subsequent session), or
-     * by doing something entirely different (e.g. directly
-     * interacting with standard I/O, or putting up a dialog box).
+     * prompts are provided in 'p'.
      *
      * A positive return value means that all prompts have had answers
      * filled in. A zero return means that the user performed a
@@ -939,7 +949,7 @@ struct SeatVtable {
      * ever do want to move password prompts into a dialog box, I'll
      * want a backend method for sending that notification.)
      */
-    int (*get_userpass_input)(Seat *seat, prompts_t *p, bufchain *input);
+    int (*get_userpass_input)(Seat *seat, prompts_t *p);
 
     /*
      * Notify the seat that the main session channel has been
@@ -1155,9 +1165,8 @@ static inline bool seat_eof(Seat *seat)
 { return seat->vt->eof(seat); }
 static inline void seat_sent(Seat *seat, size_t bufsize)
 { seat->vt->sent(seat, bufsize); }
-static inline int seat_get_userpass_input(
-    Seat *seat, prompts_t *p, bufchain *input)
-{ return seat->vt->get_userpass_input(seat, p, input); }
+static inline int seat_get_userpass_input(Seat *seat, prompts_t *p)
+{ return seat->vt->get_userpass_input(seat, p); }
 static inline void seat_notify_session_started(Seat *seat)
 { seat->vt->notify_session_started(seat); }
 static inline void seat_notify_remote_exit(Seat *seat)
@@ -1233,7 +1242,7 @@ size_t nullseat_output(
     Seat *seat, bool is_stderr, const void *data, size_t len);
 bool nullseat_eof(Seat *seat);
 void nullseat_sent(Seat *seat, size_t bufsize);
-int nullseat_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
+int nullseat_get_userpass_input(Seat *seat, prompts_t *p);
 void nullseat_notify_session_started(Seat *seat);
 void nullseat_notify_remote_exit(Seat *seat);
 void nullseat_notify_remote_disconnect(Seat *seat);
@@ -1292,7 +1301,7 @@ bool console_can_set_trust_status(Seat *seat);
 /*
  * Other centralised seat functions.
  */
-int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
+int filexfer_get_userpass_input(Seat *seat, prompts_t *p);
 bool cmdline_seat_verbose(Seat *seat);
 
 /*
@@ -1888,7 +1897,7 @@ void term_provide_backend(Terminal *term, Backend *backend);
 void term_provide_logctx(Terminal *term, LogContext *logctx);
 void term_set_focus(Terminal *term, bool has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
-int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input);
+int term_get_userpass_input(Terminal *term, prompts_t *p);
 void term_set_trust_status(Terminal *term, bool trusted);
 void term_keyinput(Terminal *, int codepage, const void *buf, int len);
 void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
@@ -2055,6 +2064,28 @@ void ldisc_configure(Ldisc *, Conf *);
 void ldisc_free(Ldisc *);
 void ldisc_send(Ldisc *, const void *buf, int len, bool interactive);
 void ldisc_echoedit_update(Ldisc *);
+typedef struct LdiscInputToken {
+    /*
+     * Structure that encodes any single item of data that Ldisc can
+     * buffer: either a single character of raw data, or a session
+     * special.
+     */
+    bool is_special;
+    union {
+        struct {
+            /* if is_special == false */
+            char chr;
+        };
+        struct {
+            /* if is_special == true */
+            SessionSpecialCode code;
+            int arg;
+        };
+    };
+} LdiscInputToken;
+bool ldisc_has_input_buffered(Ldisc *);
+LdiscInputToken ldisc_get_input_token(Ldisc *); /* asserts there is input */
+void ldisc_enable_prompt_callback(Ldisc *, prompts_t *);
 void ldisc_check_sendok(Ldisc *);
 
 /*
@@ -2472,7 +2503,6 @@ unsigned long timing_last_clock(void);
  * loop, as in PSFTP, for example - if a callback has run then perhaps
  * it might have done whatever the loop's caller was waiting for.
  */
-typedef void (*toplevel_callback_fn_t)(void *ctx);
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx);
 bool run_toplevel_callbacks(void);
 bool toplevel_callback_pending(void);

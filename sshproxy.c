@@ -276,8 +276,7 @@ static void sshproxy_notify_remote_disconnect(Seat *seat)
         sshproxy_eof(seat);
 }
 
-static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p,
-                                       bufchain *input)
+static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
 {
     /*
      * TODO: if we had access to the outer Seat, we could pass on this

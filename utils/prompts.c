@@ -14,6 +14,8 @@ prompts_t *new_prompts(void)
     p->to_server = true; /* to be on the safe side */
     p->name = p->instruction = NULL;
     p->name_reqd = p->instr_reqd = false;
+    p->callback = NULL;
+    p->callback_ctx = NULL;
     return p;
 }
 

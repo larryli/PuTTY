@@ -9,3 +9,8 @@
 void term_nopaste(Terminal *term)
 {
 }
+
+int term_get_userpass_input(Terminal *term, prompts_t *p)
+{
+    return 0;
+}

@@ -35,6 +35,7 @@ struct Rlogin {
 
 static void rlogin_startup(Rlogin *rlogin, int prompt_result,
                            const char *ruser);
+static void rlogin_try_username_prompt(void *ctx);
 
 static void c_write(Rlogin *rlogin, const void *buf, size_t len)
 {
@@ -80,18 +81,11 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
             rlogin->prompt->to_server = true;
             rlogin->prompt->from_server = false;
             rlogin->prompt->name = dupstr("Rlogin login name");
+            rlogin->prompt->callback = rlogin_try_username_prompt;
+            rlogin->prompt->callback_ctx = rlogin;
             add_prompt(rlogin->prompt, dupstr("rlogin username: "), true);
-
-            int ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt,
-                                              NULL);
-            if (ret >= 0) {
-                /* Next terminal output will come from server */
-                seat_set_trust_status(rlogin->seat, false);
-                rlogin_startup(rlogin, ret, prompt_get_result_ref(
-                                  rlogin->prompt->prompts[0]));
-            }
+            rlogin_try_username_prompt(rlogin);
         }
-
     }
 }
 
@@ -300,45 +294,36 @@ static void rlogin_reconfig(Backend *be, Conf *conf)
 {
 }
 
+static void rlogin_try_username_prompt(void *ctx)
+{
+    Rlogin *rlogin = (Rlogin *)ctx;
+
+    int ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt);
+    if (ret < 0)
+        return;
+
+    /* Next terminal output will come from server */
+    seat_set_trust_status(rlogin->seat, false);
+
+    /* Send the rlogin setup protocol data, and then we're ready to
+     * start receiving normal input to send down the wire, which
+     * rlogin_startup will signal to rlogin_sendok by nulling out
+     * rlogin->prompt. */
+    rlogin_startup(
+        rlogin, ret, prompt_get_result_ref(rlogin->prompt->prompts[0]));
+}
+
 /*
  * Called to send data down the rlogin connection.
  */
 static void rlogin_send(Backend *be, const char *buf, size_t len)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
-    bufchain bc;
 
     if (rlogin->s == NULL)
         return;
 
-    bufchain_init(&bc);
-    bufchain_add(&bc, buf, len);
-
-    if (rlogin->prompt) {
-        /*
-         * We're still prompting for a username, and aren't talking
-         * directly to the network connection yet.
-         */
-        int ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt, &bc);
-        if (ret >= 0) {
-            /* Next terminal output will come from server */
-            seat_set_trust_status(rlogin->seat, false);
-            rlogin_startup(rlogin, ret, prompt_get_result_ref(
-                               rlogin->prompt->prompts[0]));
-            /* that nulls out rlogin->prompt, so then we'll start sending
-             * data down the wire in the obvious way */
-        }
-    }
-
-    if (!rlogin->prompt) {
-        while (bufchain_size(&bc) > 0) {
-            ptrlen data = bufchain_prefix(&bc);
-            rlogin->bufsize = sk_write(rlogin->s, data.ptr, data.len);
-            bufchain_consume(&bc, len);
-        }
-    }
-
-    bufchain_clear(&bc);
+    rlogin->bufsize = sk_write(rlogin->s, buf, len);
 }
 
 /*
@@ -398,8 +383,12 @@ static bool rlogin_connected(Backend *be)
 
 static bool rlogin_sendok(Backend *be)
 {
+    /*
+     * We only want to receive input data if the socket is connected
+     * and we're not still at the username prompt stage.
+     */
     Rlogin *rlogin = container_of(be, Rlogin, backend);
-    return rlogin->socket_connected;
+    return rlogin->socket_connected && !rlogin->prompt;
 }
 
 static void rlogin_unthrottle(Backend *be, size_t backlog)

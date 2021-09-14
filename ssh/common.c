@@ -737,6 +737,19 @@ size_t ssh_ppl_default_queued_data_size(PacketProtocolLayer *ppl)
     return ppl->out_pq->pqb.total_size;
 }
 
+static void ssh_ppl_prompts_callback(void *ctx)
+{
+    ssh_ppl_process_queue((PacketProtocolLayer *)ctx);
+}
+
+prompts_t *ssh_ppl_new_prompts(PacketProtocolLayer *ppl)
+{
+    prompts_t *p = new_prompts();
+    p->callback = ssh_ppl_prompts_callback;
+    p->callback_ctx = ppl;
+    return p;
+}
+
 /* ----------------------------------------------------------------------
  * Common helper functions for clients and implementations of
  * BinaryPacketProtocol.

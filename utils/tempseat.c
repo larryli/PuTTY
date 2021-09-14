@@ -177,8 +177,7 @@ static bool tempseat_can_set_trust_status(Seat *seat)
  * for the network connection.
  */
 
-static int tempseat_get_userpass_input(Seat *seat, prompts_t *p,
-                                       bufchain *input)
+static int tempseat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     /*
      * Interactive prompts of this nature are a thing that a backend

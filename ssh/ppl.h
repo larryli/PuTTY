@@ -154,6 +154,11 @@ void ssh2_transport_notify_auth_done(PacketProtocolLayer *ssh2_transport_ptr);
  * be handled by ssh2connection. */
 bool ssh2_common_filter_queue(PacketProtocolLayer *ppl);
 
+/* Method for making a prompts_t in such a way that it will install a
+ * callback that causes this PPL's process_queue method to be called
+ * when asynchronous prompt input completes. */
+prompts_t *ssh_ppl_new_prompts(PacketProtocolLayer *ppl);
+
 /* Methods for ssh1login to pass protocol flags to ssh1connection */
 void ssh1_connection_set_protoflags(
     PacketProtocolLayer *ppl, int local, int remote);

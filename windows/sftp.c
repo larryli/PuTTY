@@ -12,7 +12,7 @@
 #include "ssh.h"
 #include "security-api.h"
 
-int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
+int filexfer_get_userpass_input(Seat *seat, prompts_t *p)
 {
     int ret;
     ret = cmdline_get_passwd_input(p);
