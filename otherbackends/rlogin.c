@@ -22,6 +22,7 @@ struct Rlogin {
     int term_width, term_height;
     Seat *seat;
     LogContext *logctx;
+    Ldisc *ldisc;
 
     Conf *conf;
 
@@ -194,6 +195,8 @@ static void rlogin_startup(Rlogin *rlogin, int prompt_result,
     }
 
     rlogin->prompt = NULL;
+    if (rlogin->ldisc)
+        ldisc_check_sendok(rlogin->ldisc);
 }
 
 static const PlugVtable Rlogin_plugvt = {
@@ -413,7 +416,8 @@ static bool rlogin_ldisc(Backend *be, int option)
 
 static void rlogin_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
-    /* This is a stub. */
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
+    rlogin->ldisc = ldisc;
 }
 
 static int rlogin_exitcode(Backend *be)

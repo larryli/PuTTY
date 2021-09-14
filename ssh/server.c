@@ -244,6 +244,8 @@ Conf *make_ssh_server_conf(void)
     return conf;
 }
 
+void ssh_check_sendok(Ssh *ssh) {}
+
 static const PlugVtable ssh_server_plugvt = {
     .log = server_socket_log,
     .closing = server_closing,

@@ -71,6 +71,7 @@ struct supdup_tag
 
     Seat *seat;
     LogContext *logctx;
+    Ldisc *ldisc;
     int term_width, term_height;
 
     long long ttyopt;
@@ -565,6 +566,8 @@ static void supdup_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                        supdup->conf, supdup->socket_connected);
     if (type == PLUGLOG_CONNECT_SUCCESS) {
         supdup->socket_connected = true;
+        if (supdup->ldisc)
+            ldisc_check_sendok(supdup->ldisc);
         if (is_tempseat(supdup->seat)) {
             Seat *ts = supdup->seat;
             tempseat_flush(ts);
@@ -893,6 +896,8 @@ static bool supdup_ldisc(Backend *be, int option)
 
 static void supdup_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
+    Supdup *supdup = container_of(be, Supdup, backend);
+    supdup->ldisc = ldisc;
 }
 
 static int supdup_exitcode(Backend *be)

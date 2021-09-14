@@ -58,6 +58,7 @@ const char *const appname = "PSCP";
 #define MAX_SCP_BUFSIZE 16384
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
+void ldisc_check_sendok(Ldisc *ldisc) { }
 
 static size_t pscp_output(Seat *, bool is_stderr, const void *, size_t);
 static bool pscp_eof(Seat *);

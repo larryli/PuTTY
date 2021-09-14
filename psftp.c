@@ -2448,6 +2448,7 @@ int do_sftp(int mode, int modeflags, char *batchfile)
 static bool verbose = false;
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
+void ldisc_check_sendok(Ldisc *ldisc) { }
 
 /*
  * Receive a block of data from the SSH link. Block until all data

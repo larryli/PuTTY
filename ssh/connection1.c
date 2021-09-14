@@ -775,6 +775,8 @@ static void ssh1_set_wants_user_input(ConnectionLayer *cl, bool wanted)
 
     s->want_user_input = wanted;
     s->finished_setup = true;
+    if (wanted)
+        ssh_check_sendok(s->ppl.ssh);
 }
 
 static bool ssh1_connection_want_user_input(PacketProtocolLayer *ppl)

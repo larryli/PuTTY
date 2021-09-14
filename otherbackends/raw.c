@@ -17,6 +17,7 @@ struct Raw {
     size_t bufsize;
     Seat *seat;
     LogContext *logctx;
+    Ldisc *ldisc;
     bool sent_console_eof, sent_socket_eof, socket_connected;
 
     Conf *conf;
@@ -41,6 +42,8 @@ static void raw_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                        error_code, raw->conf, raw->socket_connected);
     if (type == PLUGLOG_CONNECT_SUCCESS) {
         raw->socket_connected = true;
+        if (raw->ldisc)
+            ldisc_check_sendok(raw->ldisc);
         if (is_tempseat(raw->seat)) {
             Seat *ts = raw->seat;
             tempseat_flush(ts);
@@ -295,7 +298,8 @@ static bool raw_ldisc(Backend *be, int option)
 
 static void raw_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
-    /* This is a stub. */
+    Raw *raw = container_of(be, Raw, backend);
+    raw->ldisc = ldisc;
 }
 
 static int raw_exitcode(Backend *be)

@@ -2055,6 +2055,7 @@ void ldisc_configure(Ldisc *, Conf *);
 void ldisc_free(Ldisc *);
 void ldisc_send(Ldisc *, const void *buf, int len, bool interactive);
 void ldisc_echoedit_update(Ldisc *);
+void ldisc_check_sendok(Ldisc *);
 
 /*
  * Exports from sshrand.c.

@@ -139,6 +139,10 @@ void ldisc_echoedit_update(Ldisc *ldisc)
     seat_echoedit_update(ldisc->seat, ECHOING, EDITING);
 }
 
+void ldisc_check_sendok(Ldisc *ldisc)
+{
+}
+
 void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, bool interactive)
 {
     const char *buf = (const char *)vbuf;

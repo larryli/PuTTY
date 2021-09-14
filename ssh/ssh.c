@@ -1156,6 +1156,14 @@ static bool ssh_sendok(Backend *be)
     return ssh->base_layer && ssh_ppl_want_user_input(ssh->base_layer);
 }
 
+void ssh_check_sendok(Ssh *ssh)
+{
+    /* Called when the connection layer might have caused ssh_sendok
+     * to start returning true */
+    if (ssh->ldisc)
+        ldisc_check_sendok(ssh->ldisc);
+}
+
 void ssh_ldisc_update(Ssh *ssh)
 {
     /* Called when the connection layer wants to propagate an update

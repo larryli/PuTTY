@@ -397,6 +397,7 @@ LogContext *ssh_get_logctx(Ssh *ssh);
 void ssh_throttle_conn(Ssh *ssh, int adjust);
 void ssh_got_exitcode(Ssh *ssh, int status);
 void ssh_ldisc_update(Ssh *ssh);
+void ssh_check_sendok(Ssh *ssh);
 void ssh_got_fallback_cmd(Ssh *ssh);
 bool ssh_is_bare(Ssh *ssh);
 
