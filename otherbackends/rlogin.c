@@ -32,6 +32,8 @@ struct Rlogin {
     Backend backend;
 };
 
+static void rlogin_startup(Rlogin *rlogin, const char *ruser);
+
 static void c_write(Rlogin *rlogin, const void *buf, size_t len)
 {
     size_t backlog = seat_stdout(rlogin->seat, buf, len);
@@ -53,6 +55,41 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
             rlogin->seat = tempseat_get_real(ts);
             tempseat_free(ts);
         }
+
+        char *ruser = get_remote_username(rlogin->conf);
+        if (ruser) {
+            /*
+             * If we already know the remote username, call
+             * rlogin_startup, which will send the initial protocol
+             * greeting including local username, remote username,
+             * terminal type and terminal speed.
+             */
+            /* Next terminal output will come from server */
+            seat_set_trust_status(rlogin->seat, false);
+            rlogin_startup(rlogin, ruser);
+            sfree(ruser);
+        } else {
+            /*
+             * Otherwise, set up a prompts_t asking for the local
+             * username. If it completes synchronously, call
+             * rlogin_startup as above; otherwise, wait until it does.
+             */
+            rlogin->prompt = new_prompts();
+            rlogin->prompt->to_server = true;
+            rlogin->prompt->from_server = false;
+            rlogin->prompt->name = dupstr("Rlogin login name");
+            add_prompt(rlogin->prompt, dupstr("rlogin username: "), true);
+
+            int ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt,
+                                              NULL);
+            if (ret >= 0) {
+                /* Next terminal output will come from server */
+                seat_set_trust_status(rlogin->seat, false);
+                rlogin_startup(rlogin, prompt_get_result_ref(
+                                  rlogin->prompt->prompts[0]));
+            }
+        }
+
     }
 }
 
@@ -173,7 +210,6 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
     SockAddr *addr;
     const char *err;
     Rlogin *rlogin;
-    char *ruser;
     int addressfamily;
     char *loghost;
 
@@ -226,34 +262,6 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
         colon = host_strrchr(*realhost, ':');
         if (colon)
             *colon++ = '\0';
-    }
-
-    /*
-     * Send local username, remote username, terminal type and
-     * terminal speed - unless we don't have the remote username yet,
-     * in which case we prompt for it and may end up deferring doing
-     * anything else until the local prompt mechanism returns.
-     */
-    if ((ruser = get_remote_username(conf)) != NULL) {
-        /* Next terminal output will come from server */
-        seat_set_trust_status(rlogin->seat, false);
-        rlogin_startup(rlogin, ruser);
-        sfree(ruser);
-    } else {
-        int ret;
-
-        rlogin->prompt = new_prompts();
-        rlogin->prompt->to_server = true;
-        rlogin->prompt->from_server = false;
-        rlogin->prompt->name = dupstr("Rlogin login name");
-        add_prompt(rlogin->prompt, dupstr("rlogin username: "), true);
-        ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt, NULL);
-        if (ret >= 0) {
-            /* Next terminal output will come from server */
-            seat_set_trust_status(rlogin->seat, false);
-            rlogin_startup(rlogin, prompt_get_result_ref(
-                               rlogin->prompt->prompts[0]));
-        }
     }
 
     return NULL;
