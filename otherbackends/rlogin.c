@@ -32,7 +32,8 @@ struct Rlogin {
     Backend backend;
 };
 
-static void rlogin_startup(Rlogin *rlogin, const char *ruser);
+static void rlogin_startup(Rlogin *rlogin, int prompt_result,
+                           const char *ruser);
 
 static void c_write(Rlogin *rlogin, const void *buf, size_t len)
 {
@@ -66,7 +67,7 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
              */
             /* Next terminal output will come from server */
             seat_set_trust_status(rlogin->seat, false);
-            rlogin_startup(rlogin, ruser);
+            rlogin_startup(rlogin, 1, ruser);
             sfree(ruser);
         } else {
             /*
@@ -85,7 +86,7 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
             if (ret >= 0) {
                 /* Next terminal output will come from server */
                 seat_set_trust_status(rlogin->seat, false);
-                rlogin_startup(rlogin, prompt_get_result_ref(
+                rlogin_startup(rlogin, ret, prompt_get_result_ref(
                                   rlogin->prompt->prompts[0]));
             }
         }
@@ -166,23 +167,31 @@ static void rlogin_sent(Plug *plug, size_t bufsize)
     seat_sent(rlogin->seat, rlogin->bufsize);
 }
 
-static void rlogin_startup(Rlogin *rlogin, const char *ruser)
+static void rlogin_startup(Rlogin *rlogin, int prompt_result,
+                           const char *ruser)
 {
     char z = 0;
     char *p;
 
-    sk_write(rlogin->s, &z, 1);
-    p = conf_get_str(rlogin->conf, CONF_localusername);
-    sk_write(rlogin->s, p, strlen(p));
-    sk_write(rlogin->s, &z, 1);
-    sk_write(rlogin->s, ruser, strlen(ruser));
-    sk_write(rlogin->s, &z, 1);
-    p = conf_get_str(rlogin->conf, CONF_termtype);
-    sk_write(rlogin->s, p, strlen(p));
-    sk_write(rlogin->s, "/", 1);
-    p = conf_get_str(rlogin->conf, CONF_termspeed);
-    sk_write(rlogin->s, p, strspn(p, "0123456789"));
-    rlogin->bufsize = sk_write(rlogin->s, &z, 1);
+    if (prompt_result == 0) {
+        /* User aborted at the username prompt. */
+        sk_close(rlogin->s);
+        rlogin->s = NULL;
+        seat_notify_remote_exit(rlogin->seat);
+    } else {
+        sk_write(rlogin->s, &z, 1);
+        p = conf_get_str(rlogin->conf, CONF_localusername);
+        sk_write(rlogin->s, p, strlen(p));
+        sk_write(rlogin->s, &z, 1);
+        sk_write(rlogin->s, ruser, strlen(ruser));
+        sk_write(rlogin->s, &z, 1);
+        p = conf_get_str(rlogin->conf, CONF_termtype);
+        sk_write(rlogin->s, p, strlen(p));
+        sk_write(rlogin->s, "/", 1);
+        p = conf_get_str(rlogin->conf, CONF_termspeed);
+        sk_write(rlogin->s, p, strspn(p, "0123456789"));
+        rlogin->bufsize = sk_write(rlogin->s, &z, 1);
+    }
 
     rlogin->prompt = NULL;
 }
@@ -311,7 +320,7 @@ static void rlogin_send(Backend *be, const char *buf, size_t len)
         if (ret >= 0) {
             /* Next terminal output will come from server */
             seat_set_trust_status(rlogin->seat, false);
-            rlogin_startup(rlogin, prompt_get_result_ref(
+            rlogin_startup(rlogin, ret, prompt_get_result_ref(
                                rlogin->prompt->prompts[0]));
             /* that nulls out rlogin->prompt, so then we'll start sending
              * data down the wire in the obvious way */
