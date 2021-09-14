@@ -16,17 +16,25 @@ const bool ssh_proxy_supported = true;
 /*
  * TODO for future work:
  *
- * At present, this use of SSH as a proxy is not fully interactive.
- * We're borrowing the main backend's LogPolicy for queries like
- * askappend(), and we're borrowing the main backend's Seat for host
- * key prompts and weak-crypto warnings, but one thing we still don't
- * have is a functioning implementation of seat_get_userpass_input
- * that can display the proxy SSH connection's password prompts (or
- * similar) in the terminal window before handing the terminal back to
- * the main connection.
+ * All the interactive prompts we present to the main Seat - the host
+ * key and weak-crypto dialog boxes, and all prompts presented via the
+ * userpass_input system - need adjusting so that it's clear to the
+ * user _which_ SSH connection they come from. At the moment, you just
+ * get shown a host key fingerprint or a cryptic "login as:" prompt,
+ * and you have to guess which server you're currently supposed to be
+ * interpreting it relative to.
  *
- * Also, the host key and weak-crypto prompts need adjusting so that
- * it's clear to the user which SSH connection they come from.
+ * If the user manually aborts the attempt to make the proxy SSH
+ * connection (e.g. by hitting ^C at a userpass prompt, or refusing to
+ * accept the proxy server's host key), then an assertion failure
+ * occurs, because the main backend receives an indication of
+ * connection failure that causes it to want to call
+ * seat_connection_fatal("Remote side unexpectedly closed network
+ * connection"), which fails an assertion in tempseat.c because that
+ * method of TempSeat expects never to be called. To fix this, I think
+ * we need to distinguish 'connection attempt unexpectedly failed, in
+ * a way the user needs to be told about' from 'connection attempt was
+ * aborted by deliberate user action, so the user already knows'.
  */
 
 typedef struct SshProxy {
@@ -278,32 +286,21 @@ static void sshproxy_notify_remote_disconnect(Seat *seat)
 
 static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
 {
-    /*
-     * TODO: if we had access to the outer Seat, we could pass on this
-     * prompts_t to *its* get_userpass_input method, appropriately
-     * adjusted to indicate that it comes from the proxy SSH
-     * connection. (But we'd still have to have this code as a
-     * fallback in case there isn't a Seat available.)
-     *
-     * Design question: how does that 'appropriately adjusted'
-     * interact with the possibility of multiple calls to this
-     * function with the same prompts_t? Should we redo the
-     * modification every time? Or provide some kind of callback that
-     * userauth can use to do it once up front? Or something else?
-     *
-     * Also, we'll need to be sure that the outer Seat is in the
-     * correct trust status before passing prompts along to it. For
-     * SSH, you'd certainly expect that to be OK, on the basis that
-     * the primary SSH connection won't set the Seat to untrusted mode
-     * until it finishes its userauth phase, which won't happen until
-     * long after _we've_ finished _our_ userauth phase. But what if
-     * the primary connection is something like Telnet, which goes
-     * into untrusted mode during startup? We may find we have to do
-     * some more complicated piece of plumbing that lets us take some
-     * kind of a preliminary lease on the Seat and defer anything the
-     * primary backend tries to do to it.
-     */
     SshProxy *sp = container_of(seat, SshProxy, seat);
+
+    if (sp->clientseat) {
+        /*
+         * If we have access to the outer Seat, pass this prompt
+         * request on to it. FIXME: appropriately adjusted
+         */
+        return seat_get_userpass_input(sp->clientseat, p);
+    }
+
+    /*
+     * Otherwise, behave as if noninteractive (like plink -batch):
+     * reject all attempts to present a prompt to the user, and log in
+     * the Event Log to say why not.
+     */
     sshproxy_error(sp, "Unable to provide interactive authentication "
                    "requested by proxy SSH connection");
     return 0;
