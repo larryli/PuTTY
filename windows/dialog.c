@@ -825,6 +825,8 @@ void showabout(HWND hwnd)
 struct hostkey_dialog_ctx {
     const char *const *keywords;
     const char *const *values;
+    const char *host;
+    int port;
     FingerprintType fptype_default;
     char **fingerprints;
     const char *keydisp;
@@ -900,6 +902,11 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
             SetDlgItemText(hwnd, id, sb->s);
         }
         strbuf_free(sb);
+
+        char *hostport = dupprintf("%s (port %d)", ctx->host, ctx->port);
+        SetDlgItemText(hwnd, IDC_HK_HOST, hostport);
+        sfree(hostport);
+        MakeDlgItemBorderless(hwnd, IDC_HK_HOST);
 
         SetDlgItemText(hwnd, IDC_HK_FINGERPRINT,
                        ctx->fingerprints[ctx->fptype_default]);
@@ -1002,6 +1009,8 @@ int win_seat_verify_ssh_host_key(
         ctx->iconid = (ret == 2 ? IDI_WARNING : IDI_QUESTION);
         ctx->helpctx = (ret == 2 ? WINHELP_CTX_errors_hostkey_changed :
                         WINHELP_CTX_errors_hostkey_absent);
+        ctx->host = host;
+        ctx->port = port;
         int dlgid = (ret == 2 ? IDD_HK_WRONG : IDD_HK_ABSENT);
         int mbret = DialogBoxParam(
             hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,

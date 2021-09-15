@@ -57,11 +57,13 @@ int console_verify_ssh_host_key(
         ssh2_pick_default_fingerprint(fingerprints);
 
     if (ret == 2) {                    /* key was different */
-        common = hk_wrongmsg_common(keytype, fingerprints[fptype_default]);
+        common = hk_wrongmsg_common(host, port, keytype,
+                                    fingerprints[fptype_default]);
         intro = hk_wrongmsg_interactive_intro;
         prompt = hk_wrongmsg_interactive_prompt;
     } else {                           /* key was absent */
-        common = hk_absentmsg_common(keytype, fingerprints[fptype_default]);
+        common = hk_absentmsg_common(host, port, keytype,
+                                     fingerprints[fptype_default]);
         intro = hk_absentmsg_interactive_intro;
         prompt = hk_absentmsg_interactive_prompt;
     }

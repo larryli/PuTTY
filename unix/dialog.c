@@ -3545,10 +3545,12 @@ int gtk_seat_verify_ssh_host_key(
     void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char absenttxt[] =
-        "The server's host key is not cached. You have no guarantee "
-        "that the server is the computer you think it is.\n"
-        "The server's %s key fingerprint is:\n"
-        "%s\n"
+        "The host key is not cached for this server:\n\n"
+        "%s (port %d)\n\n"
+        "You have no guarantee that the server is the computer "
+        "you think it is.\n"
+        "The server's %s key fingerprint is:\n\n"
+        "%s\n\n"
         "If you trust this host, press \"Accept\" to add the key to "
         "PuTTY's cache and carry on connecting.\n"
         "If you want to carry on connecting just once, without "
@@ -3557,12 +3559,14 @@ int gtk_seat_verify_ssh_host_key(
         "connection.";
     static const char wrongtxt[] =
         "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "The server's host key does not match the one PuTTY has "
-        "cached. This means that either the server administrator "
-        "has changed the host key, or you have actually connected "
+        "The host key does not match the one PuTTY has cached "
+        "for this server:\n\n"
+        "%s (port %d)\n\n"
+        "This means that either the server administrator has "
+        "changed the host key, or you have actually connected "
         "to another computer pretending to be the server.\n"
-        "The new %s key fingerprint is:\n"
-        "%s\n"
+        "The new %s key fingerprint is:\n\n"
+        "%s\n\n"
         "If you were expecting this change and trust the new key, "
         "press \"Accept\" to update PuTTY's cache and continue connecting.\n"
         "If you want to carry on connecting but without updating "
@@ -3595,8 +3599,8 @@ int gtk_seat_verify_ssh_host_key(
     FingerprintType fptype_default =
         ssh2_pick_default_fingerprint(fingerprints);
 
-    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype,
-                     fingerprints[fptype_default]);
+    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), host, port,
+                     keytype, fingerprints[fptype_default]);
 
     result_ctx = snew(struct verify_ssh_host_key_dialog_ctx);
     result_ctx->callback = callback;

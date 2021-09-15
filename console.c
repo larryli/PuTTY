@@ -9,13 +9,16 @@
 #include "misc.h"
 #include "console.h"
 
-char *hk_absentmsg_common(const char *keytype, const char *fingerprint)
+char *hk_absentmsg_common(const char *host, int port,
+                          const char *keytype, const char *fingerprint)
 {
     return dupprintf(
-        "The server's host key is not cached. You have no guarantee\n"
-        "that the server is the computer you think it is.\n"
+        "The host key is not cached for this server:\n"
+        "  %s (port %d)\n"
+        "You have no guarantee that the server is the computer\n"
+        "you think it is.\n"
         "The server's %s key fingerprint is:\n"
-        "%s\n", keytype, fingerprint);
+        "  %s\n", host, port, keytype, fingerprint);
 }
 
 const char hk_absentmsg_interactive_intro[] =
@@ -29,16 +32,19 @@ const char hk_absentmsg_interactive_prompt[] =
     "Store key in cache? (y/n, Return cancels connection, "
     "i for more info) ";
 
-char *hk_wrongmsg_common(const char *keytype, const char *fingerprint)
+char *hk_wrongmsg_common(const char *host, int port,
+                         const char *keytype, const char *fingerprint)
 {
     return dupprintf(
         "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "The server's host key does not match the one PuTTY has\n"
-        "cached. This means that either the server administrator\n"
-        "has changed the host key, or you have actually connected\n"
+        "The host key does not match the one PuTTY has cached\n"
+        "for this server:\n"
+        "  %s (port %d)\n"
+        "This means that either the server administrator has\n"
+        "changed the host key, or you have actually connected\n"
         "to another computer pretending to be the server.\n"
         "The new %s key fingerprint is:\n"
-        "%s\n", keytype, fingerprint);
+        "  %s\n", host, port, keytype, fingerprint);
 }
 
 const char hk_wrongmsg_interactive_intro[] =

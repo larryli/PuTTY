@@ -57,60 +57,62 @@ BEGIN
 END
 
 /* No accelerators used */
-IDD_HK_ABSENT DIALOG DISCARDABLE 50, 50, 340, 148
+IDD_HK_ABSENT DIALOG DISCARDABLE 50, 50, 340, 160
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Security Alert"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT "The server's host key is not cached in the registry. You have no", 100, 40, 20, 300, 8
-    LTEXT "guarantee that the server is the computer you think it is.", 101, 40, 28, 300, 8
-    LTEXT "The server's {KEYTYPE} key fingerprint is:", 102, 40, 40, 300, 8
-    LTEXT "If you trust this host, press ""Accept"" to add the key to {APPNAME}'s", 103, 40, 60, 300, 8
-    LTEXT "cache and carry on connecting.", 104, 40, 68, 300, 8
-    LTEXT "If you want to carry on connecting just once, without adding the key", 105, 40, 80, 300, 8
-    LTEXT "to the cache, press ""Connect Once"".", 106, 40, 88, 300, 8
-    LTEXT "If you do not trust this host, press ""Cancel"" to abandon the connection.", 107, 40, 100, 300, 8
+    LTEXT "The host key is not cached for this server:", 100, 40, 20, 300, 8
+    LTEXT "You have no guarantee that the server is the computer you think it is.", 101, 40, 40, 300, 8
+    LTEXT "The server's {KEYTYPE} key fingerprint is:", 102, 40, 52, 300, 8
+    LTEXT "If you trust this host, press ""Accept"" to add the key to {APPNAME}'s", 103, 40, 72, 300, 8
+    LTEXT "cache and carry on connecting.", 104, 40, 80, 300, 8
+    LTEXT "If you want to carry on connecting just once, without adding the key", 105, 40, 92, 300, 8
+    LTEXT "to the cache, press ""Connect Once"".", 106, 40, 100, 300, 8
+    LTEXT "If you do not trust this host, press ""Cancel"" to abandon the connection.", 107, 40, 112, 300, 8
 
     ICON "", IDC_HK_ICON, 10, 18, 0, 0
 
-    PUSHBUTTON "Cancel", IDCANCEL, 288, 128, 40, 14
-    PUSHBUTTON "Accept", IDC_HK_ACCEPT, 168, 128, 40, 14
-    PUSHBUTTON "Connect Once", IDC_HK_ONCE, 216, 128, 64, 14
-    PUSHBUTTON "More info...", IDC_HK_MOREINFO, 60, 128, 64, 14
-    PUSHBUTTON "Help", IDHELP, 12, 128, 40, 14
+    PUSHBUTTON "Cancel", IDCANCEL, 288, 140, 40, 14
+    PUSHBUTTON "Accept", IDC_HK_ACCEPT, 168, 140, 40, 14
+    PUSHBUTTON "Connect Once", IDC_HK_ONCE, 216, 140, 64, 14
+    PUSHBUTTON "More info...", IDC_HK_MOREINFO, 60, 140, 64, 14
+    PUSHBUTTON "Help", IDHELP, 12, 140, 40, 14
 
-    EDITTEXT IDC_HK_FINGERPRINT, 40, 48, 300, 12, ES_READONLY | ES_LEFT, 0
+    EDITTEXT IDC_HK_HOST, 40, 28, 300, 12, ES_READONLY | ES_LEFT, 0
+    EDITTEXT IDC_HK_FINGERPRINT, 40, 60, 300, 12, ES_READONLY | ES_LEFT, 0
 END
 
 /* No accelerators used */
-IDD_HK_WRONG DIALOG DISCARDABLE 50, 50, 340, 188
+IDD_HK_WRONG DIALOG DISCARDABLE 50, 50, 340, 200
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Security Alert"
 FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT "WARNING - POTENTIAL SECURITY BREACH!", IDC_HK_TITLE, 40, 20, 300, 12
 
-    LTEXT "The server's host key does not match the one {APPNAME} has cached in", 100, 40, 36, 300, 8
-    LTEXT "the registry. This means that either the server administrator has", 101, 40, 44, 300, 8
-    LTEXT "changed the host key, or you have actually connected to another", 102, 40, 52, 300, 8
-    LTEXT "computer pretending to be the server.", 103, 40, 60, 300, 8
-    LTEXT "The new {KEYTYPE} key fingerprint is:", 104, 40, 72, 300, 8
-    LTEXT "If you were expecting this change and trust the new key, press", 105, 40, 92, 300, 8
-    LTEXT """Accept"" to update {APPNAME}'s cache and continue connecting.", 106, 40, 100, 300, 8
-    LTEXT "If you want to carry on connecting but without updating the cache,", 107, 40, 112, 300, 8
-    LTEXT "press ""Connect Once"".", 108, 40, 120, 300, 8
-    LTEXT "If you want to abandon the connection completely, press ""Cancel"".", 109, 40, 132, 300, 8
-    LTEXT "Pressing ""Cancel"" is the ONLY guaranteed safe choice.", 110, 40, 140, 300, 8
+    LTEXT "The host key does not match the one {APPNAME} has cached for this server:", 100, 40, 36, 300, 8
+    LTEXT "This means that either the server administrator has changed the", 101, 40, 56, 300, 8
+    LTEXT "host key, or you have actually connected to another computer", 102, 40, 64, 300, 8
+    LTEXT "pretending to be the server.", 103, 40, 72, 300, 8
+    LTEXT "The new {KEYTYPE} key fingerprint is:", 104, 40, 84, 300, 8
+    LTEXT "If you were expecting this change and trust the new key, press", 105, 40, 104, 300, 8
+    LTEXT """Accept"" to update {APPNAME}'s cache and continue connecting.", 106, 40, 112, 300, 8
+    LTEXT "If you want to carry on connecting but without updating the cache,", 107, 40, 124, 300, 8
+    LTEXT "press ""Connect Once"".", 108, 40, 132, 300, 8
+    LTEXT "If you want to abandon the connection completely, press ""Cancel"".", 109, 40, 144, 300, 8
+    LTEXT "Pressing ""Cancel"" is the ONLY guaranteed safe choice.", 110, 40, 152, 300, 8
 
     ICON "", IDC_HK_ICON, 10, 16, 0, 0
 
-    PUSHBUTTON "Cancel", IDCANCEL, 288, 168, 40, 14
-    PUSHBUTTON "Accept", IDC_HK_ACCEPT, 168, 168, 40, 14
-    PUSHBUTTON "Connect Once", IDC_HK_ONCE, 216, 168, 64, 14
-    PUSHBUTTON "More info...", IDC_HK_MOREINFO, 60, 168, 64, 14
-    PUSHBUTTON "Help", IDHELP, 12, 168, 40, 14
+    PUSHBUTTON "Cancel", IDCANCEL, 288, 180, 40, 14
+    PUSHBUTTON "Accept", IDC_HK_ACCEPT, 168, 180, 40, 14
+    PUSHBUTTON "Connect Once", IDC_HK_ONCE, 216, 180, 64, 14
+    PUSHBUTTON "More info...", IDC_HK_MOREINFO, 60, 180, 64, 14
+    PUSHBUTTON "Help", IDHELP, 12, 180, 40, 14
 
-    EDITTEXT IDC_HK_FINGERPRINT, 40, 80, 300, 12, ES_READONLY | ES_LEFT, 0
+    EDITTEXT IDC_HK_HOST, 40, 44, 300, 12, ES_READONLY | ES_LEFT, 0
+    EDITTEXT IDC_HK_FINGERPRINT, 40, 92, 300, 12, ES_READONLY | ES_LEFT, 0
 END
 
 /* Accelerators used: clw */
