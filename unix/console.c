@@ -138,6 +138,7 @@ int console_verify_ssh_host_key(
     fprintf(stderr, common_fmt, keytype, fingerprints[fptype_default]);
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
+        postmsg(&cf);
         return 0;
     }
 
