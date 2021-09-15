@@ -9,11 +9,15 @@
 #include "misc.h"
 #include "console.h"
 
-const char hk_absentmsg_common_fmt[] =
-    "The server's host key is not cached. You have no guarantee\n"
-    "that the server is the computer you think it is.\n"
-    "The server's %s key fingerprint is:\n"
-    "%s\n";
+char *hk_absentmsg_common(const char *keytype, const char *fingerprint)
+{
+    return dupprintf(
+        "The server's host key is not cached. You have no guarantee\n"
+        "that the server is the computer you think it is.\n"
+        "The server's %s key fingerprint is:\n"
+        "%s\n", keytype, fingerprint);
+}
+
 const char hk_absentmsg_interactive_intro[] =
     "If you trust this host, enter \"y\" to add the key to\n"
     "PuTTY's cache and carry on connecting.\n"
@@ -25,14 +29,18 @@ const char hk_absentmsg_interactive_prompt[] =
     "Store key in cache? (y/n, Return cancels connection, "
     "i for more info) ";
 
-const char hk_wrongmsg_common_fmt[] =
-    "WARNING - POTENTIAL SECURITY BREACH!\n"
-    "The server's host key does not match the one PuTTY has\n"
-    "cached. This means that either the server administrator\n"
-    "has changed the host key, or you have actually connected\n"
-    "to another computer pretending to be the server.\n"
-    "The new %s key fingerprint is:\n"
-    "%s\n";
+char *hk_wrongmsg_common(const char *keytype, const char *fingerprint)
+{
+    return dupprintf(
+        "WARNING - POTENTIAL SECURITY BREACH!\n"
+        "The server's host key does not match the one PuTTY has\n"
+        "cached. This means that either the server administrator\n"
+        "has changed the host key, or you have actually connected\n"
+        "to another computer pretending to be the server.\n"
+        "The new %s key fingerprint is:\n"
+        "%s\n", keytype, fingerprint);
+}
+
 const char hk_wrongmsg_interactive_intro[] =
     "If you were expecting this change and trust the new key,\n"
     "enter \"y\" to update PuTTY's cache and continue connecting.\n"
