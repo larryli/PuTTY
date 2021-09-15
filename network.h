@@ -78,6 +78,13 @@ struct PlugVtable {
      *    proxied through. This will typically be a wodge of
      *    standard-error output from a local proxy command, so the
      *    receiver should probably prefix it to indicate this.
+     *
+     * Note that sometimes log messages may be sent even to Socket
+     * types that don't involve making an outgoing connection, e.g.
+     * because the same core implementation (such as Windows handle
+     * sockets) is shared between listening and connecting sockets. So
+     * all Plugs must implement this method, even if only to ignore
+     * the logged events.
      */
     void (*closing)
      (Plug *p, const char *error_msg, int error_code, bool calling_back);
@@ -324,6 +331,20 @@ Socket *new_error_socket_consume_string(Plug *plug, char *errmsg);
  * Trivial plug that does absolutely nothing. Found in nullplug.c.
  */
 extern Plug *const nullplug;
+
+/*
+ * Some trivial no-op plug functions, also in nullplug.c; exposed here
+ * so that other Plug implementations can use them too.
+ *
+ * In particular, nullplug_log is useful to Plugs that don't need to
+ * worry about logging.
+ */
+void nullplug_log(Plug *plug, PlugLogType type, SockAddr *addr,
+                  int port, const char *err_msg, int err_code);
+void nullplug_closing(Plug *plug, const char *error_msg, int error_code,
+                      bool calling_back);
+void nullplug_receive(Plug *plug, int urgent, const char *data, size_t len);
+void nullplug_sent(Plug *plug, size_t bufsize);
 
 /* ----------------------------------------------------------------------
  * Functions defined outside the network code, which have to be

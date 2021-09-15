@@ -7,27 +7,26 @@
 
 #include "putty.h"
 
-static void nullplug_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                                int port, const char *err_msg, int err_code)
+void nullplug_log(Plug *plug, PlugLogType type, SockAddr *addr,
+                  int port, const char *err_msg, int err_code)
 {
 }
 
-static void nullplug_closing(Plug *plug, const char *error_msg, int error_code,
-                             bool calling_back)
+void nullplug_closing(Plug *plug, const char *error_msg, int error_code,
+                      bool calling_back)
 {
 }
 
-static void nullplug_receive(
-    Plug *plug, int urgent, const char *data, size_t len)
+void nullplug_receive(Plug *plug, int urgent, const char *data, size_t len)
 {
 }
 
-static void nullplug_sent(Plug *plug, size_t bufsize)
+void nullplug_sent(Plug *plug, size_t bufsize)
 {
 }
 
 static const PlugVtable nullplug_plugvt = {
-    .log = nullplug_socket_log,
+    .log = nullplug_log,
     .closing = nullplug_closing,
     .receive = nullplug_receive,
     .sent = nullplug_sent,

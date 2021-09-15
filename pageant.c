@@ -1624,6 +1624,7 @@ static const PlugVtable pageant_connection_plugvt = {
     .closing = pageant_conn_closing,
     .receive = pageant_conn_receive,
     .sent = pageant_conn_sent,
+    .log = nullplug_log,
 };
 
 static int pageant_listen_accepting(Plug *plug,
@@ -1672,6 +1673,7 @@ static int pageant_listen_accepting(Plug *plug,
 static const PlugVtable pageant_listener_plugvt = {
     .closing = pageant_listen_closing,
     .accepting = pageant_listen_accepting,
+    .log = nullplug_log,
 };
 
 struct pageant_listen_state *pageant_listener_new(
