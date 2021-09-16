@@ -1250,6 +1250,10 @@ static inline size_t seat_banner(Seat *seat, const void *data, size_t len)
 static inline size_t seat_banner_pl(Seat *seat, ptrlen data)
 { return seat_output(seat, SEAT_OUTPUT_AUTH_BANNER, data.ptr, data.len); }
 
+/* In the utils subdir: print a message to the Seat which can't be
+ * spoofed by server-supplied auth-time output such as SSH banners */
+void seat_antispoof_msg(Seat *seat, const char *msg);
+
 /*
  * Stub methods for seat implementations that want to use the obvious
  * null handling for a given method.

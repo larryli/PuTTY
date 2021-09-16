@@ -1,4 +1,5 @@
 add_sources_from_current_dir(utils
+  antispoof.c
   base64_decode_atom.c
   base64_encode_atom.c
   bufchain.c
