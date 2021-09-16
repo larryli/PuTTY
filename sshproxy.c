@@ -258,9 +258,21 @@ static size_t sshproxy_output(Seat *seat, SeatOutputType type,
                               const void *data, size_t len)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
-    bufchain_add(&sp->ssh_to_socket, data, len);
-    try_send_ssh_to_socket(sp);
-    return bufchain_size(&sp->ssh_to_socket);
+    if (type == SEAT_OUTPUT_AUTH_BANNER) {
+        if (sp->clientseat) {
+            /*
+             * If we have access to the outer Seat, pass the SSH login
+             * banner on to it.
+             */
+            return seat_output(sp->clientseat, type, data, len);
+        } else {
+            return 0;
+        }
+    } else {
+        bufchain_add(&sp->ssh_to_socket, data, len);
+        try_send_ssh_to_socket(sp);
+        return bufchain_size(&sp->ssh_to_socket);
+    }
 }
 
 static bool sshproxy_eof(Seat *seat)
