@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 #endif
         while (!feof(stdin)) {
                 len = fread(blk, 1, sizeof(blk), stdin);
-                term_data(term, false, blk, len);
+                term_data(term, blk, len);
         }
         term_update(term);
         return 0;

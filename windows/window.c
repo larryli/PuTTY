@@ -5737,7 +5737,7 @@ static void flip_full_screen()
 static size_t win_seat_output(Seat *seat, bool is_stderr,
                               const void *data, size_t len)
 {
-    return term_data(term, is_stderr, data, len);
+    return term_data(term, data, len);
 }
 
 static bool win_seat_eof(Seat *seat)

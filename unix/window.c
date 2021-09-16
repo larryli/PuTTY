@@ -322,7 +322,7 @@ static size_t gtk_seat_output(Seat *seat, bool is_stderr,
                               const void *data, size_t len)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
-    return term_data(inst->term, is_stderr, data, len);
+    return term_data(inst->term, data, len);
 }
 
 static bool gtk_seat_eof(Seat *seat)

@@ -7453,7 +7453,7 @@ static void term_added_data(Terminal *term)
     }
 }
 
-size_t term_data(Terminal *term, bool is_stderr, const void *data, size_t len)
+size_t term_data(Terminal *term, const void *data, size_t len)
 {
     bufchain_add(&term->inbuf, data, len);
     term_added_data(term);
@@ -7516,7 +7516,7 @@ struct term_userpass_state {
 /* Tiny wrapper to make it easier to write lots of little strings */
 static inline void term_write(Terminal *term, ptrlen data)
 {
-    term_data(term, false, data.ptr, data.len);
+    term_data(term, data.ptr, data.len);
 }
 
 /*
