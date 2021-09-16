@@ -251,6 +251,10 @@ static void try_send_ssh_to_socket(void *ctx)
 static void sshproxy_notify_session_started(Seat *seat)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
+
+    if (sp->clientseat)
+        seat_set_trust_status(sp->clientseat, true);
+
     plug_log(sp->plug, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port, NULL, 0);
 }
 
