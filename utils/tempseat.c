@@ -17,7 +17,7 @@
 typedef struct TempSeat TempSeat;
 struct TempSeat {
     Seat *realseat;
-    bufchain outputs[2]; /* stdout, stderr */
+    bufchain outputs[3]; /* stdout, stderr, auth banner (just in case) */
     bool seen_session_started;
     bool seen_remote_exit;
     bool seen_remote_disconnect;
@@ -33,12 +33,19 @@ struct TempSeat {
  * real Seat in tempseat_flush().
  */
 
-static size_t tempseat_output(Seat *seat, bool is_stderr, const void *data,
-                              size_t len)
+static size_t tempseat_output(Seat *seat, SeatOutputType type,
+                              const void *data, size_t len)
 {
     TempSeat *ts = container_of(seat, TempSeat, seat);
-    bufchain_add(&ts->outputs[is_stderr], data, len);
-    return bufchain_size(&ts->outputs[0]) + bufchain_size(&ts->outputs[1]);
+
+    size_t index = (size_t)type;
+    assert(index < lenof(ts->outputs));
+    bufchain_add(&ts->outputs[index], data, len);
+
+    size_t total_size = 0;
+    for (size_t i = 0; i < lenof(ts->outputs); i++)
+        total_size += bufchain_size(&ts->outputs[i]);
+    return total_size;
 }
 
 static void tempseat_notify_session_started(Seat *seat)
@@ -295,7 +302,7 @@ Seat *tempseat_new(Seat *realseat)
     ts->seat.vt = &tempseat_vt;
 
     ts->realseat = realseat;
-    for (unsigned i = 0; i < 2; i++)
+    for (size_t i = 0; i < lenof(ts->outputs); i++)
         bufchain_init(&ts->outputs[i]);
 
     return &ts->seat;
@@ -327,8 +334,8 @@ void tempseat_flush(Seat *seat)
     assert(seat->vt == &tempseat_vt);
     TempSeat *ts = container_of(seat, TempSeat, seat);
 
-    /* Empty the stdout/stderr bufchains into the real seat */
-    for (unsigned i = 0; i < 2; i++) {
+    /* Empty the output bufchains into the real seat */
+    for (size_t i = 0; i < lenof(ts->outputs); i++) {
         while (bufchain_size(&ts->outputs[i])) {
             ptrlen pl = bufchain_prefix(&ts->outputs[i]);
             seat_output(ts->realseat, i, pl.ptr, pl.len);

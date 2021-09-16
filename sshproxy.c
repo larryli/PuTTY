@@ -254,7 +254,7 @@ static void sshproxy_notify_session_started(Seat *seat)
     plug_log(sp->plug, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port, NULL, 0);
 }
 
-static size_t sshproxy_output(Seat *seat, bool is_stderr,
+static size_t sshproxy_output(Seat *seat, SeatOutputType type,
                               const void *data, size_t len)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);

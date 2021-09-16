@@ -177,7 +177,7 @@ static const LogPolicyVtable sesschan_logpolicy_vt = {
 };
 
 static size_t sesschan_seat_output(
-    Seat *, bool is_stderr, const void *, size_t);
+    Seat *, SeatOutputType type, const void *, size_t);
 static bool sesschan_seat_eof(Seat *);
 static void sesschan_notify_remote_exit(Seat *seat);
 static void sesschan_connection_fatal(Seat *seat, const char *message);
@@ -612,10 +612,15 @@ bool sesschan_change_window_size(
 }
 
 static size_t sesschan_seat_output(
-    Seat *seat, bool is_stderr, const void *data, size_t len)
+    Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
     sesschan *sess = container_of(seat, sesschan, seat);
-    return sshfwd_write_ext(sess->c, is_stderr, data, len);
+
+    /* We don't expect anything but stdout and stderr to come here,
+     * because the pty backend doesn't generate auth banners */
+    assert(type != SEAT_OUTPUT_AUTH_BANNER);
+
+    return sshfwd_write_ext(sess->c, type == SEAT_OUTPUT_STDERR, data, len);
 }
 
 static void sesschan_check_close_callback(void *vctx)

@@ -352,8 +352,9 @@ size_t try_output(bool is_stderr)
 }
 
 static size_t plink_output(
-    Seat *seat, bool is_stderr, const void *data, size_t len)
+    Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
+    bool is_stderr = type != SEAT_OUTPUT_STDOUT;
     assert(is_stderr || outgoingeof == EOF_NO);
 
     BinarySink *bs = is_stderr ? stderr_bs : stdout_bs;

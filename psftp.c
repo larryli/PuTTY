@@ -41,7 +41,7 @@ static bool sent_eof = false;
  * Seat vtable.
  */
 
-static size_t psftp_output(Seat *, bool is_stderr, const void *, size_t);
+static size_t psftp_output(Seat *, SeatOutputType type, const void *, size_t);
 static bool psftp_eof(Seat *);
 
 static const SeatVtable psftp_seat_vt = {
@@ -2461,13 +2461,14 @@ void ldisc_check_sendok(Ldisc *ldisc) { }
 static bufchain received_data;
 static BinarySink *stderr_bs;
 static size_t psftp_output(
-    Seat *seat, bool is_stderr, const void *data, size_t len)
+    Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
     /*
-     * stderr data is just spouted to local stderr (optionally via a
-     * sanitiser) and otherwise ignored.
+     * Non-stdout data (both stderr and SSH auth banners) is just
+     * spouted to local stderr (optionally via a sanitiser) and
+     * otherwise ignored.
      */
-    if (is_stderr) {
+    if (type != SEAT_OUTPUT_STDOUT) {
         put_data(stderr_bs, data, len);
         return 0;
     }

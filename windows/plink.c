@@ -50,8 +50,9 @@ static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 }
 
 static size_t plink_output(
-    Seat *seat, bool is_stderr, const void *data, size_t len)
+    Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
+    bool is_stderr = type != SEAT_OUTPUT_STDOUT;
     BinarySink *bs = is_stderr ? stderr_bs : stdout_bs;
     put_data(bs, data, len);
 

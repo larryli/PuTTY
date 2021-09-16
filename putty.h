@@ -889,6 +889,10 @@ typedef enum SeatInteractionContext {
     SIC_BANNER, SIC_KI_PROMPTS
 } SeatInteractionContext;
 
+typedef enum SeatOutputType {
+    SEAT_OUTPUT_STDOUT, SEAT_OUTPUT_STDERR, SEAT_OUTPUT_AUTH_BANNER
+} SeatOutputType;
+
 /*
  * Data type 'Seat', which is an API intended to contain essentially
  * everything that a back end might need to talk to its client for:
@@ -901,14 +905,17 @@ struct Seat {
 };
 struct SeatVtable {
     /*
-     * Provide output from the remote session. 'is_stderr' indicates
-     * that the output should be sent to a separate error message
-     * channel, if the seat has one. But combining both channels into
-     * one is OK too; that's what terminal-window based seats do.
+     * Provide output from the remote session. 'type' indicates the
+     * type of the output (stdout, stderr or SSH auth banner), which
+     * can be used to split the output into separate message channels,
+     * if the seat wants to handle them differently. But combining the
+     * channels into one is OK too; that's what terminal-window based
+     * seats do.
      *
      * The return value is the current size of the output backlog.
      */
-    size_t (*output)(Seat *seat, bool is_stderr, const void *data, size_t len);
+    size_t (*output)(Seat *seat, SeatOutputType type,
+                     const void *data, size_t len);
 
     /*
      * Called when the back end wants to indicate that EOF has arrived
@@ -1167,8 +1174,8 @@ struct SeatVtable {
 };
 
 static inline size_t seat_output(
-    Seat *seat, bool err, const void *data, size_t len)
-{ return seat->vt->output(seat, err, data, len); }
+    Seat *seat, SeatOutputType type, const void *data, size_t len)
+{ return seat->vt->output(seat, type, data, len); }
 static inline bool seat_eof(Seat *seat)
 { return seat->vt->eof(seat); }
 static inline void seat_sent(Seat *seat, size_t bufsize)
@@ -1231,13 +1238,17 @@ void seat_connection_fatal(Seat *seat, const char *fmt, ...) PRINTF_LIKE(2, 3);
 
 /* Handy aliases for seat_output which set is_stderr to a fixed value. */
 static inline size_t seat_stdout(Seat *seat, const void *data, size_t len)
-{ return seat_output(seat, false, data, len); }
+{ return seat_output(seat, SEAT_OUTPUT_STDOUT, data, len); }
 static inline size_t seat_stdout_pl(Seat *seat, ptrlen data)
-{ return seat_output(seat, false, data.ptr, data.len); }
+{ return seat_output(seat, SEAT_OUTPUT_STDOUT, data.ptr, data.len); }
 static inline size_t seat_stderr(Seat *seat, const void *data, size_t len)
-{ return seat_output(seat, true, data, len); }
+{ return seat_output(seat, SEAT_OUTPUT_STDERR, data, len); }
 static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
-{ return seat_output(seat, true, data.ptr, data.len); }
+{ return seat_output(seat, SEAT_OUTPUT_STDERR, data.ptr, data.len); }
+static inline size_t seat_banner(Seat *seat, const void *data, size_t len)
+{ return seat_output(seat, SEAT_OUTPUT_AUTH_BANNER, data, len); }
+static inline size_t seat_banner_pl(Seat *seat, ptrlen data)
+{ return seat_output(seat, SEAT_OUTPUT_AUTH_BANNER, data.ptr, data.len); }
 
 /*
  * Stub methods for seat implementations that want to use the obvious
@@ -1247,7 +1258,7 @@ static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
  * plausibly want to return either fixed answer 'no' or 'yes'.
  */
 size_t nullseat_output(
-    Seat *seat, bool is_stderr, const void *data, size_t len);
+    Seat *seat, SeatOutputType type, const void *data, size_t len);
 bool nullseat_eof(Seat *seat);
 void nullseat_sent(Seat *seat, size_t bufsize);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p);

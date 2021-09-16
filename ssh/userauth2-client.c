@@ -530,7 +530,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 bool mid_line = false;
                 while (bufchain_size(&s->banner) > 0) {
                     ptrlen data = bufchain_prefix(&s->banner);
-                    seat_stderr_pl(s->ppl.seat, data);
+                    seat_banner_pl(s->ppl.seat, data);
                     mid_line =
                         (((const char *)data.ptr)[data.len-1] != '\n');
                     bufchain_consume(&s->banner, data.len);
@@ -538,7 +538,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 bufchain_clear(&s->banner);
 
                 if (mid_line)
-                    seat_stderr_pl(s->ppl.seat, PTRLEN_LITERAL("\r\n"));
+                    seat_banner_pl(s->ppl.seat, PTRLEN_LITERAL("\r\n"));
 
                 if (s->banner_scc) {
                     seat_set_trust_status(s->ppl.seat, true);
@@ -1919,6 +1919,6 @@ static void ssh2_userauth_antispoof_msg(
             put_byte(sb, '-');
     }
     put_datapl(sb, PTRLEN_LITERAL("\r\n"));
-    seat_stderr_pl(s->ppl.seat, ptrlen_from_strbuf(sb));
+    seat_banner_pl(s->ppl.seat, ptrlen_from_strbuf(sb));
     strbuf_free(sb);
 }
