@@ -17,6 +17,7 @@ prompts_t *new_prompts(void)
     p->name_reqd = p->instr_reqd = false;
     p->callback = NULL;
     p->callback_ctx = NULL;
+    p->ldisc_ptr_to_us = NULL;
     return p;
 }
 
@@ -49,6 +50,12 @@ char *prompt_get_result(prompt_t *pr)
 void free_prompts(prompts_t *p)
 {
     size_t i;
+
+    /* If an Ldisc currently knows about us, tell it to forget us, so
+     * it won't dereference a stale pointer later. */
+    if (p->ldisc_ptr_to_us)
+        *p->ldisc_ptr_to_us = NULL;
+
     for (i=0; i < p->n_prompts; i++) {
         prompt_t *pr = p->prompts[i];
         strbuf_free(pr->result);

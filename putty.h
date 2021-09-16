@@ -767,7 +767,8 @@ typedef struct {
     bool echo;
     strbuf *result;
 } prompt_t;
-typedef struct {
+typedef struct prompts_t prompts_t;
+struct prompts_t {
     /*
      * Indicates whether the information entered is to be used locally
      * (for instance a key passphrase prompt), or is destined for the wire.
@@ -806,7 +807,14 @@ typedef struct {
      */
     toplevel_callback_fn_t callback;
     void *callback_ctx;
-} prompts_t;
+
+    /*
+     * When this prompts_t is known to an Ldisc, we might need to
+     * break the connection if things get freed in an emergency. So
+     * this is a pointer to the Ldisc's pointer to us.
+     */
+    prompts_t **ldisc_ptr_to_us;
+};
 prompts_t *new_prompts(void);
 void add_prompt(prompts_t *p, char *promptstr, bool echo);
 void prompt_set_result(prompt_t *pr, const char *newstr);

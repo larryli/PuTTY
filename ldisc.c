@@ -182,6 +182,8 @@ void ldisc_free(Ldisc *ldisc)
         backend_provide_ldisc(ldisc->backend, NULL);
     if (ldisc->buf)
         sfree(ldisc->buf);
+    if (ldisc->prompts && ldisc->prompts->ldisc_ptr_to_us == &ldisc->prompts)
+        ldisc->prompts->ldisc_ptr_to_us = NULL;
     delete_callbacks_for_context(ldisc);
     sfree(ldisc);
 }
@@ -201,6 +203,8 @@ void ldisc_enable_prompt_callback(Ldisc *ldisc, prompts_t *prompts)
      * that it can continue the interactive prompting process.
      */
     ldisc->prompts = prompts;
+    if (prompts)
+        ldisc->prompts->ldisc_ptr_to_us = &ldisc->prompts;
 }
 
 static void ldisc_input_queue_callback(void *ctx)
