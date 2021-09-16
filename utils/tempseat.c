@@ -14,10 +14,28 @@
 
 #include "putty.h"
 
+struct output_chunk {
+    struct output_chunk *next;
+    SeatOutputType type;
+    size_t size;
+};
+
 typedef struct TempSeat TempSeat;
 struct TempSeat {
     Seat *realseat;
-    bufchain outputs[3]; /* stdout, stderr, auth banner (just in case) */
+
+    /*
+     * Single bufchain to hold all the buffered output, regardless of
+     * its type.
+     */
+    bufchain output;
+
+    /*
+     * List of pieces of that bufchain that are intended for one or
+     * another output destination
+     */
+    struct output_chunk *outchunk_head, *outchunk_tail;
+
     bool seen_session_started;
     bool seen_remote_exit;
     bool seen_remote_disconnect;
@@ -38,14 +56,24 @@ static size_t tempseat_output(Seat *seat, SeatOutputType type,
 {
     TempSeat *ts = container_of(seat, TempSeat, seat);
 
-    size_t index = (size_t)type;
-    assert(index < lenof(ts->outputs));
-    bufchain_add(&ts->outputs[index], data, len);
+    bufchain_add(&ts->output, data, len);
 
-    size_t total_size = 0;
-    for (size_t i = 0; i < lenof(ts->outputs); i++)
-        total_size += bufchain_size(&ts->outputs[i]);
-    return total_size;
+    if (!(ts->outchunk_tail && ts->outchunk_tail->type == type)) {
+        struct output_chunk *new_chunk = snew(struct output_chunk);
+
+        new_chunk->type = type;
+        new_chunk->size = 0;
+
+        new_chunk->next = NULL;
+        if (ts->outchunk_tail)
+            ts->outchunk_tail->next = new_chunk;
+        else
+            ts->outchunk_head = new_chunk;
+        ts->outchunk_tail = new_chunk;
+    }
+    ts->outchunk_tail->type += len;
+
+    return bufchain_size(&ts->output);
 }
 
 static void tempseat_notify_session_started(Seat *seat)
@@ -302,8 +330,8 @@ Seat *tempseat_new(Seat *realseat)
     ts->seat.vt = &tempseat_vt;
 
     ts->realseat = realseat;
-    for (size_t i = 0; i < lenof(ts->outputs); i++)
-        bufchain_init(&ts->outputs[i]);
+    bufchain_init(&ts->output);
+    ts->outchunk_head = ts->outchunk_tail = NULL;
 
     return &ts->seat;
 }
@@ -324,8 +352,12 @@ void tempseat_free(Seat *seat)
 {
     assert(seat->vt == &tempseat_vt);
     TempSeat *ts = container_of(seat, TempSeat, seat);
-    for (unsigned i = 0; i < 2; i++)
-        bufchain_clear(&ts->outputs[i]);
+    bufchain_clear(&ts->output);
+    while (ts->outchunk_head) {
+        struct output_chunk *chunk = ts->outchunk_head;
+        ts->outchunk_head = chunk->next;
+        sfree(chunk);
+    }
     sfree(ts);
 }
 
@@ -334,14 +366,28 @@ void tempseat_flush(Seat *seat)
     assert(seat->vt == &tempseat_vt);
     TempSeat *ts = container_of(seat, TempSeat, seat);
 
-    /* Empty the output bufchains into the real seat */
-    for (size_t i = 0; i < lenof(ts->outputs); i++) {
-        while (bufchain_size(&ts->outputs[i])) {
-            ptrlen pl = bufchain_prefix(&ts->outputs[i]);
-            seat_output(ts->realseat, i, pl.ptr, pl.len);
-            bufchain_consume(&ts->outputs[i], pl.len);
+    /* Empty the output bufchains into the real seat, taking care to
+     * preserve both separation and interleaving */
+    while (bufchain_size(&ts->output)) {
+        ptrlen pl = bufchain_prefix(&ts->output);
+
+        assert(ts->outchunk_head);
+        struct output_chunk *chunk = ts->outchunk_head;
+
+        if (pl.len > chunk->size)
+            pl.len = chunk->size;
+
+        seat_output(ts->realseat, chunk->type, pl.ptr, pl.len);
+        bufchain_consume(&ts->output, pl.len);
+        chunk->size -= pl.len;
+        if (chunk->size == 0) {
+            ts->outchunk_head = chunk->next;
+            sfree(chunk);
         }
     }
+
+    /* That should have exactly emptied the output chunk list too */
+    assert(!ts->outchunk_head);
 
     /* Pass on any other kinds of event we've buffered */
     if (ts->seen_session_started)
