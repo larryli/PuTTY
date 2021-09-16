@@ -419,24 +419,39 @@ static int sshproxy_confirm_weak_cached_hostkey(
     return 0;
 }
 
+static StripCtrlChars *sshproxy_stripctrl_new(
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    if (sp->clientseat)
+        return seat_stripctrl_new(sp->clientseat, bs_out, sic);
+    else
+        return NULL;
+}
+
 static void sshproxy_set_trust_status(Seat *seat, bool trusted)
 {
-    /*
-     * This is called by the proxy SSH connection, to set our Seat
-     * into a given trust status. We can safely do nothing here, and
-     * have can_set_trust_status return true to claim we did something
-     * (effectively eliminating the spoofing defences completely, by
-     * suppressing the 'press Return to begin session' prompt and not
-     * providing anything in place of it), on the basis that session
-     * I/O from the proxy SSH connection is never passed directly on
-     * to the end user, so a malicious proxy SSH server wouldn't be
-     * able to spoof our human in any case.
-     */
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    if (sp->clientseat)
+        seat_set_trust_status(sp->clientseat, trusted);
 }
 
 static bool sshproxy_can_set_trust_status(Seat *seat)
 {
-    return true; /* see comment above */
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    return sp->clientseat && seat_can_set_trust_status(sp->clientseat);
+}
+
+static bool sshproxy_verbose(Seat *seat)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    return sp->clientseat && seat_verbose(sp->clientseat);
+}
+
+static bool sshproxy_interactive(Seat *seat)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    return sp->clientseat && seat_interactive(sp->clientseat);
 }
 
 static const SeatVtable SshProxy_seat_vt = {
@@ -459,11 +474,11 @@ static const SeatVtable SshProxy_seat_vt = {
     .get_x_display = nullseat_get_x_display,
     .get_windowid = nullseat_get_windowid,
     .get_window_pixel_size = nullseat_get_window_pixel_size,
-    .stripctrl_new = nullseat_stripctrl_new,
+    .stripctrl_new = sshproxy_stripctrl_new,
     .set_trust_status = sshproxy_set_trust_status,
     .can_set_trust_status = sshproxy_can_set_trust_status,
-    .verbose = nullseat_verbose_no,
-    .interactive = nullseat_interactive_no,
+    .verbose = sshproxy_verbose,
+    .interactive = sshproxy_interactive,
     .get_cursor_position = nullseat_get_cursor_position,
 };
 
