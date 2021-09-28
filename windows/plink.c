@@ -138,7 +138,7 @@ static void usage(void)
     printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
     printf("            Specify the serial configuration (serial only)\n");
     printf("The following options only apply to SSH connections:\n");
-    printf("  -pw passw login with specified password\n");
+    printf("  -pwfile file   login with password read from specified file\n");
     printf("  -D [listen-IP:]listen-port\n");
     printf("            Dynamic SOCKS-based port forwarding\n");
     printf("  -L [listen-IP:]listen-port:host:port\n");

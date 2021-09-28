@@ -89,11 +89,16 @@ channel from the server, to prevent remote processes sending confusing
 escape sequences. This option forces the standard error channel to not be
 filtered.
 
+\dt \cw{-pwfile} \e{filename}
+
+\dd Open the specified file, and use the first line of text read from
+it as the remote password.
+
 \dt \cw{-pw} \e{password}
 
 \dd Set remote password to \e{password}. \e{CAUTION:} this will likely
 make the password visible to other users of the local machine (via
-commands such as \q{\c{w}}).
+commands such as \q{\c{ps}} or \q{\c{w}}). Use \cw{-pwfile} instead.
 
 \dt \cw{-1}
 

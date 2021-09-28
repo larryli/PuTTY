@@ -838,17 +838,23 @@ any case.)
 This option is equivalent to the port number control in the Session
 panel of the PuTTY configuration box (see \k{config-hostname}).
 
-\S2{using-cmdline-pw} \i\c{-pw}: specify a \i{password}
+\S2{using-cmdline-pw} \i\c{-pwfile} and \i\c{-pw}: specify a \i{password}
 
 A simple way to automate a remote login is to supply your password
-on the command line. This is \e{not recommended} for reasons of
-security. If you possibly can, we recommend you set up public-key
-authentication instead. See \k{pubkey} for details.
+on the command line.
 
-Note that the \c{-pw} option only works when you are using the SSH
-protocol. Due to fundamental limitations of Telnet, Rlogin, and
-SUPDUP, these protocols do not support automated password
-authentication.
+The \c{-pwfile} option takes a file name as an argument. The first
+line of text in that file will be used as your password.
+
+The \c{-pw} option takes the password itself as an argument. This is
+\s{NOT SECURE} if anybody else uses the same computer, because the
+whole command line (including the password) is likely to show up if
+another user lists the running processes. \c{-pw} is retained for
+backwards compatibility only; you should use \c{-pwfile} instead.
+
+Note that these options only work when you are using the SSH protocol.
+Due to fundamental limitations of Telnet, Rlogin, and SUPDUP, these
+protocols do not support automated password authentication.
 
 \S2{using-cmdline-agentauth} \i\c{-agent} and \i\c{-noagent}:
 control use of Pageant for authentication
