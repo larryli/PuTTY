@@ -140,6 +140,8 @@ struct server_config {
 
     RSAKey *hostkey1;
 
+    unsigned auth_methods;
+
     struct AuthPolicyShared *ap_shared;
 
     Socket *listening_socket;
@@ -199,18 +201,13 @@ unsigned auth_methods(AuthPolicy *ap)
 {
     struct server_instance *inst = container_of(
         ap, struct server_instance, ap);
-    unsigned methods = (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD |
-                        AUTHMETHOD_KBDINT | AUTHMETHOD_TIS |
-                        AUTHMETHOD_CRYPTOCARD);
-    if (inst->cfg->ssc->stunt_allow_none_auth)
-        methods |= AUTHMETHOD_NONE;
-    return methods;
+    return inst->cfg->auth_methods;
 }
 bool auth_none(AuthPolicy *ap, ptrlen username)
 {
     struct server_instance *inst = container_of(
         ap, struct server_instance, ap);
-    if (inst->cfg->ssc->stunt_allow_none_auth)
+    if (inst->cfg->auth_methods & AUTHMETHOD_NONE)
         return true;
     return false;
 }
@@ -543,12 +540,32 @@ static const PlugVtable server_plugvt = {
     .accepting = server_accepting,
 };
 
+static unsigned auth_method_from_name(const char *name)
+{
+    if (!strcmp(name, "none"))
+        return AUTHMETHOD_NONE;
+    if (!strcmp(name, "tis"))
+        return AUTHMETHOD_TIS;
+    if (!strcmp(name, "cryptocard") || !strcmp(name, "ccard"))
+        return AUTHMETHOD_CRYPTOCARD;
+    if (!strcmp(name, "keyboard-interactive") || !strcmp(name, "k-i") ||
+        !strcmp(name, "kbdint")  || !strcmp(name, "ki"))
+        return AUTHMETHOD_KBDINT;
+    if (!strcmp(name, "publickey") || !strcmp(name, "pubkey") ||
+        !strcmp(name, "pk"))
+        return AUTHMETHOD_PUBLICKEY;
+    if (!strcmp(name, "password") || !strcmp(name, "pw"))
+        return AUTHMETHOD_PASSWORD;
+    return 0;
+}
+
 struct cmdline_instance {
     int listen_port;
     const char *listen_socket;
     ssh_key **hostkeys;
     size_t nhostkeys, hostkeysize;
     RSAKey *hostkey1;
+    unsigned auth_methods;
     struct AuthPolicyShared aps;
     SshServerConfig ssc;
     Conf *conf;
@@ -574,6 +591,10 @@ static void init_cmdline_instance(struct cmdline_instance *ci)
     ci->ssc.session_starting_dir = getenv("HOME");
     ci->ssc.ssh1_cipher_mask = SSH1_SUPPORTED_CIPHER_MASK;
     ci->ssc.ssh1_allow_compression = true;
+
+    ci->auth_methods = (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD |
+                        AUTHMETHOD_KBDINT | AUTHMETHOD_TIS |
+                        AUTHMETHOD_CRYPTOCARD);
 }
 
 static void cmdline_instance_start(struct cmdline_instance *ci)
@@ -588,6 +609,7 @@ static void cmdline_instance_start(struct cmdline_instance *ci)
     scfg->nhostkeys = ci->nhostkeys;
     scfg->hostkey1 = ci->hostkey1;
     scfg->ap_shared = &ci->aps;
+    scfg->auth_methods = ci->auth_methods;
 
     if (ci->listen_port >= 0 || ci->listen_socket) {
         listening = true;
@@ -835,6 +857,22 @@ int main(int argc, char **argv)
             ci->ssc.kex_override[KEXLIST_SCMAC] = ptrlen_from_asciz(val);
         } else if (longoptarg(arg, "--kexinit-sccomp", &val, &argc, &argv)) {
             ci->ssc.kex_override[KEXLIST_SCCOMP] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--allow-auth", &val, &argc, &argv)) {
+            unsigned method = auth_method_from_name(val);
+            if (!method) {
+                fprintf(stderr, "%s: unrecognised auth method '%s'\n",
+                        appname, val);
+                exit(1);
+            }
+            ci->auth_methods |= method;
+        } else if (longoptarg(arg, "--deny-auth", &val, &argc, &argv)) {
+            unsigned method = auth_method_from_name(val);
+            if (!method) {
+                fprintf(stderr, "%s: unrecognised auth method '%s'\n",
+                        appname, val);
+                exit(1);
+            }
+            ci->auth_methods &= ~method;
         } else if (longoptarg(arg, "--ssh1-ciphers", &val, &argc, &argv)) {
             ptrlen list = ptrlen_from_asciz(val);
             ptrlen word;
@@ -877,7 +915,8 @@ int main(int argc, char **argv)
         } else if (!strcmp(arg, "--open-unconditional-agent-socket")) {
             ci->ssc.stunt_open_unconditional_agent_socket = true;
         } else if (!strcmp(arg, "--allow-none-auth")) {
-            ci->ssc.stunt_allow_none_auth = true;
+            /* backwards-compatibility synonym for --allow-auth=none */
+            ci->auth_methods |= AUTHMETHOD_NONE;
         } else if (!strcmp(arg, "--allow-trivial-ki-auth")) {
             ci->ssc.stunt_allow_trivial_ki_auth = true;
         } else if (!strcmp(arg, "--return-success-to-pubkey-offer")) {
