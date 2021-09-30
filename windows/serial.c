@@ -73,7 +73,8 @@ static size_t serial_gotdata(
     }
 }
 
-static void serial_sentdata(struct handle *h, size_t new_backlog, int err)
+static void serial_sentdata(struct handle *h, size_t new_backlog, int err,
+                            bool close)
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
     if (err) {

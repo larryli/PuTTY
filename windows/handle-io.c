@@ -284,6 +284,7 @@ struct handle_output {
      * drops.
      */
     handle_outputfn_t sentdata;
+    struct handle *sentdata_param;
 };
 
 static DWORD WINAPI handle_output_threadfunc(void *param)
@@ -361,7 +362,7 @@ static void handle_try_output(struct handle_output *ctx)
         ctx->busy = true;
     } else if (!ctx->busy && bufchain_size(&ctx->queued_data) == 0 &&
                ctx->outgoingeof == EOF_PENDING) {
-        CloseHandle(ctx->h);
+        ctx->sentdata(ctx->sentdata_param, 0, 0, true);
         ctx->h = INVALID_HANDLE_VALUE;
         ctx->outgoingeof = EOF_SENT;
     }
@@ -507,6 +508,7 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
     bufchain_init(&h->u.o.queued_data);
     h->u.o.outgoingeof = EOF_NO;
     h->u.o.sentdata = sentdata;
+    h->u.o.sentdata_param = h;
     h->u.o.flags = flags;
 
     ensure_ready_event_setup();
@@ -644,11 +646,11 @@ static void handle_ready(struct handle *h)
              * thread is terminating by now).
              */
             h->u.o.defunct = true;
-            h->u.o.sentdata(h, 0, h->u.o.writeerr);
+            h->u.o.sentdata(h, 0, h->u.o.writeerr, false);
         } else {
             bufchain_consume(&h->u.o.queued_data, h->u.o.lenwritten);
             noise_ultralight(NOISE_SOURCE_IOLEN, h->u.o.lenwritten);
-            h->u.o.sentdata(h, bufchain_size(&h->u.o.queued_data), 0);
+            h->u.o.sentdata(h, bufchain_size(&h->u.o.queued_data), 0, false);
             handle_try_output(&h->u.o);
         }
         break;

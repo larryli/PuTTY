@@ -615,7 +615,7 @@ struct handle;
 typedef size_t (*handle_inputfn_t)(
     struct handle *h, const void *data, size_t len, int err);
 typedef void (*handle_outputfn_t)(
-    struct handle *h, size_t new_backlog, int err);
+    struct handle *h, size_t new_backlog, int err, bool close);
 struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
                                 void *privdata, int flags);
 struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,

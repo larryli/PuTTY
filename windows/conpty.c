@@ -120,7 +120,8 @@ static size_t conpty_gotdata(
     }
 }
 
-static void conpty_sentdata(struct handle *h, size_t new_backlog, int err)
+static void conpty_sentdata(struct handle *h, size_t new_backlog, int err,
+                            bool close)
 {
     ConPTY *conpty = (ConPTY *)handle_get_privdata(h);
     if (err) {

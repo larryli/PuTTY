@@ -93,9 +93,18 @@ static size_t handle_stderr(
     return 0;
 }
 
-static void handle_sentdata(struct handle *h, size_t new_backlog, int err)
+static void handle_sentdata(struct handle *h, size_t new_backlog, int err,
+                            bool close)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
+
+    if (close) {
+        if (hs->send_H != INVALID_HANDLE_VALUE)
+            CloseHandle(hs->send_H);
+        if (hs->recv_H != INVALID_HANDLE_VALUE && hs->recv_H != hs->send_H)
+            CloseHandle(hs->recv_H);
+        hs->send_H = hs->recv_H = INVALID_HANDLE_VALUE;
+    }
 
     if (err) {
         plug_closing(hs->plug, win_strerror(err), err, 0);
@@ -125,8 +134,9 @@ static void sk_handle_close(Socket *s)
 
     handle_free(hs->send_h);
     handle_free(hs->recv_h);
-    CloseHandle(hs->send_H);
-    if (hs->recv_H != hs->send_H)
+    if (hs->send_H != INVALID_HANDLE_VALUE)
+        CloseHandle(hs->send_H);
+    if (hs->recv_H != INVALID_HANDLE_VALUE && hs->recv_H != hs->send_H)
         CloseHandle(hs->recv_H);
     bufchain_clear(&hs->inputdata);
 
