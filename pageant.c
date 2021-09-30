@@ -836,6 +836,7 @@ static PageantAsyncOp *pageant_make_op(
         so->pao.info = pc->info;
         so->pao.cr.prev = pc->info->head.prev;
         so->pao.cr.next = &pc->info->head;
+        so->pao.cr.prev->next = so->pao.cr.next->prev = &so->pao.cr;
         so->pao.reqid = reqid;
         so->pk = pk;
         so->pkr.prev = so->pkr.next = NULL;
@@ -1353,6 +1354,7 @@ static PageantAsyncOp *pageant_make_op(
     io->pao.info = pc->info;
     io->pao.cr.prev = pc->info->head.prev;
     io->pao.cr.next = &pc->info->head;
+    io->pao.cr.prev->next = io->pao.cr.next->prev = &io->pao.cr;
     io->pao.reqid = reqid;
     io->response = sb;
     io->crLine = 0;
