@@ -1648,8 +1648,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
         HandleWaitList *hwl = get_handle_wait_list();
 
+        DWORD timeout = toplevel_callback_pending() ? 0 : INFINITE;
         n = MsgWaitForMultipleObjects(hwl->nhandles, hwl->handles, false,
-                                      INFINITE, QS_ALLINPUT);
+                                      timeout, QS_ALLINPUT);
 
         if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)hwl->nhandles)
             handle_wait_activate(hwl, n - WAIT_OBJECT_0);
