@@ -9,6 +9,8 @@ add_subdirectory(doc)
 
 add_compile_definitions(HAVE_CMAKE_H)
 
+include_directories(terminal)
+
 add_library(utils STATIC
   ${GENERATED_COMMIT_C})
 add_dependencies(utils cmake_commit_c)
@@ -41,7 +43,8 @@ add_library(agent STATIC
   sshpubk.c pageant.c aqsync.c)
 
 add_library(guiterminal STATIC
-  terminal.c ldisc.c minibidi.c config.c dialog.c
+  terminal/terminal.c terminal/bidi.c
+  ldisc.c config.c dialog.c
   $<TARGET_OBJECTS:logging>)
 
 add_library(noterminal STATIC

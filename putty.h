@@ -2352,7 +2352,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo);
 
 /*
- * Exports from minibidi.c.
+ * Exports from bidi.c.
  */
 #define BIDI_CHAR_INDEX_NONE ((unsigned short)-1)
 typedef struct bidi_char {
