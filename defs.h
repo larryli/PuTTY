@@ -170,6 +170,8 @@ typedef struct SessionSpecial SessionSpecial;
 
 typedef struct StripCtrlChars StripCtrlChars;
 
+typedef struct BidiContext BidiContext;
+
 /*
  * A small structure wrapping up a (pointer, length) pair so that it
  * can be conveniently passed to or from a function.

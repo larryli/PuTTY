@@ -2359,7 +2359,9 @@ typedef struct bidi_char {
     unsigned int origwc, wc;
     unsigned short index, nchars;
 } bidi_char;
-int do_bidi(bidi_char *line, int count);
+BidiContext *bidi_new_context(void);
+void bidi_free_context(BidiContext *ctx);
+void do_bidi(BidiContext *ctx, bidi_char *line, size_t count);
 int do_shape(bidi_char *line, bidi_char *to, int count);
 bool is_rtl(int c);
 

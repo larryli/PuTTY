@@ -1116,6 +1116,22 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
     return 1;
 }
 
+struct BidiContext {
+    int dummy;
+};
+
+BidiContext *bidi_new_context(void)
+{
+    BidiContext *ctx = snew(BidiContext);
+    memset(ctx, 0, sizeof(BidiContext));
+    return ctx;
+}
+
+void bidi_free_context(BidiContext *ctx)
+{
+    sfree(ctx);
+}
+
 /*
  * The Main Bidi Function, and the only function that should
  * be used by the outside world.
@@ -1124,7 +1140,7 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
  * the Bidirectional algorithm to.
  */
 
-int do_bidi(bidi_char *line, int count)
+void do_bidi(BidiContext *ctx, bidi_char *line, size_t count)
 {
     unsigned char* types;
     unsigned char* levels;
@@ -1145,7 +1161,7 @@ int do_bidi(bidi_char *line, int count)
         }
     }
     if (!yes)
-        return L;
+        return;
 
     /* Initialize types, levels */
     types = snewn(count, unsigned char);
@@ -1565,7 +1581,7 @@ int do_bidi(bidi_char *line, int count)
      */
     sfree(types);
     sfree(levels);
-    return R;
+    return;
 }
 
 

@@ -353,6 +353,8 @@ struct terminal_tag {
     char *window_title, *icon_title;
     bool minimised;
 
+    BidiContext *bidi_ctx;
+
     /* Multi-layered colour palette. The colours from Conf (plus the
      * default xterm-256 ones that don't have Conf ids at all) have
      * lowest priority, followed by platform overrides if any,

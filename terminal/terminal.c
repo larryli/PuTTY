@@ -2048,6 +2048,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->win_scrollbar_update_pending = false;
     term->win_palette_pending = false;
 
+    term->bidi_ctx = bidi_new_context();
+
     palette_reset(term, false);
 
     return term;
@@ -2106,6 +2108,8 @@ void term_free(Terminal *term)
 
     sfree(term->window_title);
     sfree(term->icon_title);
+
+    bidi_free_context(term->bidi_ctx);
 
     sfree(term);
 }
@@ -5662,7 +5666,7 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
             }
 
             if(!term->no_bidi)
-                do_bidi(term->wcFrom, nbc);
+                do_bidi(term->bidi_ctx, term->wcFrom, nbc);
 
             if(!term->no_arabicshaping) {
                 do_shape(term->wcFrom, term->wcTo, nbc);
