@@ -25,73 +25,17 @@
 
 #include "putty.h"
 #include "misc.h"
-
-#define LMASK   0x3F    /* Embedding Level mask */
-#define OMASK   0xC0    /* Override mask */
-#define OISL    0x80    /* Override is L */
-#define OISR    0x40    /* Override is R */
-
-/* For standalone compilation in a testing mode.
- * Still depends on the PuTTY headers for snewn and sfree, but can avoid
- * _linking_ with any other PuTTY code. */
-#ifdef TEST_GETTYPE
-#define safemalloc malloc
-#define safefree free
-#endif
-
-/* Shaping Helpers */
-#define STYPE(xh) ((((xh) >= SHAPE_FIRST) && ((xh) <= SHAPE_LAST)) ? \
-shapetypes[(xh)-SHAPE_FIRST].type : SU) /*))*/
-#define SISOLATED(xh) (shapetypes[(xh)-SHAPE_FIRST].form_b)
-#define SFINAL(xh) ((xh)+1)
-#define SINITIAL(xh) ((xh)+2)
-#define SMEDIAL(ch) ((ch)+3)
-
-#define leastGreaterOdd(x) ( ((x)+1) | 1 )
-#define leastGreaterEven(x) ( ((x)+2) &~ 1 )
+#include "bidi.h"
 
 /* function declarations */
 static void flipThisRun(
     bidi_char *from, unsigned char *level, int max, int count);
 static int findIndexOfRun(
     unsigned char *level, int start, int count, int tlevel);
-static unsigned char getType(int ch);
 static unsigned char setOverrideBits(
     unsigned char level, unsigned char override);
 static int getPreviousLevel(unsigned char *level, int from);
 static void doMirror(unsigned int *ch);
-
-/* character types */
-enum {
-    L,
-    LRE,
-    LRO,
-    R,
-    AL,
-    RLE,
-    RLO,
-    PDF,
-    EN,
-    ES,
-    ET,
-    AN,
-    CS,
-    NSM,
-    BN,
-    B,
-    S,
-    WS,
-    ON
-};
-
-/* Shaping Types */
-enum {
-    SL, /* Left-Joining, doesn't exist in U+0600 - U+06FF */
-    SR, /* Right-Joining, ie has Isolated, Final */
-    SD, /* Dual-Joining, ie has Isolated, Final, Initial, Medial */
-    SU, /* Non-Joining */
-    SC  /* Join-Causing, like U+0640 (TATWEEL) */
-};
 
 typedef struct {
     char type;
@@ -354,7 +298,7 @@ perl -ne 'split ";"; $num = hex $_[0]; $type = $_[4];' \
     UnicodeData.txt
 
  */
-static unsigned char getType(int ch)
+unsigned char bidi_getType(int ch)
 {
     static const struct {
         int first, last, type;
@@ -1036,7 +980,7 @@ bool is_rtl(int c)
      */
     const int mask = (1<<R) | (1<<AL) | (1<<RLE) | (1<<RLO);
 
-    return mask & (1 << (getType(c)));
+    return mask & (1 << (bidi_getType(c)));
 }
 
 /*
@@ -1194,7 +1138,7 @@ int do_bidi(bidi_char *line, int count)
     /* Check the presence of R or AL types as optimization */
     yes = false;
     for (i=0; i<count; i++) {
-        int type = getType(line[i].wc);
+        int type = bidi_getType(line[i].wc);
         if (type == R || type == AL) {
             yes = true;
             break;
@@ -1220,7 +1164,7 @@ int do_bidi(bidi_char *line, int count)
      */
     paragraphLevel = 0;
     for (i=0; i<count ; i++) {
-        int type = getType(line[i].wc);
+        int type = bidi_getType(line[i].wc);
         if (type == R || type == AL) {
             paragraphLevel = 1;
             break;
@@ -1255,7 +1199,7 @@ int do_bidi(bidi_char *line, int count)
      */
     bover = false;
     for (i=0; i<count; i++) {
-        tempType = getType(line[i].wc);
+        tempType = bidi_getType(line[i].wc);
         switch (tempType) {
           case RLE:
             currentEmbedding = levels[i] = leastGreaterOdd(currentEmbedding);
@@ -1556,7 +1500,7 @@ int do_bidi(bidi_char *line, int count)
      * modified by the previous phase.
      */
     j=count-1;
-    while (j>0 && (getType(line[j].wc) == WS)) {
+    while (j>0 && (bidi_getType(line[j].wc) == WS)) {
         j--;
     }
     if (j < (count-1)) {
@@ -1564,14 +1508,14 @@ int do_bidi(bidi_char *line, int count)
             levels[j] = paragraphLevel;
     }
     for (i=0; i<count; i++) {
-        tempType = getType(line[i].wc);
+        tempType = bidi_getType(line[i].wc);
         if (tempType == WS) {
             j=i;
-            while (j<count && (getType(line[j].wc) == WS)) {
+            while (j<count && (bidi_getType(line[j].wc) == WS)) {
                 j++;
             }
-            if (j==count || getType(line[j].wc) == B ||
-                getType(line[j].wc) == S) {
+            if (j==count || bidi_getType(line[j].wc) == B ||
+                bidi_getType(line[j].wc) == S) {
                 for (j--; j>=i ; j--) {
                     levels[j] = paragraphLevel;
                 }
@@ -1979,47 +1923,3 @@ static void doMirror(unsigned int *ch)
         }
     }
 }
-
-#ifdef TEST_GETTYPE
-
-#include <stdio.h>
-#include <assert.h>
-
-int main(int argc, char **argv)
-{
-    static const struct { int type; char *name; } typetoname[] = {
-#define TYPETONAME(X) { X , #X }
-        TYPETONAME(L),
-        TYPETONAME(LRE),
-        TYPETONAME(LRO),
-        TYPETONAME(R),
-        TYPETONAME(AL),
-        TYPETONAME(RLE),
-        TYPETONAME(RLO),
-        TYPETONAME(PDF),
-        TYPETONAME(EN),
-        TYPETONAME(ES),
-        TYPETONAME(ET),
-        TYPETONAME(AN),
-        TYPETONAME(CS),
-        TYPETONAME(NSM),
-        TYPETONAME(BN),
-        TYPETONAME(B),
-        TYPETONAME(S),
-        TYPETONAME(WS),
-        TYPETONAME(ON),
-#undef TYPETONAME
-    };
-    int i;
-
-    for (i = 1; i < argc; i++) {
-        unsigned long chr = strtoul(argv[i], NULL, 0);
-        int type = getType(chr);
-        assert(typetoname[type].type == type);
-        printf("U+%04x: %s\n", (unsigned)chr, typetoname[type].name);
-    }
-
-    return 0;
-}
-
-#endif
