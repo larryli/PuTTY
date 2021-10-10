@@ -3,9 +3,9 @@
  * algorithms for PuTTY.
  *
  * Original version written and kindly contributed to this code base
- * by Arabeyes. The bidi part was almost completely rewritten in 2021
- * by Simon Tatham to bring it up to date, but the shaping part is
- * still the one by the original authors.
+ * by Ahmad Khalifa of Arabeyes. The bidi part was almost completely
+ * rewritten in 2021 by Simon Tatham to bring it up to date, but the
+ * shaping part is still the one by the original authors.
  *
  * Implementation notes:
  *
@@ -80,7 +80,7 @@
  *
  * This would be fine, if it were not for the fact that - as far as I
  * can see - _exactly one_ Unicode code point in the discarded
- * category has a wcwidth() of more than 1, namely U+00AD SOFT HYPHEN
+ * category has a wcwidth() of more than 0, namely U+00AD SOFT HYPHEN
  * which is a printing character for terminal purposes but has a bidi
  * class of BN.
  *
