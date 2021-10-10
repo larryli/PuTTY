@@ -3589,6 +3589,14 @@ void do_bidi_new(BidiContext *ctx, bidi_char *text, size_t textlen)
     reverse_sequences(ctx);
 }
 
+size_t do_bidi_test(BidiContext *ctx, bidi_char *text, size_t textlen,
+                    int override)
+{
+    ctx->paragraphOverride = (override > 0 ? L : override < 0 ? R : ON);
+    do_bidi_new(ctx, text, textlen);
+    return ctx->textlen;
+}
+
 void do_bidi(BidiContext *ctx, bidi_char *text, size_t textlen)
 {
 #ifdef REMOVE_FORMATTING_CHARACTERS

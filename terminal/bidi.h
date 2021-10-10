@@ -131,4 +131,17 @@ static inline bool typeIsETOrBN(BidiType t)
     return ((1<<ET) | (1<<BN)) & (1 << t);
 }
 
+/*
+ * More featureful interface to the bidi code, for use in bidi_test.c.
+ * It returns a potentially different value of textlen (in case we're
+ * compiling in REMOVE_FORMATTING_CHARACTERS mode), and also permits
+ * you to pass in an override to the paragraph direction (because many
+ * of the UCD conformance tests use one).
+ *
+ * 'override' is 0 for no override, +1 for left-to-right, -1 for
+ * right-to-left.
+ */
+size_t do_bidi_test(BidiContext *ctx, bidi_char *text, size_t textlen,
+                    int override);
+
 #endif /* PUTTY_BIDI_H */

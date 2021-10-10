@@ -86,6 +86,10 @@ add_executable(bidi_gettype
   terminal/bidi_gettype.c)
 target_link_libraries(bidi_gettype guiterminal utils ${platform_libraries})
 
+add_executable(bidi_test
+  terminal/bidi_test.c)
+target_link_libraries(bidi_test guiterminal utils ${platform_libraries})
+
 add_executable(plink
   ${platform}/plink.c
   be_all_s.c)
