@@ -15,38 +15,18 @@ void out_of_memory(void)
     exit(2);
 }
 
+#define TYPETONAME(X) #X,
+static const char *const typenames[] = { BIDI_CHAR_TYPE_LIST(TYPETONAME) };
+#undef TYPETONAME
+
 int main(int argc, char **argv)
 {
-    static const struct { int type; char *name; } typetoname[] = {
-#define TYPETONAME(X) { X , #X }
-        TYPETONAME(L),
-        TYPETONAME(LRE),
-        TYPETONAME(LRO),
-        TYPETONAME(R),
-        TYPETONAME(AL),
-        TYPETONAME(RLE),
-        TYPETONAME(RLO),
-        TYPETONAME(PDF),
-        TYPETONAME(EN),
-        TYPETONAME(ES),
-        TYPETONAME(ET),
-        TYPETONAME(AN),
-        TYPETONAME(CS),
-        TYPETONAME(NSM),
-        TYPETONAME(BN),
-        TYPETONAME(B),
-        TYPETONAME(S),
-        TYPETONAME(WS),
-        TYPETONAME(ON),
-#undef TYPETONAME
-    };
     int i;
 
     for (i = 1; i < argc; i++) {
         unsigned long chr = strtoul(argv[i], NULL, 0);
         int type = bidi_getType(chr);
-        assert(typetoname[type].type == type);
-        printf("U+%04x: %s\n", (unsigned)chr, typetoname[type].name);
+        printf("U+%04x: %s\n", (unsigned)chr, typenames[type]);
     }
 
     return 0;
