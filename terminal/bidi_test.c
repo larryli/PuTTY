@@ -235,13 +235,13 @@ static void char_test(const char *filename, FILE *fp)
         }
 
         /* Break each test line up into its main fields */
-        ptrlen input_pl, para_dir_pl, para_level_pl, levels_pl, order_pl;
+        ptrlen input_pl, para_dir_pl, order_pl;
         {
             ptrlen pl = ptrlen_from_asciz(line);
             input_pl = ptrlen_get_word(&pl, ";");
             para_dir_pl = ptrlen_get_word(&pl, ";");
-            para_level_pl = ptrlen_get_word(&pl, ";");
-            levels_pl = ptrlen_get_word(&pl, ";");
+            ptrlen_get_word(&pl, ";"); /* paragraph level, which we ignore */
+            ptrlen_get_word(&pl, ";"); /* embedding levels, which we ignore */
             order_pl = ptrlen_get_word(&pl, ";");
         }
 

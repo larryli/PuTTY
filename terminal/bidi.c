@@ -3111,7 +3111,7 @@ static void eliminate_separators_between_numbers(BidiContext *ctx)
      * Section 5.2 adjustment: intervening BNs do not break this, so
      * instead of simply looking at types[irs[c-1]] and types[irs[c+1]],
      * we must track the last three indices we saw that were not BN. */
-    size_t i0 = 0, i1 = 0, i2 = 0;
+    size_t i1 = 0, i2 = 0;
     BidiType t0 = ON, t1 = ON, t2 = ON;
     for (size_t c = 0; c < ctx->irslen; c++) {
         size_t i = ctx->irs[c];
@@ -3122,7 +3122,7 @@ static void eliminate_separators_between_numbers(BidiContext *ctx)
             continue;
 #endif
 
-        i0 = i1; i1 = i2; i2 = i;
+        i1 = i2; i2 = i;
         t0 = t1; t1 = t2; t2 = t;
         if (t0 == t2 && ((t1 == ES && t0 == EN) ||
                          (t1 == CS && (t0 == EN || t0 == AN)))) {
