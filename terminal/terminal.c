@@ -5131,31 +5131,91 @@ static void term_out(Terminal *term)
                 break;
               case OSC_STRING:
                 /*
-                 * This OSC stuff is EVIL. It takes just one character to get into
-                 * sysline mode and it's not initially obvious how to get out.
-                 * So I've added CR and LF as string aborts.
-                 * This shouldn't effect compatibility as I believe embedded
-                 * control characters are supposed to be interpreted (maybe?)
-                 * and they don't display anything useful anyway.
+                 * OSC sequences can be terminated or aborted in
+                 * various ways.
                  *
-                 * -- RDB
+                 * The official way to terminate an OSC, per written
+                 * standards, is the String Terminator, SC. That can
+                 * appear in a 7-bit two-character form ESC \, or as
+                 * an 8-bit C1 control 0x9C.
+                 *
+                 * We only accept 0x9C in circumstances where it
+                 * doesn't interfere with our main character set
+                 * processing: so in ISO 8859-1, for example, the byte
+                 * 0x9C is interpreted as ST, but in CP437 it's
+                 * interpreted as an ordinary printing character (as
+                 * it happens, the pound sign), because you might
+                 * perfectly well want to put it in the window title
+                 * like any other printing character.
+                 *
+                 * In particular, in UTF-8 mode, 0x9C is a perfectly
+                 * valid continuation byte for an ordinary printing
+                 * character, so we don't accept the C1 control form
+                 * of ST unless it appears as a full UTF-8 character
+                 * in its own right, i.e. bytes 0xC2 0x9C.
+                 *
+                 * BEL is also treated as a clean termination of OSC,
+                 * which I believe was a behaviour introduced by
+                 * xterm.
+                 *
+                 * To prevent run-on storage of OSC data forever if
+                 * emission of a control sequence is interrupted, we
+                 * also treat various control characters as illegal,
+                 * so that they abort the OSC without processing it
+                 * and return to TOPLEVEL state. These are CR, LF, and
+                 * any ESC that is *not* followed by \.
                  */
+
                 if (c == '\012' || c == '\015') {
+                    /* CR or LF aborts */
                     term->termstate = TOPLEVEL;
-                } else if (c == 0234 || c == '\007') {
-                    /*
-                     * These characters terminate the string; ST and BEL
-                     * terminate the sequence and trigger instant
-                     * processing of it, whereas ESC goes back to SEEN_ESC
-                     * mode unless it is followed by \, in which case it is
-                     * synonymous with ST in the first place.
-                     */
+                    break;
+                }
+
+                if (c == '\033') {
+                    /* ESC goes into a state where we wait to see if
+                     * the next character is \ */
+                    term->termstate = OSC_MAYBE_ST;
+                    break;
+                }
+
+                if (c == '\007' || (c == 0x9C && !in_utf(term) &&
+                                    term->ucsdata->unitab_ctrl[c] != 0xFF)) {
+                    /* BEL, or the C1 ST appearing as a one-byte
+                     * encoding, cleanly terminates the OSC right here */
                     do_osc(term);
                     term->termstate = TOPLEVEL;
-                } else if (c == '\033')
-                    term->termstate = OSC_MAYBE_ST;
-                else if (term->osc_strlen < OSC_STR_MAX)
+                    break;
+                }
+
+                if (c == 0xC2 && in_utf(term)) {
+                    /* 0xC2 is the UTF-8 character that might
+                     * introduce the encoding of C1 ST */
+                    term->termstate = OSC_MAYBE_ST_UTF8;
+                    break;
+                }
+
+                /* Anything else gets added to the string */
+                if (term->osc_strlen < OSC_STR_MAX)
                     term->osc_string[term->osc_strlen++] = (char)c;
+                break;
+              case OSC_MAYBE_ST_UTF8:
+                /* In UTF-8 mode, we've seen C2, so are we now seeing
+                 * 9C? */
+                if (c == 0x9C) {
+                    /* Yes, so cleanly terminate the OSC */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                }
+                /* No, so append the pending C2 byte to the OSC string
+                 * followed by the current character, and go back to
+                 * OSC string accumulation */
+                if (term->osc_strlen < OSC_STR_MAX)
+                    term->osc_string[term->osc_strlen++] = 0xC2;
+                if (term->osc_strlen < OSC_STR_MAX)
+                    term->osc_string[term->osc_strlen++] = (char)c;
+                term->termstate = OSC_STRING;
                 break;
               case SEEN_OSC_P: {
                 int max = (term->osc_strlen == 0 ? 21 : 15);

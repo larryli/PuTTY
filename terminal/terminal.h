@@ -200,7 +200,7 @@ struct terminal_tag {
         DO_CTRLS,
 
         SEEN_OSC_P,
-        OSC_STRING, OSC_MAYBE_ST,
+        OSC_STRING, OSC_MAYBE_ST, OSC_MAYBE_ST_UTF8,
         VT52_ESC,
         VT52_Y1,
         VT52_Y2,
