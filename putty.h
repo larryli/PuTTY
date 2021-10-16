@@ -1414,8 +1414,9 @@ struct TermWinVtable {
 
     void (*request_resize)(TermWin *, int w, int h);
 
-    void (*set_title)(TermWin *, const char *title);
-    void (*set_icon_title)(TermWin *, const char *icontitle);
+    void (*set_title)(TermWin *, const char *title, int codepage);
+    void (*set_icon_title)(TermWin *, const char *icontitle, int codepage);
+
     /* set_minimised and set_maximised are assumed to set two
      * independent settings, rather than a single three-way
      * {min,normal,max} switch. The idea is that when you un-minimise
@@ -1480,10 +1481,11 @@ static inline void win_refresh(TermWin *win)
 { win->vt->refresh(win); }
 static inline void win_request_resize(TermWin *win, int w, int h)
 { win->vt->request_resize(win, w, h); }
-static inline void win_set_title(TermWin *win, const char *title)
-{ win->vt->set_title(win, title); }
-static inline void win_set_icon_title(TermWin *win, const char *icontitle)
-{ win->vt->set_icon_title(win, icontitle); }
+static inline void win_set_title(TermWin *win, const char *title, int codepage)
+{ win->vt->set_title(win, title, codepage); }
+static inline void win_set_icon_title(TermWin *win, const char *icontitle,
+                                      int codepage)
+{ win->vt->set_icon_title(win, icontitle, codepage); }
 static inline void win_set_minimised(TermWin *win, bool minimised)
 { win->vt->set_minimised(win, minimised); }
 static inline void win_set_maximised(TermWin *win, bool maximised)

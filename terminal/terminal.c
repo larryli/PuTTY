@@ -1433,11 +1433,13 @@ void term_update(Terminal *term)
         term->win_maximise_pending = false;
     }
     if (term->win_title_pending) {
-        win_set_title(term->win, term->window_title);
+        win_set_title(term->win, term->window_title,
+                      term->wintitle_codepage);
         term->win_title_pending = false;
     }
     if (term->win_icon_title_pending) {
-        win_set_icon_title(term->win, term->icon_title);
+        win_set_icon_title(term->win, term->icon_title,
+                           term->icontitle_codepage);
         term->win_icon_title_pending = false;
     }
     if (term->win_pointer_shape_pending) {
@@ -1670,6 +1672,7 @@ void term_reconfig(Terminal *term, Conf *conf)
         if (strcmp(old_title, new_title)) {
             sfree(term->window_title);
             term->window_title = dupstr(new_title);
+            term->wintitle_codepage = DEFAULT_CODEPAGE;
             term->win_title_pending = true;
             term_schedule_update(term);
         }
@@ -1807,6 +1810,7 @@ void term_setup_window_titles(Terminal *term, const char *title_hostname)
             term->window_title = dupstr(appname);
         term->icon_title = dupstr(term->window_title);
     }
+    term->wintitle_codepage = term->icontitle_codepage = DEFAULT_CODEPAGE;
     term->win_title_pending = true;
     term->win_icon_title_pending = true;
 }
@@ -2032,6 +2036,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->window_title = dupstr("");
     term->icon_title = dupstr("");
+    term->wintitle_codepage = term->icontitle_codepage = DEFAULT_CODEPAGE;
     term->minimised = false;
     term->winpos_x = term->winpos_y = 0;
     term->winpixsize_x = term->winpixsize_y = 0;
@@ -3117,6 +3122,7 @@ static void do_osc(Terminal *term)
             if (!term->no_remote_wintitle) {
                 sfree(term->icon_title);
                 term->icon_title = dupstr(term->osc_string);
+                term->icontitle_codepage = term->ucsdata->line_codepage;
                 term->win_icon_title_pending = true;
                 term_schedule_update(term);
             }
@@ -3128,6 +3134,7 @@ static void do_osc(Terminal *term)
             if (!term->no_remote_wintitle) {
                 sfree(term->window_title);
                 term->window_title = dupstr(term->osc_string);
+                term->wintitle_codepage = term->ucsdata->line_codepage;
                 term->win_title_pending = true;
                 term_schedule_update(term);
             }

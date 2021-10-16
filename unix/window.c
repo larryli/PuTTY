@@ -3248,19 +3248,31 @@ static void set_window_titles(GtkFrontend *inst)
                                  inst->icontitle);
 }
 
-static void gtkwin_set_title(TermWin *tw, const char *title)
+static void gtkwin_set_title(TermWin *tw, const char *title, int codepage)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->wintitle);
-    inst->wintitle = dupstr(title);
+    if (codepage != CP_UTF8) {
+        wchar_t *title_w = dup_mb_to_wc(codepage, 0, title);
+        inst->wintitle = encode_wide_string_as_utf8(title_w);
+        sfree(title_w);
+    } else {
+        inst->wintitle = dupstr(title);
+    }
     set_window_titles(inst);
 }
 
-static void gtkwin_set_icon_title(TermWin *tw, const char *title)
+static void gtkwin_set_icon_title(TermWin *tw, const char *title, int codepage)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->icontitle);
-    inst->icontitle = dupstr(title);
+    if (codepage != CP_UTF8) {
+        wchar_t *title_w = dup_mb_to_wc(codepage, 0, title);
+        inst->icontitle = encode_wide_string_as_utf8(title_w);
+        sfree(title_w);
+    } else {
+        inst->icontitle = dupstr(title);
+    }
     set_window_titles(inst);
 }
 

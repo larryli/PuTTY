@@ -215,6 +215,11 @@ bool smemeq(const void *av, const void *bv, size_t len);
  * been removed. */
 size_t encode_utf8(void *output, unsigned long ch);
 
+/* Encode a wide-character string into UTF-8. Tolerates surrogates if
+ * sizeof(wchar_t) == 2, assuming that in that case the wide string is
+ * encoded in UTF-16. */
+char *encode_wide_string_as_utf8(const wchar_t *wstr);
+
 /* Write a string out in C string-literal format. */
 void write_c_string_literal(FILE *fp, ptrlen str);
 

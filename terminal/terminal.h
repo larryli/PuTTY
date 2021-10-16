@@ -351,6 +351,7 @@ struct terminal_tag {
     int mouse_paste_clipboard;
 
     char *window_title, *icon_title;
+    int wintitle_codepage, icontitle_codepage;
     bool minimised;
 
     BidiContext *bidi_ctx;

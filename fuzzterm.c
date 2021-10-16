@@ -82,8 +82,8 @@ static void fuzz_clip_write(
 static void fuzz_clip_request_paste(TermWin *tw, int clipboard) {}
 static void fuzz_refresh(TermWin *tw) {}
 static void fuzz_request_resize(TermWin *tw, int w, int h) {}
-static void fuzz_set_title(TermWin *tw, const char *title) {}
-static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
+static void fuzz_set_title(TermWin *tw, const char *title, int codepage) {}
+static void fuzz_set_icon_title(TermWin *tw, const char *icontitle, int cp) {}
 static void fuzz_set_minimised(TermWin *tw, bool minimised) {}
 static void fuzz_set_maximised(TermWin *tw, bool maximised) {}
 static void fuzz_move(TermWin *tw, int x, int y) {}
