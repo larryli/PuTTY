@@ -1555,6 +1555,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->crhaslf = conf_get_bool(term->conf, CONF_crhaslf);
     term->erase_to_scrollback = conf_get_bool(term->conf, CONF_erase_to_scrollback);
     term->funky_type = conf_get_int(term->conf, CONF_funky_type);
+    term->sharrow_type = conf_get_int(term->conf, CONF_sharrow_type);
     term->lfhascr = conf_get_bool(term->conf, CONF_lfhascr);
     term->logflush = conf_get_bool(term->conf, CONF_logflush);
     term->logtype = conf_get_int(term->conf, CONF_logtype);
@@ -7240,7 +7241,16 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
     term_schedule_update(term);
 }
 
-int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl)
+static int shift_bitmap(bool shift, bool ctrl, bool alt)
+{
+    int bitmap = (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0);
+    if (bitmap)
+        bitmap++;
+    return bitmap;
+}
+
+int format_arrow_key(char *buf, Terminal *term, int xkey,
+                     bool shift, bool ctrl, bool alt)
 {
     char *p = buf;
 
@@ -7263,12 +7273,24 @@ int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl)
         if (!term->app_keypad_keys)
             app_flg = 0;
 #endif
-        /* Useful mapping of Ctrl-arrows */
-        if (ctrl)
-            app_flg = !app_flg;
+
+        int bitmap = 0;
+
+        /* Adjustment based on Shift, Ctrl and/or Alt */
+        switch (term->sharrow_type) {
+          case SHARROW_APPLICATION:
+            if (ctrl)
+                app_flg = !app_flg;
+            break;
+          case SHARROW_BITMAP:
+            bitmap = shift_bitmap(shift, ctrl, alt);
+            break;
+        }
 
         if (app_flg)
             p += sprintf(p, "\x1BO%c", xkey);
+        else if (bitmap)
+            p += sprintf(p, "\x1B[1;%d%c", bitmap, xkey);
         else
             p += sprintf(p, "\x1B[%c", xkey);
     }

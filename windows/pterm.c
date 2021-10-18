@@ -32,6 +32,8 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             cmdline_error("unexpected non-option argument \"%s\"", arg);
         }
     }
+
+    conf_set_int(conf, CONF_sharrow_type, SHARROW_BITMAP);
 }
 
 const struct BackendVtable *backend_vt_from_conf(Conf *conf)

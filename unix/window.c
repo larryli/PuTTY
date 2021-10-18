@@ -1876,7 +1876,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             xkey = 'G'; goto arrow_key;
           arrow_key:
             end = 1 + format_arrow_key(output+1, inst->term, xkey,
-                                       event->state & GDK_CONTROL_MASK);
+                                       event->state & GDK_SHIFT_MASK,
+                                       event->state & GDK_CONTROL_MASK,
+                                       event->state & GDK_META_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - arrow key");
 #endif

@@ -534,6 +534,12 @@ enum {
 };
 
 enum {
+    /* Shifted arrow key types (CONF_sharrow_type) */
+    SHARROW_APPLICATION,  /* Ctrl flips between ESC O A and ESC [ A */
+    SHARROW_BITMAP        /* ESC [ 1 ; n A, where n = 1 + bitmap of CAS */
+};
+
+enum {
     FQ_DEFAULT, FQ_ANTIALIASED, FQ_NONANTIALIASED, FQ_CLEARTYPE
 };
 
@@ -1606,6 +1612,7 @@ NORETURN void cleanup_exit(int);
     X(BOOL, NONE, bksp_is_delete) \
     X(BOOL, NONE, rxvt_homeend) \
     X(INT, NONE, funky_type) /* FUNKY_XTERM, FUNKY_LINUX, ... */ \
+    X(INT, NONE, sharrow_type) /* SHARROW_APPLICATION, SHARROW_BITMAP, ... */ \
     X(BOOL, NONE, no_applic_c) /* totally disable app cursor keys */ \
     X(BOOL, NONE, no_applic_k) /* totally disable app keypad */ \
     X(BOOL, NONE, no_mouse_rep) /* totally disable mouse reporting */ \
@@ -1937,7 +1944,8 @@ void term_palette_override(Terminal *term, unsigned osc4_index, rgb rgb);
 typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,
 } SmallKeypadKey;
-int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl);
+int format_arrow_key(char *buf, Terminal *term, int xkey,
+                     bool shift, bool ctrl, bool alt);
 int format_function_key(char *buf, Terminal *term, int key_number,
                         bool shift, bool ctrl);
 int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key);

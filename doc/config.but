@@ -599,6 +599,24 @@ to \c{ESC [v}, and with shift and control together they generate
 If you don't know what any of this means, you probably don't need to
 fiddle with it.
 
+\S{config-sharrow} Changing the action of the \i{shifted arrow keys}
+
+This option affects the arrow keys, if you press one with any of the
+modifier keys Shift, Ctrl or Alt held down.
+
+\b In the default mode, labelled \c{Ctrl toggles app mode}, the Ctrl
+key toggles between the default arrow-key sequnces like \c{ESC [A} and
+\c{ESC [B}, and the sequences Digital's terminals generate in
+\q{application cursor keys} mode, i.e. \c{ESC O A} and so on. Shift
+and Alt have no effect.
+
+\b In the \q{xterm-style bitmap} mode, Shift, Ctrl and Alt all
+generate different sequences, with a number indicating which set of
+modifiers is active.
+
+If you don't know what any of this means, you probably don't need to
+fiddle with it.
+
 \S{config-appcursor} Controlling \i{Application Cursor Keys} mode
 
 Application Cursor Keys mode is a way for the server to change the

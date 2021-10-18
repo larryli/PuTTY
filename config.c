@@ -2016,6 +2016,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       I(CONF_funky_type),
                       "ESC[n~", I(0), "Linux", I(1), "Xterm R6", I(2),
                       "VT400", I(3), "VT100+", I(4), "SCO", I(5), NULL);
+    ctrl_radiobuttons(s, "Shift/Ctrl/Alt with the arrow keys", 'w', 2,
+                      HELPCTX(keyboard_sharrow),
+                      conf_radiobutton_handler,
+                      I(CONF_sharrow_type),
+                      "Ctrl toggles app mode", I(SHARROW_APPLICATION),
+                      "xterm-style bitmap", I(SHARROW_BITMAP), NULL);
 
     s = ctrl_getset(b, "Terminal/Keyboard", "appkeypad",
                     "Application keypad settings:");

@@ -317,7 +317,7 @@ struct terminal_tag {
     int conf_width;
     bool crhaslf;
     bool erase_to_scrollback;
-    int funky_type;
+    int funky_type, sharrow_type;
     bool lfhascr;
     bool logflush;
     int logtype;

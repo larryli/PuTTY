@@ -26,6 +26,7 @@
 #define WINHELP_CTX_keyboard_backspace "config-backspace"
 #define WINHELP_CTX_keyboard_homeend "config-homeend"
 #define WINHELP_CTX_keyboard_funkeys "config-funkeys"
+#define WINHELP_CTX_keyboard_sharrow "config-sharrow"
 #define WINHELP_CTX_keyboard_appkeypad "config-appkeypad"
 #define WINHELP_CTX_keyboard_appcursor "config-appcursor"
 #define WINHELP_CTX_keyboard_nethack "config-nethack"
