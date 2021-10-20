@@ -105,7 +105,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   #    comes up a lot, and generally my spot checks make it look as if
   #    it's OK.
   #
-  #  - 4235: applying unary '-' to an unsigned type. We do that all
+  #  - 4146: applying unary '-' to an unsigned type. We do that all
   #    the time in deliberate bit-twiddling code like mpint.c or
   #    crypto implementations.
   #
