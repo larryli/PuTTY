@@ -52,8 +52,6 @@ typedef enum PlugLogType {
 } PlugLogType;
 
 struct PlugVtable {
-    void (*log)(Plug *p, PlugLogType type, SockAddr *addr, int port,
-                const char *error_msg, int error_code);
     /*
      * Passes the client progress reports on the process of setting
      * up the connection.
@@ -86,13 +84,26 @@ struct PlugVtable {
      * all Plugs must implement this method, even if only to ignore
      * the logged events.
      */
-    void (*closing)
-     (Plug *p, const char *error_msg, int error_code);
-    /* error_msg is NULL iff it is not an error (ie it closed normally) */
-    /* calling_back != 0 iff there is a Plug function */
-    /* currently running (would cure the fixme in try_send()) */
-    void (*receive) (Plug *p, int urgent, const char *data, size_t len);
+    void (*log)(Plug *p, PlugLogType type, SockAddr *addr, int port,
+                const char *error_msg, int error_code);
+
     /*
+     * Notifies the Plug that the socket is closing.
+     *
+     * For a normal non-error close, error_msg is NULL. If the socket
+     * has encountered an error, error_msg will contain a string
+     * (ownership not transferred), and error_code will contain the OS
+     * error code, if available.
+     *
+     * OS error codes will vary between platforms, of course, but
+     * platform.h should define any that we need to distinguish here,
+     * in particular BROKEN_PIPE_ERROR_CODE.
+     */
+    void (*closing)(Plug *p, const char *error_msg, int error_code);
+
+    /*
+     * Provides incoming socket data to the Plug. Three cases:
+     *
      *  - urgent==0. `data' points to `len' bytes of perfectly
      *    ordinary data.
      *
@@ -102,19 +113,22 @@ struct PlugVtable {
      *  - urgent==2. `data' points to `len' bytes of data,
      *    the first of which was the one at the Urgent mark.
      */
-    void (*sent) (Plug *p, size_t bufsize);
+    void (*receive) (Plug *p, int urgent, const char *data, size_t len);
+
     /*
-     * The `sent' function is called when the pending send backlog
-     * on a socket is cleared or partially cleared. The new backlog
-     * size is passed in the `bufsize' parameter.
+     * Called when the pending send backlog on a socket is cleared or
+     * partially cleared. The new backlog size is passed in the
+     * `bufsize' parameter.
+     */
+    void (*sent) (Plug *p, size_t bufsize);
+
+    /*
+     * Only called on listener-type sockets, and is passed a
+     * constructor function+context that will create a fresh Socket
+     * describing the connection. It returns nonzero if it doesn't
+     * want the connection for some reason, or 0 on success.
      */
     int (*accepting)(Plug *p, accept_fn_t constructor, accept_ctx_t ctx);
-    /*
-     * `accepting' is called only on listener-type sockets, and is
-     * passed a constructor function+context that will create a fresh
-     * Socket describing the connection. It returns nonzero if it
-     * doesn't want the connection for some reason, or 0 on success.
-     */
 };
 
 /* Proxy indirection layer.
