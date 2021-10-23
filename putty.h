@@ -1945,7 +1945,7 @@ typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,
 } SmallKeypadKey;
 int format_arrow_key(char *buf, Terminal *term, int xkey,
-                     bool shift, bool ctrl, bool alt);
+                     bool shift, bool ctrl, bool alt, bool *consumed_alt);
 int format_function_key(char *buf, Terminal *term, int key_number,
                         bool shift, bool ctrl);
 int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key);

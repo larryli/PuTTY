@@ -7241,16 +7241,18 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
     term_schedule_update(term);
 }
 
-static int shift_bitmap(bool shift, bool ctrl, bool alt)
+static int shift_bitmap(bool shift, bool ctrl, bool alt, bool *consumed_alt)
 {
     int bitmap = (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0);
     if (bitmap)
         bitmap++;
+    if (alt && consumed_alt)
+        *consumed_alt = true;
     return bitmap;
 }
 
 int format_arrow_key(char *buf, Terminal *term, int xkey,
-                     bool shift, bool ctrl, bool alt)
+                     bool shift, bool ctrl, bool alt, bool *consumed_alt)
 {
     char *p = buf;
 
@@ -7283,7 +7285,7 @@ int format_arrow_key(char *buf, Terminal *term, int xkey,
                 app_flg = !app_flg;
             break;
           case SHARROW_BITMAP:
-            bitmap = shift_bitmap(shift, ctrl, alt);
+            bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
             break;
         }
 
