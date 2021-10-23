@@ -69,8 +69,7 @@ static void raw_check_close(Raw *raw)
     }
 }
 
-static void raw_closing(Plug *plug, const char *error_msg, int error_code,
-                        bool calling_back)
+static void raw_closing(Plug *plug, const char *error_msg, int error_code)
 {
     Raw *raw = container_of(plug, Raw, plug);
 

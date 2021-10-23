@@ -67,13 +67,13 @@ int proxy_socks5_handlechap (ProxySocket *p)
             if (data[0] != 0x01) {
                 plug_closing(p->plug, "Proxy error: SOCKS proxy wants"
                              " a different CHAP version",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
             if (data[1] == 0x00) {
                 plug_closing(p->plug, "Proxy error: SOCKS proxy won't"
                              " negotiate CHAP with us",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
             p->chap_num_attributes = data[1];
@@ -105,7 +105,7 @@ int proxy_socks5_handlechap (ProxySocket *p)
                 else {
                     plug_closing(p->plug, "Proxy error: SOCKS proxy"
                                  " refused CHAP authentication",
-                                 PROXY_ERROR_GENERAL, 0);
+                                 PROXY_ERROR_GENERAL);
                     return 1;
                 }
               break;
@@ -125,7 +125,7 @@ int proxy_socks5_handlechap (ProxySocket *p)
                     plug_closing(p->plug, "Proxy error: Server chose "
                                  "CHAP of other than HMAC-MD5 but we "
                                  "didn't offer it!",
-                                 PROXY_ERROR_GENERAL, 0);
+                                 PROXY_ERROR_GENERAL);
                     return 1;
                 }
               break;
@@ -174,6 +174,6 @@ int proxy_socks5_selectchap(ProxySocket *p)
     } else
         plug_closing(p->plug, "Proxy error: Server chose "
                      "CHAP authentication but we didn't offer it!",
-                 PROXY_ERROR_GENERAL, 0);
+                     PROXY_ERROR_GENERAL);
     return 1;
 }

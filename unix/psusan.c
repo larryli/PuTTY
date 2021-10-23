@@ -273,8 +273,7 @@ static void server_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     log_to_stderr(-1, error_msg);
 }
 
-static void server_closing(Plug *plug, const char *error_msg, int error_code,
-                           bool calling_back)
+static void server_closing(Plug *plug, const char *error_msg, int error_code)
 {
     log_to_stderr(-1, error_msg);
 }

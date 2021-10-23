@@ -95,7 +95,7 @@ static const SshChannelVtable psocks_scvt = {
 static void psocks_plug_log(Plug *p, PlugLogType type, SockAddr *addr,
                             int port, const char *error_msg, int error_code);
 static void psocks_plug_closing(Plug *p, const char *error_msg,
-                                int error_code, bool calling_back);
+                                int error_code);
 static void psocks_plug_receive(Plug *p, int urgent,
                                 const char *data, size_t len);
 static void psocks_plug_sent(Plug *p, size_t bufsize);
@@ -355,7 +355,7 @@ static void psocks_plug_log(Plug *plug, PlugLogType type, SockAddr *addr,
 }
 
 static void psocks_plug_closing(Plug *plug, const char *error_msg,
-                                int error_code, bool calling_back)
+                                int error_code)
 {
     psocks_connection *conn = container_of(plug, psocks_connection, plug);
     if (conn->connecting) {

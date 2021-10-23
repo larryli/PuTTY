@@ -577,8 +577,7 @@ static void supdup_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     }
 }
 
-static void supdup_closing(Plug *plug, const char *error_msg, int error_code,
-                           bool calling_back)
+static void supdup_closing(Plug *plug, const char *error_msg, int error_code)
 {
     Supdup *supdup = container_of(plug, Supdup, plug);
 

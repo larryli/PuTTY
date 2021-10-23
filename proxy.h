@@ -63,7 +63,6 @@ struct ProxySocket {
     /* closing */
     const char *closing_error_msg;
     int closing_error_code;
-    bool closing_calling_back;
 
     /* receive */
     bool receive_urgent;

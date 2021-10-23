@@ -609,8 +609,7 @@ static void ssh_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
     }
 }
 
-static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
-                        bool calling_back)
+static void ssh_closing(Plug *plug, const char *error_msg, int error_code)
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
     if (error_msg) {

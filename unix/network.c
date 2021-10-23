@@ -1101,7 +1101,7 @@ static void socket_error_callback(void *vs)
     /*
      * An error has occurred on this socket. Pass it to the plug.
      */
-    plug_closing(s->plug, strerror(s->pending_error), s->pending_error, 0);
+    plug_closing(s->plug, strerror(s->pending_error), s->pending_error);
 }
 
 /*
@@ -1298,7 +1298,7 @@ static void net_select_result(int fd, int event)
             if (ret <= 0) {
                 plug_closing(s->plug,
                              ret == 0 ? "Internal networking trouble" :
-                             strerror(errno), errno, 0);
+                             strerror(errno), errno);
             } else {
                 /*
                  * Receiving actual data on a socket means we can
@@ -1384,11 +1384,11 @@ static void net_select_result(int fd, int event)
             }
         }
         if (ret < 0) {
-            plug_closing(s->plug, strerror(errno), errno, 0);
+            plug_closing(s->plug, strerror(errno), errno);
         } else if (0 == ret) {
             s->incomingeof = true;     /* stop trying to read now */
             uxsel_tell(s);
-            plug_closing(s->plug, NULL, 0, 0);
+            plug_closing(s->plug, NULL, 0);
         } else {
             /*
              * Receiving actual data on a socket means we can
@@ -1438,7 +1438,7 @@ static void net_select_result(int fd, int event)
                         err = try_connect(s);
                     }
                     if (err) {
-                        plug_closing(s->plug, strerror(err), err, 0);
+                        plug_closing(s->plug, strerror(err), err);
                         return;      /* socket is now presumably defunct */
                     }
                     if (!s->connected)

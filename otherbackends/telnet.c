@@ -639,8 +639,7 @@ static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     }
 }
 
-static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
-                           bool calling_back)
+static void telnet_closing(Plug *plug, const char *error_msg, int error_code)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);
 

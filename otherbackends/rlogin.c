@@ -89,8 +89,7 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     }
 }
 
-static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
-                           bool calling_back)
+static void rlogin_closing(Plug *plug, const char *error_msg, int error_code)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
 

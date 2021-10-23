@@ -1464,7 +1464,7 @@ struct pageant_conn_state {
 };
 
 static void pageant_conn_closing(Plug *plug, const char *error_msg,
-                                 int error_code, bool calling_back)
+                                 int error_code)
 {
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
@@ -1611,7 +1611,7 @@ struct pageant_listen_state {
 };
 
 static void pageant_listen_closing(Plug *plug, const char *error_msg,
-                                   int error_code, bool calling_back)
+                                   int error_code)
 {
     struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);

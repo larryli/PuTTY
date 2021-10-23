@@ -109,8 +109,7 @@ static void pfl_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
 
 static void pfd_close(struct PortForwarding *pf);
 
-static void pfd_closing(Plug *plug, const char *error_msg, int error_code,
-                        bool calling_back)
+static void pfd_closing(Plug *plug, const char *error_msg, int error_code)
 {
     struct PortForwarding *pf =
         container_of(plug, struct PortForwarding, plug);
@@ -142,8 +141,7 @@ static void pfd_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void pfl_terminate(struct PortListener *pl);
 
-static void pfl_closing(Plug *plug, const char *error_msg, int error_code,
-                        bool calling_back)
+static void pfl_closing(Plug *plug, const char *error_msg, int error_code)
 {
     struct PortListener *pl = (struct PortListener *) plug;
     pfl_terminate(pl);

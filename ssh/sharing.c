@@ -937,8 +937,7 @@ static void share_disconnect(struct ssh_sharing_connstate *cs,
     share_begin_cleanup(cs);
 }
 
-static void share_closing(Plug *plug, const char *error_msg, int error_code,
-                          bool calling_back)
+static void share_closing(Plug *plug, const char *error_msg, int error_code)
 {
     struct ssh_sharing_connstate *cs = container_of(
         plug, struct ssh_sharing_connstate, plug);
@@ -1846,7 +1845,7 @@ static void share_sent(Plug *plug, size_t bufsize)
 }
 
 static void share_listen_closing(Plug *plug, const char *error_msg,
-                                 int error_code, bool calling_back)
+                                 int error_code)
 {
     ssh_sharing_state *sharestate =
         container_of(plug, ssh_sharing_state, plug);

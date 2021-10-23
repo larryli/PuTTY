@@ -181,18 +181,16 @@ static void plug_proxy_log(Plug *plug, PlugLogType type, SockAddr *addr,
     plug_log(ps->plug, type, addr, port, error_msg, error_code);
 }
 
-static void plug_proxy_closing (Plug *p, const char *error_msg,
-                                int error_code, bool calling_back)
+static void plug_proxy_closing(Plug *p, const char *error_msg, int error_code)
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
         ps->closing_error_msg = error_msg;
         ps->closing_error_code = error_code;
-        ps->closing_calling_back = calling_back;
         ps->negotiate(ps, PROXY_CHANGE_CLOSING);
     } else {
-        plug_closing(ps->plug, error_msg, error_code, calling_back);
+        plug_closing(ps->plug, error_msg, error_code);
     }
 }
 
@@ -617,8 +615,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code,
-                     p->closing_calling_back);
+        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
         return 0; /* ignored */
     }
 
@@ -675,7 +672,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
             if (sscanf((char *)data, "HTTP/%i.%i %n",
                        &maj_ver, &min_ver, &status) < 2 || status == -1) {
                 plug_closing(p->plug, "Proxy error: HTTP response was absent",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 sfree(data);
                 return 1;
             }
@@ -690,7 +687,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
                        (data[eol-1] == '\r' || data[eol-1] == '\n'))
                     data[--eol] = '\0';
                 buf = dupprintf("Proxy error: %s", data+status);
-                plug_closing(p->plug, buf, PROXY_ERROR_GENERAL, 0);
+                plug_closing(p->plug, buf, PROXY_ERROR_GENERAL);
                 sfree(buf);
                 sfree(data);
                 return 1;
@@ -741,7 +738,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
     }
 
     plug_closing(p->plug, "Proxy error: unexpected proxy error",
-                 PROXY_ERROR_UNEXPECTED, 0);
+                 PROXY_ERROR_UNEXPECTED);
     return 1;
 }
 
@@ -807,8 +804,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code,
-                     p->closing_calling_back);
+        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
         return 0; /* ignored */
     }
 
@@ -860,7 +856,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
             if (data[0] != 0) {
                 plug_closing(p->plug, "Proxy error: SOCKS proxy responded with "
                                       "unexpected reply code version",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
 
@@ -869,16 +865,16 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
                 switch (data[1]) {
                   case 92:
                     plug_closing(p->plug, "Proxy error: SOCKS server wanted IDENTD on client",
-                                 PROXY_ERROR_GENERAL, 0);
+                                 PROXY_ERROR_GENERAL);
                     break;
                   case 93:
                     plug_closing(p->plug, "Proxy error: Username and IDENTD on client don't agree",
-                                 PROXY_ERROR_GENERAL, 0);
+                                 PROXY_ERROR_GENERAL);
                     break;
                   case 91:
                   default:
                     plug_closing(p->plug, "Proxy error: Error while communicating with proxy",
-                                 PROXY_ERROR_GENERAL, 0);
+                                 PROXY_ERROR_GENERAL);
                     break;
                 }
 
@@ -895,7 +891,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
     }
 
     plug_closing(p->plug, "Proxy error: unexpected proxy error",
-                 PROXY_ERROR_UNEXPECTED, 0);
+                 PROXY_ERROR_UNEXPECTED);
     return 1;
 }
 
@@ -951,8 +947,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code,
-                     p->closing_calling_back);
+        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
         return 0; /* ignored */
     }
 
@@ -1002,7 +997,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
 
             if (data[0] != 5) {
                 plug_closing(p->plug, "Proxy error: SOCKS proxy returned unexpected version",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
 
@@ -1012,7 +1007,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
             else if (data[1] == 0x03) p->state = 6; /* CHAP authentication */
             else {
                 plug_closing(p->plug, "Proxy error: SOCKS proxy did not accept our authentication",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
             bufchain_consume(&p->pending_input_data, 2);
@@ -1037,7 +1032,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
             if (data[0] != 1) {
                 plug_closing(p->plug, "Proxy error: SOCKS password "
                              "subnegotiation contained wrong version number",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
 
@@ -1045,7 +1040,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
 
                 plug_closing(p->plug, "Proxy error: SOCKS proxy refused"
                              " password authentication",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
 
@@ -1148,7 +1143,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
 
             if (data[0] != 5) {
                 plug_closing(p->plug, "Proxy error: SOCKS proxy returned wrong version number",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
 
@@ -1171,7 +1166,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
                                    data[1]);
                     break;
                 }
-                plug_closing(p->plug, buf, PROXY_ERROR_GENERAL, 0);
+                plug_closing(p->plug, buf, PROXY_ERROR_GENERAL);
 
                 return 1;
             }
@@ -1187,7 +1182,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
               default:
                 plug_closing(p->plug, "Proxy error: SOCKS proxy returned "
                              "unrecognised address format",
-                             PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
                 return 1;
             }
             if (bufchain_size(&p->pending_input_data) < len)
@@ -1202,7 +1197,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
         if (p->state == 4) {
             /* TODO: Handle GSSAPI authentication */
             plug_closing(p->plug, "Proxy error: We don't support GSSAPI authentication",
-                         PROXY_ERROR_GENERAL, 0);
+                         PROXY_ERROR_GENERAL);
             return 1;
         }
 
@@ -1231,7 +1226,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
                 plug_closing(p->plug, "Proxy error: Server chose "
                              "username/password authentication but we "
                              "didn't offer it!",
-                         PROXY_ERROR_GENERAL, 0);
+                             PROXY_ERROR_GENERAL);
             return 1;
         }
 
@@ -1244,7 +1239,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
     }
 
     plug_closing(p->plug, "Proxy error: Unexpected proxy error",
-                 PROXY_ERROR_UNEXPECTED, 0);
+                 PROXY_ERROR_UNEXPECTED);
     return 1;
 }
 
@@ -1479,8 +1474,7 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code,
-                     p->closing_calling_back);
+        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
         return 0; /* ignored */
     }
 
@@ -1516,6 +1510,6 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
     }
 
     plug_closing(p->plug, "Proxy error: Unexpected proxy error",
-                 PROXY_ERROR_UNEXPECTED, 0);
+                 PROXY_ERROR_UNEXPECTED);
     return 1;
 }

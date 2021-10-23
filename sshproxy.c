@@ -244,7 +244,7 @@ static void try_send_ssh_to_socket(void *ctx)
     if (sp->rcvd_eof_ssh_to_socket &&
         !sp->sent_eof_ssh_to_socket) {
         sp->sent_eof_ssh_to_socket = true;
-        plug_closing(sp->plug, sp->errmsg, 0, 0);
+        plug_closing(sp->plug, sp->errmsg, 0);
     }
 }
 
@@ -325,7 +325,7 @@ static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
 static void sshproxy_connection_fatal_callback(void *vctx)
 {
     SshProxy *sp = (SshProxy *)vctx;
-    plug_closing(sp->plug, sp->errmsg, 0, true);
+    plug_closing(sp->plug, sp->errmsg, 0);
 }
 
 static void sshproxy_connection_fatal(Seat *seat, const char *message)

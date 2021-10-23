@@ -139,8 +139,7 @@ static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
     /* FIXME */
 }
 
-static void server_closing(Plug *plug, const char *error_msg, int error_code,
-                           bool calling_back)
+static void server_closing(Plug *plug, const char *error_msg, int error_code)
 {
     server *srv = container_of(plug, server, plug);
     if (error_msg) {

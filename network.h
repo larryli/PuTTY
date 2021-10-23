@@ -87,7 +87,7 @@ struct PlugVtable {
      * the logged events.
      */
     void (*closing)
-     (Plug *p, const char *error_msg, int error_code, bool calling_back);
+     (Plug *p, const char *error_msg, int error_code);
     /* error_msg is NULL iff it is not an error (ie it closed normally) */
     /* calling_back != 0 iff there is a Plug function */
     /* currently running (would cure the fixme in try_send()) */
@@ -214,9 +214,8 @@ static inline void sk_write_eof(Socket *s)
 static inline void plug_log(
     Plug *p, int type, SockAddr *addr, int port, const char *msg, int code)
 { p->vt->log(p, type, addr, port, msg, code); }
-static inline void plug_closing(
-    Plug *p, const char *msg, int code, bool calling_back)
-{ p->vt->closing(p, msg, code, calling_back); }
+static inline void plug_closing(Plug *p, const char *msg, int code)
+{ p->vt->closing(p, msg, code); }
 static inline void plug_receive(Plug *p, int urg, const char *data, size_t len)
 { p->vt->receive(p, urg, data, len); }
 static inline void plug_sent (Plug *p, size_t bufsize)
@@ -341,8 +340,7 @@ extern Plug *const nullplug;
  */
 void nullplug_log(Plug *plug, PlugLogType type, SockAddr *addr,
                   int port, const char *err_msg, int err_code);
-void nullplug_closing(Plug *plug, const char *error_msg, int error_code,
-                      bool calling_back);
+void nullplug_closing(Plug *plug, const char *error_msg, int error_code);
 void nullplug_receive(Plug *plug, int urgent, const char *data, size_t len);
 void nullplug_sent(Plug *plug, size_t bufsize);
 

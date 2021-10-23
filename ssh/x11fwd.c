@@ -267,8 +267,7 @@ static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
 static void x11_send_init_error(struct X11Connection *conn,
                                 const char *err_message);
 
-static void x11_closing(Plug *plug, const char *error_msg, int error_code,
-                        bool calling_back)
+static void x11_closing(Plug *plug, const char *error_msg, int error_code)
 {
     struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
