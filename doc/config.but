@@ -596,6 +596,15 @@ through to \c{ESC [j}.  With control they generate \c{ESC [k} through
 to \c{ESC [v}, and with shift and control together they generate
 \c{ESC [w} through to \c{ESC [\{}.
 
+\b In \I{xterm}Xterm 216 mode, the unshifted function keys behave the
+same as Xterm R6 mode. But pressing a function key together with Shift
+or Alt or Ctrl generates a different sequence containing an extra
+numeric parameter of the form (1 for Shift) + (2 for Alt) + (4 for
+Ctrl) + 1. For F1-F4, the basic sequences like \c{ESC OP} become
+\cw{ESC [1;}\e{bitmap}\cw{P} and similar; for F5 and above,
+\cw{ESC[}\e{index}\cw{~} becomes
+\cw{ESC[}\e{index}\cw{;}\e{bitmap}\cw{~}.
+
 If you don't know what any of this means, you probably don't need to
 fiddle with it.
 

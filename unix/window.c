@@ -1831,9 +1831,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
           case GDK_KEY_F19: fkey_number = 19; goto numbered_function_key;
           case GDK_KEY_F20: fkey_number = 20; goto numbered_function_key;
           numbered_function_key:
+            consumed_meta_key = false;
             end = 1 + format_function_key(output+1, inst->term, fkey_number,
                                           event->state & GDK_SHIFT_MASK,
-                                          event->state & GDK_CONTROL_MASK);
+                                          event->state & GDK_CONTROL_MASK,
+                                          event->state & inst->meta_mod_mask,
+                                          &consumed_meta_key);
+            if (consumed_meta_key)
+                start = 1; /* supersedes the usual prefixing of Esc */
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - function key F%d", fkey_number);
 #endif

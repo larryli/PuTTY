@@ -4512,8 +4512,12 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
           case VK_F19: fkey_number = 19; goto numbered_function_key;
           case VK_F20: fkey_number = 20; goto numbered_function_key;
           numbered_function_key:
+            consumed_alt = false;
             p += format_function_key((char *)p, term, fkey_number,
-                                     shift_state & 1, shift_state & 2);
+                                     shift_state & 1, shift_state & 2,
+                                     left_alt, &consumed_alt);
+            if (consumed_alt)
+                left_alt = false; /* supersedes the usual prefixing of Esc */
             return p - output;
 
             SmallKeypadKey sk_key;

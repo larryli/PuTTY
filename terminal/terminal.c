@@ -7301,7 +7301,7 @@ int format_arrow_key(char *buf, Terminal *term, int xkey,
 }
 
 int format_function_key(char *buf, Terminal *term, int key_number,
-                        bool shift, bool ctrl)
+                        bool shift, bool ctrl, bool alt, bool *consumed_alt)
 {
     char *p = buf;
 
@@ -7314,7 +7314,14 @@ int format_function_key(char *buf, Terminal *term, int key_number,
     assert(key_number > 0);
     assert(key_number < lenof(key_number_to_tilde_code));
 
-    int index = (shift && key_number <= 10) ? key_number + 10 : key_number;
+    int index = key_number;
+    if (term->funky_type != FUNKY_XTERM_216) {
+        if (shift && index <= 10) {
+            shift = false;
+            index += 10;
+        }
+    }
+
     int code = key_number_to_tilde_code[index];
 
     if (term->funky_type == FUNKY_SCO) {
@@ -7338,13 +7345,28 @@ int format_function_key(char *buf, Terminal *term, int key_number,
             p += sprintf(p, "\x1BO%c", code + 'P' - 11 - offt);
     } else if (term->funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
         p += sprintf(p, "\x1B[[%c", code + 'A' - 11);
-    } else if (term->funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
+    } else if ((term->funky_type == FUNKY_XTERM ||
+                term->funky_type == FUNKY_XTERM_216) &&
+               code >= 11 && code <= 14) {
         if (term->vt52_mode)
             p += sprintf(p, "\x1B%c", code + 'P' - 11);
-        else
-            p += sprintf(p, "\x1BO%c", code + 'P' - 11);
+        else {
+            int bitmap = 0;
+            if (term->funky_type == FUNKY_XTERM_216)
+                bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
+            if (bitmap)
+                p += sprintf(p, "\x1B[1;%d%c", bitmap, code + 'P' - 11);
+            else
+                p += sprintf(p, "\x1BO%c", code + 'P' - 11);
+        }
     } else {
-        p += sprintf(p, "\x1B[%d~", code);
+        int bitmap = 0;
+        if (term->funky_type == FUNKY_XTERM_216)
+            bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
+        if (bitmap)
+            p += sprintf(p, "\x1B[%d;%d~", code, bitmap);
+        else
+            p += sprintf(p, "\x1B[%d~", code);
     }
 
     return p - buf;
