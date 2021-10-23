@@ -71,7 +71,8 @@ const BackendVtable null_backend = {
     .unthrottle = null_unthrottle,
     .cfg_info = null_cfg_info,
     .id = "null",
-    .displayname = "null",
+    .displayname_tc = "Null",
+    .displayname_lc = "null",
     .protocol = -1,
     .default_port = 0,
 };
@@ -93,7 +94,8 @@ const BackendVtable loop_backend = {
     .unthrottle = null_unthrottle,
     .cfg_info = null_cfg_info,
     .id = "loop",
-    .displayname = "loop",
+    .displayname_tc = "Loop",
+    .displayname_lc = "loop",
     .protocol = -1,
     .default_port = 0,
 };

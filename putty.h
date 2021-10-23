@@ -681,9 +681,10 @@ struct BackendVtable {
     char *(*close_warn_text)(Backend *be);
 
     /* 'id' is a machine-readable name for the backend, used in
-     * saved-session storage. 'displayname' is a human-readable name
-     * for error messages. */
-    const char *id, *displayname;
+     * saved-session storage. 'displayname_tc' and 'displayname_lc'
+     * are human-readable names, one in title-case for config boxes,
+     * and one in lower-case for use in mid-sentence. */
+    const char *id, *displayname_tc, *displayname_lc;
 
     int protocol;
     int default_port;

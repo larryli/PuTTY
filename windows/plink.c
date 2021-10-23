@@ -415,7 +415,7 @@ int main(int argc, char **argv)
     if (vt->flags & BACKEND_NEEDS_TERMINAL) {
         fprintf(stderr,
                 "Plink doesn't support %s, which needs terminal emulation\n",
-                vt->displayname);
+                vt->displayname_lc);
         return 1;
     }
 
@@ -441,7 +441,7 @@ int main(int argc, char **argv)
     if (just_test_share_exists) {
         if (!vt->test_for_upstream) {
             fprintf(stderr, "Connection sharing not supported for this "
-                    "connection type (%s)'\n", vt->displayname);
+                    "connection type (%s)'\n", vt->displayname_lc);
             return 1;
         }
         if (vt->test_for_upstream(conf_get_str(conf, CONF_host),

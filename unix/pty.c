@@ -1597,6 +1597,7 @@ const BackendVtable pty_backend = {
     .unthrottle = pty_unthrottle,
     .cfg_info = pty_cfg_info,
     .id = "pty",
-    .displayname = "pty",
+    .displayname_tc = "pty",
+    .displayname_lc = "pty",
     .protocol = -1,
 };

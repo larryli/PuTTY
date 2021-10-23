@@ -385,6 +385,7 @@ const BackendVtable conpty_backend = {
     .unthrottle = conpty_unthrottle,
     .cfg_info = conpty_cfg_info,
     .id = "conpty",
-    .displayname = "ConPTY",
+    .displayname_tc = "ConPTY",
+    .displayname_lc = "ConPTY", /* proper name, so capitalise it anyway */
     .protocol = -1,
 };

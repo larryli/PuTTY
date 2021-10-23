@@ -312,7 +312,7 @@ static void config_protocols_handler(union control *ctrl, dlgparam *dlg,
             for (size_t i = n_ui_backends;
                  i < PROTOCOL_LIMIT && backends[i]; i++) {
                 dlg_listbox_addwithid(ctrl, dlg,
-                                      backends[i]->displayname,
+                                      backends[i]->displayname_tc,
                                       backends[i]->protocol);
                 if (backends[i]->protocol == curproto)
                     curentry = i - n_ui_backends;
@@ -1793,7 +1793,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
         for (size_t i = 0; i < n_ui_backends; i++) {
             assert(backends[i]);
             c->radio.buttons[c->radio.nbuttons] =
-                dupstr(backends[i]->displayname);
+                dupstr(backends[i]->displayname_tc);
             c->radio.shortcuts[c->radio.nbuttons] =
                 (backends[i]->protocol == PROT_SSH ? 's' :
                  backends[i]->protocol == PROT_SERIAL ? 'r' :

@@ -1082,7 +1082,8 @@ const BackendVtable telnet_backend = {
     .unthrottle = telnet_unthrottle,
     .cfg_info = telnet_cfg_info,
     .id = "telnet",
-    .displayname = "Telnet",
+    .displayname_tc = "Telnet",
+    .displayname_lc = "Telnet", /* proper name, so capitalise it anyway */
     .protocol = PROT_TELNET,
     .default_port = 23,
 };

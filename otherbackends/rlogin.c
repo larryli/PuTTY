@@ -445,7 +445,8 @@ const BackendVtable rlogin_backend = {
     .unthrottle = rlogin_unthrottle,
     .cfg_info = rlogin_cfg_info,
     .id = "rlogin",
-    .displayname = "Rlogin",
+    .displayname_tc = "Rlogin",
+    .displayname_lc = "Rlogin", /* proper name, so capitalise it anyway */
     .protocol = PROT_RLOGIN,
     .default_port = 513,
 };
