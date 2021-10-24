@@ -57,6 +57,7 @@ struct Ssh {
     char *savedhost;
     int savedport;
     char *fullhostname;
+    char *description;
 
     bool fallback_cmd;
     int exitcode;
@@ -717,11 +718,24 @@ static char *ssh_close_warn_text(Backend *be)
     return msg;
 }
 
+static char *ssh_plug_description(Plug *plug)
+{
+    Ssh *ssh = container_of(plug, Ssh, plug);
+    return dupstr(ssh->description);
+}
+
+static char *ssh_backend_description(Backend *backend)
+{
+    Ssh *ssh = container_of(backend, Ssh, backend);
+    return dupstr(ssh->description);
+}
+
 static const PlugVtable Ssh_plugvt = {
     .log = ssh_socket_log,
     .closing = ssh_closing,
     .receive = ssh_receive,
     .sent = ssh_sent,
+    .description = ssh_plug_description,
 };
 
 /*
@@ -731,16 +745,12 @@ static const PlugVtable Ssh_plugvt = {
  * freed by the caller.
  */
 static char *connect_to_host(
-    Ssh *ssh, const char *host, int port, char **realhost,
+    Ssh *ssh, const char *host, int port, char *loghost, char **realhost,
     bool nodelay, bool keepalive)
 {
     SockAddr *addr;
     const char *err;
-    char *loghost;
     int addressfamily, sshprot;
-
-    ssh_hostport_setup(host, port, ssh->conf,
-                       &ssh->savedhost, &ssh->savedport, &loghost);
 
     ssh->plug.vt = &Ssh_plugvt;
 
@@ -938,11 +948,17 @@ static char *ssh_init(const BackendVtable *vt, Seat *seat,
     ssh->cl_dummy.vt = &dummy_connlayer_vtable;
     ssh->cl_dummy.logctx = ssh->logctx = logctx;
 
+    char *loghost;
+
+    ssh_hostport_setup(host, port, ssh->conf,
+                       &ssh->savedhost, &ssh->savedport, &loghost);
+    ssh->description = default_description(vt, ssh->savedhost, ssh->savedport);
+
     random_ref(); /* do this now - may be needed by sharing setup code */
     ssh->need_random_unref = true;
 
     char *conn_err = connect_to_host(
-        ssh, host, port, realhost, nodelay, keepalive);
+        ssh, host, port, loghost, realhost, nodelay, keepalive);
     if (conn_err) {
         /* Call random_unref now instead of waiting until the caller
          * frees this useless Ssh object, in case the caller is
@@ -985,6 +1001,7 @@ static void ssh_free(Backend *be)
 #endif
 
     sfree(ssh->deferred_abort_message);
+    sfree(ssh->description);
 
     delete_callbacks_for_context(ssh); /* likely to catch ic_out_raw */
 
@@ -1247,6 +1264,7 @@ const BackendVtable ssh_backend = {
     .cfg_info = ssh_cfg_info,
     .test_for_upstream = ssh_test_for_upstream,
     .close_warn_text = ssh_close_warn_text,
+    .description = ssh_backend_description,
     .id = "ssh",
     .displayname_tc = "SSH",
     .displayname_lc = "SSH", /* proper name, so capitalise it anyway */
@@ -1273,6 +1291,7 @@ const BackendVtable sshconn_backend = {
     .cfg_info = ssh_cfg_info,
     .test_for_upstream = ssh_test_for_upstream,
     .close_warn_text = ssh_close_warn_text,
+    .description = ssh_backend_description,
     .id = "ssh-connection",
     .displayname_tc = "Bare ssh-connection",
     .displayname_lc = "bare ssh-connection",

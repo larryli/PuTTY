@@ -680,6 +680,28 @@ struct BackendVtable {
      * connections that would be lost if this one were terminated. */
     char *(*close_warn_text)(Backend *be);
 
+    /*
+     * Returns a user-facing description of the nature of the network
+     * connection being made. Used in interactive proxy authentication
+     * to announce which connection attempt is now in control of the
+     * Seat.
+     *
+     * The idea is not just to be written in natural language, but to
+     * connect with the user's idea of _why_ they think some
+     * connection is being made. For example, instead of saying 'TCP
+     * connection to 123.45.67.89 port 22', you might say 'SSH
+     * connection to [logical host name for SSH host key purposes]'.
+     *
+     * This function pointer may be NULL, or may exist but return
+     * NULL, in which case no user-facing description is available.
+     * (Backends which are never proxied, such as pty and ConPTY, need
+     * not bother to fill this in.)
+     *
+     * If a non-NULL string is returned, it must be freed by the
+     * caller.
+     */
+    char *(*description)(Backend *be);
+
     /* 'id' is a machine-readable name for the backend, used in
      * saved-session storage. 'displayname_tc' and 'displayname_lc'
      * are human-readable names, one in title-case for config boxes,
@@ -728,6 +750,11 @@ static inline void backend_unthrottle(Backend *be, size_t bufsize)
 { be->vt->unthrottle(be, bufsize); }
 static inline int backend_cfg_info(Backend *be)
 { return be->vt->cfg_info(be); }
+static inline char *backend_description(Backend *be)
+{ return be->vt->description ? be->vt->description(be) : NULL; }
+
+char *default_description(const BackendVtable *backvt,
+                          const char *host, int port);
 
 extern const struct BackendVtable *const backends[];
 /*

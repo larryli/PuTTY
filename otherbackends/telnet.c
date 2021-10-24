@@ -178,6 +178,7 @@ struct Telnet {
     LogContext *logctx;
     Ldisc *ldisc;
     int term_width, term_height;
+    char *description;
 
     int opt_states[NUM_OPTS];
 
@@ -680,11 +681,24 @@ static void telnet_sent(Plug *plug, size_t bufsize)
     seat_sent(telnet->seat, telnet->bufsize);
 }
 
+static char *telnet_plug_description(Plug *plug)
+{
+    Telnet *telnet = container_of(plug, Telnet, plug);
+    return dupstr(telnet->description);
+}
+
+static char *telnet_backend_description(Backend *backend)
+{
+    Telnet *telnet = container_of(backend, Telnet, backend);
+    return dupstr(telnet->description);
+}
+
 static const PlugVtable Telnet_plugvt = {
     .log = telnet_log,
     .closing = telnet_closing,
     .receive = telnet_receive,
     .sent = telnet_sent,
+    .description = telnet_plug_description,
 };
 
 /*
@@ -724,6 +738,7 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
     telnet->state = TOP_LEVEL;
     telnet->ldisc = NULL;
     telnet->pinger = NULL;
+    telnet->description = default_description(vt, host, port);
     *backend_handle = &telnet->backend;
 
     /*
@@ -813,6 +828,7 @@ static void telnet_free(Backend *be)
     if (telnet->pinger)
         pinger_free(telnet->pinger);
     conf_free(telnet->conf);
+    sfree(telnet->description);
     sfree(telnet);
 }
 /*
@@ -1081,6 +1097,7 @@ const BackendVtable telnet_backend = {
     .provide_ldisc = telnet_provide_ldisc,
     .unthrottle = telnet_unthrottle,
     .cfg_info = telnet_cfg_info,
+    .description = telnet_backend_description,
     .id = "telnet",
     .displayname_tc = "Telnet",
     .displayname_lc = "Telnet", /* proper name, so capitalise it anyway */

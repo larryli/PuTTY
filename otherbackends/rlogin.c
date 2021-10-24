@@ -23,6 +23,7 @@ struct Rlogin {
     Seat *seat;
     LogContext *logctx;
     Ldisc *ldisc;
+    char *description;
 
     Conf *conf;
 
@@ -192,11 +193,24 @@ static void rlogin_startup(Rlogin *rlogin, int prompt_result,
         ldisc_check_sendok(rlogin->ldisc);
 }
 
+static char *rlogin_plug_description(Plug *plug)
+{
+    Rlogin *rlogin = container_of(plug, Rlogin, plug);
+    return dupstr(rlogin->description);
+}
+
+static char *rlogin_backend_description(Backend *backend)
+{
+    Rlogin *rlogin = container_of(backend, Rlogin, backend);
+    return dupstr(rlogin->description);
+}
+
 static const PlugVtable Rlogin_plugvt = {
     .log = rlogin_log,
     .closing = rlogin_closing,
     .receive = rlogin_receive,
     .sent = rlogin_sent,
+    .description = rlogin_plug_description,
 };
 
 /*
@@ -232,6 +246,7 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
     rlogin->cansize = false;
     rlogin->prompt = NULL;
     rlogin->conf = conf_copy(conf);
+    rlogin->description = default_description(vt, host, port);
     *backend_handle = &rlogin->backend;
 
     addressfamily = conf_get_int(conf, CONF_addressfamily);
@@ -283,6 +298,7 @@ static void rlogin_free(Backend *be)
     if (rlogin->s)
         sk_close(rlogin->s);
     conf_free(rlogin->conf);
+    sfree(rlogin->description);
     sfree(rlogin);
 }
 
@@ -444,6 +460,7 @@ const BackendVtable rlogin_backend = {
     .provide_ldisc = rlogin_provide_ldisc,
     .unthrottle = rlogin_unthrottle,
     .cfg_info = rlogin_cfg_info,
+    .description = rlogin_backend_description,
     .id = "rlogin",
     .displayname_tc = "Rlogin",
     .displayname_lc = "Rlogin", /* proper name, so capitalise it anyway */

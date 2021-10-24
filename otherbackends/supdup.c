@@ -73,6 +73,7 @@ struct supdup_tag
     LogContext *logctx;
     Ldisc *ldisc;
     int term_width, term_height;
+    char *description;
 
     long long ttyopt;
     long tcmxv;
@@ -641,6 +642,18 @@ static void supdup_send_config(Supdup *supdup)
     supdup_send_36bits(supdup, TTYROL);         // scroll amount
 }
 
+static char *supdup_plug_description(Plug *plug)
+{
+    Supdup *supdup = container_of(plug, Supdup, plug);
+    return dupstr(supdup->description);
+}
+
+static char *supdup_backend_description(Backend *backend)
+{
+    Supdup *supdup = container_of(backend, Supdup, backend);
+    return dupstr(supdup->description);
+}
+
 /*
 * Called to set up the Supdup connection.
 *
@@ -660,6 +673,7 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
         .closing = supdup_closing,
         .receive = supdup_receive,
         .sent = supdup_sent,
+        .description = supdup_plug_description,
     };
     SockAddr *addr;
     const char *err;
@@ -681,6 +695,7 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     supdup->term_height = conf_get_int(supdup->conf, CONF_height);
     supdup->pinger = NULL;
     supdup->sent_location = false;
+    supdup->description = default_description(supdup->backend.vt, host, port);
     *backend_handle = &supdup->backend;
 
     switch (conf_get_int(supdup->conf, CONF_supdup_ascii_set)) {
@@ -799,6 +814,7 @@ static void supdup_free(Backend *be)
     if (supdup->pinger)
         pinger_free(supdup->pinger);
     conf_free(supdup->conf);
+    sfree(supdup->description);
     sfree(supdup);
 }
 
@@ -935,6 +951,7 @@ const BackendVtable supdup_backend = {
     .provide_ldisc = supdup_provide_ldisc,
     .unthrottle = supdup_unthrottle,
     .cfg_info = supdup_cfg_info,
+    .description = supdup_backend_description,
     .id = "supdup",
     .displayname_tc = "SUPDUP",
     .displayname_lc = "SUPDUP", /* proper name, so capitalise it anyway */
