@@ -38,8 +38,11 @@ bool validate_manual_hostkey(char *key)
         if (strstartswith(q, "SHA256:")) {
             /* Test for a valid SHA256 key fingerprint. */
             r = q + 7;
-            if (strlen(r) == 43 && r[strspn(r, BASE64_CHARS_NOEQ)] == 0)
+            if (strspn(r, BASE64_CHARS_NOEQ) == 43) {
+                memmove(key, q, 50); /* 7-char prefix + 43-char base64 */
+                key[50] = '\0';
                 return true;
+            }
         }
 
         r = q;
@@ -106,7 +109,9 @@ bool validate_manual_hostkey(char *key)
             if (strlen(q) < minlen)
                 goto not_ssh2_blob;    /* sorry */
 
-            strcpy(key, q);
+            size_t base64_len = strspn(q, BASE64_CHARS_ALL);
+            memmove(key, q, base64_len);
+            key[base64_len] = '\0';
             return true;
         }
       not_ssh2_blob:;
