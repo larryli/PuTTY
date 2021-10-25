@@ -523,8 +523,8 @@ void psocks_start(psocks_state *ps)
  * Some stubs that are needed to link against PuTTY modules.
  */
 
-int verify_host_key(const char *hostname, int port,
-                    const char *keytype, const char *key)
+int check_stored_host_key(const char *hostname, int port,
+                          const char *keytype, const char *key)
 {
     unreachable("host keys not handled in this tool");
 }

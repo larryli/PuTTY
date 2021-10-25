@@ -16,9 +16,9 @@ void nullseat_connection_fatal(Seat *seat, const char *message) {}
 void nullseat_update_specials_menu(Seat *seat) {}
 char *nullseat_get_ttymode(Seat *seat, const char *mode) { return NULL; }
 void nullseat_set_busy_status(Seat *seat, BusyStatus status) {}
-int nullseat_verify_ssh_host_key(
+int nullseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints,
+    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx) { return 0; }
 int nullseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,

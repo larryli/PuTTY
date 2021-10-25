@@ -224,12 +224,12 @@ static int tempseat_get_userpass_input(Seat *seat, prompts_t *p)
     unreachable("get_userpass_input should never be called on TempSeat");
 }
 
-static int tempseat_verify_ssh_host_key(
+static int tempseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints,
+    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx)
 {
-    unreachable("verify_ssh_host_key should never be called on TempSeat");
+    unreachable("confirm_ssh_host_key should never be called on TempSeat");
 }
 
 static int tempseat_confirm_weak_crypto_primitive(
@@ -307,7 +307,7 @@ static const struct SeatVtable tempseat_vt = {
     .update_specials_menu = tempseat_update_specials_menu,
     .get_ttymode = tempseat_get_ttymode,
     .set_busy_status = tempseat_set_busy_status,
-    .verify_ssh_host_key = tempseat_verify_ssh_host_key,
+    .confirm_ssh_host_key = tempseat_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = tempseat_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = tempseat_confirm_weak_cached_hostkey,
     .is_utf8 = tempseat_is_utf8,

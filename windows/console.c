@@ -32,12 +32,11 @@ void console_print_error_msg(const char *prefix, const char *msg)
     fflush(stderr);
 }
 
-int console_verify_ssh_host_key(
+int console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints,
+    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx)
 {
-    int ret;
     HANDLE hin;
     DWORD savemode, i;
     char *common;
@@ -45,18 +44,10 @@ int console_verify_ssh_host_key(
 
     char line[32];
 
-    /*
-     * Verify the key against the registry.
-     */
-    ret = verify_host_key(host, port, keytype, keystr);
-
-    if (ret == 0)                      /* success - key matched OK */
-        return 1;
-
     FingerprintType fptype_default =
         ssh2_pick_default_fingerprint(fingerprints);
 
-    if (ret == 2) {                    /* key was different */
+    if (mismatch) {                    /* key was different */
         common = hk_wrongmsg_common(host, port, keytype,
                                     fingerprints[fptype_default]);
         intro = hk_wrongmsg_interactive_intro;

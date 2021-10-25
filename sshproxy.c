@@ -338,10 +338,10 @@ static void sshproxy_connection_fatal(Seat *seat, const char *message)
     }
 }
 
-static int sshproxy_verify_ssh_host_key(
-        Seat *seat, const char *host, int port, const char *keytype,
-        char *keystr, const char *keydisp, char **key_fingerprints,
-        void (*callback)(void *ctx, int result), void *ctx)
+static int sshproxy_confirm_ssh_host_key(
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
@@ -350,39 +350,17 @@ static int sshproxy_verify_ssh_host_key(
          * If we have access to the outer Seat, pass this prompt
          * request on to it. FIXME: appropriately adjusted
          */
-        return seat_verify_ssh_host_key(
+        return seat_confirm_ssh_host_key(
             sp->clientseat, host, port, keytype, keystr, keydisp,
-            key_fingerprints, callback, ctx);
+            key_fingerprints, mismatch, callback, ctx);
     }
 
     /*
-     * Otherwise, behave as if we're in batch mode: directly verify
-     * the host key against the cache, and if that fails, take the
-     * safe option in the absence of interactive confirmation, and
-     * abort the connection.
+     * Otherwise, behave as if we're in batch mode, i.e. take the safe
+     * option in the absence of interactive confirmation, i.e. abort
+     * the connection.
      */
-    int hkstatus = verify_host_key(host, port, keytype, keystr);
-    FingerprintType fptype = ssh2_pick_default_fingerprint(key_fingerprints);
-
-    switch (hkstatus) {
-      case 0:                          /* host key matched */
-        return 1;
-
-      case 1:                          /* host key not in cache at all */
-        sshproxy_error(sp, "Host key not in cache for %s:%d (fingerprint %s). "
-                       "Abandoning proxy SSH connection.", host, port, 
-                       key_fingerprints[fptype]);
-        return 0;
-
-      case 2:
-        sshproxy_error(sp, "HOST KEY DOES NOT MATCH CACHE for %s:%d "
-                       "(fingerprint %s). Abandoning proxy SSH connection.",
-                       host, port, key_fingerprints[fptype]);
-        return 0;
-
-      default:
-        unreachable("bad return value from verify_host_key");
-    }
+    return 0;
 }
 
 static int sshproxy_confirm_weak_crypto_primitive(
@@ -482,7 +460,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .update_specials_menu = nullseat_update_specials_menu,
     .get_ttymode = nullseat_get_ttymode,
     .set_busy_status = nullseat_set_busy_status,
-    .verify_ssh_host_key = sshproxy_verify_ssh_host_key,
+    .confirm_ssh_host_key = sshproxy_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = sshproxy_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = sshproxy_confirm_weak_cached_hostkey,
     .is_utf8 = nullseat_is_never_utf8,

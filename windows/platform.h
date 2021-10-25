@@ -220,9 +220,9 @@ int has_embedded_chm(void);            /* 1 = yes, 0 = no, -1 = N/A */
  * GUI seat methods in windlg.c, so that the vtable definition in
  * window.c can refer to them.
  */
-int win_seat_verify_ssh_host_key(
+int win_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints,
+    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx);
 int win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,

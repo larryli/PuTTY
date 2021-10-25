@@ -976,52 +976,43 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-int win_seat_verify_ssh_host_key(
+int win_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints,
-    void (*callback)(void *ctx, int result), void *ctx)
+    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
+    void (*callback)(void *ctx, int result), void *vctx)
 {
-    int ret;
-
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
 
-    /*
-     * Verify the key against the registry.
-     */
-    ret = verify_host_key(host, port, keytype, keystr);
+    static const char *const keywords[] =
+        { "{KEYTYPE}", "{APPNAME}", NULL };
 
-    if (ret == 0)                      /* success - key matched OK */
+    const char *values[2];
+    values[0] = keytype;
+    values[1] = appname;
+
+    struct hostkey_dialog_ctx ctx[1];
+    ctx->keywords = keywords;
+    ctx->values = values;
+    ctx->fingerprints = fingerprints;
+    ctx->fptype_default = ssh2_pick_default_fingerprint(fingerprints);
+    ctx->keydisp = keydisp;
+    ctx->iconid = (mismatch ? IDI_WARNING : IDI_QUESTION);
+    ctx->helpctx = (mismatch ? WINHELP_CTX_errors_hostkey_changed :
+                    WINHELP_CTX_errors_hostkey_absent);
+    ctx->host = host;
+    ctx->port = port;
+    int dlgid = (mismatch ? IDD_HK_WRONG : IDD_HK_ABSENT);
+    int mbret = DialogBoxParam(
+        hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,
+        HostKeyDialogProc, (LPARAM)ctx);
+    assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
+    if (mbret == IDC_HK_ACCEPT) {
+        store_host_key(host, port, keytype, keystr);
         return 1;
-    else {
-        static const char *const keywords[] =
-            { "{KEYTYPE}", "{APPNAME}", NULL };
-
-        const char *values[2];
-        values[0] = keytype;
-        values[1] = appname;
-
-        struct hostkey_dialog_ctx ctx[1];
-        ctx->keywords = keywords;
-        ctx->values = values;
-        ctx->fingerprints = fingerprints;
-        ctx->fptype_default = ssh2_pick_default_fingerprint(fingerprints);
-        ctx->keydisp = keydisp;
-        ctx->iconid = (ret == 2 ? IDI_WARNING : IDI_QUESTION);
-        ctx->helpctx = (ret == 2 ? WINHELP_CTX_errors_hostkey_changed :
-                        WINHELP_CTX_errors_hostkey_absent);
-        ctx->host = host;
-        ctx->port = port;
-        int dlgid = (ret == 2 ? IDD_HK_WRONG : IDD_HK_ABSENT);
-        int mbret = DialogBoxParam(
-            hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,
-            HostKeyDialogProc, (LPARAM)ctx);
-        assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
-        if (mbret == IDC_HK_ACCEPT) {
-            store_host_key(host, port, keytype, keystr);
-            return 1;
-        } else if (mbret == IDC_HK_ONCE)
-            return 1;
+    } else if (mbret == IDC_HK_ONCE) {
+        return 1;
     }
+
     return 0;   /* abandon the connection */
 }
 

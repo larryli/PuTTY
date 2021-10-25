@@ -1707,7 +1707,10 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset);
 void add_to_commasep(strbuf *buf, const char *data);
 bool get_commasep_word(ptrlen *list, ptrlen *word);
 
-int verify_ssh_manual_host_key(Conf *conf, char **fingerprints, ssh_key *key);
+int verify_ssh_host_key(
+    Seat *seat, Conf *conf, const char *host, int port, ssh_key *key,
+    const char *keytype, char *keystr, const char *keydisp,
+    char **fingerprints, void (*callback)(void *ctx, int result), void *ctx);
 
 typedef struct ssh_transient_hostkey_cache ssh_transient_hostkey_cache;
 ssh_transient_hostkey_cache *ssh_transient_hostkey_cache_new(void);

@@ -3448,7 +3448,7 @@ GtkWidget *create_message_box(
         NULL /* action_postproc */, NULL /* postproc_ctx */);
 }
 
-struct verify_ssh_host_key_dialog_ctx {
+struct confirm_ssh_host_key_dialog_ctx {
     char *host;
     int port;
     char *keytype;
@@ -3462,10 +3462,10 @@ struct verify_ssh_host_key_dialog_ctx {
     GtkWidget *more_info_dialog;
 };
 
-static void verify_ssh_host_key_result_callback(void *vctx, int result)
+static void confirm_ssh_host_key_result_callback(void *vctx, int result)
 {
-    struct verify_ssh_host_key_dialog_ctx *ctx =
-        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+    struct confirm_ssh_host_key_dialog_ctx *ctx =
+        (struct confirm_ssh_host_key_dialog_ctx *)vctx;
 
     if (result >= 0) {
         int logical_result;
@@ -3518,16 +3518,16 @@ static GtkWidget *add_more_info_button(GtkWidget *w, void *vctx)
 
 static void more_info_closed(void *vctx, int result)
 {
-    struct verify_ssh_host_key_dialog_ctx *ctx =
-        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+    struct confirm_ssh_host_key_dialog_ctx *ctx =
+        (struct confirm_ssh_host_key_dialog_ctx *)vctx;
 
     ctx->more_info_dialog = NULL;
 }
 
 static void more_info_button_clicked(GtkButton *button, gpointer vctx)
 {
-    struct verify_ssh_host_key_dialog_ctx *ctx =
-        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+    struct confirm_ssh_host_key_dialog_ctx *ctx =
+        (struct confirm_ssh_host_key_dialog_ctx *)vctx;
 
     if (ctx->more_info_dialog)
         return;
@@ -3539,9 +3539,9 @@ static void more_info_button_clicked(GtkButton *button, gpointer vctx)
         &buttons_ok, more_info_closed, ctx);
 }
 
-int gtk_seat_verify_ssh_host_key(
+int gtk_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints,
+    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char absenttxt[] =
@@ -3584,25 +3584,16 @@ int gtk_seat_verify_ssh_host_key(
     };
 
     char *text;
-    int ret;
-    struct verify_ssh_host_key_dialog_ctx *result_ctx;
+    struct confirm_ssh_host_key_dialog_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
-
-    /*
-     * Verify the key.
-     */
-    ret = verify_host_key(host, port, keytype, keystr);
-
-    if (ret == 0)                      /* success - key matched OK */
-        return 1;
 
     FingerprintType fptype_default =
         ssh2_pick_default_fingerprint(fingerprints);
 
-    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), host, port,
+    text = dupprintf((mismatch ? wrongtxt : absenttxt), host, port,
                      keytype, fingerprints[fptype_default]);
 
-    result_ctx = snew(struct verify_ssh_host_key_dialog_ctx);
+    result_ctx = snew(struct confirm_ssh_host_key_dialog_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->host = dupstr(host);
@@ -3616,7 +3607,7 @@ int gtk_seat_verify_ssh_host_key(
     msgbox = create_message_box_general(
         mainwin, "PuTTY Security Alert", text,
         string_width(fingerprints[fptype_default]), true,
-        &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx,
+        &buttons_hostkey, confirm_ssh_host_key_result_callback, result_ctx,
         add_more_info_button, &more_info_button);
 
     result_ctx->main_dialog = msgbox;

@@ -9,6 +9,7 @@
 #include "putty.h"
 #include "mpint.h"
 #include "ssh.h"
+#include "storage.h"
 #include "bpp.h"
 #include "ppl.h"
 #include "channel.h"
@@ -837,58 +838,93 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
 #undef SSH1_BITMAP_WORD
 
 /* ----------------------------------------------------------------------
- * Function to check a host key against any manually configured in Conf.
+ * Centralised component of SSH host key verification.
+ *
+ * verify_ssh_host_key is called from both the SSH-1 and SSH-2
+ * transport layers, and does the initial work of checking whether the
+ * host key is already known. If so, it returns success on its own
+ * account; otherwise, it calls out to the Seat to give an interactive
+ * prompt (the nature of which varies depending on the Seat itself).
+ *
+ * Return values are 0 for 'abort connection', 1 for 'ok, carry on',
+ * and negative for 'answer not received yet, wait for a callback'.
  */
 
-int verify_ssh_manual_host_key(Conf *conf, char **fingerprints, ssh_key *key)
+int verify_ssh_host_key(
+    Seat *seat, Conf *conf, const char *host, int port, ssh_key *key,
+    const char *keytype, char *keystr, const char *keydisp,
+    char **fingerprints, void (*callback)(void *ctx, int result), void *ctx)
 {
-    if (!conf_get_str_nthstrkey(conf, CONF_ssh_manual_hostkeys, 0))
-        return -1;                     /* no manual keys configured */
+    /*
+     * First, check if the Conf includes a manual specification of the
+     * expected host key. If so, that completely supersedes everything
+     * else, including the normal host key cache _and_ including
+     * manual overrides: we return success or failure immediately,
+     * entirely based on whether the key matches the Conf.
+     */
+    if (conf_get_str_nthstrkey(conf, CONF_ssh_manual_hostkeys, 0)) {
+        if (fingerprints) {
+            for (size_t i = 0; i < SSH_N_FPTYPES; i++) {
+                /*
+                 * Each fingerprint string we've been given will have
+                 * things like 'ssh-rsa 2048' at the front of it. Strip
+                 * those off and narrow down to just the hash at the end
+                 * of the string.
+                 */
+                const char *fingerprint = fingerprints[i];
+                if (!fingerprint)
+                    continue;
+                const char *p = strrchr(fingerprint, ' ');
+                fingerprint = p ? p+1 : fingerprint;
+                if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys,
+                                         fingerprint))
+                    return 1;                  /* success */
+            }
+        }
 
-    if (fingerprints) {
-        for (size_t i = 0; i < SSH_N_FPTYPES; i++) {
+        if (key) {
             /*
-             * Each fingerprint string we've been given will have
-             * things like 'ssh-rsa 2048' at the front of it. Strip
-             * those off and narrow down to just the hash at the end
-             * of the string.
+             * Construct the base64-encoded public key blob and see if
+             * that's listed.
              */
-            const char *fingerprint = fingerprints[i];
-            if (!fingerprint)
-                continue;
-            const char *p = strrchr(fingerprint, ' ');
-            fingerprint = p ? p+1 : fingerprint;
+            strbuf *binblob;
+            char *base64blob;
+            int atoms, i;
+            binblob = strbuf_new();
+            ssh_key_public_blob(key, BinarySink_UPCAST(binblob));
+            atoms = (binblob->len + 2) / 3;
+            base64blob = snewn(atoms * 4 + 1, char);
+            for (i = 0; i < atoms; i++)
+                base64_encode_atom(binblob->u + 3*i,
+                                   binblob->len - 3*i, base64blob + 4*i);
+            base64blob[atoms * 4] = '\0';
+            strbuf_free(binblob);
             if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys,
-                                     fingerprint))
+                                     base64blob)) {
+                sfree(base64blob);
                 return 1;                  /* success */
-        }
-    }
-
-    if (key) {
-        /*
-         * Construct the base64-encoded public key blob and see if
-         * that's listed.
-         */
-        strbuf *binblob;
-        char *base64blob;
-        int atoms, i;
-        binblob = strbuf_new();
-        ssh_key_public_blob(key, BinarySink_UPCAST(binblob));
-        atoms = (binblob->len + 2) / 3;
-        base64blob = snewn(atoms * 4 + 1, char);
-        for (i = 0; i < atoms; i++)
-            base64_encode_atom(binblob->u + 3*i,
-                               binblob->len - 3*i, base64blob + 4*i);
-        base64blob[atoms * 4] = '\0';
-        strbuf_free(binblob);
-        if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys, base64blob)) {
+            }
             sfree(base64blob);
-            return 1;                  /* success */
         }
-        sfree(base64blob);
+
+        return 0;
     }
 
-    return 0;
+    /*
+     * Next, check the host key cache.
+     */
+    int storage_status = check_stored_host_key(host, port, keytype, keystr);
+    if (storage_status == 0) /* matching key was found in the cache */
+        return 1;            /* success */
+
+    /*
+     * The key is either missing from the cache, or does not match.
+     * Either way, fall back to an interactive prompt from the Seat.
+     */
+    bool mismatch = (storage_status != 1);
+    return seat_confirm_ssh_host_key(
+        seat, host, port, keytype, keystr, keydisp, fingerprints, mismatch,
+        callback, ctx);
 }
 
 /* ----------------------------------------------------------------------

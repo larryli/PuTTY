@@ -238,42 +238,29 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
      * Verify the host key.
      */
     {
-        /*
-         * First format the key into a string.
-         */
         char *keystr = rsastr_fmt(&s->hostkey);
+        char *keydisp = ssh1_pubkey_str(&s->hostkey);
         char **fingerprints = rsa_ssh1_fake_all_fingerprints(&s->hostkey);
 
-        /* First check against manually configured host keys. */
-        s->dlgret = verify_ssh_manual_host_key(s->conf, fingerprints, NULL);
-        if (s->dlgret == 0) {          /* did not match */
-            ssh2_free_all_fingerprints(fingerprints);
-            sfree(keystr);
-            ssh_proto_error(s->ppl.ssh, "Host key did not appear in manually "
-                            "configured list");
-            return;
-        } else if (s->dlgret < 0) { /* none configured; use standard handling */
-            char *keydisp = ssh1_pubkey_str(&s->hostkey);
-            s->dlgret = seat_verify_ssh_host_key(
-                s->ppl.seat, s->savedhost, s->savedport, "rsa", keystr,
-                keydisp, fingerprints, ssh1_login_dialog_callback, s);
-            sfree(keydisp);
-            ssh2_free_all_fingerprints(fingerprints);
-            sfree(keystr);
-#ifdef FUZZING
-            s->dlgret = 1;
-#endif
-            crMaybeWaitUntilV(s->dlgret >= 0);
+        s->dlgret = verify_ssh_host_key(
+            s->ppl.seat, s->conf, s->savedhost, s->savedport, NULL,
+            "rsa", keystr, keydisp, fingerprints,
+            ssh1_login_dialog_callback, s);
 
-            if (s->dlgret == 0) {
-                ssh_user_close(s->ppl.ssh,
-                               "User aborted at host key verification");
-                return;
-            }
-        } else {
-            ssh2_free_all_fingerprints(fingerprints);
-            sfree(keystr);
-        }
+        ssh2_free_all_fingerprints(fingerprints);
+        sfree(keydisp);
+        sfree(keystr);
+    }
+
+#ifdef FUZZING
+    s->dlgret = 1;
+#endif
+    crMaybeWaitUntilV(s->dlgret >= 0);
+
+    if (s->dlgret == 0) {
+        ssh_user_close(s->ppl.ssh,
+                       "User aborted at host key verification");
+        return;
     }
 
     for (i = 0; i < 32; i++) {

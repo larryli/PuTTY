@@ -1081,31 +1081,43 @@ struct SeatVtable {
 
     /*
      * Ask the seat whether a given SSH host key should be accepted.
-     * This may return immediately after checking saved configuration
-     * or command-line options, or it may have to present a prompt to
-     * the user and return asynchronously later.
+     * This is called after we've already checked it by any means we
+     * can do ourselves, such as checking against host key
+     * fingerprints in the Conf or the host key cache on disk: once we
+     * call this function, we've already decided there's nothing for
+     * it but to prompt the user.
+     *
+     * 'mismatch' reports the result of checking the host key cache:
+     * it is true if the server has presented a host key different
+     * from the one we expected, and false if we had no expectation in
+     * the first place.
+     *
+     * This call may prompt the user synchronously and not return
+     * until the answer is available, or it may present the prompt and
+     * return immediately, giving the answer later via the provided
+     * callback.
      *
      * Return values:
      *
-     *  - +1 means `key was OK' (either already known or the user just
-     *    approved it) `so continue with the connection'
+     *  - +1 means `user approved the key, so continue with the
+     *    connection'
      *
-     *  - 0 means `key was not OK, abandon the connection'
+     *  - 0 means `user rejected the key, abandon the connection'
      *
      *  - -1 means `I've initiated enquiries, please wait to be called
      *    back via the provided function with a result that's either 0
      *    or +1'.
      */
-    int (*verify_ssh_host_key)(
+    int (*confirm_ssh_host_key)(
         Seat *seat, const char *host, int port, const char *keytype,
         char *keystr, const char *keydisp, char **key_fingerprints,
-        void (*callback)(void *ctx, int result), void *ctx);
+        bool mismatch, void (*callback)(void *ctx, int result), void *ctx);
 
     /*
      * Check with the seat whether it's OK to use a cryptographic
      * primitive from below the 'warn below this line' threshold in
      * the input Conf. Return values are the same as
-     * verify_ssh_host_key above.
+     * confirm_ssh_host_key above.
      */
     int (*confirm_weak_crypto_primitive)(
         Seat *seat, const char *algtype, const char *algname,
@@ -1229,11 +1241,12 @@ static inline char *seat_get_ttymode(Seat *seat, const char *mode)
 { return seat->vt->get_ttymode(seat, mode); }
 static inline void seat_set_busy_status(Seat *seat, BusyStatus status)
 { seat->vt->set_busy_status(seat, status); }
-static inline int seat_verify_ssh_host_key(
+static inline int seat_confirm_ssh_host_key(
     Seat *seat, const char *h, int p, const char *ktyp, char *kstr,
-    const char *kdsp, char **fps, void (*cb)(void *ctx, int result), void *ctx)
-{ return seat->vt->verify_ssh_host_key(seat, h, p, ktyp, kstr, kdsp, fps,
-                                       cb, ctx); }
+    const char *kdsp, char **fps, bool mis,
+    void (*cb)(void *ctx, int result), void *ctx)
+{ return seat->vt->confirm_ssh_host_key(seat, h, p, ktyp, kstr, kdsp, fps,
+                                        mis, cb, ctx); }
 static inline int seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *atyp, const char *aname,
     void (*cb)(void *ctx, int result), void *ctx)
@@ -1308,9 +1321,9 @@ void nullseat_connection_fatal(Seat *seat, const char *message);
 void nullseat_update_specials_menu(Seat *seat);
 char *nullseat_get_ttymode(Seat *seat, const char *mode);
 void nullseat_set_busy_status(Seat *seat, BusyStatus status);
-int nullseat_verify_ssh_host_key(
+int nullseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints,
+    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx);
 int nullseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -1341,9 +1354,9 @@ bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
  */
 
 void console_connection_fatal(Seat *seat, const char *message);
-int console_verify_ssh_host_key(
+int console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints,
+    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
     void (*callback)(void *ctx, int result), void *ctx);
 int console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
