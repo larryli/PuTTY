@@ -54,7 +54,9 @@ function(test_compile_with_flags outvar)
   endif()
 
   # See if we can compile the provided test program.
-  string(JOIN " " CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} ${flags})
+  foreach(i ${flags})
+    set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${i}")
+  endforeach()
   check_c_source_compiles("${OPT_TEST_SOURCE}" "${outvar}")
 
   if(${outvar} AND OPT_ADD_SOURCES_IF_SUCCESSFUL)

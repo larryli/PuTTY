@@ -37,6 +37,9 @@ Things to do during the branch-stabilisation period:
    particular, any headline features for the release should get a
    workout with memory checking enabled!
 
+ - Test the CMake build scripts with the oldest CMake they claim to
+   support, on both Unix and Windows.
+
 Making a release candidate build
 --------------------------------
 

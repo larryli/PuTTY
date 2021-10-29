@@ -87,15 +87,15 @@ add_library(puttygen-common OBJECT
   ${CMAKE_SOURCE_DIR}/sshrand.c)
 
 add_executable(puttygen
-  ${CMAKE_SOURCE_DIR}/cmdgen.c)
-target_link_libraries(puttygen
-  puttygen-common keygen console crypto utils)
+  ${CMAKE_SOURCE_DIR}/cmdgen.c
+  $<TARGET_OBJECTS:puttygen-common>)
+target_link_libraries(puttygen keygen console crypto utils)
 installed_program(puttygen)
 
 add_executable(cgtest
-  ${CMAKE_SOURCE_DIR}/cgtest.c)
-target_link_libraries(cgtest
-  puttygen-common keygen console crypto utils)
+  ${CMAKE_SOURCE_DIR}/cgtest.c
+  $<TARGET_OBJECTS:puttygen-common>)
+target_link_libraries(cgtest keygen console crypto utils)
 
 add_executable(testsc
   ${CMAKE_SOURCE_DIR}/testsc.c)

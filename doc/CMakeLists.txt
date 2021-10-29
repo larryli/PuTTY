@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.7)
 project(putty-documentation LANGUAGES)
 
 # This build script can be run standalone, or included as a
