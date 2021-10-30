@@ -632,12 +632,6 @@ static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
         telnet->socket_connected = true;
         if (telnet->ldisc)
             ldisc_check_sendok(telnet->ldisc);
-        if (is_tempseat(telnet->seat)) {
-            Seat *ts = telnet->seat;
-            tempseat_flush(ts);
-            telnet->seat = tempseat_get_real(ts);
-            tempseat_free(ts);
-        }
     }
 }
 

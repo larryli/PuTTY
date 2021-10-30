@@ -570,12 +570,6 @@ static void supdup_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
         supdup->socket_connected = true;
         if (supdup->ldisc)
             ldisc_check_sendok(supdup->ldisc);
-        if (is_tempseat(supdup->seat)) {
-            Seat *ts = supdup->seat;
-            tempseat_flush(ts);
-            supdup->seat = tempseat_get_real(ts);
-            tempseat_free(ts);
-        }
     }
 }
 

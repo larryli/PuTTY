@@ -44,6 +44,7 @@ typedef struct SshProxy {
     Backend *backend;
     LogPolicy *clientlp;
     Seat *clientseat;
+    Interactor *clientitr;
 
     ProxyStderrBuf psb;
     Plug *plug;
@@ -253,7 +254,7 @@ static void sshproxy_notify_session_started(Seat *seat)
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
     if (sp->clientseat)
-        seat_set_trust_status(sp->clientseat, true);
+        interactor_return_seat(sp->clientitr);
 
     plug_log(sp->plug, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port, NULL, 0);
 }
@@ -601,28 +602,21 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     sfree(realhost);
 
     /*
-     * If we've been given an Interactor by the caller, squirrel away
-     * things it's holding.
+     * If we've been given an Interactor by the caller, set ourselves
+     * up to work with it.
      */
     if (clientitr) {
+        sp->clientitr = clientitr;
+
         sp->clientlp = interactor_logpolicy(clientitr);
-        if (backvt->flags & BACKEND_NOTIFIES_SESSION_START) {
-            /*
-             * We can only keep the client's Seat if our own backend will
-             * tell us when to give it back. (SSH-based backends _should_
-             * do that, but we check the flag here anyway.)
-             *
-             * Also, check if the client already has a TempSeat, and if
-             * so, don't wrap it with another one.
-             */
-            Seat *clientseat = interactor_get_seat(clientitr);
-            if (is_tempseat(clientseat)) {
-                sp->clientseat = tempseat_get_real(clientseat);
-            } else {
-                sp->clientseat = clientseat;
-                interactor_set_seat(clientitr, tempseat_new(sp->clientseat));
-            }
-        }
+
+        /*
+         * We can only borrow the client's Seat if our own backend
+         * will tell us when to give it back. (SSH-based backends
+         * _should_ do that, but we check the flag here anyway.)
+         */
+        if (backvt->flags & BACKEND_NOTIFIES_SESSION_START)
+            sp->clientseat = interactor_borrow_seat(clientitr);
     }
 
     return &sp->sock;

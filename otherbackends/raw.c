@@ -46,12 +46,6 @@ static void raw_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
         raw->socket_connected = true;
         if (raw->ldisc)
             ldisc_check_sendok(raw->ldisc);
-        if (is_tempseat(raw->seat)) {
-            Seat *ts = raw->seat;
-            tempseat_flush(ts);
-            raw->seat = tempseat_get_real(ts);
-            tempseat_free(ts);
-        }
     }
 }
 

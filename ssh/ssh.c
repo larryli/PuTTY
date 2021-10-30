@@ -601,15 +601,6 @@ static void ssh_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
         backend_socket_log(ssh->seat, ssh->logctx, type, addr, port,
                            error_msg, error_code, ssh->conf,
                            ssh->session_started);
-
-    if (type == PLUGLOG_CONNECT_SUCCESS) {
-        if (is_tempseat(ssh->seat)) {
-            Seat *ts = ssh->seat;
-            tempseat_flush(ts);
-            ssh->seat = tempseat_get_real(ts);
-            tempseat_free(ts);
-        }
-    }
 }
 
 static void ssh_closing(Plug *plug, const char *error_msg, int error_code)

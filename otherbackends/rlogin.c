@@ -54,12 +54,6 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                        rlogin->conf, rlogin->socket_connected);
     if (type == PLUGLOG_CONNECT_SUCCESS) {
         rlogin->socket_connected = true;
-        if (is_tempseat(rlogin->seat)) {
-            Seat *ts = rlogin->seat;
-            tempseat_flush(ts);
-            rlogin->seat = tempseat_get_real(ts);
-            tempseat_free(ts);
-        }
 
         char *ruser = get_remote_username(rlogin->conf);
         if (ruser) {

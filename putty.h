@@ -706,6 +706,8 @@ static inline Seat *interactor_get_seat(Interactor *itr)
 static inline void interactor_set_seat(Interactor *itr, Seat *seat)
 { itr->vt->set_seat(itr, seat); }
 
+Seat *interactor_borrow_seat(Interactor *itr);
+void interactor_return_seat(Interactor *itr);
 InteractionReadySeat interactor_announce(Interactor *itr);
 
 /* Interactors that are Backends will find this helper function useful
@@ -1468,9 +1470,9 @@ Seat *tempseat_new(Seat *real);
 bool is_tempseat(Seat *seat);
 Seat *tempseat_get_real(Seat *seat);
 
-/* Called by the backend once the proxy connection has finished
- * setting up (or failed), to pass on any buffered stuff to the real
- * seat. */
+/* Called by interactor_return_seat once the proxy connection has
+ * finished setting up (or failed), to pass on any buffered stuff to
+ * the real seat. */
 void tempseat_flush(Seat *ts);
 
 /* Frees a TempSeat, without flushing anything it has buffered. (Call
