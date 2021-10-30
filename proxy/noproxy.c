@@ -20,7 +20,7 @@ SockAddr *name_lookup(const char *host, int port, char **canonicalname,
 Socket *new_connection(SockAddr *addr, const char *hostname,
                        int port, bool privport,
                        bool oobinline, bool nodelay, bool keepalive,
-                       Plug *plug, Conf *conf, LogPolicy *lp, Seat **seat)
+                       Plug *plug, Conf *conf, Interactor *itr)
 {
     return sk_new(addr, port, privport, oobinline, nodelay, keepalive, plug);
 }

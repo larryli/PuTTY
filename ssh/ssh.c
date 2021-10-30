@@ -826,8 +826,7 @@ static char *connect_to_host(
 
         ssh->s = new_connection(addr, *realhost, port,
                                 false, true, nodelay, keepalive,
-                                &ssh->plug, ssh->conf,
-                                log_get_policy(ssh->logctx), &ssh->seat);
+                                &ssh->plug, ssh->conf, &ssh->interactor);
         if ((err = sk_socket_error(ssh->s)) != NULL) {
             ssh->s = NULL;
             seat_notify_remote_exit(ssh->seat);

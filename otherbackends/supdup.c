@@ -759,7 +759,7 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
      */
     supdup->s = new_connection(addr, *realhost, port, false, true,
                                nodelay, keepalive, &supdup->plug, supdup->conf,
-                               log_get_policy(logctx), &supdup->seat);
+                               &supdup->interactor);
     if ((err = sk_socket_error(supdup->s)) != NULL)
         return dupstr(err);
 

@@ -290,7 +290,7 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
      */
     rlogin->s = new_connection(addr, *realhost, port, true, false,
                                nodelay, keepalive, &rlogin->plug, conf,
-                               log_get_policy(logctx), &rlogin->seat);
+                               &rlogin->interactor);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
         return dupstr(err);
 

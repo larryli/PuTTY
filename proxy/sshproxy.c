@@ -483,7 +483,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
                                 Plug *plug, Conf *clientconf,
-                                LogPolicy *clientlp, Seat **clientseat)
+                                Interactor *clientitr)
 {
     SshProxy *sp = snew(SshProxy);
     memset(sp, 0, sizeof(*sp));
@@ -594,24 +594,27 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     sfree(realhost);
 
     /*
-     * If we've been given useful bits and pieces for interacting with
-     * the end user, squirrel them away now.
+     * If we've been given an Interactor by the caller, squirrel away
+     * things it's holding.
      */
-    sp->clientlp = clientlp;
-    if (clientseat && (backvt->flags & BACKEND_NOTIFIES_SESSION_START)) {
-        /*
-         * We can only keep the client's Seat if our own backend will
-         * tell us when to give it back. (SSH-based backends _should_
-         * do that, but we check the flag here anyway.)
-         *
-         * Also, check if the client already has a TempSeat, and if
-         * so, don't wrap it with another one.
-         */
-        if (is_tempseat(*clientseat)) {
-            sp->clientseat = tempseat_get_real(*clientseat);
-        } else {
-            sp->clientseat = *clientseat;
-            *clientseat = tempseat_new(sp->clientseat);
+    if (clientitr) {
+        sp->clientlp = interactor_logpolicy(clientitr);
+        if (backvt->flags & BACKEND_NOTIFIES_SESSION_START) {
+            /*
+             * We can only keep the client's Seat if our own backend will
+             * tell us when to give it back. (SSH-based backends _should_
+             * do that, but we check the flag here anyway.)
+             *
+             * Also, check if the client already has a TempSeat, and if
+             * so, don't wrap it with another one.
+             */
+            Seat *clientseat = interactor_get_seat(clientitr);
+            if (is_tempseat(clientseat)) {
+                sp->clientseat = tempseat_get_real(clientseat);
+            } else {
+                sp->clientseat = clientseat;
+                interactor_set_seat(clientitr, tempseat_new(sp->clientseat));
+            }
         }
     }
 

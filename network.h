@@ -137,19 +137,14 @@ struct PlugVtable {
  * layer is now responsible for freeing it, and the caller shouldn't
  * assume it exists any more.
  *
- * You can optionally pass a LogPolicy to this function, which will be
- * passed on in turn to proxy types that can use one (e.g. SSH jump
- * host proxy). If you don't have one, all proxy types are required to
- * be able to manage without (and will just degrade their logging
- * control).
- *
  * If calling this from a backend with a Seat, you can also give it a
- * pointer to your 'Seat *'. In that situation, it might replace the
- * 'Seat *' with a temporary seat of its own, and give the real Seat
- * to the proxy system so that it can ask for passwords (and, in the
- * case of SSH proxying, other prompts like host key checks). If that
- * happens, then the resulting 'temp seat' is the backend's property,
- * and it will have to remember to free it when cleaning up, or after
+ * pointer to the backend's Interactor trait. In that situation, it
+ * might replace the backend's seat with a temporary seat of its own,
+ * and give the real Seat to an Interactor somewhere in the proxy
+ * system so that it can ask for passwords (and, in the case of SSH
+ * proxying, other prompts like host key checks). If that happens,
+ * then the resulting 'temp seat' is the backend's property, and it
+ * will have to remember to free it when cleaning up, or after
  * flushing it back into the real seat when the network connection
  * attempt completes.
  *
@@ -163,7 +158,7 @@ struct PlugVtable {
 Socket *new_connection(SockAddr *addr, const char *hostname,
                        int port, bool privport,
                        bool oobinline, bool nodelay, bool keepalive,
-                       Plug *plug, Conf *conf, LogPolicy *lp, Seat **seat);
+                       Plug *plug, Conf *conf, Interactor *interactor);
 Socket *new_listener(const char *srcaddr, int port, Plug *plug,
                      bool local_host_only, Conf *conf, int addressfamily);
 SockAddr *name_lookup(const char *host, int port, char **canonicalname,
@@ -181,8 +176,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
 Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
-                                Plug *plug, Conf *conf,
-                                LogPolicy *clientlp, Seat **clientseat);
+                                Plug *plug, Conf *conf, Interactor *itr);
 
 /* socket functions */
 

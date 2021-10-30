@@ -1159,7 +1159,7 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
 
     pf->s = new_connection(addr, dummy_realhost, port,
                            false, true, false, false, &pf->plug, mgr->conf,
-                           NULL, NULL);
+                           NULL);
     sfree(dummy_realhost);
     if ((err = sk_socket_error(pf->s)) != NULL) {
         char *err_ret = dupstr(err);
