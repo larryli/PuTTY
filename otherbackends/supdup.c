@@ -649,8 +649,29 @@ static char *supdup_description(Interactor *itr)
     return dupstr(supdup->description);
 }
 
+static LogPolicy *supdup_logpolicy(Interactor *itr)
+{
+    Supdup *supdup = container_of(itr, Supdup, interactor);
+    return log_get_policy(supdup->logctx);
+}
+
+static Seat *supdup_get_seat(Interactor *itr)
+{
+    Supdup *supdup = container_of(itr, Supdup, interactor);
+    return supdup->seat;
+}
+
+static void supdup_set_seat(Interactor *itr, Seat *seat)
+{
+    Supdup *supdup = container_of(itr, Supdup, interactor);
+    supdup->seat = seat;
+}
+
 static const InteractorVtable Supdup_interactorvt = {
     .description = supdup_description,
+    .logpolicy = supdup_logpolicy,
+    .get_seat = supdup_get_seat,
+    .set_seat = supdup_set_seat,
 };
 
 /*

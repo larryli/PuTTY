@@ -207,8 +207,29 @@ static char *rlogin_description(Interactor *itr)
     return dupstr(rlogin->description);
 }
 
+static LogPolicy *rlogin_logpolicy(Interactor *itr)
+{
+    Rlogin *rlogin = container_of(itr, Rlogin, interactor);
+    return log_get_policy(rlogin->logctx);
+}
+
+static Seat *rlogin_get_seat(Interactor *itr)
+{
+    Rlogin *rlogin = container_of(itr, Rlogin, interactor);
+    return rlogin->seat;
+}
+
+static void rlogin_set_seat(Interactor *itr, Seat *seat)
+{
+    Rlogin *rlogin = container_of(itr, Rlogin, interactor);
+    rlogin->seat = seat;
+}
+
 static const InteractorVtable Rlogin_interactorvt = {
     .description = rlogin_description,
+    .logpolicy = rlogin_logpolicy,
+    .get_seat = rlogin_get_seat,
+    .set_seat = rlogin_set_seat,
 };
 
 /*

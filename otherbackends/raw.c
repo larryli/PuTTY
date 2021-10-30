@@ -130,8 +130,29 @@ static char *raw_description(Interactor *itr)
     return dupstr(raw->description);
 }
 
+static LogPolicy *raw_logpolicy(Interactor *itr)
+{
+    Raw *raw = container_of(itr, Raw, interactor);
+    return log_get_policy(raw->logctx);
+}
+
+static Seat *raw_get_seat(Interactor *itr)
+{
+    Raw *raw = container_of(itr, Raw, interactor);
+    return raw->seat;
+}
+
+static void raw_set_seat(Interactor *itr, Seat *seat)
+{
+    Raw *raw = container_of(itr, Raw, interactor);
+    raw->seat = seat;
+}
+
 static const InteractorVtable Raw_interactorvt = {
     .description = raw_description,
+    .logpolicy = raw_logpolicy,
+    .get_seat = raw_get_seat,
+    .set_seat = raw_set_seat,
 };
 
 /*

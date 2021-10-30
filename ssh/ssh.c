@@ -732,8 +732,29 @@ static char *ssh_description(Interactor *itr)
     return dupstr(ssh->description);
 }
 
+static LogPolicy *ssh_logpolicy(Interactor *itr)
+{
+    Ssh *ssh = container_of(itr, Ssh, interactor);
+    return log_get_policy(ssh->logctx);
+}
+
+static Seat *ssh_get_seat(Interactor *itr)
+{
+    Ssh *ssh = container_of(itr, Ssh, interactor);
+    return ssh->seat;
+}
+
+static void ssh_set_seat(Interactor *itr, Seat *seat)
+{
+    Ssh *ssh = container_of(itr, Ssh, interactor);
+    ssh->seat = seat;
+}
+
 static const InteractorVtable Ssh_interactorvt = {
     .description = ssh_description,
+    .logpolicy = ssh_logpolicy,
+    .get_seat = ssh_get_seat,
+    .set_seat = ssh_set_seat,
 };
 
 /*

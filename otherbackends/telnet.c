@@ -695,8 +695,29 @@ static char *telnet_description(Interactor *itr)
     return dupstr(telnet->description);
 }
 
+static LogPolicy *telnet_logpolicy(Interactor *itr)
+{
+    Telnet *telnet = container_of(itr, Telnet, interactor);
+    return log_get_policy(telnet->logctx);
+}
+
+static Seat *telnet_get_seat(Interactor *itr)
+{
+    Telnet *telnet = container_of(itr, Telnet, interactor);
+    return telnet->seat;
+}
+
+static void telnet_set_seat(Interactor *itr, Seat *seat)
+{
+    Telnet *telnet = container_of(itr, Telnet, interactor);
+    telnet->seat = seat;
+}
+
 static const InteractorVtable Telnet_interactorvt = {
     .description = telnet_description,
+    .logpolicy = telnet_logpolicy,
+    .get_seat = telnet_get_seat,
+    .set_seat = telnet_set_seat,
 };
 
 /*

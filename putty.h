@@ -661,10 +661,32 @@ struct InteractorVtable {
      * The returned string must be freed by the caller.
      */
     char *(*description)(Interactor *itr);
+
+    /*
+     * Returns the LogPolicy associated with this Interactor. (A
+     * Backend can derive this from its logging context; a proxy
+     * Interactor inherits it from the Interactor for the parent
+     * network connection.)
+     */
+    LogPolicy *(*logpolicy)(Interactor *itr);
+
+    /*
+     * Gets and sets the Seat that this Interactor talks to. When a
+     * Seat is borrowed and replaced with a TempSeat, this will be the
+     * mechanism by which that replacement happens.
+     */
+    Seat *(*get_seat)(Interactor *itr);
+    void (*set_seat)(Interactor *itr, Seat *seat);
 };
 
 static inline char *interactor_description(Interactor *itr)
 { return itr->vt->description(itr); }
+static inline LogPolicy *interactor_logpolicy(Interactor *itr)
+{ return itr->vt->logpolicy(itr); }
+static inline Seat *interactor_get_seat(Interactor *itr)
+{ return itr->vt->get_seat(itr); }
+static inline void interactor_set_seat(Interactor *itr, Seat *seat)
+{ itr->vt->set_seat(itr, seat); }
 
 /* Interactors that are Backends will find this helper function useful
  * in constructing their description strings */
