@@ -200,6 +200,7 @@ struct Telnet {
 
     Plug plug;
     Backend backend;
+    Interactor interactor;
 };
 
 #define TELNET_MAX_BACKLOG 4096
@@ -681,24 +682,21 @@ static void telnet_sent(Plug *plug, size_t bufsize)
     seat_sent(telnet->seat, telnet->bufsize);
 }
 
-static char *telnet_plug_description(Plug *plug)
-{
-    Telnet *telnet = container_of(plug, Telnet, plug);
-    return dupstr(telnet->description);
-}
-
-static char *telnet_backend_description(Backend *backend)
-{
-    Telnet *telnet = container_of(backend, Telnet, backend);
-    return dupstr(telnet->description);
-}
-
 static const PlugVtable Telnet_plugvt = {
     .log = telnet_log,
     .closing = telnet_closing,
     .receive = telnet_receive,
     .sent = telnet_sent,
-    .description = telnet_plug_description,
+};
+
+static char *telnet_description(Interactor *itr)
+{
+    Telnet *telnet = container_of(itr, Telnet, interactor);
+    return dupstr(telnet->description);
+}
+
+static const InteractorVtable Telnet_interactorvt = {
+    .description = telnet_description,
 };
 
 /*
@@ -724,6 +722,8 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
     memset(telnet, 0, sizeof(Telnet));
     telnet->plug.vt = &Telnet_plugvt;
     telnet->backend.vt = vt;
+    telnet->interactor.vt = &Telnet_interactorvt;
+    telnet->backend.interactor = &telnet->interactor;
     telnet->conf = conf_copy(conf);
     telnet->s = NULL;
     telnet->socket_connected = false;
@@ -1098,7 +1098,6 @@ const BackendVtable telnet_backend = {
     .provide_ldisc = telnet_provide_ldisc,
     .unthrottle = telnet_unthrottle,
     .cfg_info = telnet_cfg_info,
-    .description = telnet_backend_description,
     .id = "telnet",
     .displayname_tc = "Telnet",
     .displayname_lc = "Telnet", /* proper name, so capitalise it anyway */

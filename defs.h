@@ -101,6 +101,8 @@ typedef struct SocketPeerInfo SocketPeerInfo;
 
 typedef struct Backend Backend;
 typedef struct BackendVtable BackendVtable;
+typedef struct Interactor Interactor;
+typedef struct InteractorVtable InteractorVtable;
 
 typedef struct Ldisc_tag Ldisc;
 typedef struct LogContext LogContext;

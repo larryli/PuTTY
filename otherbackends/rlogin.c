@@ -32,6 +32,7 @@ struct Rlogin {
 
     Plug plug;
     Backend backend;
+    Interactor interactor;
 };
 
 static void rlogin_startup(Rlogin *rlogin, int prompt_result,
@@ -193,24 +194,21 @@ static void rlogin_startup(Rlogin *rlogin, int prompt_result,
         ldisc_check_sendok(rlogin->ldisc);
 }
 
-static char *rlogin_plug_description(Plug *plug)
-{
-    Rlogin *rlogin = container_of(plug, Rlogin, plug);
-    return dupstr(rlogin->description);
-}
-
-static char *rlogin_backend_description(Backend *backend)
-{
-    Rlogin *rlogin = container_of(backend, Rlogin, backend);
-    return dupstr(rlogin->description);
-}
-
 static const PlugVtable Rlogin_plugvt = {
     .log = rlogin_log,
     .closing = rlogin_closing,
     .receive = rlogin_receive,
     .sent = rlogin_sent,
-    .description = rlogin_plug_description,
+};
+
+static char *rlogin_description(Interactor *itr)
+{
+    Rlogin *rlogin = container_of(itr, Rlogin, interactor);
+    return dupstr(rlogin->description);
+}
+
+static const InteractorVtable Rlogin_interactorvt = {
+    .description = rlogin_description,
 };
 
 /*
@@ -236,6 +234,8 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
     memset(rlogin, 0, sizeof(Rlogin));
     rlogin->plug.vt = &Rlogin_plugvt;
     rlogin->backend.vt = vt;
+    rlogin->interactor.vt = &Rlogin_interactorvt;
+    rlogin->backend.interactor = &rlogin->interactor;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = false;
     rlogin->seat = seat;
@@ -461,7 +461,6 @@ const BackendVtable rlogin_backend = {
     .provide_ldisc = rlogin_provide_ldisc,
     .unthrottle = rlogin_unthrottle,
     .cfg_info = rlogin_cfg_info,
-    .description = rlogin_backend_description,
     .id = "rlogin",
     .displayname_tc = "Rlogin",
     .displayname_lc = "Rlogin", /* proper name, so capitalise it anyway */

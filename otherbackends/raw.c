@@ -25,6 +25,7 @@ struct Raw {
 
     Plug plug;
     Backend backend;
+    Interactor interactor;
 };
 
 static void raw_size(Backend *be, int width, int height);
@@ -116,24 +117,21 @@ static void raw_sent(Plug *plug, size_t bufsize)
     seat_sent(raw->seat, raw->bufsize);
 }
 
-static char *raw_plug_description(Plug *plug)
-{
-    Raw *raw = container_of(plug, Raw, plug);
-    return dupstr(raw->description);
-}
-
-static char *raw_backend_description(Backend *backend)
-{
-    Raw *raw = container_of(backend, Raw, backend);
-    return dupstr(raw->description);
-}
-
 static const PlugVtable Raw_plugvt = {
     .log = raw_log,
     .closing = raw_closing,
     .receive = raw_receive,
     .sent = raw_sent,
-    .description = raw_plug_description,
+};
+
+static char *raw_description(Interactor *itr)
+{
+    Raw *raw = container_of(itr, Raw, interactor);
+    return dupstr(raw->description);
+}
+
+static const InteractorVtable Raw_interactorvt = {
+    .description = raw_description,
 };
 
 /*
@@ -159,6 +157,8 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
     memset(raw, 0, sizeof(Raw));
     raw->plug.vt = &Raw_plugvt;
     raw->backend.vt = vt;
+    raw->interactor.vt = &Raw_interactorvt;
+    raw->backend.interactor = &raw->interactor;
     raw->s = NULL;
     raw->closed_on_socket_error = false;
     *backend_handle = &raw->backend;
@@ -354,7 +354,6 @@ const BackendVtable raw_backend = {
     .provide_ldisc = raw_provide_ldisc,
     .unthrottle = raw_unthrottle,
     .cfg_info = raw_cfg_info,
-    .description = raw_backend_description,
     .id = "raw",
     .displayname_tc = "Raw",
     .displayname_lc = "raw",

@@ -39,6 +39,7 @@ struct Ssh {
 
     Plug plug;
     Backend backend;
+    Interactor interactor;
 
     Ldisc *ldisc;
     LogContext *logctx;
@@ -718,24 +719,21 @@ static char *ssh_close_warn_text(Backend *be)
     return msg;
 }
 
-static char *ssh_plug_description(Plug *plug)
-{
-    Ssh *ssh = container_of(plug, Ssh, plug);
-    return dupstr(ssh->description);
-}
-
-static char *ssh_backend_description(Backend *backend)
-{
-    Ssh *ssh = container_of(backend, Ssh, backend);
-    return dupstr(ssh->description);
-}
-
 static const PlugVtable Ssh_plugvt = {
     .log = ssh_socket_log,
     .closing = ssh_closing,
     .receive = ssh_receive,
     .sent = ssh_sent,
-    .description = ssh_plug_description,
+};
+
+static char *ssh_description(Interactor *itr)
+{
+    Ssh *ssh = container_of(itr, Ssh, interactor);
+    return dupstr(ssh->description);
+}
+
+static const InteractorVtable Ssh_interactorvt = {
+    .description = ssh_description,
 };
 
 /*
@@ -940,6 +938,8 @@ static char *ssh_init(const BackendVtable *vt, Seat *seat,
     ssh->term_height = conf_get_int(ssh->conf, CONF_height);
 
     ssh->backend.vt = vt;
+    ssh->interactor.vt = &Ssh_interactorvt;
+    ssh->backend.interactor = &ssh->interactor;
     *backend_handle = &ssh->backend;
 
     ssh->bare_connection = (vt->protocol == PROT_SSHCONN);
@@ -1264,7 +1264,6 @@ const BackendVtable ssh_backend = {
     .cfg_info = ssh_cfg_info,
     .test_for_upstream = ssh_test_for_upstream,
     .close_warn_text = ssh_close_warn_text,
-    .description = ssh_backend_description,
     .id = "ssh",
     .displayname_tc = "SSH",
     .displayname_lc = "SSH", /* proper name, so capitalise it anyway */
@@ -1291,7 +1290,6 @@ const BackendVtable sshconn_backend = {
     .cfg_info = ssh_cfg_info,
     .test_for_upstream = ssh_test_for_upstream,
     .close_warn_text = ssh_close_warn_text,
-    .description = ssh_backend_description,
     .id = "ssh-connection",
     .displayname_tc = "Bare ssh-connection",
     .displayname_lc = "bare ssh-connection",

@@ -107,6 +107,7 @@ struct supdup_tag
 
     Plug plug;
     Backend backend;
+    Interactor interactor;
 };
 
 #define SUPDUP_MAX_BACKLOG 4096
@@ -642,17 +643,15 @@ static void supdup_send_config(Supdup *supdup)
     supdup_send_36bits(supdup, TTYROL);         // scroll amount
 }
 
-static char *supdup_plug_description(Plug *plug)
+static char *supdup_description(Interactor *itr)
 {
-    Supdup *supdup = container_of(plug, Supdup, plug);
+    Supdup *supdup = container_of(itr, Supdup, interactor);
     return dupstr(supdup->description);
 }
 
-static char *supdup_backend_description(Backend *backend)
-{
-    Supdup *supdup = container_of(backend, Supdup, backend);
-    return dupstr(supdup->description);
-}
+static const InteractorVtable Supdup_interactorvt = {
+    .description = supdup_description,
+};
 
 /*
 * Called to set up the Supdup connection.
@@ -673,7 +672,6 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
         .closing = supdup_closing,
         .receive = supdup_receive,
         .sent = supdup_sent,
-        .description = supdup_plug_description,
     };
     SockAddr *addr;
     const char *err;
@@ -686,6 +684,8 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     memset(supdup, 0, sizeof(Supdup));
     supdup->plug.vt = &fn_table;
     supdup->backend.vt = &supdup_backend;
+    supdup->interactor.vt = &Supdup_interactorvt;
+    supdup->backend.interactor = &supdup->interactor;
     supdup->logctx = logctx;
     supdup->conf = conf_copy(conf);
     supdup->s = NULL;
@@ -952,7 +952,6 @@ const BackendVtable supdup_backend = {
     .provide_ldisc = supdup_provide_ldisc,
     .unthrottle = supdup_unthrottle,
     .cfg_info = supdup_cfg_info,
-    .description = supdup_backend_description,
     .id = "supdup",
     .displayname_tc = "SUPDUP",
     .displayname_lc = "SUPDUP", /* proper name, so capitalise it anyway */
