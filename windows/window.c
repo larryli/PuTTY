@@ -332,6 +332,7 @@ static const SeatVtable win_seat_vt = {
     .output = win_seat_output,
     .eof = win_seat_eof,
     .sent = nullseat_sent,
+    .banner = nullseat_banner_to_stderr,
     .get_userpass_input = win_seat_get_userpass_input,
     .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = win_seat_notify_remote_exit,

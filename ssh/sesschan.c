@@ -187,6 +187,7 @@ static const SeatVtable sesschan_seat_vt = {
     .output = sesschan_seat_output,
     .eof = sesschan_seat_eof,
     .sent = nullseat_sent,
+    .banner = nullseat_banner,
     .get_userpass_input = nullseat_get_userpass_input,
     .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = sesschan_notify_remote_exit,
@@ -614,11 +615,6 @@ static size_t sesschan_seat_output(
     Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
     sesschan *sess = container_of(seat, sesschan, seat);
-
-    /* We don't expect anything but stdout and stderr to come here,
-     * because the pty backend doesn't generate auth banners */
-    assert(type != SEAT_OUTPUT_AUTH_BANNER);
-
     return sshfwd_write_ext(sess->c, type == SEAT_OUTPUT_STDERR, data, len);
 }
 

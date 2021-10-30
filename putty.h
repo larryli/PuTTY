@@ -925,7 +925,7 @@ typedef enum SeatInteractionContext {
 } SeatInteractionContext;
 
 typedef enum SeatOutputType {
-    SEAT_OUTPUT_STDOUT, SEAT_OUTPUT_STDERR, SEAT_OUTPUT_AUTH_BANNER
+    SEAT_OUTPUT_STDOUT, SEAT_OUTPUT_STDERR
 } SeatOutputType;
 
 /*
@@ -941,11 +941,10 @@ struct Seat {
 struct SeatVtable {
     /*
      * Provide output from the remote session. 'type' indicates the
-     * type of the output (stdout, stderr or SSH auth banner), which
-     * can be used to split the output into separate message channels,
-     * if the seat wants to handle them differently. But combining the
-     * channels into one is OK too; that's what terminal-window based
-     * seats do.
+     * type of the output (stdout or stderr), which can be used to
+     * split the output into separate message channels, if the seat
+     * wants to handle them differently. But combining the channels
+     * into one is OK too; that's what terminal-window based seats do.
      *
      * The return value is the current size of the output backlog.
      */
@@ -970,6 +969,14 @@ struct SeatVtable {
      * become smaller.
      */
     void (*sent)(Seat *seat, size_t new_sendbuffer);
+
+    /*
+     * Provide authentication-banner output from the session setup.
+     * End-user Seats can treat this as very similar to 'output', but
+     * intermediate Seats in complex proxying situations will want to
+     * implement this and 'output' differently.
+     */
+    size_t (*banner)(Seat *seat, const void *data, size_t len);
 
     /*
      * Try to get answers from a set of interactive login prompts. The
@@ -1227,6 +1234,8 @@ static inline bool seat_eof(Seat *seat)
 { return seat->vt->eof(seat); }
 static inline void seat_sent(Seat *seat, size_t bufsize)
 { seat->vt->sent(seat, bufsize); }
+static inline size_t seat_banner(Seat *seat, const void *data, size_t len)
+{ return seat->vt->banner(seat, data, len); }
 static inline int seat_get_userpass_input(Seat *seat, prompts_t *p)
 { return seat->vt->get_userpass_input(seat, p); }
 static inline void seat_notify_session_started(Seat *seat)
@@ -1293,10 +1302,10 @@ static inline size_t seat_stderr(Seat *seat, const void *data, size_t len)
 { return seat_output(seat, SEAT_OUTPUT_STDERR, data, len); }
 static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
 { return seat_output(seat, SEAT_OUTPUT_STDERR, data.ptr, data.len); }
-static inline size_t seat_banner(Seat *seat, const void *data, size_t len)
-{ return seat_output(seat, SEAT_OUTPUT_AUTH_BANNER, data, len); }
+
+/* Alternative API for seat_banner taking a ptrlen */
 static inline size_t seat_banner_pl(Seat *seat, ptrlen data)
-{ return seat_output(seat, SEAT_OUTPUT_AUTH_BANNER, data.ptr, data.len); }
+{ return seat->vt->banner(seat, data.ptr, data.len); }
 
 /* In the utils subdir: print a message to the Seat which can't be
  * spoofed by server-supplied auth-time output such as SSH banners */
@@ -1313,6 +1322,8 @@ size_t nullseat_output(
     Seat *seat, SeatOutputType type, const void *data, size_t len);
 bool nullseat_eof(Seat *seat);
 void nullseat_sent(Seat *seat, size_t bufsize);
+size_t nullseat_banner(Seat *seat, const void *data, size_t len);
+size_t nullseat_banner_to_stderr(Seat *seat, const void *data, size_t len);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p);
 void nullseat_notify_session_started(Seat *seat);
 void nullseat_notify_remote_exit(Seat *seat);

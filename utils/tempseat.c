@@ -224,6 +224,11 @@ static int tempseat_get_userpass_input(Seat *seat, prompts_t *p)
     unreachable("get_userpass_input should never be called on TempSeat");
 }
 
+static size_t tempseat_banner(Seat *seat, const void *data, size_t len)
+{
+    unreachable("banner should never be called on TempSeat");
+}
+
 static int tempseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
@@ -299,6 +304,7 @@ static const struct SeatVtable tempseat_vt = {
     .output = tempseat_output,
     .eof = tempseat_eof,
     .sent = nullseat_sent,
+    .banner = tempseat_banner,
     .get_userpass_input = tempseat_get_userpass_input,
     .notify_session_started = tempseat_notify_session_started,
     .notify_remote_exit = tempseat_notify_remote_exit,

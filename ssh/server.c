@@ -108,6 +108,7 @@ static const SeatVtable server_seat_vt = {
     .output = nullseat_output,
     .eof = nullseat_eof,
     .sent = nullseat_sent,
+    .banner = nullseat_banner,
     .get_userpass_input = nullseat_get_userpass_input,
     .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = nullseat_notify_remote_exit,

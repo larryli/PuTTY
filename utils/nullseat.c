@@ -8,6 +8,9 @@ size_t nullseat_output(
     Seat *seat, SeatOutputType type, const void *data, size_t len) {return 0;}
 bool nullseat_eof(Seat *seat) { return true; }
 void nullseat_sent(Seat *seat, size_t bufsize) {}
+size_t nullseat_banner(Seat *seat, const void *data, size_t len) {return 0;}
+size_t nullseat_banner_to_stderr(Seat *seat, const void *data, size_t len)
+{ return seat_output(seat, SEAT_OUTPUT_STDERR, data, len); }
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p) { return 0; }
 void nullseat_notify_session_started(Seat *seat) {}
 void nullseat_notify_remote_exit(Seat *seat) {}

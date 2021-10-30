@@ -48,6 +48,7 @@ static const SeatVtable psftp_seat_vt = {
     .output = psftp_output,
     .eof = psftp_eof,
     .sent = nullseat_sent,
+    .banner = nullseat_banner_to_stderr,
     .get_userpass_input = filexfer_get_userpass_input,
     .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = nullseat_notify_remote_exit,

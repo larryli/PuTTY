@@ -262,20 +262,22 @@ static size_t sshproxy_output(Seat *seat, SeatOutputType type,
                               const void *data, size_t len)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
-    if (type == SEAT_OUTPUT_AUTH_BANNER) {
-        if (sp->clientseat) {
-            /*
-             * If we have access to the outer Seat, pass the SSH login
-             * banner on to it.
-             */
-            return seat_output(sp->clientseat, type, data, len);
-        } else {
-            return 0;
-        }
+    bufchain_add(&sp->ssh_to_socket, data, len);
+    try_send_ssh_to_socket(sp);
+    return bufchain_size(&sp->ssh_to_socket);
+}
+
+static size_t sshproxy_banner(Seat *seat, const void *data, size_t len)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    if (sp->clientseat) {
+        /*
+         * If we have access to the outer Seat, pass the SSH login
+         * banner on to it.
+         */
+        return seat_banner(sp->clientseat, data, len);
     } else {
-        bufchain_add(&sp->ssh_to_socket, data, len);
-        try_send_ssh_to_socket(sp);
-        return bufchain_size(&sp->ssh_to_socket);
+        return 0;
     }
 }
 
@@ -452,6 +454,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .output = sshproxy_output,
     .eof = sshproxy_eof,
     .sent = sshproxy_sent,
+    .banner = sshproxy_banner,
     .get_userpass_input = sshproxy_get_userpass_input,
     .notify_session_started = sshproxy_notify_session_started,
     .notify_remote_exit = nullseat_notify_remote_exit,
