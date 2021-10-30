@@ -854,8 +854,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 ppl_logevent("%s", fingerprints[fptype_default]);
 
                 s->dlgret = verify_ssh_host_key(
-                    s->ppl.seat, s->conf, s->savedhost, s->savedport, s->hkey,
-                    ssh_key_cache_id(s->hkey), s->keystr, keydisp,
+                    ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport,
+                    s->hkey, ssh_key_cache_id(s->hkey), s->keystr, keydisp,
                     fingerprints, ssh2_transport_dialog_callback, s);
 
                 ssh2_free_all_fingerprints(fingerprints);

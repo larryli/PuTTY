@@ -634,6 +634,24 @@ enum {
 extern const bool ssh_proxy_supported;
 
 /*
+ * This structure type wraps a Seat pointer, in a way that has no
+ * purpose except to be a different type.
+ *
+ * The Seat wrapper functions that present interactive prompts all
+ * expect one of these in place of their ordinary Seat pointer. You
+ * get one by calling interactor_announce (defined below), which will
+ * print a message (if not already done) identifying the Interactor
+ * that originated the prompt.
+ *
+ * This arranges that the C type system itself will check that no call
+ * to any of those Seat methods has omitted the mandatory call to
+ * interactor_announce beforehand.
+ */
+struct InteractionReadySeat {
+    Seat *seat;
+};
+
+/*
  * The Interactor trait is implemented by anything that is capable of
  * presenting interactive prompts or questions to the user during
  * network connection setup. Every Backend that ever needs to do this
@@ -687,6 +705,8 @@ static inline Seat *interactor_get_seat(Interactor *itr)
 { return itr->vt->get_seat(itr); }
 static inline void interactor_set_seat(Interactor *itr, Seat *seat)
 { itr->vt->set_seat(itr, seat); }
+
+InteractionReadySeat interactor_announce(Interactor *itr);
 
 /* Interactors that are Backends will find this helper function useful
  * in constructing their description strings */
@@ -1277,10 +1297,12 @@ static inline bool seat_eof(Seat *seat)
 { return seat->vt->eof(seat); }
 static inline void seat_sent(Seat *seat, size_t bufsize)
 { seat->vt->sent(seat, bufsize); }
-static inline size_t seat_banner(Seat *seat, const void *data, size_t len)
-{ return seat->vt->banner(seat, data, len); }
-static inline int seat_get_userpass_input(Seat *seat, prompts_t *p)
-{ return seat->vt->get_userpass_input(seat, p); }
+static inline size_t seat_banner(
+    InteractionReadySeat iseat, const void *data, size_t len)
+{ return iseat.seat->vt->banner(iseat.seat, data, len); }
+static inline int seat_get_userpass_input(InteractionReadySeat iseat,
+                                          prompts_t *p)
+{ return iseat.seat->vt->get_userpass_input(iseat.seat, p); }
 static inline void seat_notify_session_started(Seat *seat)
 { seat->vt->notify_session_started(seat); }
 static inline void seat_notify_remote_exit(Seat *seat)
@@ -1294,19 +1316,21 @@ static inline char *seat_get_ttymode(Seat *seat, const char *mode)
 static inline void seat_set_busy_status(Seat *seat, BusyStatus status)
 { seat->vt->set_busy_status(seat, status); }
 static inline int seat_confirm_ssh_host_key(
-    Seat *seat, const char *h, int p, const char *ktyp, char *kstr,
-    const char *kdsp, char **fps, bool mis,
+    InteractionReadySeat iseat, const char *h, int p, const char *ktyp,
+    char *kstr, const char *kdsp, char **fps, bool mis,
     void (*cb)(void *ctx, int result), void *ctx)
-{ return seat->vt->confirm_ssh_host_key(seat, h, p, ktyp, kstr, kdsp, fps,
-                                        mis, cb, ctx); }
+{ return iseat.seat->vt->confirm_ssh_host_key(
+        iseat.seat, h, p, ktyp, kstr, kdsp, fps, mis, cb, ctx); }
 static inline int seat_confirm_weak_crypto_primitive(
-    Seat *seat, const char *atyp, const char *aname,
+    InteractionReadySeat iseat, const char *atyp, const char *aname,
     void (*cb)(void *ctx, int result), void *ctx)
-{ return seat->vt->confirm_weak_crypto_primitive(seat, atyp, aname, cb, ctx); }
+{ return iseat.seat->vt->confirm_weak_crypto_primitive(
+        iseat.seat, atyp, aname, cb, ctx); }
 static inline int seat_confirm_weak_cached_hostkey(
-    Seat *seat, const char *aname, const char *better,
+    InteractionReadySeat iseat, const char *aname, const char *better,
     void (*cb)(void *ctx, int result), void *ctx)
-{ return seat->vt->confirm_weak_cached_hostkey(seat, aname, better, cb, ctx); }
+{ return iseat.seat->vt->confirm_weak_cached_hostkey(
+        iseat.seat, aname, better, cb, ctx); }
 static inline bool seat_is_utf8(Seat *seat)
 { return seat->vt->is_utf8(seat); }
 static inline void seat_echoedit_update(Seat *seat, bool ec, bool ed)
@@ -1347,12 +1371,12 @@ static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
 { return seat_output(seat, SEAT_OUTPUT_STDERR, data.ptr, data.len); }
 
 /* Alternative API for seat_banner taking a ptrlen */
-static inline size_t seat_banner_pl(Seat *seat, ptrlen data)
-{ return seat->vt->banner(seat, data.ptr, data.len); }
+static inline size_t seat_banner_pl(InteractionReadySeat iseat, ptrlen data)
+{ return iseat.seat->vt->banner(iseat.seat, data.ptr, data.len); }
 
 /* In the utils subdir: print a message to the Seat which can't be
  * spoofed by server-supplied auth-time output such as SSH banners */
-void seat_antispoof_msg(Seat *seat, const char *msg);
+void seat_antispoof_msg(InteractionReadySeat iseat, const char *msg);
 
 /*
  * Stub methods for seat implementations that want to use the obvious

@@ -1313,7 +1313,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 /* Use the special warning prompt that lets us provide
                  * a list of better algorithms */
                 s->dlgret = seat_confirm_weak_cached_hostkey(
-                    s->ppl.seat, s->hostkey_alg->ssh_id, betteralgs,
+                    ppl_get_iseat(&s->ppl), s->hostkey_alg->ssh_id, betteralgs,
                     ssh2_transport_dialog_callback, s);
             sfree(betteralgs);
         } else {
@@ -2148,7 +2148,7 @@ static int ssh2_transport_confirm_weak_crypto_primitive(
     add234(s->weak_algorithms_consented_to, (void *)alg);
 
     return seat_confirm_weak_crypto_primitive(
-        s->ppl.seat, type, name, ssh2_transport_dialog_callback, s);
+        ppl_get_iseat(&s->ppl), type, name, ssh2_transport_dialog_callback, s);
 }
 
 static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl)

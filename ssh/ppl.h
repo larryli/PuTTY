@@ -49,6 +49,7 @@ struct PacketProtocolLayer {
     /* Logging and error-reporting facilities. */
     LogContext *logctx;
     Seat *seat;             /* for dialog boxes, session output etc */
+    Interactor *interactor; /* for ppl_get_iseat */
     Ssh *ssh;   /* for session termination + assorted connection-layer ops */
 
     /* Known bugs in the remote implementation. */
@@ -67,6 +68,9 @@ static inline void ssh_ppl_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
 { ppl->vt->reconfigure(ppl, conf); }
 static inline size_t ssh_ppl_queued_data_size(PacketProtocolLayer *ppl)
 { return ppl->vt->queued_data_size(ppl); }
+
+static inline InteractionReadySeat ppl_get_iseat(PacketProtocolLayer *ppl)
+{ return interactor_announce(ppl->interactor); }
 
 /* ssh_ppl_free is more than just a macro wrapper on the vtable; it
  * does centralised parts of the freeing too. */

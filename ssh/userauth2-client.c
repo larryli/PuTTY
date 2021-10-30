@@ -443,11 +443,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             s->cur_prompt->name = dupstr("SSH login name");
             add_prompt(s->cur_prompt, dupstr("login as: "), true);
             s->userpass_ret = seat_get_userpass_input(
-                s->ppl.seat, s->cur_prompt);
+                ppl_get_iseat(&s->ppl), s->cur_prompt);
             while (s->userpass_ret < 0) {
                 crReturnV;
                 s->userpass_ret = seat_get_userpass_input(
-                    s->ppl.seat, s->cur_prompt);
+                    ppl_get_iseat(&s->ppl), s->cur_prompt);
             }
             if (!s->userpass_ret) {
                 /*
@@ -521,7 +521,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 (seat_verbose(s->ppl.seat) || seat_interactive(s->ppl.seat))) {
                 if (s->banner_scc) {
                     seat_antispoof_msg(
-                        s->ppl.seat,
+                        ppl_get_iseat(&s->ppl),
                         "Pre-authentication banner message from server:");
                     seat_set_trust_status(s->ppl.seat, false);
                 }
@@ -529,7 +529,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 bool mid_line = false;
                 while (bufchain_size(&s->banner) > 0) {
                     ptrlen data = bufchain_prefix(&s->banner);
-                    seat_banner_pl(s->ppl.seat, data);
+                    seat_banner_pl(ppl_get_iseat(&s->ppl), data);
                     mid_line =
                         (((const char *)data.ptr)[data.len-1] != '\n');
                     bufchain_consume(&s->banner, data.len);
@@ -537,11 +537,12 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 bufchain_clear(&s->banner);
 
                 if (mid_line)
-                    seat_banner_pl(s->ppl.seat, PTRLEN_LITERAL("\r\n"));
+                    seat_banner_pl(ppl_get_iseat(&s->ppl),
+                                   PTRLEN_LITERAL("\r\n"));
 
                 if (s->banner_scc) {
                     seat_set_trust_status(s->ppl.seat, true);
-                    seat_antispoof_msg(s->ppl.seat,
+                    seat_antispoof_msg(ppl_get_iseat(&s->ppl),
                                        "End of banner message from server");
                 }
             }
@@ -912,11 +913,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                                              s->publickey_comment),
                                    false);
                         s->userpass_ret = seat_get_userpass_input(
-                            s->ppl.seat, s->cur_prompt);
+                            ppl_get_iseat(&s->ppl), s->cur_prompt);
                         while (s->userpass_ret < 0) {
                             crReturnV;
                             s->userpass_ret = seat_get_userpass_input(
-                                s->ppl.seat, s->cur_prompt);
+                                ppl_get_iseat(&s->ppl), s->cur_prompt);
                         }
                         if (!s->userpass_ret) {
                             /* Failed to get a passphrase. Terminate. */
@@ -1343,8 +1344,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     if (!s->ki_printed_header && s->ki_scc &&
                         (s->num_prompts || name.len || inst.len)) {
                         seat_antispoof_msg(
-                            s->ppl.seat, "Keyboard-interactive authentication "
-                            "prompts from server:");
+                            ppl_get_iseat(&s->ppl), "Keyboard-interactive "
+                            "authentication prompts from server:");
                         s->ki_printed_header = true;
                         seat_set_trust_status(s->ppl.seat, false);
                     }
@@ -1391,11 +1392,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                      * user's response(s).
                      */
                     s->userpass_ret = seat_get_userpass_input(
-                        s->ppl.seat, s->cur_prompt);
+                        ppl_get_iseat(&s->ppl), s->cur_prompt);
                     while (s->userpass_ret < 0) {
                         crReturnV;
                         s->userpass_ret = seat_get_userpass_input(
-                            s->ppl.seat, s->cur_prompt);
+                            ppl_get_iseat(&s->ppl), s->cur_prompt);
                     }
                     if (!s->userpass_ret) {
                         /*
@@ -1446,7 +1447,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 if (s->ki_printed_header) {
                     seat_set_trust_status(s->ppl.seat, true);
                     seat_antispoof_msg(
-                        s->ppl.seat,
+                        ppl_get_iseat(&s->ppl),
                         "End of keyboard-interactive prompts from server");
                 }
 
@@ -1473,11 +1474,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                            false);
 
                 s->userpass_ret = seat_get_userpass_input(
-                    s->ppl.seat, s->cur_prompt);
+                    ppl_get_iseat(&s->ppl), s->cur_prompt);
                 while (s->userpass_ret < 0) {
                     crReturnV;
                     s->userpass_ret = seat_get_userpass_input(
-                        s->ppl.seat, s->cur_prompt);
+                        ppl_get_iseat(&s->ppl), s->cur_prompt);
                 }
                 if (!s->userpass_ret) {
                     /*
@@ -1585,11 +1586,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                      */
                     while (!got_new) {
                         s->userpass_ret = seat_get_userpass_input(
-                            s->ppl.seat, s->cur_prompt);
+                            ppl_get_iseat(&s->ppl), s->cur_prompt);
                         while (s->userpass_ret < 0) {
                             crReturnV;
                             s->userpass_ret = seat_get_userpass_input(
-                                s->ppl.seat, s->cur_prompt);
+                                ppl_get_iseat(&s->ppl), s->cur_prompt);
                         }
                         if (!s->userpass_ret) {
                             /*

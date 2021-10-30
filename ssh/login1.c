@@ -243,7 +243,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         char **fingerprints = rsa_ssh1_fake_all_fingerprints(&s->hostkey);
 
         s->dlgret = verify_ssh_host_key(
-            s->ppl.seat, s->conf, s->savedhost, s->savedport, NULL,
+            ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport, NULL,
             "rsa", keystr, keydisp, fingerprints,
             ssh1_login_dialog_callback, s);
 
@@ -325,7 +325,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         /* Warn about chosen cipher if necessary. */
         if (warn) {
             s->dlgret = seat_confirm_weak_crypto_primitive(
-                s->ppl.seat, "cipher", cipher_string,
+                ppl_get_iseat(&s->ppl), "cipher", cipher_string,
                 ssh1_login_dialog_callback, s);
             crMaybeWaitUntilV(s->dlgret >= 0);
             if (s->dlgret == 0) {
@@ -391,11 +391,12 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         s->cur_prompt->from_server = false;
         s->cur_prompt->name = dupstr("SSH login name");
         add_prompt(s->cur_prompt, dupstr("login as: "), true);
-        s->userpass_ret = seat_get_userpass_input(s->ppl.seat, s->cur_prompt);
+        s->userpass_ret = seat_get_userpass_input(
+            ppl_get_iseat(&s->ppl), s->cur_prompt);
         while (s->userpass_ret < 0) {
             crReturnV;
             s->userpass_ret = seat_get_userpass_input(
-                s->ppl.seat, s->cur_prompt);
+                ppl_get_iseat(&s->ppl), s->cur_prompt);
         }
         if (!s->userpass_ret) {
             /*
@@ -688,11 +689,11 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                                dupprintf("Passphrase for key \"%s\": ",
                                          s->publickey_comment), false);
                     s->userpass_ret = seat_get_userpass_input(
-                        s->ppl.seat, s->cur_prompt);
+                        ppl_get_iseat(&s->ppl), s->cur_prompt);
                     while (s->userpass_ret < 0) {
                         crReturnV;
                         s->userpass_ret = seat_get_userpass_input(
-                            s->ppl.seat, s->cur_prompt);
+                            ppl_get_iseat(&s->ppl), s->cur_prompt);
                     }
                     if (!s->userpass_ret) {
                         /* Failed to get a passphrase. Terminate. */
@@ -942,11 +943,12 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
          * or CryptoCard exchange if we're doing TIS or CryptoCard
          * authentication.
          */
-        s->userpass_ret = seat_get_userpass_input(s->ppl.seat, s->cur_prompt);
+        s->userpass_ret = seat_get_userpass_input(
+            ppl_get_iseat(&s->ppl), s->cur_prompt);
         while (s->userpass_ret < 0) {
             crReturnV;
             s->userpass_ret = seat_get_userpass_input(
-                s->ppl.seat, s->cur_prompt);
+                ppl_get_iseat(&s->ppl), s->cur_prompt);
         }
         if (!s->userpass_ret) {
             /*

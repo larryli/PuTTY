@@ -267,6 +267,13 @@ static size_t sshproxy_output(Seat *seat, SeatOutputType type,
     return bufchain_size(&sp->ssh_to_socket);
 }
 
+static inline InteractionReadySeat wrap(Seat *seat)
+{
+    InteractionReadySeat iseat;
+    iseat.seat = seat;
+    return iseat;
+}
+
 static size_t sshproxy_banner(Seat *seat, const void *data, size_t len)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
@@ -275,7 +282,7 @@ static size_t sshproxy_banner(Seat *seat, const void *data, size_t len)
          * If we have access to the outer Seat, pass the SSH login
          * banner on to it.
          */
-        return seat_banner(sp->clientseat, data, len);
+        return seat_banner(wrap(sp->clientseat), data, len);
     } else {
         return 0;
     }
@@ -311,7 +318,7 @@ static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
          * If we have access to the outer Seat, pass this prompt
          * request on to it. FIXME: appropriately adjusted
          */
-        return seat_get_userpass_input(sp->clientseat, p);
+        return seat_get_userpass_input(wrap(sp->clientseat), p);
     }
 
     /*
@@ -353,7 +360,7 @@ static int sshproxy_confirm_ssh_host_key(
          * request on to it. FIXME: appropriately adjusted
          */
         return seat_confirm_ssh_host_key(
-            sp->clientseat, host, port, keytype, keystr, keydisp,
+            wrap(sp->clientseat), host, port, keytype, keystr, keydisp,
             key_fingerprints, mismatch, callback, ctx);
     }
 
@@ -377,7 +384,7 @@ static int sshproxy_confirm_weak_crypto_primitive(
          * request on to it. FIXME: appropriately adjusted
          */
         return seat_confirm_weak_crypto_primitive(
-            sp->clientseat, algtype, algname, callback, ctx);
+            wrap(sp->clientseat), algtype, algname, callback, ctx);
     }
 
     /*
@@ -402,7 +409,7 @@ static int sshproxy_confirm_weak_cached_hostkey(
          * request on to it. FIXME: appropriately adjusted
          */
         return seat_confirm_weak_cached_hostkey(
-            sp->clientseat, algname, betteralgs, callback, ctx);
+            wrap(sp->clientseat), algname, betteralgs, callback, ctx);
     }
 
     /*

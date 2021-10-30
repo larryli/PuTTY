@@ -168,6 +168,7 @@ static void ssh_connect_ppl(Ssh *ssh, PacketProtocolLayer *ppl)
 {
     ppl->bpp = ssh->bpp;
     ppl->seat = ssh->seat;
+    ppl->interactor = &ssh->interactor;
     ppl->ssh = ssh;
     ppl->logctx = ssh->logctx;
     ppl->remote_bugs = ssh->remote_bugs;

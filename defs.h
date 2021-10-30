@@ -103,6 +103,7 @@ typedef struct Backend Backend;
 typedef struct BackendVtable BackendVtable;
 typedef struct Interactor Interactor;
 typedef struct InteractorVtable InteractorVtable;
+typedef struct InteractionReadySeat InteractionReadySeat;
 
 typedef struct Ldisc_tag Ldisc;
 typedef struct LogContext LogContext;

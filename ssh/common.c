@@ -851,8 +851,8 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
  */
 
 int verify_ssh_host_key(
-    Seat *seat, Conf *conf, const char *host, int port, ssh_key *key,
-    const char *keytype, char *keystr, const char *keydisp,
+    InteractionReadySeat iseat, Conf *conf, const char *host, int port,
+    ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
     char **fingerprints, void (*callback)(void *ctx, int result), void *ctx)
 {
     /*
@@ -923,7 +923,7 @@ int verify_ssh_host_key(
      */
     bool mismatch = (storage_status != 1);
     return seat_confirm_ssh_host_key(
-        seat, host, port, keytype, keystr, keydisp, fingerprints, mismatch,
+        iseat, host, port, keytype, keystr, keydisp, fingerprints, mismatch,
         callback, ctx);
 }
 

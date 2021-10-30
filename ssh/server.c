@@ -375,6 +375,7 @@ static void server_connect_ppl(server *srv, PacketProtocolLayer *ppl)
     ppl->logctx = srv->logctx;
     ppl->ssh = &srv->ssh;
     ppl->seat = &srv->seat;
+    ppl->interactor = NULL;
     ppl->remote_bugs = srv->remote_bugs;
 }
 

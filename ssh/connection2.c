@@ -993,11 +993,11 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
             s->antispoof_prompt,
             dupstr("Access granted. Press Return to begin session. "), false);
         s->antispoof_ret = seat_get_userpass_input(
-            s->ppl.seat, s->antispoof_prompt);
+            ppl_get_iseat(&s->ppl), s->antispoof_prompt);
         while (s->antispoof_ret < 0) {
             crReturnV;
             s->antispoof_ret = seat_get_userpass_input(
-                s->ppl.seat, s->antispoof_prompt);
+                ppl_get_iseat(&s->ppl), s->antispoof_prompt);
         }
         free_prompts(s->antispoof_prompt);
         s->antispoof_prompt = NULL;

@@ -335,7 +335,8 @@ static void rlogin_try_username_prompt(void *ctx)
 {
     Rlogin *rlogin = (Rlogin *)ctx;
 
-    int ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt);
+    int ret = seat_get_userpass_input(
+        interactor_announce(&rlogin->interactor), rlogin->prompt);
     if (ret < 0)
         return;
 
