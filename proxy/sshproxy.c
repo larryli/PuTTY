@@ -16,14 +16,6 @@ const bool ssh_proxy_supported = true;
 /*
  * TODO for future work:
  *
- * All the interactive prompts we present to the main Seat - the host
- * key and weak-crypto dialog boxes, and all prompts presented via the
- * userpass_input system - need adjusting so that it's clear to the
- * user _which_ SSH connection they come from. At the moment, you just
- * get shown a host key fingerprint or a cryptic "login as:" prompt,
- * and you have to guess which server you're currently supposed to be
- * interpreting it relative to.
- *
  * If the user manually aborts the attempt to make the proxy SSH
  * connection (e.g. by hitting ^C at a userpass prompt, or refusing to
  * accept the proxy server's host key), then an assertion failure
@@ -607,6 +599,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
      */
     if (clientitr) {
         sp->clientitr = clientitr;
+        interactor_set_child(sp->clientitr, sp->backend->interactor);
 
         sp->clientlp = interactor_logpolicy(clientitr);
 

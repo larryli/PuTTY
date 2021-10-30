@@ -661,6 +661,19 @@ struct InteractionReadySeat {
  */
 struct Interactor {
     const InteractorVtable *vt;
+
+    /* The parent Interactor that we are a proxy for, if any. */
+    Interactor *parent;
+
+    /*
+     * If we're the top-level Interactor (parent==NULL), then this
+     * field records the last Interactor that actually did anything
+     * interactive, so that we know when to announce a changeover
+     * between levels of proxying.
+     *
+     * If parent != NULL, this field is not used.
+     */
+    Interactor *last_to_talk;
 };
 
 struct InteractorVtable {
@@ -706,6 +719,8 @@ static inline Seat *interactor_get_seat(Interactor *itr)
 static inline void interactor_set_seat(Interactor *itr, Seat *seat)
 { itr->vt->set_seat(itr, seat); }
 
+static inline void interactor_set_child(Interactor *parent, Interactor *child)
+{ child->parent = parent; }
 Seat *interactor_borrow_seat(Interactor *itr);
 void interactor_return_seat(Interactor *itr);
 InteractionReadySeat interactor_announce(Interactor *itr);

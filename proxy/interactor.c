@@ -33,6 +33,13 @@ void interactor_return_seat(Interactor *itr)
     tempseat_free(tempseat);
 
     /*
+     * If we have a parent Interactor, and anyone has ever called
+     * interactor_announce, then all Interactors from now on will
+     * announce themselves even if they have nothing to say.
+     */
+    interactor_announce(itr);
+
+    /*
      * We're about to hand this seat back to the parent Interactor to
      * do its own thing with. It will typically expect to start in the
      * same state as if the seat had never been borrowed, i.e. in the
@@ -44,12 +51,55 @@ void interactor_return_seat(Interactor *itr)
 InteractionReadySeat interactor_announce(Interactor *itr)
 {
     Seat *seat = interactor_get_seat(itr);
-
-    /* TODO: print an announcement of this Interactor's identity, when
-     * appropriate */
+    assert(!is_tempseat(seat) &&
+           "Shouldn't call announce when someone else is using our seat");
 
     InteractionReadySeat iseat;
     iseat.seat = seat;
+
+    /*
+     * Find the Interactor at the top of the chain, so that all the
+     * Interactors in a stack can share that one's last-to-talk field.
+     * Also, count how far we had to go to get to it, to put in the
+     * message.
+     */
+    Interactor *itr_top = itr;
+    unsigned level = 0;
+    while (itr_top->parent) {
+        itr_top = itr_top->parent;
+        level++;
+    }
+
+    /*
+     * Generally, we should announce ourself if the previous
+     * Interactor that said anything was not us. That includes if
+     * there was no previous Interactor to talk (i.e. if we're the
+     * first to say anything) - *except* that the primary Interactor
+     * doesn't need to announce itself, if no proxy has intervened
+     * before it.
+     */
+    bool need_announcement = (itr_top->last_to_talk != itr);
+    if (!itr->parent && !itr_top->last_to_talk)
+        need_announcement = false;
+
+    if (need_announcement) {
+        const char *prefix = "";
+        if (itr_top->last_to_talk != NULL)
+            prefix = "\r\n";
+
+        char *desc = interactor_description(itr);
+        char *adjective = (level == 0 ? dupstr("primary") :
+                           level == 1 ? dupstr("proxy") :
+                           dupprintf("proxy^%u", level));
+        char *msg = dupprintf("%sMaking %s %s", prefix, adjective, desc);
+        sfree(adjective);
+        sfree(desc);
+
+        seat_antispoof_msg(iseat, msg);
+        sfree(msg);
+
+        itr_top->last_to_talk = itr;
+    }
 
     return iseat;
 }
