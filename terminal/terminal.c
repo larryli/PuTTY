@@ -2618,7 +2618,7 @@ static void scroll(Terminal *term, int topline, int botline,
             }
             resizeline(term, line, term->cols);
             clear_line(term, line);
-            check_trust_status(term, line);
+            line->trusted = false;
             addpos234(term->screen, line, botline);
 
             /*
