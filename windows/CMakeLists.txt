@@ -111,8 +111,8 @@ add_executable(puttytel
   ${CMAKE_SOURCE_DIR}/be_nos_s.c
   ${CMAKE_SOURCE_DIR}/nogss.c
   ${CMAKE_SOURCE_DIR}/norand.c
-  ${CMAKE_SOURCE_DIR}/nocproxy.c
-  ${CMAKE_SOURCE_DIR}/nosshproxy.c
+  ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
+  ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
   puttytel.rc)
 add_dependencies(puttytel generated_licence_h)
 target_link_libraries(puttytel
@@ -152,7 +152,7 @@ if(HAVE_CONPTY)
     be_conpty.c
     ${CMAKE_SOURCE_DIR}/nogss.c
     ${CMAKE_SOURCE_DIR}/norand.c
-    ${CMAKE_SOURCE_DIR}/nosshproxy.c
+    ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pterm.rc)
   add_dependencies(pterm generated_licence_h)
   target_link_libraries(pterm

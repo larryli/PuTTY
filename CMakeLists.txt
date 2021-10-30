@@ -29,11 +29,11 @@ add_library(settings STATIC
   cmdline.c settings.c)
 
 add_library(crypto STATIC
-  cproxy.c sshproxy.c)
+  proxy/cproxy.c proxy/sshproxy.c)
 add_subdirectory(crypto)
 
 add_library(network STATIC
-  be_misc.c nullplug.c errsock.c proxy.c logging.c x11disp.c)
+  be_misc.c nullplug.c errsock.c proxy/proxy.c logging.c x11disp.c)
 
 add_library(keygen STATIC
   import.c)
@@ -119,8 +119,8 @@ add_executable(psocks
   ${platform}/psocks.c
   psocks.c
   norand.c
-  nocproxy.c
-  nosshproxy.c
+  proxy/nocproxy.c
+  proxy/nosshproxy.c
   ssh/portfwd.c)
 target_link_libraries(psocks
   eventloop console network utils

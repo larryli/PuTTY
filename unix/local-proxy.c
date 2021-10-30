@@ -12,7 +12,7 @@
 #include "tree234.h"
 #include "putty.h"
 #include "network.h"
-#include "proxy.h"
+#include "proxy/proxy.h"
 
 Socket *platform_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,

@@ -8,7 +8,7 @@
 #include "tree234.h"
 #include "putty.h"
 #include "network.h"
-#include "proxy.h"
+#include "proxy/proxy.h"
 #include "ssh.h"
 
 #include "security-api.h"
