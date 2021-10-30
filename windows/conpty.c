@@ -232,6 +232,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     seat_set_trust_status(seat, false);
 
     conpty = snew(ConPTY);
+    memset(conpty, 0, sizeof(ConPTY));
     conpty->pseudoconsole = pcon;
     pcon_needs_cleanup = false;
     conpty->outpipe = in_w;

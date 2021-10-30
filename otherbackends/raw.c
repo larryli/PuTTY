@@ -156,6 +156,7 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
     char *loghost;
 
     raw = snew(Raw);
+    memset(raw, 0, sizeof(Raw));
     raw->plug.vt = &Raw_plugvt;
     raw->backend.vt = vt;
     raw->s = NULL;

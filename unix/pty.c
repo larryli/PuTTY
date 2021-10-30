@@ -414,6 +414,7 @@ static void pty_open_master(Pty *pty)
 static Pty *new_pty_struct(void)
 {
     Pty *pty = snew(Pty);
+    memset(pty, 0, sizeof(Pty));
     pty->conf = NULL;
     pty->pending_eof = false;
     bufchain_init(&pty->output_data);

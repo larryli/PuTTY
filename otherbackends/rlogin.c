@@ -233,6 +233,7 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
     char *loghost;
 
     rlogin = snew(Rlogin);
+    memset(rlogin, 0, sizeof(Rlogin));
     rlogin->plug.vt = &Rlogin_plugvt;
     rlogin->backend.vt = vt;
     rlogin->s = NULL;

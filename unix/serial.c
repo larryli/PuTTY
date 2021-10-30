@@ -294,6 +294,7 @@ static char *serial_init(const BackendVtable *vt, Seat *seat,
     seat_set_trust_status(seat, false);
 
     serial = snew(Serial);
+    memset(serial, 0, sizeof(Serial));
     serial->backend.vt = vt;
     *backend_handle = &serial->backend;
 

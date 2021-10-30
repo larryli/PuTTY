@@ -721,6 +721,7 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
     int addressfamily;
 
     telnet = snew(Telnet);
+    memset(telnet, 0, sizeof(Telnet));
     telnet->plug.vt = &Telnet_plugvt;
     telnet->backend.vt = vt;
     telnet->conf = conf_copy(conf);

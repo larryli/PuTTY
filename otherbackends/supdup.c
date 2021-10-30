@@ -683,6 +683,7 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     const char *utf8 = "\033%G";
 
     supdup = snew(struct supdup_tag);
+    memset(supdup, 0, sizeof(Supdup));
     supdup->plug.vt = &fn_table;
     supdup->backend.vt = &supdup_backend;
     supdup->logctx = logctx;
