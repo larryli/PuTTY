@@ -1248,7 +1248,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     i = gppi_raw(sesskey, "BugOldGex2", 0); conf_set_int(conf, CONF_sshbug_oldgex2, 2-i);
     i = gppi_raw(sesskey, "BugWinadj", 0); conf_set_int(conf, CONF_sshbug_winadj, 2-i);
     i = gppi_raw(sesskey, "BugChanReq", 0); conf_set_int(conf, CONF_sshbug_chanreq, 2-i);
-    i = gppi_raw(sesskey, "BugDropStart", 0); conf_set_int(conf, CONF_sshbug_dropstart, 2-i);
+    i = gppi_raw(sesskey, "BugDropStart", 1); conf_set_int(conf, CONF_sshbug_dropstart, 2-i);
     conf_set_bool(conf, CONF_ssh_simple, false);
     gppb(sesskey, "StampUtmp", true, conf, CONF_stamp_utmp);
     gppb(sesskey, "LoginShell", true, conf, CONF_login_shell);
