@@ -262,6 +262,20 @@ static size_t sshproxy_output(Seat *seat, SeatOutputType type,
 
 static inline InteractionReadySeat wrap(Seat *seat)
 {
+    /*
+     * When we receive interaction requests from the proxy and want to
+     * pass them on to our client Seat, we have to present them to the
+     * latter in the form of an InteractionReadySeat. This forwarding
+     * scenario is the one case where we _mustn't_ get an
+     * InteractionReadySeat by calling interactor_announce(), because
+     * the point is that we're _not_ the originating Interactor, we're
+     * just forwarding the request from the real one, which has
+     * already announced itself.
+     *
+     * So, just here in the code, it really is the right thing to make
+     * an InteractionReadySeat out of a plain Seat * without an
+     * announcement.
+     */
     InteractionReadySeat iseat;
     iseat.seat = seat;
     return iseat;
@@ -309,7 +323,7 @@ static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
     if (sp->clientseat) {
         /*
          * If we have access to the outer Seat, pass this prompt
-         * request on to it. FIXME: appropriately adjusted
+         * request on to it.
          */
         return seat_get_userpass_input(wrap(sp->clientseat), p);
     }
@@ -350,7 +364,7 @@ static int sshproxy_confirm_ssh_host_key(
     if (sp->clientseat) {
         /*
          * If we have access to the outer Seat, pass this prompt
-         * request on to it. FIXME: appropriately adjusted
+         * request on to it.
          */
         return seat_confirm_ssh_host_key(
             wrap(sp->clientseat), host, port, keytype, keystr, keydisp,
@@ -374,7 +388,7 @@ static int sshproxy_confirm_weak_crypto_primitive(
     if (sp->clientseat) {
         /*
          * If we have access to the outer Seat, pass this prompt
-         * request on to it. FIXME: appropriately adjusted
+         * request on to it.
          */
         return seat_confirm_weak_crypto_primitive(
             wrap(sp->clientseat), algtype, algname, callback, ctx);
@@ -399,7 +413,7 @@ static int sshproxy_confirm_weak_cached_hostkey(
     if (sp->clientseat) {
         /*
          * If we have access to the outer Seat, pass this prompt
-         * request on to it. FIXME: appropriately adjusted
+         * request on to it.
          */
         return seat_confirm_weak_cached_hostkey(
             wrap(sp->clientseat), algname, betteralgs, callback, ctx);
