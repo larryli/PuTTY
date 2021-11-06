@@ -594,7 +594,8 @@ static void supdup_closing(Plug *plug, PlugCloseType type,
     }
     if (type != PLUGCLOSE_NORMAL) {
         logevent(supdup->logctx, error_msg);
-        seat_connection_fatal(supdup->seat, "%s", error_msg);
+        if (type != PLUGCLOSE_USER_ABORT)
+            seat_connection_fatal(supdup->seat, "%s", error_msg);
     }
     /* Otherwise, the remote side closed the connection normally. */
 }

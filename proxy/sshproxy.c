@@ -13,18 +13,6 @@
 
 const bool ssh_proxy_supported = true;
 
-/*
- * TODO for future work:
- *
- * If the user manually aborts the attempt to make the proxy SSH
- * connection (e.g. by hitting ^C at a userpass prompt, or refusing to
- * accept the proxy server's host key), then I think it would be nicer
- * if we didn't give a connection_fatal error box. If I've aborted the
- * connection deliberately, I don't need to be told it happened, and
- * I'd rather not have the UI annoyance of clicking away an extra
- * error dialog.
- */
-
 typedef struct SshProxy {
     char *errmsg;
     Conf *conf;
@@ -318,6 +306,8 @@ static void sshproxy_send_close(SshProxy *sp)
 
     if (sp->errmsg)
         plug_closing_error(sp->plug, sp->errmsg);
+    else if (!sp->conn_established && backend_exitcode(sp->backend) == 0)
+        plug_closing_user_abort(sp->plug);
     else
         plug_closing_normal(sp->plug);
 }

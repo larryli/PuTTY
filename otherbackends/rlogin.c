@@ -107,7 +107,8 @@ static void rlogin_closing(Plug *plug, PlugCloseType type,
     if (type != PLUGCLOSE_NORMAL) {
         /* A socket error has occurred. */
         logevent(rlogin->logctx, error_msg);
-        seat_connection_fatal(rlogin->seat, "%s", error_msg);
+        if (type != PLUGCLOSE_USER_ABORT)
+            seat_connection_fatal(rlogin->seat, "%s", error_msg);
     }
     /* Otherwise, the remote side closed the connection normally. */
 }

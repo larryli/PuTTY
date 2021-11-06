@@ -55,6 +55,7 @@ typedef enum PlugCloseType {
     PLUGCLOSE_NORMAL,
     PLUGCLOSE_ERROR,
     PLUGCLOSE_BROKEN_PIPE,
+    PLUGCLOSE_USER_ABORT,
 } PlugCloseType;
 
 struct PlugVtable {
@@ -112,6 +113,16 @@ struct PlugVtable {
      *    distinguishes the particular error condition signalled by
      *    EPIPE / ERROR_BROKEN_PIPE, which ssh/sharing.c needs to
      *    recognise and handle specially in one situation.
+     *
+     *  - PLUGCLOSE_USER_ABORT means that the close has happened as a
+     *    result of some kind of deliberate user action (e.g. hitting
+     *    ^C at a password prompt presented by a proxy socket setup
+     *    phase). This can be used to suppress interactive error
+     *    messages sent to the user (such as dialog boxes), on the
+     *    grounds that the user already knows. However, 'error_msg'
+     *    will still contain some appropriate text, so that
+     *    non-interactive error reporting (e.g. event logs) can still
+     *    record why the connection terminated.
      */
     void (*closing)(Plug *p, PlugCloseType type, const char *error_msg);
 
@@ -242,6 +253,8 @@ static inline void plug_closing_normal(Plug *p)
 { p->vt->closing(p, PLUGCLOSE_NORMAL, NULL); }
 static inline void plug_closing_error(Plug *p, const char *msg)
 { p->vt->closing(p, PLUGCLOSE_ERROR, msg); }
+static inline void plug_closing_user_abort(Plug *p)
+{ p->vt->closing(p, PLUGCLOSE_USER_ABORT, "User aborted connection setup"); }
 static inline void plug_receive(Plug *p, int urg, const char *data, size_t len)
 { p->vt->receive(p, urg, data, len); }
 static inline void plug_sent (Plug *p, size_t bufsize)

@@ -656,7 +656,8 @@ static void telnet_closing(Plug *plug, PlugCloseType type,
     }
     if (type != PLUGCLOSE_NORMAL) {
         logevent(telnet->logctx, error_msg);
-        seat_connection_fatal(telnet->seat, "%s", error_msg);
+        if (type != PLUGCLOSE_USER_ABORT)
+            seat_connection_fatal(telnet->seat, "%s", error_msg);
     }
     /* Otherwise, the remote side closed the connection normally. */
 }

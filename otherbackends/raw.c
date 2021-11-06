@@ -79,7 +79,8 @@ static void raw_closing(Plug *plug, PlugCloseType type, const char *error_msg)
             seat_notify_remote_disconnect(raw->seat);
         }
         logevent(raw->logctx, error_msg);
-        seat_connection_fatal(raw->seat, "%s", error_msg);
+        if (type != PLUGCLOSE_USER_ABORT)
+            seat_connection_fatal(raw->seat, "%s", error_msg);
     } else {
         /* Otherwise, the remote side closed the connection normally. */
         if (!raw->sent_console_eof && seat_eof(raw->seat)) {
