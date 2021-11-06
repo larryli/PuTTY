@@ -21,6 +21,26 @@ Seat *interactor_borrow_seat(Interactor *itr)
     return clientseat;
 }
 
+static Interactor *interactor_toplevel(Interactor *itr, unsigned *level_out)
+{
+    /*
+     * Find the Interactor at the top of the chain, so that all the
+     * Interactors in a stack can share that one's last-to-talk field.
+     * Also, count how far we had to go to get to it, to put in the
+     * message.
+     */
+    Interactor *itr_top = itr;
+    unsigned level = 0;
+    while (itr_top->parent) {
+        itr_top = itr_top->parent;
+        level++;
+    }
+
+    if (level_out)
+        *level_out = level;
+    return itr_top;
+}
+
 void interactor_return_seat(Interactor *itr)
 {
     Seat *tempseat = interactor_get_seat(itr);
@@ -37,7 +57,9 @@ void interactor_return_seat(Interactor *itr)
      * interactor_announce, then all Interactors from now on will
      * announce themselves even if they have nothing to say.
      */
-    interactor_announce(itr);
+    Interactor *itr_top = interactor_toplevel(itr, NULL);
+    if (itr_top->last_to_talk)
+        interactor_announce(itr);
 
     /*
      * We're about to hand this seat back to the parent Interactor to
@@ -57,18 +79,8 @@ InteractionReadySeat interactor_announce(Interactor *itr)
     InteractionReadySeat iseat;
     iseat.seat = seat;
 
-    /*
-     * Find the Interactor at the top of the chain, so that all the
-     * Interactors in a stack can share that one's last-to-talk field.
-     * Also, count how far we had to go to get to it, to put in the
-     * message.
-     */
-    Interactor *itr_top = itr;
-    unsigned level = 0;
-    while (itr_top->parent) {
-        itr_top = itr_top->parent;
-        level++;
-    }
+    unsigned level;
+    Interactor *itr_top = interactor_toplevel(itr, &level);
 
     /*
      * Generally, we should announce ourself if the previous
