@@ -85,7 +85,8 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     }
 }
 
-static void rlogin_closing(Plug *plug, const char *error_msg, int error_code)
+static void rlogin_closing(Plug *plug, PlugCloseType type,
+                           const char *error_msg)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
 
@@ -103,11 +104,12 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code)
         seat_notify_remote_exit(rlogin->seat);
         seat_notify_remote_disconnect(rlogin->seat);
     }
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         /* A socket error has occurred. */
         logevent(rlogin->logctx, error_msg);
         seat_connection_fatal(rlogin->seat, "%s", error_msg);
-    }                                  /* Otherwise, the remote side closed the connection normally. */
+    }
+    /* Otherwise, the remote side closed the connection normally. */
 }
 
 static void rlogin_receive(

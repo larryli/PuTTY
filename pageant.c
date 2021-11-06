@@ -1463,12 +1463,12 @@ struct pageant_conn_state {
     Plug plug;
 };
 
-static void pageant_conn_closing(Plug *plug, const char *error_msg,
-                                 int error_code)
+static void pageant_conn_closing(Plug *plug, PlugCloseType type,
+                                 const char *error_msg)
 {
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
-    if (error_msg)
+    if (type != PLUGCLOSE_NORMAL)
         pageant_listener_client_log(pc->plc, "c#%"SIZEu": error: %s",
                                     pc->conn_index, error_msg);
     else
@@ -1610,12 +1610,12 @@ struct pageant_listen_state {
     Plug plug;
 };
 
-static void pageant_listen_closing(Plug *plug, const char *error_msg,
-                                   int error_code)
+static void pageant_listen_closing(Plug *plug, PlugCloseType type,
+                                   const char *error_msg)
 {
     struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);
-    if (error_msg)
+    if (type != PLUGCLOSE_NORMAL)
         pageant_listener_client_log(pl->plc, "listening socket: error: %s",
                                     error_msg);
     sk_close(pl->listensock);

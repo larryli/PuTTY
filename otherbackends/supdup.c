@@ -573,7 +573,8 @@ static void supdup_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     }
 }
 
-static void supdup_closing(Plug *plug, const char *error_msg, int error_code)
+static void supdup_closing(Plug *plug, PlugCloseType type,
+                           const char *error_msg)
 {
     Supdup *supdup = container_of(plug, Supdup, plug);
 
@@ -591,7 +592,7 @@ static void supdup_closing(Plug *plug, const char *error_msg, int error_code)
         seat_notify_remote_exit(supdup->seat);
         seat_notify_remote_disconnect(supdup->seat);
     }
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         logevent(supdup->logctx, error_msg);
         seat_connection_fatal(supdup->seat, "%s", error_msg);
     }

@@ -58,8 +58,8 @@ struct ProxySocket {
      */
 
     /* closing */
+    PlugCloseType closing_type;
     const char *closing_error_msg;
-    int closing_error_code;
 
     /* receive */
     bool receive_urgent;

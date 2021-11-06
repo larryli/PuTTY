@@ -1086,7 +1086,10 @@ void *sk_getxdmdata(Socket *sock, int *lenp)
 
 void plug_closing_errno(Plug *plug, int error)
 {
-    plug_closing(plug, strerror(error), error);
+    PlugCloseType type = PLUGCLOSE_ERROR;
+    if (error == EPIPE)
+        type = PLUGCLOSE_BROKEN_PIPE;
+    plug_closing(plug, type, strerror(error));
 }
 
 /*

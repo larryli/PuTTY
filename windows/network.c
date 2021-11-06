@@ -1337,12 +1337,15 @@ static void sk_net_close(Socket *sock)
 
 void plug_closing_system_error(Plug *plug, DWORD error)
 {
-    plug_closing(plug, win_strerror(error), error);
+    PlugCloseType type = PLUGCLOSE_ERROR;
+    if (error == ERROR_BROKEN_PIPE)
+        type = PLUGCLOSE_BROKEN_PIPE;
+    plug_closing(plug, type, win_strerror(error));
 }
 
 void plug_closing_winsock_error(Plug *plug, DWORD error)
 {
-    plug_closing(plug, winsock_error_string(error), error);
+    plug_closing(plug, PLUGCLOSE_ERROR, winsock_error_string(error));
 }
 
 /*

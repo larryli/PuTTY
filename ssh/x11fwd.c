@@ -267,12 +267,12 @@ static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
 static void x11_send_init_error(struct X11Connection *conn,
                                 const char *err_message);
 
-static void x11_closing(Plug *plug, const char *error_msg, int error_code)
+static void x11_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
     struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
 
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         /*
          * Socket error. If we're still at the connection setup stage,
          * construct an X11 error packet passing on the problem.

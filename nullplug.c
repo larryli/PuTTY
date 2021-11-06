@@ -12,7 +12,7 @@ void nullplug_log(Plug *plug, PlugLogType type, SockAddr *addr,
 {
 }
 
-void nullplug_closing(Plug *plug, const char *error_msg, int error_code)
+void nullplug_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
 }
 

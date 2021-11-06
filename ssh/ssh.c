@@ -603,10 +603,10 @@ static void ssh_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
                            ssh->session_started);
 }
 
-static void ssh_closing(Plug *plug, const char *error_msg, int error_code)
+static void ssh_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         ssh_remote_error(ssh, "%s", error_msg);
     } else if (ssh->bpp) {
         ssh->bpp->input_eof = true;

@@ -51,6 +51,12 @@ typedef enum PlugLogType {
     PLUGLOG_PROXY_MSG,
 } PlugLogType;
 
+typedef enum PlugCloseType {
+    PLUGCLOSE_NORMAL,
+    PLUGCLOSE_ERROR,
+    PLUGCLOSE_BROKEN_PIPE,
+} PlugCloseType;
+
 struct PlugVtable {
     /*
      * Passes the client progress reports on the process of setting
@@ -88,18 +94,26 @@ struct PlugVtable {
                 const char *error_msg, int error_code);
 
     /*
-     * Notifies the Plug that the socket is closing.
+     * Notifies the Plug that the socket is closing, and something
+     * about why.
      *
-     * For a normal non-error close, error_msg is NULL. If the socket
-     * has encountered an error, error_msg will contain a string
-     * (ownership not transferred), and error_code will contain the OS
-     * error code, if available.
+     *  - PLUGCLOSE_NORMAL means an ordinary non-error closure. In
+     *    this case, error_msg should be ignored (and hopefully
+     *    callers will have passed NULL).
      *
-     * OS error codes will vary between platforms, of course, but
-     * platform.h should define any that we need to distinguish here,
-     * in particular BROKEN_PIPE_ERROR_CODE.
+     *  - PLUGCLOSE_ERROR indicates that an OS error occurred, and
+     *    'error_msg' contains a string describing it, for use in
+     *    diagnostics. (Ownership of the string is not transferred.)
+     *    This error class covers anything other than the special
+     *    case below:
+     *
+     *  - PLUGCLOSE_BROKEN_PIPE behaves like PLUGCLOSE_ERROR (in
+     *    particular, there's still an error message provided), but
+     *    distinguishes the particular error condition signalled by
+     *    EPIPE / ERROR_BROKEN_PIPE, which ssh/sharing.c needs to
+     *    recognise and handle specially in one situation.
      */
-    void (*closing)(Plug *p, const char *error_msg, int error_code);
+    void (*closing)(Plug *p, PlugCloseType type, const char *error_msg);
 
     /*
      * Provides incoming socket data to the Plug. Three cases:
@@ -222,12 +236,12 @@ static inline void sk_write_eof(Socket *s)
 static inline void plug_log(
     Plug *p, int type, SockAddr *addr, int port, const char *msg, int code)
 { p->vt->log(p, type, addr, port, msg, code); }
-static inline void plug_closing(Plug *p, const char *msg, int code)
-{ p->vt->closing(p, msg, code); }
+static inline void plug_closing(Plug *p, PlugCloseType type, const char *msg)
+{ p->vt->closing(p, type, msg); }
 static inline void plug_closing_normal(Plug *p)
-{ p->vt->closing(p, NULL, 0); }
+{ p->vt->closing(p, PLUGCLOSE_NORMAL, NULL); }
 static inline void plug_closing_error(Plug *p, const char *msg)
-{ p->vt->closing(p, msg, 0); }
+{ p->vt->closing(p, PLUGCLOSE_ERROR, msg); }
 static inline void plug_receive(Plug *p, int urg, const char *data, size_t len)
 { p->vt->receive(p, urg, data, len); }
 static inline void plug_sent (Plug *p, size_t bufsize)
@@ -352,7 +366,7 @@ extern Plug *const nullplug;
  */
 void nullplug_log(Plug *plug, PlugLogType type, SockAddr *addr,
                   int port, const char *err_msg, int err_code);
-void nullplug_closing(Plug *plug, const char *error_msg, int error_code);
+void nullplug_closing(Plug *plug, PlugCloseType type, const char *error_msg);
 void nullplug_receive(Plug *plug, int urgent, const char *data, size_t len);
 void nullplug_sent(Plug *plug, size_t bufsize);
 

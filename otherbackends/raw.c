@@ -65,11 +65,11 @@ static void raw_check_close(Raw *raw)
     }
 }
 
-static void raw_closing(Plug *plug, const char *error_msg, int error_code)
+static void raw_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
     Raw *raw = container_of(plug, Raw, plug);
 
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         /* A socket error has occurred. */
         if (raw->s) {
             sk_close(raw->s);

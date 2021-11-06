@@ -121,8 +121,6 @@ static inline uintmax_t strtoumax(const char *nptr, char **endptr, int base)
 #define strnicmp strncasecmp
 #endif
 
-#define BROKEN_PIPE_ERROR_CODE ERROR_BROKEN_PIPE   /* used in ssh/sharing.c */
-
 /*
  * Dynamically linked functions. These come in two flavours:
  *

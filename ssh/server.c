@@ -140,10 +140,11 @@ static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
     /* FIXME */
 }
 
-static void server_closing(Plug *plug, const char *error_msg, int error_code)
+static void server_closing(Plug *plug, PlugCloseType type,
+                           const char *error_msg)
 {
     server *srv = container_of(plug, server, plug);
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         ssh_remote_error(&srv->ssh, "%s", error_msg);
     } else if (srv->bpp) {
         srv->bpp->input_eof = true;

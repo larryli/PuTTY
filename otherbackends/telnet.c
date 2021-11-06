@@ -635,7 +635,8 @@ static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
     }
 }
 
-static void telnet_closing(Plug *plug, const char *error_msg, int error_code)
+static void telnet_closing(Plug *plug, PlugCloseType type,
+                           const char *error_msg)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);
 
@@ -653,7 +654,7 @@ static void telnet_closing(Plug *plug, const char *error_msg, int error_code)
         seat_notify_remote_exit(telnet->seat);
         seat_notify_remote_disconnect(telnet->seat);
     }
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         logevent(telnet->logctx, error_msg);
         seat_connection_fatal(telnet->seat, "%s", error_msg);
     }

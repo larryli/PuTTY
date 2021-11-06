@@ -109,12 +109,12 @@ static void pfl_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
 
 static void pfd_close(struct PortForwarding *pf);
 
-static void pfd_closing(Plug *plug, const char *error_msg, int error_code)
+static void pfd_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
     struct PortForwarding *pf =
         container_of(plug, struct PortForwarding, plug);
 
-    if (error_msg) {
+    if (type != PLUGCLOSE_NORMAL) {
         /*
          * Socket error. Slam the connection instantly shut.
          */
@@ -141,7 +141,7 @@ static void pfd_closing(Plug *plug, const char *error_msg, int error_code)
 
 static void pfl_terminate(struct PortListener *pl);
 
-static void pfl_closing(Plug *plug, const char *error_msg, int error_code)
+static void pfl_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
     struct PortListener *pl = (struct PortListener *) plug;
     pfl_terminate(pl);

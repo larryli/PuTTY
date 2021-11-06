@@ -181,16 +181,17 @@ static void plug_proxy_log(Plug *plug, PlugLogType type, SockAddr *addr,
     plug_log(ps->plug, type, addr, port, error_msg, error_code);
 }
 
-static void plug_proxy_closing(Plug *p, const char *error_msg, int error_code)
+static void plug_proxy_closing(Plug *p, PlugCloseType type,
+                               const char *error_msg)
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
+        ps->closing_type = type;
         ps->closing_error_msg = error_msg;
-        ps->closing_error_code = error_code;
         ps->negotiate(ps, PROXY_CHANGE_CLOSING);
     } else {
-        plug_closing(ps->plug, error_msg, error_code);
+        plug_closing(ps->plug, type, error_msg);
     }
 }
 
@@ -615,7 +616,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
+        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -803,7 +804,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
+        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -945,7 +946,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
+        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -1467,7 +1468,7 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_error_msg, p->closing_error_code);
+        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
         return 0; /* ignored */
     }
 
