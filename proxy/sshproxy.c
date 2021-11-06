@@ -234,7 +234,7 @@ static void try_send_ssh_to_socket(void *ctx)
     if (sp->rcvd_eof_ssh_to_socket &&
         !sp->sent_eof_ssh_to_socket) {
         sp->sent_eof_ssh_to_socket = true;
-        plug_closing(sp->plug, sp->errmsg, 0);
+        plug_closing_normal(sp->plug);
     }
 }
 
@@ -316,7 +316,10 @@ static void sshproxy_send_close(SshProxy *sp)
         plug_log(sp->plug, PLUGLOG_CONNECT_FAILED, sp->addr, sp->port,
                  sp->errmsg, 0);
 
-    plug_closing(sp->plug, sp->errmsg, 0);
+    if (sp->errmsg)
+        plug_closing_error(sp->plug, sp->errmsg);
+    else
+        plug_closing_normal(sp->plug);
 }
 
 static void sshproxy_notify_remote_disconnect_callback(void *vctx)

@@ -10,9 +10,6 @@
 #ifndef PUTTY_PROXY_H
 #define PUTTY_PROXY_H
 
-#define PROXY_ERROR_GENERAL 8000
-#define PROXY_ERROR_UNEXPECTED 8001
-
 typedef struct ProxySocket ProxySocket;
 
 struct ProxySocket {

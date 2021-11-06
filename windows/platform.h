@@ -730,4 +730,8 @@ char *handle_restrict_acl_cmdline_prefix(char *cmdline);
 bool handle_special_sessionname_cmdline(char *cmdline, Conf *conf);
 bool handle_special_filemapping_cmdline(char *cmdline, Conf *conf);
 
+/* network.c: network error reporting helpers taking OS error code */
+void plug_closing_system_error(Plug *plug, DWORD error);
+void plug_closing_winsock_error(Plug *plug, DWORD error);
+
 #endif /* PUTTY_WINDOWS_PLATFORM_H */

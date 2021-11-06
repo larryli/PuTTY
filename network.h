@@ -224,6 +224,10 @@ static inline void plug_log(
 { p->vt->log(p, type, addr, port, msg, code); }
 static inline void plug_closing(Plug *p, const char *msg, int code)
 { p->vt->closing(p, msg, code); }
+static inline void plug_closing_normal(Plug *p)
+{ p->vt->closing(p, NULL, 0); }
+static inline void plug_closing_error(Plug *p, const char *msg)
+{ p->vt->closing(p, msg, 0); }
 static inline void plug_receive(Plug *p, int urg, const char *data, size_t len)
 { p->vt->receive(p, urg, data, len); }
 static inline void plug_sent (Plug *p, size_t bufsize)

@@ -158,7 +158,7 @@ static void fdsocket_error_callback(void *vs)
     /*
      * An error has occurred on this socket. Pass it to the plug.
      */
-    plug_closing(fds->plug, strerror(fds->pending_error), fds->pending_error);
+    plug_closing_errno(fds->plug, fds->pending_error);
 }
 
 static int fdsocket_try_send(FdSocket *fds)
@@ -270,9 +270,9 @@ static void fdsocket_select_result_input(int fd, int event)
         fds->infd = -1;
 
         if (retd < 0) {
-            plug_closing(fds->plug, strerror(errno), errno);
+            plug_closing_errno(fds->plug, errno);
         } else {
-            plug_closing(fds->plug, NULL, 0);
+            plug_closing_normal(fds->plug);
         }
     }
 }

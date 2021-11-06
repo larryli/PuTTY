@@ -1335,6 +1335,16 @@ static void sk_net_close(Socket *sock)
     sfree(s);
 }
 
+void plug_closing_system_error(Plug *plug, DWORD error)
+{
+    plug_closing(plug, win_strerror(error), error);
+}
+
+void plug_closing_winsock_error(Plug *plug, DWORD error)
+{
+    plug_closing(plug, winsock_error_string(error), error);
+}
+
 /*
  * Deal with socket errors detected in try_send().
  */
@@ -1352,8 +1362,7 @@ static void socket_error_callback(void *vs)
     /*
      * An error has occurred on this socket. Pass it to the plug.
      */
-    plug_closing(s->plug, winsock_error_string(s->pending_error),
-                 s->pending_error);
+    plug_closing_winsock_error(s->plug, s->pending_error);
 }
 
 /*
@@ -1528,7 +1537,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
             }
         }
         if (err != 0)
-            plug_closing(s->plug, winsock_error_string(err), err);
+            plug_closing_winsock_error(s->plug, err);
         return;
     }
 
@@ -1590,9 +1599,9 @@ void select_result(WPARAM wParam, LPARAM lParam)
             }
         }
         if (ret < 0) {
-            plug_closing(s->plug, winsock_error_string(err), err);
+            plug_closing_winsock_error(s->plug, err);
         } else if (0 == ret) {
-            plug_closing(s->plug, NULL, 0);
+            plug_closing_normal(s->plug);
         } else {
             plug_receive(s->plug, atmark ? 0 : 1, buf, ret);
         }
@@ -1608,7 +1617,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
         noise_ultralight(NOISE_SOURCE_IOLEN, ret);
         if (ret <= 0) {
             int err = p_WSAGetLastError();
-            plug_closing(s->plug, winsock_error_string(err), err);
+            plug_closing_winsock_error(s->plug, err);
         } else {
             plug_receive(s->plug, 2, buf, ret);
         }
@@ -1631,12 +1640,12 @@ void select_result(WPARAM wParam, LPARAM lParam)
                 err = p_WSAGetLastError();
                 if (err == WSAEWOULDBLOCK)
                     break;
-                plug_closing(s->plug, winsock_error_string(err), err);
+                plug_closing_winsock_error(s->plug, err);
             } else {
                 if (ret)
                     plug_receive(s->plug, 0, buf, ret);
                 else
-                    plug_closing(s->plug, NULL, 0);
+                    plug_closing_normal(s->plug);
             }
         } while (ret > 0);
         return;

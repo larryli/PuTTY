@@ -458,4 +458,7 @@ bool cliloop_no_pw_setup(void *ctx, pollwrapper *pw);
 void cliloop_no_pw_check(void *ctx, pollwrapper *pw);
 bool cliloop_always_continue(void *ctx, bool, bool);
 
+/* network.c: network error reporting helper taking an OS error code */
+void plug_closing_errno(Plug *plug, int error);
+
 #endif /* PUTTY_UNIX_PLATFORM_H */
