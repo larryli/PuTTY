@@ -18,15 +18,11 @@ const bool ssh_proxy_supported = true;
  *
  * If the user manually aborts the attempt to make the proxy SSH
  * connection (e.g. by hitting ^C at a userpass prompt, or refusing to
- * accept the proxy server's host key), then an assertion failure
- * occurs, because the main backend receives an indication of
- * connection failure that causes it to want to call
- * seat_connection_fatal("Remote side unexpectedly closed network
- * connection"), which fails an assertion in tempseat.c because that
- * method of TempSeat expects never to be called. To fix this, I think
- * we need to distinguish 'connection attempt unexpectedly failed, in
- * a way the user needs to be told about' from 'connection attempt was
- * aborted by deliberate user action, so the user already knows'.
+ * accept the proxy server's host key), then I think it would be nicer
+ * if we didn't give a connection_fatal error box. If I've aborted the
+ * connection deliberately, I don't need to be told it happened, and
+ * I'd rather not have the UI annoyance of clicking away an extra
+ * error dialog.
  */
 
 typedef struct SshProxy {
@@ -44,6 +40,7 @@ typedef struct SshProxy {
     bool frozen;
     bufchain ssh_to_socket;
     bool rcvd_eof_ssh_to_socket, sent_eof_ssh_to_socket;
+    bool conn_established;
 
     SockAddr *addr;
     int port;
@@ -247,6 +244,7 @@ static void sshproxy_notify_session_started(Seat *seat)
 
     if (sp->clientseat)
         interactor_return_seat(sp->clientitr);
+    sp->conn_established = true;
 
     plug_log(sp->plug, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port, NULL, 0);
 }
@@ -309,11 +307,34 @@ static void sshproxy_sent(Seat *seat, size_t new_bufsize)
     plug_sent(sp->plug, new_bufsize);
 }
 
+static void sshproxy_send_close(SshProxy *sp)
+{
+    if (sp->clientseat)
+        interactor_return_seat(sp->clientitr);
+
+    if (!sp->conn_established)
+        plug_log(sp->plug, PLUGLOG_CONNECT_FAILED, sp->addr, sp->port,
+                 sp->errmsg, 0);
+
+    plug_closing(sp->plug, sp->errmsg, 0);
+}
+
+static void sshproxy_notify_remote_disconnect_callback(void *vctx)
+{
+    SshProxy *sp = (SshProxy *)vctx;
+
+    /* notify_remote_disconnect can be called redundantly, so first
+     * check if the backend really has become disconnected */
+    if (backend_connected(sp->backend))
+        return;
+
+    sshproxy_send_close(sp);
+}
+
 static void sshproxy_notify_remote_disconnect(Seat *seat)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
-    if (!sp->rcvd_eof_ssh_to_socket && !backend_connected(sp->backend))
-        sshproxy_eof(seat);
+    queue_toplevel_callback(sshproxy_notify_remote_disconnect_callback, sp);
 }
 
 static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
@@ -341,7 +362,7 @@ static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
 static void sshproxy_connection_fatal_callback(void *vctx)
 {
     SshProxy *sp = (SshProxy *)vctx;
-    plug_closing(sp->plug, sp->errmsg, 0);
+    sshproxy_send_close(sp);
 }
 
 static void sshproxy_connection_fatal(Seat *seat, const char *message)
