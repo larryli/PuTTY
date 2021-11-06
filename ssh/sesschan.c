@@ -207,6 +207,7 @@ static const SeatVtable sesschan_seat_vt = {
     .stripctrl_new = nullseat_stripctrl_new,
     .set_trust_status = nullseat_set_trust_status,
     .can_set_trust_status = nullseat_can_set_trust_status_no,
+    .has_mixed_input_stream = nullseat_has_mixed_input_stream_no,
     .verbose = nullseat_verbose_no,
     .interactive = nullseat_interactive_no,
     .get_cursor_position = nullseat_get_cursor_position,

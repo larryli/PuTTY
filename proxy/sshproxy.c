@@ -502,6 +502,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .stripctrl_new = sshproxy_stripctrl_new,
     .set_trust_status = sshproxy_set_trust_status,
     .can_set_trust_status = sshproxy_can_set_trust_status,
+    .has_mixed_input_stream = nullseat_has_mixed_input_stream_no,
     .verbose = sshproxy_verbose,
     .interactive = sshproxy_interactive,
     .get_cursor_position = nullseat_get_cursor_position,

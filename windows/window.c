@@ -352,6 +352,7 @@ static const SeatVtable win_seat_vt = {
     .stripctrl_new = win_seat_stripctrl_new,
     .set_trust_status = win_seat_set_trust_status,
     .can_set_trust_status = win_seat_can_set_trust_status,
+    .has_mixed_input_stream = nullseat_has_mixed_input_stream_yes,
     .verbose = nullseat_verbose_yes,
     .interactive = nullseat_interactive_yes,
     .get_cursor_position = win_seat_get_cursor_position,

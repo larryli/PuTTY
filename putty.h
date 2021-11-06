@@ -1290,6 +1290,18 @@ struct SeatVtable {
     bool (*can_set_trust_status)(Seat *seat);
 
     /*
+     * Query whether this Seat's interactive prompt responses and its
+     * session input come from the same place.
+     *
+     * If false, this is used to suppress the final 'Press Return to
+     * begin session' anti-spoofing prompt in Plink. For example,
+     * Plink itself sets this flag if its standard input is redirected
+     * (and therefore not coming from the same place as the console
+     * it's sending its prompts to).
+     */
+    bool (*has_mixed_input_stream)(Seat *seat);
+
+    /*
      * Ask the seat whether it would like verbose messages.
      */
     bool (*verbose)(Seat *seat);
@@ -1365,6 +1377,8 @@ static inline void seat_set_trust_status(Seat *seat, bool trusted)
 { seat->vt->set_trust_status(seat, trusted); }
 static inline bool seat_can_set_trust_status(Seat *seat)
 { return seat->vt->can_set_trust_status(seat); }
+static inline bool seat_has_mixed_input_stream(Seat *seat)
+{ return seat->vt->has_mixed_input_stream(seat); }
 static inline bool seat_verbose(Seat *seat)
 { return seat->vt->verbose(seat); }
 static inline bool seat_interactive(Seat *seat)
@@ -1437,6 +1451,8 @@ StripCtrlChars *nullseat_stripctrl_new(
 void nullseat_set_trust_status(Seat *seat, bool trusted);
 bool nullseat_can_set_trust_status_yes(Seat *seat);
 bool nullseat_can_set_trust_status_no(Seat *seat);
+bool nullseat_has_mixed_input_stream_yes(Seat *seat);
+bool nullseat_has_mixed_input_stream_no(Seat *seat);
 bool nullseat_verbose_no(Seat *seat);
 bool nullseat_verbose_yes(Seat *seat);
 bool nullseat_interactive_no(Seat *seat);
@@ -1463,6 +1479,7 @@ StripCtrlChars *console_stripctrl_new(
         Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
 void console_set_trust_status(Seat *seat, bool trusted);
 bool console_can_set_trust_status(Seat *seat);
+bool console_has_mixed_input_stream(Seat *seat);
 
 /*
  * Other centralised seat functions.

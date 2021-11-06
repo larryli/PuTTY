@@ -41,6 +41,8 @@ StripCtrlChars *nullseat_stripctrl_new(
 void nullseat_set_trust_status(Seat *seat, bool trusted) {}
 bool nullseat_can_set_trust_status_yes(Seat *seat) { return true; }
 bool nullseat_can_set_trust_status_no(Seat *seat) { return false; }
+bool nullseat_has_mixed_input_stream_yes(Seat *seat) { return true; }
+bool nullseat_has_mixed_input_stream_no(Seat *seat) { return false; }
 bool nullseat_verbose_no(Seat *seat) { return false; }
 bool nullseat_verbose_yes(Seat *seat) { return true; }
 bool nullseat_interactive_no(Seat *seat) { return false; }

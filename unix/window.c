@@ -414,6 +414,7 @@ static const SeatVtable gtk_seat_vt = {
     .stripctrl_new = gtk_seat_stripctrl_new,
     .set_trust_status = gtk_seat_set_trust_status,
     .can_set_trust_status = gtk_seat_can_set_trust_status,
+    .has_mixed_input_stream = nullseat_has_mixed_input_stream_yes,
     .verbose = nullseat_verbose_yes,
     .interactive = nullseat_interactive_yes,
     .get_cursor_position = gtk_seat_get_cursor_position,

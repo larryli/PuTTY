@@ -198,6 +198,12 @@ static bool tempseat_can_set_trust_status(Seat *seat)
     return seat_can_set_trust_status(ts->realseat);
 }
 
+static bool tempseat_has_mixed_input_stream(Seat *seat)
+{
+    TempSeat *ts = container_of(seat, TempSeat, seat);
+    return seat_has_mixed_input_stream(ts->realseat);
+}
+
 /* ----------------------------------------------------------------------
  * Methods that should never be called on a TempSeat, so we can put an
  * unreachable() in them.
@@ -324,6 +330,7 @@ static const struct SeatVtable tempseat_vt = {
     .stripctrl_new = tempseat_stripctrl_new,
     .set_trust_status = tempseat_set_trust_status,
     .can_set_trust_status = tempseat_can_set_trust_status,
+    .has_mixed_input_stream = tempseat_has_mixed_input_stream,
     .verbose = tempseat_verbose,
     .interactive = tempseat_interactive,
     .get_cursor_position = tempseat_get_cursor_position,

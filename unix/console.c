@@ -328,24 +328,33 @@ void console_set_trust_status(Seat *seat, bool trusted)
 
 bool console_can_set_trust_status(Seat *seat)
 {
-    if (console_batch_mode || !is_interactive() || !console_antispoof_prompt) {
+    if (console_batch_mode) {
         /*
          * In batch mode, we don't need to worry about the server
          * mimicking our interactive authentication, because the user
          * already knows not to expect any.
-         *
-         * If standard input isn't connected to a terminal, likewise,
-         * because even if the server did send a spoof authentication
-         * prompt, the user couldn't respond to it via the terminal
-         * anyway.
-         *
-         * We also return true without enabling any defences if the
-         * user has purposely disabled the antispoof prompt.
          */
         return true;
     }
 
     return false;
+}
+
+bool console_has_mixed_input_stream(Seat *seat)
+{
+    if (!is_interactive() || !console_antispoof_prompt) {
+        /*
+         * If standard input isn't connected to a terminal, then even
+         * if the server did send a spoof authentication prompt, the
+         * user couldn't respond to it via the terminal anyway.
+         *
+         * We also pretend this is true if the user has purposely
+         * disabled the antispoof prompt.
+         */
+        return false;
+    }
+
+    return true;
 }
 
 /*
