@@ -97,7 +97,7 @@ InteractionReadySeat interactor_announce(Interactor *itr)
     if (need_announcement) {
         const char *prefix = "";
         if (itr_top->last_to_talk != NULL)
-            prefix = "\r\n";
+            seat_antispoof_msg(iseat, ""); /* leave a separating blank line */
 
         char *desc = interactor_description(itr);
         char *adjective = (level == 0 ? dupstr("primary") :

@@ -12,7 +12,7 @@ void seat_antispoof_msg(InteractionReadySeat iseat, const char *msg)
          * unmodified as an unspoofable header.
          */
         put_datapl(sb, ptrlen_from_asciz(msg));
-    } else {
+    } else if (*msg) {
         /*
          * Otherwise, add enough padding around it that the server
          * wouldn't be able to mimic it within our line-length
