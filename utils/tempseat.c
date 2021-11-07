@@ -71,7 +71,7 @@ static size_t tempseat_output(Seat *seat, SeatOutputType type,
             ts->outchunk_head = new_chunk;
         ts->outchunk_tail = new_chunk;
     }
-    ts->outchunk_tail->type += len;
+    ts->outchunk_tail->size += len;
 
     return bufchain_size(&ts->output);
 }
