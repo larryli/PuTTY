@@ -557,7 +557,7 @@ bool enum_settings_next(settings_e *handle, strbuf *out)
     fullpath = strbuf_new();
 
     char *sessiondir = make_filename(INDEX_SESSIONDIR, NULL);
-    put_datapl(fullpath, ptrlen_from_asciz(sessiondir));
+    put_dataz(fullpath, sessiondir);
     sfree(sessiondir);
     put_byte(fullpath, '/');
 
@@ -565,7 +565,7 @@ bool enum_settings_next(settings_e *handle, strbuf *out)
 
     while ( (de = readdir(handle->dp)) != NULL ) {
         strbuf_shrink_to(fullpath, baselen);
-        put_datapl(fullpath, ptrlen_from_asciz(de->d_name));
+        put_dataz(fullpath, de->d_name);
 
         if (stat(fullpath->s, &st) < 0 || !S_ISREG(st.st_mode))
             continue;                  /* try another one */

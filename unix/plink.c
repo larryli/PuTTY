@@ -774,7 +774,7 @@ int main(int argc, char **argv)
             while (argc > 0) {
                 if (cmdbuf->len > 0)
                     put_byte(cmdbuf, ' '); /* add space separator */
-                put_datapl(cmdbuf, ptrlen_from_asciz(p));
+                put_dataz(cmdbuf, p);
                 if (--argc > 0)
                     p = *++argv;
             }

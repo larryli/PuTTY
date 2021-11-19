@@ -34,7 +34,7 @@ void add_prompt(prompts_t *p, char *promptstr, bool echo)
 void prompt_set_result(prompt_t *pr, const char *newstr)
 {
     strbuf_clear(pr->result);
-    put_datapl(pr->result, ptrlen_from_asciz(newstr));
+    put_dataz(pr->result, newstr);
 }
 
 const char *prompt_get_result_ref(prompt_t *pr)

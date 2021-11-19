@@ -889,7 +889,7 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
                     for (size_t i = 0; ctx->keywords[i]; i++) {
                         if (strstartswith(p, ctx->keywords[i])) {
                             p += strlen(ctx->keywords[i]);
-                            put_datapl(sb, ptrlen_from_asciz(ctx->values[i]));
+                            put_dataz(sb, ctx->values[i]);
                             goto matched;
                         }
                     }

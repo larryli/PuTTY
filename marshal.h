@@ -141,6 +141,10 @@ struct BinarySink {
     BinarySink_put_data(BinarySink_UPCAST(bs), val, len)
 #define put_datapl(bs, pl) \
     BinarySink_put_datapl(BinarySink_UPCAST(bs), pl)
+#define put_dataz(bs, val) \
+    BinarySink_put_datapl(BinarySink_UPCAST(bs), ptrlen_from_asciz(val))
+#define put_datalit(bs, val) \
+    BinarySink_put_datapl(BinarySink_UPCAST(bs), PTRLEN_LITERAL(val))
 
 /* Emit printf-formatted data, with no terminator. */
 #define put_fmt(bs, ...) \
