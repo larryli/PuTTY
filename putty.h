@@ -1075,16 +1075,6 @@ struct SeatVtable {
      * remember your private key passphrase then perhaps you'd rather
      * fall back to password auth rather than aborting the whole
      * session.)
-     *
-     * (Also FIXME: currently, backends' only response to the 'try
-     * again later' is to try again when more input data becomes
-     * available, because they assume that a seat is returning that
-     * value because it's consuming keyboard input. But a seat that
-     * handled this function by putting up a dialog box might want to
-     * put it up non-modally, and therefore would want to proactively
-     * notify the backend to retry once the dialog went away. So if I
-     * ever do want to move password prompts into a dialog box, I'll
-     * want a backend method for sending that notification.)
      */
     int (*get_userpass_input)(Seat *seat, prompts_t *p);
 
