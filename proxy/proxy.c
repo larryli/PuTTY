@@ -12,6 +12,7 @@
 #include "putty.h"
 #include "network.h"
 #include "proxy.h"
+#include "socks.h"
 
 #define do_proxy_dns(conf) \
     (conf_get_int(conf, CONF_proxy_dns) == FORCE_ON || \
@@ -765,8 +766,8 @@ int proxy_socks4_negotiate (ProxySocket *ps, int change)
         char hostname[512];
         bool write_hostname = false;
 
-        put_byte(command, 4);          /* SOCKS version 4 */
-        put_byte(command, 1);          /* CONNECT command */
+        put_byte(command, SOCKS4_REQUEST_VERSION);
+        put_byte(command, SOCKS_CMD_CONNECT);
         put_uint16(command, ps->remote_port);
 
         switch (sk_addrtype(ps->remote_addr)) {
@@ -778,7 +779,7 @@ int proxy_socks4_negotiate (ProxySocket *ps, int change)
           }
           case ADDRTYPE_NAME:
             sk_getaddr(ps->remote_addr, hostname, lenof(hostname));
-            put_uint32(command, 1);
+            put_uint32(command, SOCKS4A_NAME_FOLLOWS_BASE);
             write_hostname = true;
             break;
           case ADDRTYPE_IPV6:
@@ -834,7 +835,7 @@ int proxy_socks4_negotiate (ProxySocket *ps, int change)
 
         if (ps->state == 1) {
             /* response format:
-             *  version number (1 byte) = 4
+             *  version number (1 byte) = 0
              *  reply code (1 byte)
              *    90 = request granted
              *    91 = request rejected or failed
@@ -853,25 +854,25 @@ int proxy_socks4_negotiate (ProxySocket *ps, int change)
             /* get the response */
             bufchain_fetch(&ps->pending_input_data, data, 8);
 
-            if (data[0] != 0) {
+            if (data[0] != SOCKS4_REPLY_VERSION) {
                 plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "responded with unexpected "
                                    "reply code version");
                 return 1;
             }
 
-            if (data[1] != 90) {
+            if (data[1] != SOCKS4_RESP_SUCCESS) {
 
                 switch (data[1]) {
-                  case 92:
+                  case SOCKS4_RESP_WANT_IDENTD:
                     plug_closing_error(ps->plug, "Proxy error: SOCKS server "
                                        "wanted IDENTD on client");
                     break;
-                  case 93:
+                  case SOCKS4_RESP_IDENTD_MISMATCH:
                     plug_closing_error(ps->plug, "Proxy error: Username and "
                                        "IDENTD on client don't agree");
                     break;
-                  case 91:
+                  case SOCKS4_RESP_FAILURE:
                   default:
                     plug_closing_error(ps->plug, "Proxy error: Error while "
                                        "communicating with proxy");
@@ -915,7 +916,7 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
         int method_count_offset, methods_start;
 
         command = strbuf_new();
-        put_byte(command, 5);          /* SOCKS version 5 */
+        put_byte(command, SOCKS5_REQUEST_VERSION);
         username = conf_get_str(ps->conf, CONF_proxy_username);
         password = conf_get_str(ps->conf, CONF_proxy_password);
 
@@ -923,11 +924,11 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
         put_byte(command, 0);
         methods_start = command->len;
 
-        put_byte(command, 0x00);       /* no authentication */
+        put_byte(command, SOCKS5_AUTH_NONE);
 
         if (username[0] || password[0]) {
             proxy_socks5_offerencryptedauth(BinarySink_UPCAST(command));
-            put_byte(command, 0x02);    /* username/password */
+            put_byte(command, SOCKS5_AUTH_PASSWORD);
         }
 
         command->u[method_count_offset] = command->len - methods_start;
@@ -994,16 +995,16 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
             /* get the response */
             bufchain_fetch(&ps->pending_input_data, data, 2);
 
-            if (data[0] != 5) {
+            if (data[0] != SOCKS5_REPLY_VERSION) {
                 plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "returned unexpected version");
                 return 1;
             }
 
-            if (data[1] == 0x00) ps->state = 2; /* no authentication needed */
-            else if (data[1] == 0x01) ps->state = 4; /* GSSAPI authentication */
-            else if (data[1] == 0x02) ps->state = 5; /* username/password authentication */
-            else if (data[1] == 0x03) ps->state = 6; /* CHAP authentication */
+            if (data[1] == SOCKS5_AUTH_NONE) ps->state = 2;
+            else if (data[1] == SOCKS5_AUTH_GSSAPI) ps->state = 4;
+            else if (data[1] == SOCKS5_AUTH_PASSWORD) ps->state = 5;
+            else if (data[1] == SOCKS5_AUTH_CHAP) ps->state = 6;
             else {
                 plug_closing_error(ps->plug, "Proxy error: SOCKS proxy did not "
                                    "accept our authentication");
@@ -1028,7 +1029,7 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
             /* get the response */
             bufchain_fetch(&ps->pending_input_data, data, 2);
 
-            if (data[0] != 1) {
+            if (data[0] != SOCKS5_AUTH_PASSWORD_VERSION) {
                 plug_closing_error(ps->plug, "Proxy error: SOCKS password "
                                    "subnegotiation contained wrong version "
                                    "number");
@@ -1069,22 +1070,22 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
              */
 
             strbuf *command = strbuf_new();
-            put_byte(command, 5);      /* SOCKS version 5 */
-            put_byte(command, 1);      /* CONNECT command */
+            put_byte(command, SOCKS5_REQUEST_VERSION);
+            put_byte(command, SOCKS_CMD_CONNECT);
             put_byte(command, 0x00);   /* reserved byte */
 
             switch (sk_addrtype(ps->remote_addr)) {
               case ADDRTYPE_IPV4:
-                put_byte(command, 1);  /* IPv4 */
+                put_byte(command, SOCKS5_ADDR_IPV4);
                 sk_addrcopy(ps->remote_addr, strbuf_append(command, 4));
                 break;
               case ADDRTYPE_IPV6:
-                put_byte(command, 4);  /* IPv6 */
+                put_byte(command, SOCKS5_ADDR_IPV6);
                 sk_addrcopy(ps->remote_addr, strbuf_append(command, 16));
                 break;
               case ADDRTYPE_NAME: {
                 char hostname[512];
-                put_byte(command, 3);  /* domain name */
+                put_byte(command, SOCKS5_ADDR_HOSTNAME);
                 sk_getaddr(ps->remote_addr, hostname, lenof(hostname));
                 if (!put_pstring(command, hostname)) {
                   ps->error = "Proxy error: SOCKS 5 cannot "
@@ -1138,26 +1139,26 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
             /* get the response */
             bufchain_fetch(&ps->pending_input_data, data, 5);
 
-            if (data[0] != 5) {
+            if (data[0] != SOCKS5_REPLY_VERSION) {
                 plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "returned wrong version number");
                 return 1;
             }
 
-            if (data[1] != 0) {
+            if (data[1] != SOCKS5_RESP_SUCCESS) {
                 char buf[256];
 
                 strcpy(buf, "Proxy error: ");
 
                 switch (data[1]) {
-                  case 1: strcat(buf, "General SOCKS server failure"); break;
-                  case 2: strcat(buf, "Connection not allowed by ruleset"); break;
-                  case 3: strcat(buf, "Network unreachable"); break;
-                  case 4: strcat(buf, "Host unreachable"); break;
-                  case 5: strcat(buf, "Connection refused"); break;
-                  case 6: strcat(buf, "TTL expired"); break;
-                  case 7: strcat(buf, "Command not supported"); break;
-                  case 8: strcat(buf, "Address type not supported"); break;
+                  case SOCKS5_RESP_FAILURE: strcat(buf, "General SOCKS server failure"); break;
+                  case SOCKS5_RESP_CONNECTION_NOT_ALLOWED_BY_RULESET: strcat(buf, "Connection not allowed by ruleset"); break;
+                  case SOCKS5_RESP_NETWORK_UNREACHABLE: strcat(buf, "Network unreachable"); break;
+                  case SOCKS5_RESP_HOST_UNREACHABLE: strcat(buf, "Host unreachable"); break;
+                  case SOCKS5_RESP_CONNECTION_REFUSED: strcat(buf, "Connection refused"); break;
+                  case SOCKS5_RESP_TTL_EXPIRED: strcat(buf, "TTL expired"); break;
+                  case SOCKS5_RESP_COMMAND_NOT_SUPPORTED: strcat(buf, "Command not supported"); break;
+                  case SOCKS5_RESP_ADDRTYPE_NOT_SUPPORTED: strcat(buf, "Address type not supported"); break;
                   default: sprintf(buf+strlen(buf),
                                    "Unrecognised SOCKS error code %d",
                                    data[1]);
@@ -1173,9 +1174,9 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
              */
             len = 6;                   /* first 4 bytes, last 2 */
             switch (data[3]) {
-              case 1: len += 4; break; /* IPv4 address */
-              case 4: len += 16; break;/* IPv6 address */
-              case 3: len += 1+(unsigned char)data[4]; break; /* domain name */
+              case SOCKS5_ADDR_IPV4: len += 4; break; /* IPv4 address */
+              case SOCKS5_ADDR_IPV6: len += 16; break;/* IPv6 address */
+              case SOCKS5_ADDR_HOSTNAME: len += 1+(unsigned char)data[4]; break; /* domain name */
               default:
                 plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "returned unrecognised address format");
@@ -1202,7 +1203,7 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
             const char *password = conf_get_str(ps->conf, CONF_proxy_password);
             if (username[0] || password[0]) {
                 strbuf *auth = strbuf_new_nm();
-                put_byte(auth, 1); /* version number of subnegotiation */
+                put_byte(auth, SOCKS5_AUTH_PASSWORD_VERSION);
                 if (!put_pstring(auth, username)) {
                     ps->error = "Proxy error: SOCKS 5 authentication cannot "
                         "support usernames longer than 255 chars";

@@ -13,6 +13,7 @@
 #include "ssh.h" /* For MD5 support */
 #include "network.h"
 #include "proxy.h"
+#include "socks.h"
 #include "marshal.h"
 
 static void hmacmd5_chap(const unsigned char *challenge, int challen,
@@ -24,7 +25,7 @@ static void hmacmd5_chap(const unsigned char *challenge, int challen,
 
 void proxy_socks5_offerencryptedauth(BinarySink *bs)
 {
-    put_byte(bs, 0x03);              /* CHAP */
+    put_byte(bs, SOCKS5_AUTH_CHAP);
 }
 
 int proxy_socks5_handlechap (ProxySocket *ps)
@@ -64,7 +65,7 @@ int proxy_socks5_handlechap (ProxySocket *ps)
              * with the server, where we negotiate version and
              * number of attributes
              */
-            if (data[0] != 0x01) {
+            if (data[0] != SOCKS5_AUTH_CHAP_VERSION) {
                 plug_closing_error(ps->plug, "Proxy error: SOCKS proxy wants "
                                    "a different CHAP version");
                 return 1;
@@ -96,7 +97,7 @@ int proxy_socks5_handlechap (ProxySocket *ps)
                              ps->chap_current_datalen);
 
             switch (ps->chap_current_attribute) {
-              case 0x00:
+              case SOCKS5_AUTH_CHAP_ATTR_STATUS:
                 /* Successful authentication */
                 if (data[0] == 0x00)
                     ps->state = 2;
@@ -106,19 +107,19 @@ int proxy_socks5_handlechap (ProxySocket *ps)
                     return 1;
                 }
               break;
-              case 0x03:
-                outbuf[0] = 0x01; /* Version */
+              case SOCKS5_AUTH_CHAP_ATTR_CHALLENGE:
+                outbuf[0] = SOCKS5_AUTH_CHAP_VERSION;
                 outbuf[1] = 0x01; /* One attribute */
-                outbuf[2] = 0x04; /* Response */
+                outbuf[2] = SOCKS5_AUTH_CHAP_ATTR_RESPONSE;
                 outbuf[3] = 0x10; /* Length */
                 hmacmd5_chap(data, ps->chap_current_datalen,
                              conf_get_str(ps->conf, CONF_proxy_password),
                              &outbuf[4]);
                 sk_write(ps->sub_socket, outbuf, 20);
               break;
-              case 0x11:
+              case SOCKS5_AUTH_CHAP_ATTR_ALGLIST:
                 /* Chose a protocol */
-                if (data[0] != 0x85) {
+                if (data[0] != SOCKS5_AUTH_CHAP_ALG_HMACMD5) {
                     plug_closing_error(ps->plug, "Proxy error: Server chose "
                                        "CHAP of other than HMAC-MD5 but we "
                                        "didn't offer it!");
@@ -146,12 +147,12 @@ int proxy_socks5_selectchap(ProxySocket *ps)
     if (username[0] || password[0]) {
         char chapbuf[514];
         int ulen;
-        chapbuf[0] = '\x01'; /* Version */
+        chapbuf[0] = SOCKS5_AUTH_CHAP_VERSION;
         chapbuf[1] = '\x02'; /* Number of attributes sent */
-        chapbuf[2] = '\x11'; /* First attribute - algorithms list */
+        chapbuf[2] = SOCKS5_AUTH_CHAP_ATTR_ALGLIST;
         chapbuf[3] = '\x01'; /* Only one CHAP algorithm */
-        chapbuf[4] = '\x85'; /* ...and it's HMAC-MD5, the core one */
-        chapbuf[5] = '\x02'; /* Second attribute - username */
+        chapbuf[4] = SOCKS5_AUTH_CHAP_ALG_HMACMD5;
+        chapbuf[5] = SOCKS5_AUTH_CHAP_ATTR_USERNAME;
 
         ulen = strlen(username);
         if (ulen > 255) ulen = 255;

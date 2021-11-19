@@ -9,6 +9,7 @@
 #include "putty.h"
 #include "ssh.h"
 #include "channel.h"
+#include "proxy/socks.h"
 
 /*
  * Enumeration of values that live in the 'socks_state' field of
@@ -216,10 +217,10 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
              * _must_ have by now) to find out which SOCKS major
              * version we're speaking. */
             switch (pf->socksbuf->u[0]) {
-              case 4:
+              case SOCKS4_REQUEST_VERSION:
                 pf->socks_state = SOCKS_4;
                 break;
-              case 5:
+              case SOCKS5_REQUEST_VERSION:
                 pf->socks_state = SOCKS_5_INITIAL;
                 break;
               default:
@@ -250,13 +251,15 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
 
                 if (get_err(src) == BSE_OUT_OF_DATA)
                     return;
-                if (socks_version == 4 && message_type == 1) {
+                if (socks_version == SOCKS4_REQUEST_VERSION &&
+                    message_type == SOCKS_CMD_CONNECT) {
                     /* CONNECT message */
                     bool name_based = false;
 
                     port = get_uint16(src);
                     ipv4 = get_uint32(src);
-                    if (ipv4 > 0x00000000 && ipv4 < 0x00000100) {
+                    if (ipv4 >= SOCKS4A_NAME_FOLLOWS_BASE &&
+                        ipv4 < SOCKS4A_NAME_FOLLOWS_LIMIT) {
                         /*
                          * Addresses in this range indicate the SOCKS 4A
                          * extension to specify a hostname, which comes
@@ -280,8 +283,8 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
                     }
 
                     output = strbuf_new();
-                    put_byte(output, 0);       /* reply version */
-                    put_byte(output, 90);      /* SOCKS 4 'request granted' */
+                    put_byte(output, SOCKS4_REPLY_VERSION);
+                    put_byte(output, SOCKS4_RESP_SUCCESS);
                     put_uint16(output, 0);     /* null port field */
                     put_uint32(output, 0);     /* null address field */
                     sk_write(pf->s, output->u, output->len);
@@ -294,8 +297,8 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
 
               socks4_reject:
                 output = strbuf_new();
-                put_byte(output, 0);       /* reply version */
-                put_byte(output, 91);      /* SOCKS 4 'request rejected' */
+                put_byte(output, SOCKS4_REPLY_VERSION);
+                put_byte(output, SOCKS4_RESP_FAILURE);
                 put_uint16(output, 0);     /* null port field */
                 put_uint32(output, 0);     /* null address field */
                 sk_write(pf->s, output->u, output->len);
@@ -308,29 +311,31 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
                 socks_version = get_byte(src);
                 methods = get_pstring(src);
 
-                method = 0xFF;         /* means 'no usable method found' */
-                {
-                    int i;
-                    for (i = 0; i < methods.len; i++) {
-                        if (((const unsigned char *)methods.ptr)[i] == 0 ) {
-                            method = 0;        /* no auth */
-                            break;
-                        }
+                method = SOCKS5_AUTH_REJECTED;
+
+                /* Search the method list for AUTH_NONE, which is the
+                 * only one this client code can speak */
+                for (size_t i = 0; i < methods.len; i++) {
+                    unsigned char this_method =
+                        ((const unsigned char *)methods.ptr)[i];
+                    if (this_method == SOCKS5_AUTH_NONE) {
+                        method = this_method;
+                        break;
                     }
                 }
 
                 if (get_err(src) == BSE_OUT_OF_DATA)
                     return;
                 if (get_err(src))
-                    method = 0xFF;
+                    method = SOCKS5_AUTH_REJECTED;
 
                 output = strbuf_new();
-                put_byte(output, 5);       /* SOCKS version */
-                put_byte(output, method);  /* selected auth method */
+                put_byte(output, SOCKS5_REPLY_VERSION);
+                put_byte(output, method);
                 sk_write(pf->s, output->u, output->len);
                 strbuf_free(output);
 
-                if (method == 0xFF) {
+                if (method == SOCKS5_AUTH_REJECTED) {
                     pfd_close(pf);
                     return;
                 }
@@ -345,48 +350,49 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
                 message_type = get_byte(src);
                 reserved_byte = get_byte(src);
 
-                if (socks_version == 5 && message_type == 1 &&
+                if (socks_version == SOCKS5_REQUEST_VERSION &&
+                    message_type == SOCKS_CMD_CONNECT &&
                     reserved_byte == 0) {
 
-                    reply_code = 0;        /* success */
+                    reply_code = SOCKS5_RESP_SUCCESS;
 
                     switch (get_byte(src)) {
-                      case 1:              /* IPv4 */
+                      case SOCKS5_ADDR_IPV4:
                         pf->hostname = ipv4_to_string(get_uint32(src));
                         break;
-                      case 4:              /* IPv6 */
+                      case SOCKS5_ADDR_IPV6:
                         pf->hostname = ipv6_to_string(get_data(src, 16));
                         break;
-                      case 3:              /* unresolved domain name */
+                      case SOCKS5_ADDR_HOSTNAME:
                         pf->hostname = mkstr(get_pstring(src));
                         break;
                       default:
                         pf->hostname = NULL;
-                        reply_code = 8;    /* address type not supported */
+                        reply_code = SOCKS5_RESP_ADDRTYPE_NOT_SUPPORTED;
                         break;
                     }
 
                     pf->port = get_uint16(src);
                 } else {
-                    reply_code = 7;        /* command not supported */
+                    reply_code = SOCKS5_RESP_COMMAND_NOT_SUPPORTED;
                 }
 
                 if (get_err(src) == BSE_OUT_OF_DATA)
                     return;
                 if (get_err(src))
-                    reply_code = 1;        /* general server failure */
+                    reply_code = SOCKS5_RESP_FAILURE;
 
                 output = strbuf_new();
-                put_byte(output, 5);       /* SOCKS version */
+                put_byte(output, SOCKS5_REPLY_VERSION);
                 put_byte(output, reply_code);
                 put_byte(output, 0);       /* reserved */
-                put_byte(output, 1);       /* IPv4 address follows */
+                put_byte(output, SOCKS5_ADDR_IPV4); /* IPv4 address follows */
                 put_uint32(output, 0);     /* bound IPv4 address (unused) */
                 put_uint16(output, 0);     /* bound port number (unused) */
                 sk_write(pf->s, output->u, output->len);
                 strbuf_free(output);
 
-                if (reply_code != 0) {
+                if (reply_code != SOCKS5_RESP_SUCCESS) {
                     pfd_close(pf);
                     return;
                 }
