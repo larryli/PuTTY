@@ -18,6 +18,19 @@
          (conf_get_int(conf, CONF_proxy_dns) == AUTO && \
               conf_get_int(conf, CONF_proxy_type) != PROXY_SOCKS4))
 
+static void proxy_negotiator_cleanup(ProxySocket *ps)
+{
+    if (ps->pn) {
+        proxy_negotiator_free(ps->pn);
+        ps->pn = NULL;
+    }
+    if (ps->clientseat) {
+        interactor_return_seat(ps->clientitr);
+        ps->clientitr = NULL;
+        ps->clientseat = NULL;
+    }
+}
+
 /*
  * Call this when proxy negotiation is complete, so that this
  * socket can begin working normally.
@@ -26,9 +39,7 @@ void proxy_activate(ProxySocket *ps)
 {
     size_t output_before, output_after;
 
-    assert(ps->pn);
-    proxy_negotiator_free(ps->pn);
-    ps->pn = NULL;
+    proxy_negotiator_cleanup(ps);
 
     plug_log(ps->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
 
@@ -89,8 +100,7 @@ static void sk_proxy_close (Socket *s)
 
     sk_close(ps->sub_socket);
     sk_addr_free(ps->remote_addr);
-    if (ps->pn)
-        proxy_negotiator_free(ps->pn);
+    proxy_negotiator_cleanup(ps);
     bufchain_clear(&ps->output_from_negotiator);
     sfree(ps);
 }
@@ -191,6 +201,7 @@ static void plug_proxy_closing(Plug *p, PlugCloseType type,
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
+    proxy_negotiator_cleanup(ps);
     plug_closing(ps->plug, type, error_msg);
 }
 
@@ -203,10 +214,12 @@ static void proxy_negotiate(ProxySocket *ps)
     } else if (ps->pn->error) {
         char *err = dupprintf("Proxy error: %s", ps->pn->error);
         sfree(ps->pn->error);
-        proxy_negotiator_free(ps->pn);
-        ps->pn = NULL;
+        proxy_negotiator_cleanup(ps);
         plug_closing_error(ps->plug, err);
         sfree(err);
+    } else if (ps->pn->aborted) {
+        proxy_negotiator_cleanup(ps);
+        plug_closing_user_abort(ps->plug);
     } else {
         while (bufchain_size(&ps->output_from_negotiator)) {
             ptrlen data = bufchain_prefix(&ps->output_from_negotiator);
@@ -400,6 +413,53 @@ static const PlugVtable ProxySocket_plugvt = {
     .accepting = plug_proxy_accepting
 };
 
+static char *proxy_description(Interactor *itr)
+{
+    ProxySocket *ps = container_of(itr, ProxySocket, interactor);
+    assert(ps->pn);
+    return dupprintf("%s connection to %s port %d", ps->pn->vt->type,
+                     conf_get_str(ps->conf, CONF_proxy_host),
+                     conf_get_int(ps->conf, CONF_proxy_port));
+}
+
+static LogPolicy *proxy_logpolicy(Interactor *itr)
+{
+    ProxySocket *ps = container_of(itr, ProxySocket, interactor);
+    return ps->clientlp;
+}
+
+static Seat *proxy_get_seat(Interactor *itr)
+{
+    ProxySocket *ps = container_of(itr, ProxySocket, interactor);
+    return ps->clientseat;
+}
+
+static void proxy_set_seat(Interactor *itr, Seat *seat)
+{
+    ProxySocket *ps = container_of(itr, ProxySocket, interactor);
+    ps->clientseat = seat;
+}
+
+static const InteractorVtable ProxySocket_interactorvt = {
+    .description = proxy_description,
+    .logpolicy = proxy_logpolicy,
+    .get_seat = proxy_get_seat,
+    .set_seat = proxy_set_seat,
+};
+
+static void proxy_prompts_callback(void *ctx)
+{
+    proxy_negotiate((ProxySocket *)ctx);
+}
+
+prompts_t *proxy_new_prompts(ProxySocket *ps)
+{
+    prompts_t *prs = new_prompts();
+    prs->callback = proxy_prompts_callback;
+    prs->callback_ctx = ps;
+    return prs;
+}
+
 Socket *new_connection(SockAddr *addr, const char *hostname,
                        int port, bool privport,
                        bool oobinline, bool nodelay, bool keepalive,
@@ -429,6 +489,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         ps = snew(ProxySocket);
         ps->sock.vt = &ProxySocket_sockvt;
         ps->plugimpl.vt = &ProxySocket_plugvt;
+        ps->interactor.vt = &ProxySocket_interactorvt;
         ps->conf = conf_copy(conf);
         ps->plug = plug;
         ps->remote_addr = addr;       /* will need to be freed on close */
@@ -444,6 +505,17 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         bufchain_init(&ps->output_from_negotiator);
 
         ps->sub_socket = NULL;
+
+        /*
+         * If we've been given an Interactor by the caller, set ourselves
+         * up to work with it.
+         */
+        if (itr) {
+            ps->clientitr = itr;
+            interactor_set_child(ps->clientitr, &ps->interactor);
+            ps->clientlp = interactor_logpolicy(ps->clientitr);
+            ps->clientseat = interactor_borrow_seat(ps->clientitr);
+        }
 
         const ProxyNegotiatorVT *vt;
         switch (type) {
@@ -467,7 +539,11 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         ps->pn->ps = ps;
         ps->pn->done = false;
         ps->pn->error = NULL;
+        ps->pn->aborted = false;
         ps->pn->input = &ps->pending_input_data;
+        /* Provide an Interactor to the negotiator if and only if we
+         * are usefully able to ask interactive questions of the user */
+        ps->pn->itr = ps->clientseat ? &ps->interactor : NULL;
         bufchain_sink_init(ps->pn->output, &ps->output_from_negotiator);
 
         {
