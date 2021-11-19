@@ -4946,7 +4946,7 @@ static void wintw_clip_write(
 
         get_unitab(CP_ACP, unitab, 0);
 
-        strbuf_catf(
+        put_fmt(
             rtf, "{\\rtf1\\ansi\\deff0{\\fonttbl\\f0\\fmodern %s;}\\f0\\fs%d",
             font->name, font->height*2);
 
@@ -5034,16 +5034,16 @@ static void wintw_clip_write(
             for (i = 0; i < OSC4_NCOLOURS; i++) {
                 if (palette[i] != 0) {
                     const PALETTEENTRY *pe = &logpal->palPalEntry[i];
-                    strbuf_catf(rtf, "\\red%d\\green%d\\blue%d;",
-                                pe->peRed, pe->peGreen, pe->peBlue);
+                    put_fmt(rtf, "\\red%d\\green%d\\blue%d;",
+                            pe->peRed, pe->peGreen, pe->peBlue);
                 }
             }
             if (rgbtree) {
                 rgbindex *rgbp;
                 for (i = 0; (rgbp = index234(rgbtree, i)) != NULL; i++)
-                    strbuf_catf(rtf, "\\red%d\\green%d\\blue%d;",
-                                GetRValue(rgbp->ref), GetGValue(rgbp->ref),
-                                GetBValue(rgbp->ref));
+                    put_fmt(rtf, "\\red%d\\green%d\\blue%d;",
+                            GetRValue(rgbp->ref), GetGValue(rgbp->ref),
+                            GetBValue(rgbp->ref));
             }
             put_datapl(rtf, PTRLEN_LITERAL("}"));
         }
@@ -5162,13 +5162,13 @@ static void wintw_clip_write(
                     lastfgcolour  = fgcolour;
                     lastfg        = fg;
                     if (fg == -1) {
-                        strbuf_catf(rtf, "\\cf%d ",
-                                    (fgcolour >= 0) ? palette[fgcolour] : 0);
+                        put_fmt(rtf, "\\cf%d ",
+                                (fgcolour >= 0) ? palette[fgcolour] : 0);
                     } else {
                         rgbindex rgb, *rgbp;
                         rgb.ref = fg;
                         if ((rgbp = find234(rgbtree, &rgb, NULL)) != NULL)
-                            strbuf_catf(rtf, "\\cf%d ", rgbp->index);
+                            put_fmt(rtf, "\\cf%d ", rgbp->index);
                     }
                 }
 
@@ -5176,13 +5176,13 @@ static void wintw_clip_write(
                     lastbgcolour  = bgcolour;
                     lastbg        = bg;
                     if (bg == -1)
-                        strbuf_catf(rtf, "\\highlight%d ",
-                                    (bgcolour >= 0) ? palette[bgcolour] : 0);
+                        put_fmt(rtf, "\\highlight%d ",
+                                (bgcolour >= 0) ? palette[bgcolour] : 0);
                     else {
                         rgbindex rgb, *rgbp;
                         rgb.ref = bg;
                         if ((rgbp = find234(rgbtree, &rgb, NULL)) != NULL)
-                            strbuf_catf(rtf, "\\highlight%d ", rgbp->index);
+                            put_fmt(rtf, "\\highlight%d ", rgbp->index);
                     }
                 }
 
@@ -5243,7 +5243,7 @@ static void wintw_clip_write(
                 } else if (tdata[tindex+i] == 0x0D || tdata[tindex+i] == 0x0A) {
                     put_datapl(rtf, PTRLEN_LITERAL("\\par\r\n"));
                 } else if (tdata[tindex+i] > 0x7E || tdata[tindex+i] < 0x20) {
-                    strbuf_catf(rtf, "\\'%02x", tdata[tindex+i]);
+                    put_fmt(rtf, "\\'%02x", tdata[tindex+i]);
                 } else {
                     put_byte(rtf, tdata[tindex+i]);
                 }

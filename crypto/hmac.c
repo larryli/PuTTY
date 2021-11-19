@@ -42,20 +42,20 @@ static ssh2_mac *hmac_new(const ssh2_macalg *alg, ssh_cipher *cipher)
     ctx->digest = snewn(ctx->hashalg->hlen, uint8_t);
 
     ctx->text_name = strbuf_new();
-    strbuf_catf(ctx->text_name, "HMAC-%s%s",
-                ctx->hashalg->text_basename, extra->suffix);
+    put_fmt(ctx->text_name, "HMAC-%s%s",
+            ctx->hashalg->text_basename, extra->suffix);
     if (extra->annotation || ctx->hashalg->annotation) {
-        strbuf_catf(ctx->text_name, " (");
+        put_fmt(ctx->text_name, " (");
         const char *sep = "";
         if (extra->annotation) {
-            strbuf_catf(ctx->text_name, "%s%s", sep, extra->annotation);
+            put_fmt(ctx->text_name, "%s%s", sep, extra->annotation);
             sep = ", ";
         }
         if (ctx->hashalg->annotation) {
-            strbuf_catf(ctx->text_name, "%s%s", sep, ctx->hashalg->annotation);
+            put_fmt(ctx->text_name, "%s%s", sep, ctx->hashalg->annotation);
             sep = ", ";
         }
-        strbuf_catf(ctx->text_name, ")");
+        put_fmt(ctx->text_name, ")");
     }
 
     ctx->mac.vt = alg;

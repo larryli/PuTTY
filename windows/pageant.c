@@ -335,7 +335,7 @@ static void keylist_update_callback(
 
     switch (key->ssh_version) {
       case 1: {
-        strbuf_catf(listentry, "ssh1\t%s\t%s", fingerprint, comment);
+        put_fmt(listentry, "ssh1\t%s\t%s", fingerprint, comment);
 
         /*
          * Replace the space in the fingerprint (between bit count and
@@ -390,15 +390,15 @@ static void keylist_update_callback(
                 put_byte(listentry, c);
         }
 
-        strbuf_catf(listentry, "\t%s", comment);
+        put_fmt(listentry, "\t%s", comment);
         break;
       }
     }
 
     if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
-        strbuf_catf(listentry, "\t(encrypted)");
+        put_fmt(listentry, "\t(encrypted)");
     } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
-        strbuf_catf(listentry, "\t(re-encryptable)");
+        put_fmt(listentry, "\t(re-encryptable)");
 
         /* At least one key can be re-encrypted */
         ctx->enable_reencrypt_controls = true;

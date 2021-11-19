@@ -410,10 +410,10 @@ strbuf *pockle_mpu(Pockle *pockle, mp_int *p)
     memset(needed, 0, pockle->nlist * sizeof(bool));
     needed[pr->index] = true;
 
-    strbuf_catf(sb, "[MPU - Primality Certificate]\nVersion 1.0\nBase 10\n\n"
-                "Proof for:\nN  ");
+    put_fmt(sb, "[MPU - Primality Certificate]\nVersion 1.0\nBase 10\n\n"
+            "Proof for:\nN  ");
     mp_write_decimal(sb, p);
-    strbuf_catf(sb, "\n");
+    put_fmt(sb, "\n");
 
     for (size_t index = pockle->nlist; index-- > 0 ;) {
         if (!needed[index])
@@ -421,27 +421,27 @@ strbuf *pockle_mpu(Pockle *pockle, mp_int *p)
         pr = pockle->list[index];
 
         if (mp_get_nbits(pr->prime) <= 64) {
-            strbuf_catf(sb, "\nType Small\nN  ");
+            put_fmt(sb, "\nType Small\nN  ");
             mp_write_decimal(sb, pr->prime);
-            strbuf_catf(sb, "\n");
+            put_fmt(sb, "\n");
         } else {
             assert(pr->witness);
-            strbuf_catf(sb, "\nType BLS5\nN  ");
+            put_fmt(sb, "\nType BLS5\nN  ");
             mp_write_decimal(sb, pr->prime);
-            strbuf_catf(sb, "\n");
+            put_fmt(sb, "\n");
             for (size_t i = 0; i < pr->nfactors; i++) {
-                strbuf_catf(sb, "Q[%"SIZEu"]  ", i+1);
+                put_fmt(sb, "Q[%"SIZEu"]  ", i+1);
                 mp_write_decimal(sb, pr->factors[i]->prime);
                 assert(pr->factors[i]->index < index);
                 needed[pr->factors[i]->index] = true;
-                strbuf_catf(sb, "\n");
+                put_fmt(sb, "\n");
             }
             for (size_t i = 0; i < pr->nfactors + 1; i++) {
-                strbuf_catf(sb, "A[%"SIZEu"]  ", i);
+                put_fmt(sb, "A[%"SIZEu"]  ", i);
                 mp_write_decimal(sb, pr->witness);
-                strbuf_catf(sb, "\n");
+                put_fmt(sb, "\n");
             }
-            strbuf_catf(sb, "----\n");
+            put_fmt(sb, "----\n");
         }
     }
     sfree(needed);

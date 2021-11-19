@@ -173,7 +173,7 @@ static char *make_filename(int index, const char *subname)
     if (index == INDEX_SESSION) {
         strbuf *sb = strbuf_new();
         tmp = make_filename(INDEX_SESSIONDIR, NULL);
-        strbuf_catf(sb, "%s/", tmp);
+        put_fmt(sb, "%s/", tmp);
         sfree(tmp);
         make_session_filename(subname, sb);
         return strbuf_to_str(sb);

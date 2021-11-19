@@ -289,7 +289,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         */
 
         // We only care about the new position.
-        strbuf_catf(outbuf, "\033[%d;%dH", supdup->td_args[2]+1, supdup->td_args[3]+1);
+        put_fmt(outbuf, "\033[%d;%dH", supdup->td_args[2]+1, supdup->td_args[3]+1);
         break;
 
     case TDMV0:
@@ -298,7 +298,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           General cursor position code.  Followed by two bytes;
           the new vertical and horizontal positions.
         */
-        strbuf_catf(outbuf, "\033[%d;%dH", supdup->td_args[0]+1, supdup->td_args[1]+1);
+        put_fmt(outbuf, "\033[%d;%dH", supdup->td_args[0]+1, supdup->td_args[1]+1);
         break;
 
     case TDEOF:
@@ -312,7 +312,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           lines lower on the screen than the cursor.  The cursor
           does not move.
         */
-        strbuf_catf(outbuf, "\033[J");
+        put_fmt(outbuf, "\033[J");
         break;
 
     case TDEOL:
@@ -321,7 +321,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           position the cursor is at and all positions to the right
           on the same line.  The cursor does not move.
         */
-        strbuf_catf(outbuf, "\033[K");
+        put_fmt(outbuf, "\033[K");
         break;
 
     case TDDLF:
@@ -329,7 +329,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           Clear the character position the cursor is on.  The
           cursor does not move.
         */
-        strbuf_catf(outbuf, "\033[X");
+        put_fmt(outbuf, "\033[X");
         break;
 
     case TDCRL:
@@ -339,7 +339,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           that line.  If the cursor is at the bottom line, scroll
           up.
         */
-        strbuf_catf(outbuf, "\015\012");
+        put_fmt(outbuf, "\015\012");
         break;
 
     case TDNOP:
@@ -383,7 +383,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           line.
         */
 
-        strbuf_catf(outbuf, "\033[C");
+        put_fmt(outbuf, "\033[C");
         break;
 
     case TDCLR:
@@ -391,7 +391,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           Erase the screen.  Home the cursor to the top left hand
           corner of the screen.
         */
-        strbuf_catf(outbuf, "\033[2J\033[H");
+        put_fmt(outbuf, "\033[2J\033[H");
         break;
 
     case TDBEL:
@@ -399,7 +399,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           Generate an audio tone, bell, whatever.
         */
 
-        strbuf_catf(outbuf, "\007");
+        put_fmt(outbuf, "\007");
         break;
 
     case TDILP:
@@ -410,7 +410,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           on and all lines below it move down; lines moved off the
           bottom of the screen are lost.
         */
-        strbuf_catf(outbuf, "\033[%dL", supdup->td_args[0]);
+        put_fmt(outbuf, "\033[%dL", supdup->td_args[0]);
         break;
 
     case TDDLP:
@@ -421,7 +421,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           Newly- created lines at the bottom of the screen are
           blank.
         */
-        strbuf_catf(outbuf, "\033[%dM", supdup->td_args[0]);
+        put_fmt(outbuf, "\033[%dM", supdup->td_args[0]);
         break;
 
     case TDICP:
@@ -432,7 +432,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           current line move to the right; characters moved off the
           end of the line are lost.
         */
-        strbuf_catf(outbuf, "\033[%d@", supdup->td_args[0]);
+        put_fmt(outbuf, "\033[%d@", supdup->td_args[0]);
         break;
 
     case TDDCP:
@@ -442,7 +442,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
           the one the cursor is on.  Newly-created characters at
           the end of the line are blank.
         */
-        strbuf_catf(outbuf, "\033[%dP", supdup->td_args[0]);
+        put_fmt(outbuf, "\033[%dP", supdup->td_args[0]);
         break;
 
     case TDBOW:

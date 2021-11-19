@@ -311,11 +311,11 @@ char *rsa_ssh1_fingerprint(RSAKey *key)
     ssh_hash_final(hash, digest);
 
     out = strbuf_new();
-    strbuf_catf(out, "%"SIZEu" ", mp_get_nbits(key->modulus));
+    put_fmt(out, "%"SIZEu" ", mp_get_nbits(key->modulus));
     for (i = 0; i < 16; i++)
-        strbuf_catf(out, "%s%02x", i ? ":" : "", digest[i]);
+        put_fmt(out, "%s%02x", i ? ":" : "", digest[i]);
     if (key->comment)
-        strbuf_catf(out, " %s", key->comment);
+        put_fmt(out, " %s", key->comment);
     return strbuf_to_str(out);
 }
 

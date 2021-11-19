@@ -4,6 +4,7 @@
 #include "defs.h"
 
 #include <stdio.h>
+#include <stdarg.h>
 
 /*
  * A sort of 'abstract base class' or 'interface' or 'trait' which is
@@ -12,6 +13,7 @@
  */
 struct BinarySink {
     void (*write)(BinarySink *sink, const void *data, size_t len);
+    void (*writefmtv)(BinarySink *sink, const char *fmt, va_list ap);
     BinarySink *binarysink_;
 };
 
@@ -25,6 +27,7 @@ struct BinarySink {
 #define BinarySink_IMPLEMENTATION BinarySink binarysink_[1]
 #define BinarySink_INIT(obj, writefn) \
     ((obj)->binarysink_->write = (writefn), \
+     (obj)->binarysink_->writefmtv = NULL, \
      (obj)->binarysink_->binarysink_ = (obj)->binarysink_)
 
 /*
@@ -139,6 +142,12 @@ struct BinarySink {
 #define put_datapl(bs, pl) \
     BinarySink_put_datapl(BinarySink_UPCAST(bs), pl)
 
+/* Emit printf-formatted data, with no terminator. */
+#define put_fmt(bs, ...) \
+    BinarySink_put_fmt(BinarySink_UPCAST(bs), __VA_ARGS__)
+#define put_fmtv(bs, fmt, ap) \
+    BinarySink_put_fmtv(BinarySink_UPCAST(bs), fmt, ap)
+
 /*
  * The underlying real C functions that implement most of those
  * macros. Generally you won't want to call these directly, because
@@ -166,6 +175,8 @@ void BinarySink_put_asciz(BinarySink *, const char *str);
 bool BinarySink_put_pstring(BinarySink *, const char *str);
 void BinarySink_put_mp_ssh1(BinarySink *bs, mp_int *x);
 void BinarySink_put_mp_ssh2(BinarySink *bs, mp_int *x);
+void BinarySink_put_fmt(BinarySink *, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void BinarySink_put_fmtv(BinarySink *, const char *fmt, va_list ap);
 
 /* ---------------------------------------------------------------------- */
 

@@ -18,7 +18,7 @@ void seat_antispoof_msg(InteractionReadySeat iseat, const char *msg)
          * wouldn't be able to mimic it within our line-length
          * constraint.
          */
-        strbuf_catf(sb, "-- %s ", msg);
+        put_fmt(sb, "-- %s ", msg);
         while (sb->len < 78)
             put_byte(sb, '-');
     }

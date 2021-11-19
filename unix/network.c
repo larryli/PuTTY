@@ -232,9 +232,9 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
     ret->superfamily = IP;
 
     if (ret->ais->ai_canonname != NULL)
-        strbuf_catf(realhost, "%s", ret->ais->ai_canonname);
+        put_fmt(realhost, "%s", ret->ais->ai_canonname);
     else
-        strbuf_catf(realhost, "%s", host);
+        put_fmt(realhost, "%s", host);
 #else
     if ((a = inet_addr(host)) == (unsigned long)(in_addr_t)(-1)) {
         /*
@@ -258,7 +258,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
         }
         /* This way we are always sure the h->h_name is valid :) */
         strbuf_clear(realhost);
-        strbuf_catf(realhost, "%s", h->h_name);
+        put_fmt(realhost, "%s", h->h_name);
         for (n = 0; h->h_addr_list[n]; n++);
         ret->addresses = snewn(n, unsigned long);
         ret->naddresses = n;
@@ -273,7 +273,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
          */
         ret->superfamily = IP;
         strbuf_clear(realhost);
-        strbuf_catf(realhost, "%s", host);
+        put_fmt(realhost, "%s", host);
         ret->addresses = snew(unsigned long);
         ret->naddresses = 1;
         ret->addresses[0] = ntohl(a);

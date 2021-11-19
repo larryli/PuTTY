@@ -318,7 +318,7 @@ void enum_settings_finish(settings_e *e)
 static void hostkey_regname(strbuf *sb, const char *hostname,
                             int port, const char *keytype)
 {
-    strbuf_catf(sb, "%s@%d:", keytype, port);
+    put_fmt(sb, "%s@%d:", keytype, port);
     escape_registry_key(hostname, sb);
 }
 

@@ -684,11 +684,11 @@ static char *ecc_cache_str_shared(
     strbuf *sb = strbuf_new();
 
     if (curve_name)
-        strbuf_catf(sb, "%s,", curve_name);
+        put_fmt(sb, "%s,", curve_name);
 
     char *hx = mp_get_hex(x);
     char *hy = mp_get_hex(y);
-    strbuf_catf(sb, "0x%s,0x%s", hx, hy);
+    put_fmt(sb, "0x%s,0x%s", hx, hy);
     sfree(hx);
     sfree(hy);
 

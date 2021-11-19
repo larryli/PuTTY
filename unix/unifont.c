@@ -1904,19 +1904,19 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
                     /* Weight: normal, then lighter, then bolder */
                     if (weight <= PANGO_WEIGHT_NORMAL)
                         weight = PANGO_WEIGHT_NORMAL - weight;
-                    strbuf_catf(buf, "%4d", weight);
+                    put_fmt(buf, "%4d", weight);
 
-                    strbuf_catf(buf, " %2d",
-                                pango_font_description_get_style(desc));
+                    put_fmt(buf, " %2d",
+                            pango_font_description_get_style(desc));
 
                     int stretch = pango_font_description_get_stretch(desc);
                     /* Stretch: closer to normal sorts earlier */
                     stretch = 2 * abs(PANGO_STRETCH_NORMAL - stretch) +
                         (stretch < PANGO_STRETCH_NORMAL);
-                    strbuf_catf(buf, " %2d", stretch);
+                    put_fmt(buf, " %2d", stretch);
 
-                    strbuf_catf(buf, " %2d",
-                                pango_font_description_get_variant(desc));
+                    put_fmt(buf, " %2d",
+                            pango_font_description_get_variant(desc));
 
                     stylekey = strbuf_to_str(buf);
                 }

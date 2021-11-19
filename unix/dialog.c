@@ -3615,12 +3615,12 @@ int gtk_seat_confirm_ssh_host_key(
 
     strbuf *sb = strbuf_new();
     if (fingerprints[SSH_FPTYPE_SHA256])
-        strbuf_catf(sb, "SHA256 fingerprint: %s\n",
-                    fingerprints[SSH_FPTYPE_SHA256]);
+        put_fmt(sb, "SHA256 fingerprint: %s\n",
+                fingerprints[SSH_FPTYPE_SHA256]);
     if (fingerprints[SSH_FPTYPE_MD5])
-        strbuf_catf(sb, "MD5 fingerprint: %s\n",
-                    fingerprints[SSH_FPTYPE_MD5]);
-    strbuf_catf(sb, "Full text of host's public key:");
+        put_fmt(sb, "MD5 fingerprint: %s\n",
+                fingerprints[SSH_FPTYPE_MD5]);
+    put_fmt(sb, "Full text of host's public key:");
     /* We have to manually wrap the public key, or else the GtkLabel
      * will resize itself to accommodate the longest word, which will
      * lead to a hilariously wide message box. */
@@ -3943,12 +3943,12 @@ static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
         strbuf_clear(es->seldata);
         for (i = 0; i < es->ninitial; i++) {
             if (dlg_listbox_issel(ctrl, dp, i))
-                strbuf_catf(es->seldata, "%s\n", es->events_initial[i]);
+                put_fmt(es->seldata, "%s\n", es->events_initial[i]);
         }
         for (i = 0; i < es->ncircular; i++) {
             if (dlg_listbox_issel(ctrl, dp, es->ninitial + i)) {
                 int j = (es->circular_first + i) % LOGEVENT_CIRCULAR_MAX;
-                strbuf_catf(es->seldata, "%s\n", es->events_circular[j]);
+                put_fmt(es->seldata, "%s\n", es->events_circular[j]);
             }
         }
 

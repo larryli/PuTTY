@@ -514,7 +514,7 @@ int main(int argc, char **argv)
             strbuf *cmdline = strbuf_new();
             char *p;
 
-            strbuf_catf(cmdline, "%s -splat ", argv[0]);
+            put_fmt(cmdline, "%s -splat ", argv[0]);
             printf("    {\"");
             size_t args_start = cmdline->len;
             for (p = argv[2]; *p; p++) {

@@ -592,7 +592,7 @@ static struct mpint_list get_mpint_list(BinarySource *in)
 static void finaliser_return_uint(strbuf *out, void *ctx)
 {
     unsigned *uval = (unsigned *)ctx;
-    strbuf_catf(out, "%u\n", *uval);
+    put_fmt(out, "%u\n", *uval);
     sfree(uval);
 }
 
@@ -620,7 +620,7 @@ static void finaliser_return_opt_string_asciz(strbuf *out, void *ctx)
     char *val = *valp;
     sfree(valp);
     if (!val)
-        strbuf_catf(out, "NULL\n");
+        put_fmt(out, "NULL\n");
     else
         return_val_string_asciz(out, val);
 }
@@ -639,7 +639,7 @@ static void finaliser_return_opt_string_asciz_const(strbuf *out, void *ctx)
     const char *val = *valp;
     sfree(valp);
     if (!val)
-        strbuf_catf(out, "NULL\n");
+        put_fmt(out, "NULL\n");
     else
         return_val_string_asciz_const(out, val);
 }
@@ -676,29 +676,29 @@ GET_CONSUMED_FN(pcs)
 
 static void return_int(strbuf *out, intmax_t u)
 {
-    strbuf_catf(out, "%"PRIdMAX"\n", u);
+    put_fmt(out, "%"PRIdMAX"\n", u);
 }
 
 static void return_uint(strbuf *out, uintmax_t u)
 {
-    strbuf_catf(out, "0x%"PRIXMAX"\n", u);
+    put_fmt(out, "0x%"PRIXMAX"\n", u);
 }
 
 static void return_boolean(strbuf *out, bool b)
 {
-    strbuf_catf(out, "%s\n", b ? "true" : "false");
+    put_fmt(out, "%s\n", b ? "true" : "false");
 }
 
 static void return_pocklestatus(strbuf *out, PockleStatus status)
 {
     switch (status) {
       default:
-        strbuf_catf(out, "POCKLE_BAD_STATUS_VALUE\n");
+        put_fmt(out, "POCKLE_BAD_STATUS_VALUE\n");
         break;
 
 #define STATUS_CASE(id)                         \
       case id:                                  \
-        strbuf_catf(out, "%s\n", #id);          \
+        put_fmt(out, "%s\n", #id);          \
         break;
 
         POCKLE_STATUSES(STATUS_CASE);
@@ -711,11 +711,11 @@ static void return_pocklestatus(strbuf *out, PockleStatus status)
 static void return_mr_result(strbuf *out, struct mr_result result)
 {
     if (!result.passed)
-        strbuf_catf(out, "failed\n");
+        put_fmt(out, "failed\n");
     else if (!result.potential_primitive_root)
-        strbuf_catf(out, "passed\n");
+        put_fmt(out, "passed\n");
     else
-        strbuf_catf(out, "passed+ppr\n");
+        put_fmt(out, "passed+ppr\n");
 }
 
 static void return_val_string_asciz_const(strbuf *out, const char *s)
@@ -735,7 +735,7 @@ static void return_val_string_asciz(strbuf *out, char *s)
     static void return_opt_##type_name(strbuf *out, c_type ptr)         \
     {                                                                   \
         if (!ptr)                                                       \
-            strbuf_catf(out, "NULL\n");                                 \
+            put_fmt(out, "NULL\n");                                     \
         else                                                            \
             return_##type_name(out, ptr);                               \
     }
@@ -750,7 +750,7 @@ NULLABLE_RETURN_WRAPPER(val_mpint, mp_int *)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {
-    strbuf_catf(out, "hello, world\n");
+    put_fmt(out, "hello, world\n");
 }
 
 static void rsa_free(RSAKey *rsa)
@@ -803,7 +803,7 @@ static void handle_getstring(BinarySource *in, strbuf *out)
         if (c > ' ' && c < 0x7F && c != '%') {
             put_byte(out, c);
         } else {
-            strbuf_catf(out, "%%%02X", 0xFFU & (unsigned)c);
+            put_fmt(out, "%%%02X", 0xFFU & (unsigned)c);
         }
     }
     put_byte(out, '\n');
@@ -822,7 +822,7 @@ static void handle_mp_dump(BinarySource *in, strbuf *out)
 {
     mp_int *mp = get_val_mpint(in);
     for (size_t i = mp_max_bytes(mp); i-- > 0 ;)
-        strbuf_catf(out, "%02X", mp_get_byte(mp, i));
+        put_fmt(out, "%02X", mp_get_byte(mp, i));
     put_byte(out, '\n');
 }
 
@@ -1320,26 +1320,26 @@ strbuf *get_implementations_commasep(ptrlen alg)
     put_datapl(out, alg);
 
     if (ptrlen_startswith(alg, PTRLEN_LITERAL("aes"), NULL)) {
-        strbuf_catf(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
 #if HAVE_AES_NI
-        strbuf_catf(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
 #endif
 #if HAVE_NEON_CRYPTO
-        strbuf_catf(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
 #endif
     } else if (ptrlen_startswith(alg, PTRLEN_LITERAL("sha256"), NULL) ||
                ptrlen_startswith(alg, PTRLEN_LITERAL("sha1"), NULL)) {
-        strbuf_catf(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
 #if HAVE_SHA_NI
-        strbuf_catf(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
 #endif
 #if HAVE_NEON_CRYPTO
-        strbuf_catf(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
 #endif
     } else if (ptrlen_startswith(alg, PTRLEN_LITERAL("sha512"), NULL)) {
-        strbuf_catf(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
 #if HAVE_NEON_SHA512
-        strbuf_catf(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
 #endif
     }
 

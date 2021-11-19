@@ -536,7 +536,7 @@ static void scp_source_send_E(ScpSource *scp)
     assert(scp->n_pending_commands == 0);
 
     scp->pending_commands[scp->n_pending_commands++] = cmd = strbuf_new();
-    strbuf_catf(cmd, "E\012");
+    put_fmt(cmd, "E\012");
 }
 
 static void scp_source_send_CD(
@@ -550,7 +550,7 @@ static void scp_source_send_CD(
     if (scp->send_file_times && (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
         scp->pending_commands[scp->n_pending_commands++] = cmd = strbuf_new();
         /* Our SFTP-based filesystem API doesn't support microsecond times */
-        strbuf_catf(cmd, "T%lu 0 %lu 0\012", attrs.mtime, attrs.atime);
+        put_fmt(cmd, "T%lu 0 %lu 0\012", attrs.mtime, attrs.atime);
     }
 
     const char *slash;
@@ -559,9 +559,9 @@ static void scp_source_send_CD(
             slash+1, name.len - (slash+1 - (const char *)name.ptr));
 
     scp->pending_commands[scp->n_pending_commands++] = cmd = strbuf_new();
-    strbuf_catf(cmd, "%c%04o %"PRIu64" %.*s\012", cmdchar,
-                (unsigned)(attrs.permissions & 07777),
-                size, PTRLEN_PRINTF(name));
+    put_fmt(cmd, "%c%04o %"PRIu64" %.*s\012", cmdchar,
+            (unsigned)(attrs.permissions & 07777),
+            size, PTRLEN_PRINTF(name));
 
     if (cmdchar == 'C') {
         /* We'll also wait for an ack before sending the file data,
