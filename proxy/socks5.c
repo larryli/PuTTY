@@ -44,6 +44,9 @@ typedef struct Socks5ProxyNegotiator {
     unsigned n_chap_attrs;
     unsigned chap_attr, chap_attr_len;
     unsigned char chap_buf[256];
+    strbuf *username, *password;
+    prompts_t *prompts;
+    int username_prompt_index, password_prompt_index;
     int response_addr_length;
     ProxyNegotiator pn;
 } Socks5ProxyNegotiator;
@@ -54,6 +57,8 @@ static ProxyNegotiator *proxy_socks5_new(const ProxyNegotiatorVT *vt)
     memset(s, 0, sizeof(*s));
     s->pn.vt = vt;
     s->auth_methods_offered = strbuf_new();
+    s->username = strbuf_new();
+    s->password = strbuf_new_nm();
     return &s->pn;
 }
 
@@ -61,6 +66,10 @@ static void proxy_socks5_free(ProxyNegotiator *pn)
 {
     Socks5ProxyNegotiator *s = container_of(pn, Socks5ProxyNegotiator, pn);
     strbuf_free(s->auth_methods_offered);
+    strbuf_free(s->username);
+    strbuf_free(s->password);
+    if (s->prompts)
+        free_prompts(s->prompts);
     smemclr(s, sizeof(s));
     sfree(s);
 }
@@ -83,17 +92,25 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
 
     strbuf_clear(s->auth_methods_offered);
 
+    /*
+     * We have two basic kinds of authentication to offer: none at
+     * all, and password-based systems (whether the password is sent
+     * in cleartext or proved via CHAP).
+     *
+     * We always offer 'none' as an option. We offer 'password' if we
+     * either have a username and password already from the Conf, or
+     * we have a Seat available to ask for them interactively. If
+     * neither, we don't offer those options in the first place.
+     */
     put_byte(s->auth_methods_offered, SOCKS5_AUTH_NONE);
 
-    {
-        const char *username = conf_get_str(pn->ps->conf, CONF_proxy_username);
-        const char *password = conf_get_str(pn->ps->conf, CONF_proxy_password);
-        if (username[0] || password[0]) {
-            if (socks5_chap_available)
-                put_byte(s->auth_methods_offered, SOCKS5_AUTH_CHAP);
+    put_dataz(s->username, conf_get_str(pn->ps->conf, CONF_proxy_username));
+    put_dataz(s->password, conf_get_str(pn->ps->conf, CONF_proxy_password));
+    if (pn->itr || (s->username->len && s->password->len)) {
+        if (socks5_chap_available)
+            put_byte(s->auth_methods_offered, SOCKS5_AUTH_CHAP);
 
-            put_byte(s->auth_methods_offered, SOCKS5_AUTH_PASSWORD);
-        }
+        put_byte(s->auth_methods_offered, SOCKS5_AUTH_PASSWORD);
     }
 
     put_byte(pn->output, s->auth_methods_offered->len);
@@ -144,16 +161,71 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
     }
 
     /*
-     * Process each auth method. Note we can't do this using the
-     * natural idiom of a switch statement, because there are
-     * crReturns inside some cases.
+     * The 'none' auth option requires no further negotiation. If that
+     * was the one we selected, go straight to making the connection.
      */
-    if (s->auth_method == SOCKS5_AUTH_NONE) {
-        /* 'none' auth needs no further negotiation, so skip ahead
-         * to actually making the connection */
+    if (s->auth_method == SOCKS5_AUTH_NONE)
         goto authenticated;
+
+    /*
+     * Otherwise, we're going to need a username and password, so this
+     * is the moment to stop and ask for one if we don't already have
+     * them.
+     */
+    if (pn->itr && (!s->username->len || !s->password->len)) {
+        s->prompts = proxy_new_prompts(pn->ps);
+        s->prompts->to_server = true;
+        s->prompts->from_server = false;
+        s->prompts->name = dupstr("SOCKS proxy authentication");
+        if (!s->username->len) {
+            s->username_prompt_index = s->prompts->n_prompts;
+            add_prompt(s->prompts, dupstr("Proxy username: "), true);
+        } else {
+            s->username_prompt_index = -1;
+        }
+        if (!s->password->len) {
+            s->password_prompt_index = s->prompts->n_prompts;
+            add_prompt(s->prompts, dupstr("Proxy password: "), false);
+        } else {
+            s->password_prompt_index = -1;
+        }
+
+        while (true) {
+            int prompt_result = seat_get_userpass_input(
+                interactor_announce(pn->itr), s->prompts);
+            if (prompt_result > 0) {
+                break;
+            } else if (prompt_result == 0) {
+                pn->aborted = true;
+                crStopV;
+            }
+            crReturnV;
+        }
+
+        if (s->username_prompt_index != -1) {
+            strbuf_clear(s->username);
+            put_dataz(s->username,
+                      prompt_get_result_ref(
+                          s->prompts->prompts[s->username_prompt_index]));
+        }
+
+        if (s->password_prompt_index != -1) {
+            strbuf_clear(s->password);
+            put_dataz(s->password,
+                      prompt_get_result_ref(
+                          s->prompts->prompts[s->password_prompt_index]));
+        }
+
+        free_prompts(s->prompts);
+        s->prompts = NULL;
     }
 
+    /*
+     * Now process the different auth methods that will use that
+     * username and password. Note we can't do this using the natural
+     * idiom of a switch statement, because there are crReturns inside
+     * some cases.
+     */
     if (s->auth_method == SOCKS5_AUTH_PASSWORD) {
         /*
          * SOCKS 5 password auth packet:
@@ -162,17 +234,13 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
          *   pstring   username
          *   pstring   password
          */
-        const char *username = conf_get_str(
-            pn->ps->conf, CONF_proxy_username);
-        const char *password = conf_get_str(
-            pn->ps->conf, CONF_proxy_password);
         put_byte(pn->output, SOCKS5_AUTH_PASSWORD_VERSION);
-        if (!put_pstring(pn->output, username)) {
+        if (!put_pstring(pn->output, s->username->s)) {
             pn->error = dupstr("SOCKS 5 authentication cannot support "
                                "usernames longer than 255 chars");
             crStopV;
         }
-        if (!put_pstring(pn->output, password)) {
+        if (!put_pstring(pn->output, s->password->s)) {
             pn->error = dupstr("SOCKS 5 authentication cannot support "
                                "passwords longer than 255 chars");
             crStopV;
@@ -232,10 +300,8 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
 
         /* Second attribute: username */
         {
-            const char *username = conf_get_str(
-                pn->ps->conf, CONF_proxy_username);
             put_byte(pn->output, SOCKS5_AUTH_CHAP_ATTR_USERNAME);
-            if (!put_pstring(pn->output, username)) {
+            if (!put_pstring(pn->output, s->username->s)) {
                 pn->error = dupstr(
                     "SOCKS 5 CHAP authentication cannot support "
                     "usernames longer than 255 chars");
@@ -289,11 +355,9 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
                     }
                 } else if (s->chap_attr==SOCKS5_AUTH_CHAP_ATTR_CHALLENGE) {
                     /* The CHAP challenge string. Send the response */
-                    const char *password = conf_get_str(
-                        pn->ps->conf, CONF_proxy_password);
                     strbuf *response = chap_response(
                         make_ptrlen(s->chap_buf, s->chap_attr_len),
-                        ptrlen_from_asciz(password));
+                        ptrlen_from_strbuf(s->password));
 
                     put_byte(pn->output, SOCKS5_AUTH_CHAP_VERSION);
                     put_byte(pn->output, 1); /* number of attributes */
