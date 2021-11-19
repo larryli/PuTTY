@@ -79,7 +79,7 @@ void BinarySink_put_stringz(BinarySink *bs, const char *str)
     BinarySink_put_string(bs, str, strlen(str));
 }
 
-void BinarySink_put_stringsb(BinarySink *bs, struct strbuf *buf)
+void BinarySink_put_stringsb(BinarySink *bs, strbuf *buf)
 {
     BinarySink_put_string(bs, buf->s, buf->len);
     strbuf_free(buf);
