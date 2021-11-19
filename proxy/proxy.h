@@ -39,10 +39,7 @@ struct ProxySocket {
                   */
 
 #define PROXY_CHANGE_NEW      -1
-#define PROXY_CHANGE_CLOSING   0
-#define PROXY_CHANGE_SENT      1
 #define PROXY_CHANGE_RECEIVE   2
-#define PROXY_CHANGE_ACCEPTING 3
 
     /* something has changed (a call from the sub socket
      * layer into our Proxy Plug layer, or we were just
@@ -57,18 +54,10 @@ struct ProxySocket {
      * (for use by proxy's negotiate function)
      */
 
-    /* closing */
-    PlugCloseType closing_type;
-    const char *closing_error_msg;
-
     /* receive */
     bool receive_urgent;
     const char *receive_data;
     int receive_len;
-
-    /* accepting */
-    accept_fn_t accepting_constructor;
-    accept_ctx_t accepting_ctx;
 
     /* configuration, used to look up proxy settings */
     Conf *conf;

@@ -187,13 +187,7 @@ static void plug_proxy_closing(Plug *p, PlugCloseType type,
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
-    if (ps->state != PROXY_STATE_ACTIVE) {
-        ps->closing_type = type;
-        ps->closing_error_msg = error_msg;
-        ps->negotiate(ps, PROXY_CHANGE_CLOSING);
-    } else {
-        plug_closing(ps->plug, type, error_msg);
-    }
+    plug_closing(ps->plug, type, error_msg);
 }
 
 static void plug_proxy_receive(
@@ -220,24 +214,16 @@ static void plug_proxy_sent (Plug *p, size_t bufsize)
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
-    if (ps->state != PROXY_STATE_ACTIVE) {
-        ps->negotiate(ps, PROXY_CHANGE_SENT);
+    if (ps->state != PROXY_STATE_ACTIVE)
         return;
-    }
+
     plug_sent(ps->plug, bufsize);
 }
 
 static int plug_proxy_accepting(Plug *p,
                                 accept_fn_t constructor, accept_ctx_t ctx)
 {
-    ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
-
-    if (ps->state != PROXY_STATE_ACTIVE) {
-        ps->accepting_constructor = constructor;
-        ps->accepting_ctx = ctx;
-        return ps->negotiate(ps, PROXY_CHANGE_ACCEPTING);
-    }
-    return plug_accepting(ps->plug, constructor, ctx);
+    unreachable("ProxySockets never create listening Sockets");
 }
 
 /*
@@ -610,36 +596,6 @@ int proxy_http_negotiate (ProxySocket *ps, int change)
         return 0;
     }
 
-    if (change == PROXY_CHANGE_CLOSING) {
-        /* if our proxy negotiation process involves closing and opening
-         * new sockets, then we would want to intercept this closing
-         * callback when we were expecting it. if we aren't anticipating
-         * a socket close, then some error must have occurred. we'll
-         * just pass those errors up to the backend.
-         */
-        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
-        return 0; /* ignored */
-    }
-
-    if (change == PROXY_CHANGE_SENT) {
-        /* some (or all) of what we wrote to the proxy was sent.
-         * we don't do anything new, however, until we receive the
-         * proxy's response. we might want to set a timer so we can
-         * timeout the proxy negotiation after a while...
-         */
-        return 0;
-    }
-
-    if (change == PROXY_CHANGE_ACCEPTING) {
-        /* we should _never_ see this, as we are using our socket to
-         * connect to a proxy, not accepting inbound connections.
-         * what should we do? close the socket with an appropriate
-         * error message?
-         */
-        return plug_accepting(ps->plug,
-                              ps->accepting_constructor, ps->accepting_ctx);
-    }
-
     if (change == PROXY_CHANGE_RECEIVE) {
         /* we have received data from the underlying socket, which
          * we'll need to parse, process, and respond to appropriately.
@@ -798,36 +754,6 @@ int proxy_socks4_negotiate (ProxySocket *ps, int change)
         return 0;
     }
 
-    if (change == PROXY_CHANGE_CLOSING) {
-        /* if our proxy negotiation process involves closing and opening
-         * new sockets, then we would want to intercept this closing
-         * callback when we were expecting it. if we aren't anticipating
-         * a socket close, then some error must have occurred. we'll
-         * just pass those errors up to the backend.
-         */
-        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
-        return 0; /* ignored */
-    }
-
-    if (change == PROXY_CHANGE_SENT) {
-        /* some (or all) of what we wrote to the proxy was sent.
-         * we don't do anything new, however, until we receive the
-         * proxy's response. we might want to set a timer so we can
-         * timeout the proxy negotiation after a while...
-         */
-        return 0;
-    }
-
-    if (change == PROXY_CHANGE_ACCEPTING) {
-        /* we should _never_ see this, as we are using our socket to
-         * connect to a proxy, not accepting inbound connections.
-         * what should we do? close the socket with an appropriate
-         * error message?
-         */
-        return plug_accepting(ps->plug,
-                              ps->accepting_constructor, ps->accepting_ctx);
-    }
-
     if (change == PROXY_CHANGE_RECEIVE) {
         /* we have received data from the underlying socket, which
          * we'll need to parse, process, and respond to appropriately.
@@ -938,36 +864,6 @@ int proxy_socks5_negotiate (ProxySocket *ps, int change)
 
         ps->state = 1;
         return 0;
-    }
-
-    if (change == PROXY_CHANGE_CLOSING) {
-        /* if our proxy negotiation process involves closing and opening
-         * new sockets, then we would want to intercept this closing
-         * callback when we were expecting it. if we aren't anticipating
-         * a socket close, then some error must have occurred. we'll
-         * just pass those errors up to the backend.
-         */
-        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
-        return 0; /* ignored */
-    }
-
-    if (change == PROXY_CHANGE_SENT) {
-        /* some (or all) of what we wrote to the proxy was sent.
-         * we don't do anything new, however, until we receive the
-         * proxy's response. we might want to set a timer so we can
-         * timeout the proxy negotiation after a while...
-         */
-        return 0;
-    }
-
-    if (change == PROXY_CHANGE_ACCEPTING) {
-        /* we should _never_ see this, as we are using our socket to
-         * connect to a proxy, not accepting inbound connections.
-         * what should we do? close the socket with an appropriate
-         * error message?
-         */
-        return plug_accepting(ps->plug,
-                              ps->accepting_constructor, ps->accepting_ctx);
     }
 
     if (change == PROXY_CHANGE_RECEIVE) {
@@ -1460,36 +1356,6 @@ int proxy_telnet_negotiate (ProxySocket *ps, int change)
 
         ps->state = 1;
         return 0;
-    }
-
-    if (change == PROXY_CHANGE_CLOSING) {
-        /* if our proxy negotiation process involves closing and opening
-         * new sockets, then we would want to intercept this closing
-         * callback when we were expecting it. if we aren't anticipating
-         * a socket close, then some error must have occurred. we'll
-         * just pass those errors up to the backend.
-         */
-        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
-        return 0; /* ignored */
-    }
-
-    if (change == PROXY_CHANGE_SENT) {
-        /* some (or all) of what we wrote to the proxy was sent.
-         * we don't do anything new, however, until we receive the
-         * proxy's response. we might want to set a timer so we can
-         * timeout the proxy negotiation after a while...
-         */
-        return 0;
-    }
-
-    if (change == PROXY_CHANGE_ACCEPTING) {
-        /* we should _never_ see this, as we are using our socket to
-         * connect to a proxy, not accepting inbound connections.
-         * what should we do? close the socket with an appropriate
-         * error message?
-         */
-        return plug_accepting(ps->plug,
-                              ps->accepting_constructor, ps->accepting_ctx);
     }
 
     if (change == PROXY_CHANGE_RECEIVE) {
