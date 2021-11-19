@@ -123,6 +123,8 @@ ptrlen bufchain_prefix(bufchain *ch);
 void bufchain_consume(bufchain *ch, size_t len);
 void bufchain_fetch(bufchain *ch, void *data, size_t len);
 void bufchain_fetch_consume(bufchain *ch, void *data, size_t len);
+bool bufchain_try_consume(bufchain *ch, size_t len);
+bool bufchain_try_fetch(bufchain *ch, void *data, size_t len);
 bool bufchain_try_fetch_consume(bufchain *ch, void *data, size_t len);
 size_t bufchain_fetch_consume_up_to(bufchain *ch, void *data, size_t len);
 void bufchain_set_callback_inner(

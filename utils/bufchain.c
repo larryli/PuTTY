@@ -153,6 +153,26 @@ void bufchain_fetch_consume(bufchain *ch, void *data, size_t len)
     bufchain_consume(ch, len);
 }
 
+bool bufchain_try_fetch(bufchain *ch, void *data, size_t len)
+{
+    if (ch->buffersize >= len) {
+        bufchain_fetch(ch, data, len);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool bufchain_try_consume(bufchain *ch, size_t len)
+{
+    if (ch->buffersize >= len) {
+        bufchain_consume(ch, len);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool bufchain_try_fetch_consume(bufchain *ch, void *data, size_t len)
 {
     if (ch->buffersize >= len) {
