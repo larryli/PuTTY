@@ -100,7 +100,10 @@ prompts_t *proxy_new_prompts(ProxySocket *ps);
  * This may be reused by local-command proxies on individual
  * platforms.
  */
-char *format_telnet_command(SockAddr *addr, int port, Conf *conf);
+#define TELNET_CMD_MISSING_USERNAME 0x0001
+#define TELNET_CMD_MISSING_PASSWORD 0x0002
+char *format_telnet_command(SockAddr *addr, int port, Conf *conf,
+                            unsigned *flags_out);
 
 /*
  * These are implemented in cproxy.c or nocproxy.c, depending on

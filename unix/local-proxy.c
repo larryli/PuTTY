@@ -29,7 +29,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
         return NULL;
 
     if (proxytype == PROXY_CMD) {
-        cmd = format_telnet_command(addr, port, conf);
+        cmd = format_telnet_command(addr, port, conf, NULL);
 
         {
             char *logmsg = dupprintf("Starting local proxy command: %s", cmd);
@@ -79,7 +79,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
         infd = from_cmd_pipe[0];
         inerrfd = cmd_err_pipe[0];
     } else {
-        cmd = format_telnet_command(addr, port, conf);
+        cmd = format_telnet_command(addr, port, conf, NULL);
         outfd = open("/dev/null", O_WRONLY);
         if (outfd == -1) {
             sfree(cmd);

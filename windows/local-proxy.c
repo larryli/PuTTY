@@ -28,7 +28,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
     if (conf_get_int(conf, CONF_proxy_type) != PROXY_CMD)
         return NULL;
 
-    cmd = format_telnet_command(addr, port, conf);
+    cmd = format_telnet_command(addr, port, conf, NULL);
 
     {
         char *msg = dupprintf("Starting local proxy command: %s", cmd);
