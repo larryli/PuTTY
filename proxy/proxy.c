@@ -22,52 +22,52 @@
  * Call this when proxy negotiation is complete, so that this
  * socket can begin working normally.
  */
-void proxy_activate (ProxySocket *p)
+void proxy_activate(ProxySocket *ps)
 {
     size_t output_before, output_after;
 
-    p->state = PROXY_STATE_ACTIVE;
+    ps->state = PROXY_STATE_ACTIVE;
 
-    plug_log(p->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
+    plug_log(ps->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
 
     /* we want to ignore new receive events until we have sent
      * all of our buffered receive data.
      */
-    sk_set_frozen(p->sub_socket, true);
+    sk_set_frozen(ps->sub_socket, true);
 
     /* how many bytes of output have we buffered? */
-    output_before = bufchain_size(&p->pending_oob_output_data) +
-        bufchain_size(&p->pending_output_data);
+    output_before = bufchain_size(&ps->pending_oob_output_data) +
+        bufchain_size(&ps->pending_output_data);
     /* and keep track of how many bytes do not get sent. */
     output_after = 0;
 
     /* send buffered OOB writes */
-    while (bufchain_size(&p->pending_oob_output_data) > 0) {
-        ptrlen data = bufchain_prefix(&p->pending_oob_output_data);
-        output_after += sk_write_oob(p->sub_socket, data.ptr, data.len);
-        bufchain_consume(&p->pending_oob_output_data, data.len);
+    while (bufchain_size(&ps->pending_oob_output_data) > 0) {
+        ptrlen data = bufchain_prefix(&ps->pending_oob_output_data);
+        output_after += sk_write_oob(ps->sub_socket, data.ptr, data.len);
+        bufchain_consume(&ps->pending_oob_output_data, data.len);
     }
 
     /* send buffered normal writes */
-    while (bufchain_size(&p->pending_output_data) > 0) {
-        ptrlen data = bufchain_prefix(&p->pending_output_data);
-        output_after += sk_write(p->sub_socket, data.ptr, data.len);
-        bufchain_consume(&p->pending_output_data, data.len);
+    while (bufchain_size(&ps->pending_output_data) > 0) {
+        ptrlen data = bufchain_prefix(&ps->pending_output_data);
+        output_after += sk_write(ps->sub_socket, data.ptr, data.len);
+        bufchain_consume(&ps->pending_output_data, data.len);
     }
 
     /* if we managed to send any data, let the higher levels know. */
     if (output_after < output_before)
-        plug_sent(p->plug, output_after);
+        plug_sent(ps->plug, output_after);
 
     /* if we have a pending EOF to send, send it */
-    if (p->pending_eof) sk_write_eof(p->sub_socket);
+    if (ps->pending_eof) sk_write_eof(ps->sub_socket);
 
     /* if the backend wanted the socket unfrozen, try to unfreeze.
      * our set_frozen handler will flush buffered receive data before
      * unfreezing the actual underlying socket.
      */
-    if (!p->freeze)
-        sk_set_frozen(&p->sock, false);
+    if (!ps->freeze)
+        sk_set_frozen(&ps->sock, false);
 }
 
 /* basic proxy socket functions */
@@ -401,7 +401,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
     if (type != PROXY_NONE &&
         proxy_for_destination(addr, hostname, port, conf))
     {
-        ProxySocket *ret;
+        ProxySocket *ps;
         SockAddr *proxy_addr;
         char *proxy_canonical_name;
         const char *proxy_type;
@@ -418,41 +418,41 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
                                             plug, conf)) != NULL)
             return sret;
 
-        ret = snew(ProxySocket);
-        ret->sock.vt = &ProxySocket_sockvt;
-        ret->plugimpl.vt = &ProxySocket_plugvt;
-        ret->conf = conf_copy(conf);
-        ret->plug = plug;
-        ret->remote_addr = addr;       /* will need to be freed on close */
-        ret->remote_port = port;
+        ps = snew(ProxySocket);
+        ps->sock.vt = &ProxySocket_sockvt;
+        ps->plugimpl.vt = &ProxySocket_plugvt;
+        ps->conf = conf_copy(conf);
+        ps->plug = plug;
+        ps->remote_addr = addr;       /* will need to be freed on close */
+        ps->remote_port = port;
 
-        ret->error = NULL;
-        ret->pending_eof = false;
-        ret->freeze = false;
+        ps->error = NULL;
+        ps->pending_eof = false;
+        ps->freeze = false;
 
-        bufchain_init(&ret->pending_input_data);
-        bufchain_init(&ret->pending_output_data);
-        bufchain_init(&ret->pending_oob_output_data);
+        bufchain_init(&ps->pending_input_data);
+        bufchain_init(&ps->pending_output_data);
+        bufchain_init(&ps->pending_oob_output_data);
 
-        ret->sub_socket = NULL;
-        ret->state = PROXY_STATE_NEW;
-        ret->negotiate = NULL;
+        ps->sub_socket = NULL;
+        ps->state = PROXY_STATE_NEW;
+        ps->negotiate = NULL;
 
         if (type == PROXY_HTTP) {
-            ret->negotiate = proxy_http_negotiate;
+            ps->negotiate = proxy_http_negotiate;
             proxy_type = "HTTP";
         } else if (type == PROXY_SOCKS4) {
-            ret->negotiate = proxy_socks4_negotiate;
+            ps->negotiate = proxy_socks4_negotiate;
             proxy_type = "SOCKS 4";
         } else if (type == PROXY_SOCKS5) {
-            ret->negotiate = proxy_socks5_negotiate;
+            ps->negotiate = proxy_socks5_negotiate;
             proxy_type = "SOCKS 5";
         } else if (type == PROXY_TELNET) {
-            ret->negotiate = proxy_telnet_negotiate;
+            ps->negotiate = proxy_telnet_negotiate;
             proxy_type = "Telnet";
         } else {
-            ret->error = "Proxy error: Unknown proxy method";
-            return &ret->sock;
+            ps->error = "Proxy error: Unknown proxy method";
+            return &ps->sock;
         }
 
         {
@@ -478,9 +478,9 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
                                    &proxy_canonical_name,
                                    conf_get_int(conf, CONF_addressfamily));
         if (sk_addr_error(proxy_addr) != NULL) {
-            ret->error = "Proxy error: Unable to resolve proxy host name";
+            ps->error = "Proxy error: Unable to resolve proxy host name";
             sk_addr_free(proxy_addr);
-            return &ret->sock;
+            return &ps->sock;
         }
         sfree(proxy_canonical_name);
 
@@ -497,18 +497,18 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         /* create the actual socket we will be using,
          * connected to our proxy server and port.
          */
-        ret->sub_socket = sk_new(proxy_addr,
-                                 conf_get_int(conf, CONF_proxy_port),
-                                 privport, oobinline,
-                                 nodelay, keepalive, &ret->plugimpl);
-        if (sk_socket_error(ret->sub_socket) != NULL)
-            return &ret->sock;
+        ps->sub_socket = sk_new(proxy_addr,
+                                conf_get_int(conf, CONF_proxy_port),
+                                privport, oobinline,
+                                nodelay, keepalive, &ps->plugimpl);
+        if (sk_socket_error(ps->sub_socket) != NULL)
+            return &ps->sock;
 
         /* start the proxy negotiation process... */
-        sk_set_frozen(ret->sub_socket, false);
-        ret->negotiate(ret, PROXY_CHANGE_NEW);
+        sk_set_frozen(ps->sub_socket, false);
+        ps->negotiate(ps, PROXY_CHANGE_NEW);
 
-        return &ret->sock;
+        return &ps->sock;
     }
 
     /* no proxy, so just return the direct socket */
@@ -567,9 +567,9 @@ static bool get_line_end(char *data, size_t len, size_t *out)
     return false;
 }
 
-int proxy_http_negotiate (ProxySocket *p, int change)
+int proxy_http_negotiate (ProxySocket *ps, int change)
 {
-    if (p->state == PROXY_STATE_NEW) {
+    if (ps->state == PROXY_STATE_NEW) {
         /* we are just beginning the proxy negotiate process,
          * so we'll send off the initial bits of the request.
          * for this proxy method, it's just a simple HTTP
@@ -578,15 +578,15 @@ int proxy_http_negotiate (ProxySocket *p, int change)
         char *buf, dest[512];
         char *username, *password;
 
-        sk_getaddr(p->remote_addr, dest, lenof(dest));
+        sk_getaddr(ps->remote_addr, dest, lenof(dest));
 
         buf = dupprintf("CONNECT %s:%i HTTP/1.1\r\nHost: %s:%i\r\n",
-                        dest, p->remote_port, dest, p->remote_port);
-        sk_write(p->sub_socket, buf, strlen(buf));
+                        dest, ps->remote_port, dest, ps->remote_port);
+        sk_write(ps->sub_socket, buf, strlen(buf));
         sfree(buf);
 
-        username = conf_get_str(p->conf, CONF_proxy_username);
-        password = conf_get_str(p->conf, CONF_proxy_password);
+        username = conf_get_str(ps->conf, CONF_proxy_username);
+        password = conf_get_str(ps->conf, CONF_proxy_password);
         if (username[0] || password[0]) {
             char *buf, *buf2;
             int i, j, len;
@@ -598,14 +598,14 @@ int proxy_http_negotiate (ProxySocket *p, int change)
                 base64_encode_atom((unsigned char *)(buf+i),
                                    (len-i > 3 ? 3 : len-i), buf2+j);
             strcpy(buf2+j, "\r\n");
-            sk_write(p->sub_socket, buf2, strlen(buf2));
+            sk_write(ps->sub_socket, buf2, strlen(buf2));
             sfree(buf);
             sfree(buf2);
         }
 
-        sk_write(p->sub_socket, "\r\n", 2);
+        sk_write(ps->sub_socket, "\r\n", 2);
 
-        p->state = 1;
+        ps->state = 1;
         return 0;
     }
 
@@ -616,7 +616,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
+        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -635,8 +635,8 @@ int proxy_http_negotiate (ProxySocket *p, int change)
          * what should we do? close the socket with an appropriate
          * error message?
          */
-        return plug_accepting(p->plug,
-                              p->accepting_constructor, p->accepting_ctx);
+        return plug_accepting(ps->plug,
+                              ps->accepting_constructor, ps->accepting_ctx);
     }
 
     if (change == PROXY_CHANGE_RECEIVE) {
@@ -647,15 +647,15 @@ int proxy_http_negotiate (ProxySocket *p, int change)
         char *data, *datap;
         size_t len, eol;
 
-        if (p->state == 1) {
+        if (ps->state == 1) {
 
             int min_ver, maj_ver, status;
 
             /* get the status line */
-            len = bufchain_size(&p->pending_input_data);
+            len = bufchain_size(&ps->pending_input_data);
             assert(len > 0);           /* or we wouldn't be here */
             data = snewn(len+1, char);
-            bufchain_fetch(&p->pending_input_data, data, len);
+            bufchain_fetch(&ps->pending_input_data, data, len);
             /*
              * We must NUL-terminate this data, because Windows
              * sscanf appears to require a NUL at the end of the
@@ -672,14 +672,14 @@ int proxy_http_negotiate (ProxySocket *p, int change)
             /* We can't rely on whether the %n incremented the sscanf return */
             if (sscanf((char *)data, "HTTP/%i.%i %n",
                        &maj_ver, &min_ver, &status) < 2 || status == -1) {
-                plug_closing_error(p->plug, "Proxy error: "
+                plug_closing_error(ps->plug, "Proxy error: "
                                    "HTTP response was absent");
                 sfree(data);
                 return 1;
             }
 
             /* remove the status line from the input buffer. */
-            bufchain_consume(&p->pending_input_data, eol);
+            bufchain_consume(&ps->pending_input_data, eol);
             if (data[status] != '2') {
                 /* error */
                 char *buf;
@@ -688,7 +688,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
                        (data[eol-1] == '\r' || data[eol-1] == '\n'))
                     data[--eol] = '\0';
                 buf = dupprintf("Proxy error: %s", data+status);
-                plug_closing_error(p->plug, buf);
+                plug_closing_error(ps->plug, buf);
                 sfree(buf);
                 sfree(data);
                 return 1;
@@ -696,27 +696,27 @@ int proxy_http_negotiate (ProxySocket *p, int change)
 
             sfree(data);
 
-            p->state = 2;
+            ps->state = 2;
         }
 
-        if (p->state == 2) {
+        if (ps->state == 2) {
 
             /* get headers. we're done when we get a
              * header of length 2, (ie. just "\r\n")
              */
 
-            len = bufchain_size(&p->pending_input_data);
+            len = bufchain_size(&ps->pending_input_data);
             assert(len > 0);           /* or we wouldn't be here */
             data = snewn(len, char);
             datap = data;
-            bufchain_fetch(&p->pending_input_data, data, len);
+            bufchain_fetch(&ps->pending_input_data, data, len);
 
             if (!get_line_end(datap, len, &eol)) {
                 sfree(data);
                 return 1;
             }
             while (eol > 2) {
-                bufchain_consume(&p->pending_input_data, eol);
+                bufchain_consume(&ps->pending_input_data, eol);
                 datap += eol;
                 len   -= eol;
                 if (!get_line_end(datap, len, &eol))
@@ -725,8 +725,8 @@ int proxy_http_negotiate (ProxySocket *p, int change)
 
             if (eol == 2) {
                 /* we're done */
-                bufchain_consume(&p->pending_input_data, 2);
-                proxy_activate(p);
+                bufchain_consume(&ps->pending_input_data, 2);
+                proxy_activate(ps);
                 /* proxy activate will have dealt with
                  * whatever is left of the buffer */
                 sfree(data);
@@ -738,7 +738,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
         }
     }
 
-    plug_closing_error(p->plug, "Proxy error: unexpected proxy error");
+    plug_closing_error(ps->plug, "Proxy error: unexpected proxy error");
     return 1;
 }
 
@@ -747,9 +747,9 @@ int proxy_http_negotiate (ProxySocket *p, int change)
  */
 
 /* SOCKS version 4 */
-int proxy_socks4_negotiate (ProxySocket *p, int change)
+int proxy_socks4_negotiate (ProxySocket *ps, int change)
 {
-    if (p->state == PROXY_CHANGE_NEW) {
+    if (ps->state == PROXY_CHANGE_NEW) {
 
         /* request format:
          *  version number (1 byte) = 4
@@ -767,33 +767,33 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
 
         put_byte(command, 4);          /* SOCKS version 4 */
         put_byte(command, 1);          /* CONNECT command */
-        put_uint16(command, p->remote_port);
+        put_uint16(command, ps->remote_port);
 
-        switch (sk_addrtype(p->remote_addr)) {
+        switch (sk_addrtype(ps->remote_addr)) {
           case ADDRTYPE_IPV4: {
             char addr[4];
-            sk_addrcopy(p->remote_addr, addr);
+            sk_addrcopy(ps->remote_addr, addr);
             put_data(command, addr, 4);
             break;
           }
           case ADDRTYPE_NAME:
-            sk_getaddr(p->remote_addr, hostname, lenof(hostname));
+            sk_getaddr(ps->remote_addr, hostname, lenof(hostname));
             put_uint32(command, 1);
             write_hostname = true;
             break;
           case ADDRTYPE_IPV6:
-            p->error = "Proxy error: SOCKS version 4 does not support IPv6";
+            ps->error = "Proxy error: SOCKS version 4 does not support IPv6";
             strbuf_free(command);
             return 1;
         }
 
-        put_asciz(command, conf_get_str(p->conf, CONF_proxy_username));
+        put_asciz(command, conf_get_str(ps->conf, CONF_proxy_username));
         if (write_hostname)
             put_asciz(command, hostname);
-        sk_write(p->sub_socket, command->s, command->len);
+        sk_write(ps->sub_socket, command->s, command->len);
         strbuf_free(command);
 
-        p->state = 1;
+        ps->state = 1;
         return 0;
     }
 
@@ -804,7 +804,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
+        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -823,8 +823,8 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
          * what should we do? close the socket with an appropriate
          * error message?
          */
-        return plug_accepting(p->plug,
-                              p->accepting_constructor, p->accepting_ctx);
+        return plug_accepting(ps->plug,
+                              ps->accepting_constructor, ps->accepting_ctx);
     }
 
     if (change == PROXY_CHANGE_RECEIVE) {
@@ -832,7 +832,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
          * we'll need to parse, process, and respond to appropriately.
          */
 
-        if (p->state == 1) {
+        if (ps->state == 1) {
             /* response format:
              *  version number (1 byte) = 4
              *  reply code (1 byte)
@@ -847,14 +847,14 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
 
             char data[8];
 
-            if (bufchain_size(&p->pending_input_data) < 8)
+            if (bufchain_size(&ps->pending_input_data) < 8)
                 return 1;              /* not got anything yet */
 
             /* get the response */
-            bufchain_fetch(&p->pending_input_data, data, 8);
+            bufchain_fetch(&ps->pending_input_data, data, 8);
 
             if (data[0] != 0) {
-                plug_closing_error(p->plug, "Proxy error: SOCKS proxy "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "responded with unexpected "
                                    "reply code version");
                 return 1;
@@ -864,40 +864,40 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
 
                 switch (data[1]) {
                   case 92:
-                    plug_closing_error(p->plug, "Proxy error: SOCKS server "
+                    plug_closing_error(ps->plug, "Proxy error: SOCKS server "
                                        "wanted IDENTD on client");
                     break;
                   case 93:
-                    plug_closing_error(p->plug, "Proxy error: Username and "
+                    plug_closing_error(ps->plug, "Proxy error: Username and "
                                        "IDENTD on client don't agree");
                     break;
                   case 91:
                   default:
-                    plug_closing_error(p->plug, "Proxy error: Error while "
+                    plug_closing_error(ps->plug, "Proxy error: Error while "
                                        "communicating with proxy");
                     break;
                 }
 
                 return 1;
             }
-            bufchain_consume(&p->pending_input_data, 8);
+            bufchain_consume(&ps->pending_input_data, 8);
 
             /* we're done */
-            proxy_activate(p);
+            proxy_activate(ps);
             /* proxy activate will have dealt with
              * whatever is left of the buffer */
             return 1;
         }
     }
 
-    plug_closing_error(p->plug, "Proxy error: unexpected proxy error");
+    plug_closing_error(ps->plug, "Proxy error: unexpected proxy error");
     return 1;
 }
 
 /* SOCKS version 5 */
-int proxy_socks5_negotiate (ProxySocket *p, int change)
+int proxy_socks5_negotiate (ProxySocket *ps, int change)
 {
-    if (p->state == PROXY_CHANGE_NEW) {
+    if (ps->state == PROXY_CHANGE_NEW) {
 
         /* initial command:
          *  version number (1 byte) = 5
@@ -916,8 +916,8 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
 
         command = strbuf_new();
         put_byte(command, 5);          /* SOCKS version 5 */
-        username = conf_get_str(p->conf, CONF_proxy_username);
-        password = conf_get_str(p->conf, CONF_proxy_password);
+        username = conf_get_str(ps->conf, CONF_proxy_username);
+        password = conf_get_str(ps->conf, CONF_proxy_password);
 
         method_count_offset = command->len;
         put_byte(command, 0);
@@ -932,10 +932,10 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
 
         command->u[method_count_offset] = command->len - methods_start;
 
-        sk_write(p->sub_socket, command->s, command->len);
+        sk_write(ps->sub_socket, command->s, command->len);
         strbuf_free(command);
 
-        p->state = 1;
+        ps->state = 1;
         return 0;
     }
 
@@ -946,7 +946,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
+        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -965,8 +965,8 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
          * what should we do? close the socket with an appropriate
          * error message?
          */
-        return plug_accepting(p->plug,
-                              p->accepting_constructor, p->accepting_ctx);
+        return plug_accepting(ps->plug,
+                              ps->accepting_constructor, ps->accepting_ctx);
     }
 
     if (change == PROXY_CHANGE_RECEIVE) {
@@ -974,7 +974,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
          * we'll need to parse, process, and respond to appropriately.
          */
 
-        if (p->state == 1) {
+        if (ps->state == 1) {
 
             /* initial response:
              *  version number (1 byte) = 5
@@ -988,31 +988,31 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
              */
             char data[2];
 
-            if (bufchain_size(&p->pending_input_data) < 2)
+            if (bufchain_size(&ps->pending_input_data) < 2)
                 return 1;              /* not got anything yet */
 
             /* get the response */
-            bufchain_fetch(&p->pending_input_data, data, 2);
+            bufchain_fetch(&ps->pending_input_data, data, 2);
 
             if (data[0] != 5) {
-                plug_closing_error(p->plug, "Proxy error: SOCKS proxy "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "returned unexpected version");
                 return 1;
             }
 
-            if (data[1] == 0x00) p->state = 2; /* no authentication needed */
-            else if (data[1] == 0x01) p->state = 4; /* GSSAPI authentication */
-            else if (data[1] == 0x02) p->state = 5; /* username/password authentication */
-            else if (data[1] == 0x03) p->state = 6; /* CHAP authentication */
+            if (data[1] == 0x00) ps->state = 2; /* no authentication needed */
+            else if (data[1] == 0x01) ps->state = 4; /* GSSAPI authentication */
+            else if (data[1] == 0x02) ps->state = 5; /* username/password authentication */
+            else if (data[1] == 0x03) ps->state = 6; /* CHAP authentication */
             else {
-                plug_closing_error(p->plug, "Proxy error: SOCKS proxy did not "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS proxy did not "
                                    "accept our authentication");
                 return 1;
             }
-            bufchain_consume(&p->pending_input_data, 2);
+            bufchain_consume(&ps->pending_input_data, 2);
         }
 
-        if (p->state == 7) {
+        if (ps->state == 7) {
 
             /* password authentication reply format:
              *  version number (1 bytes) = 1
@@ -1022,36 +1022,36 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
              */
             char data[2];
 
-            if (bufchain_size(&p->pending_input_data) < 2)
+            if (bufchain_size(&ps->pending_input_data) < 2)
                 return 1;              /* not got anything yet */
 
             /* get the response */
-            bufchain_fetch(&p->pending_input_data, data, 2);
+            bufchain_fetch(&ps->pending_input_data, data, 2);
 
             if (data[0] != 1) {
-                plug_closing_error(p->plug, "Proxy error: SOCKS password "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS password "
                                    "subnegotiation contained wrong version "
                                    "number");
                 return 1;
             }
 
             if (data[1] != 0) {
-                plug_closing_error(p->plug, "Proxy error: SOCKS proxy refused "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS proxy refused "
                                    "password authentication");
                 return 1;
             }
 
-            bufchain_consume(&p->pending_input_data, 2);
-            p->state = 2;              /* now proceed as authenticated */
+            bufchain_consume(&ps->pending_input_data, 2);
+            ps->state = 2;              /* now proceed as authenticated */
         }
 
-        if (p->state == 8) {
+        if (ps->state == 8) {
             int ret;
-            ret = proxy_socks5_handlechap(p);
+            ret = proxy_socks5_handlechap(ps);
             if (ret) return ret;
         }
 
-        if (p->state == 2) {
+        if (ps->state == 2) {
 
             /* request format:
              *  version number (1 byte) = 5
@@ -1073,21 +1073,21 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
             put_byte(command, 1);      /* CONNECT command */
             put_byte(command, 0x00);   /* reserved byte */
 
-            switch (sk_addrtype(p->remote_addr)) {
+            switch (sk_addrtype(ps->remote_addr)) {
               case ADDRTYPE_IPV4:
                 put_byte(command, 1);  /* IPv4 */
-                sk_addrcopy(p->remote_addr, strbuf_append(command, 4));
+                sk_addrcopy(ps->remote_addr, strbuf_append(command, 4));
                 break;
               case ADDRTYPE_IPV6:
                 put_byte(command, 4);  /* IPv6 */
-                sk_addrcopy(p->remote_addr, strbuf_append(command, 16));
+                sk_addrcopy(ps->remote_addr, strbuf_append(command, 16));
                 break;
               case ADDRTYPE_NAME: {
                 char hostname[512];
                 put_byte(command, 3);  /* domain name */
-                sk_getaddr(p->remote_addr, hostname, lenof(hostname));
+                sk_getaddr(ps->remote_addr, hostname, lenof(hostname));
                 if (!put_pstring(command, hostname)) {
-                  p->error = "Proxy error: SOCKS 5 cannot "
+                  ps->error = "Proxy error: SOCKS 5 cannot "
                       "support host names longer than 255 chars";
                   strbuf_free(command);
                   return 1;
@@ -1096,17 +1096,17 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
               }
             }
 
-            put_uint16(command, p->remote_port);
+            put_uint16(command, ps->remote_port);
 
-            sk_write(p->sub_socket, command->s, command->len);
+            sk_write(ps->sub_socket, command->s, command->len);
 
             strbuf_free(command);
 
-            p->state = 3;
+            ps->state = 3;
             return 1;
         }
 
-        if (p->state == 3) {
+        if (ps->state == 3) {
 
             /* reply format:
              *  version number (1 bytes) = 5
@@ -1132,14 +1132,14 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
             int len;
 
             /* First 5 bytes of packet are enough to tell its length. */
-            if (bufchain_size(&p->pending_input_data) < 5)
+            if (bufchain_size(&ps->pending_input_data) < 5)
                 return 1;              /* not got anything yet */
 
             /* get the response */
-            bufchain_fetch(&p->pending_input_data, data, 5);
+            bufchain_fetch(&ps->pending_input_data, data, 5);
 
             if (data[0] != 5) {
-                plug_closing_error(p->plug, "Proxy error: SOCKS proxy "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "returned wrong version number");
                 return 1;
             }
@@ -1163,7 +1163,7 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
                                    data[1]);
                     break;
                 }
-                plug_closing_error(p->plug, buf);
+                plug_closing_error(ps->plug, buf);
 
                 return 1;
             }
@@ -1177,63 +1177,63 @@ int proxy_socks5_negotiate (ProxySocket *p, int change)
               case 4: len += 16; break;/* IPv6 address */
               case 3: len += 1+(unsigned char)data[4]; break; /* domain name */
               default:
-                plug_closing_error(p->plug, "Proxy error: SOCKS proxy "
+                plug_closing_error(ps->plug, "Proxy error: SOCKS proxy "
                                    "returned unrecognised address format");
                 return 1;
             }
-            if (bufchain_size(&p->pending_input_data) < len)
+            if (bufchain_size(&ps->pending_input_data) < len)
                 return 1;              /* not got whole reply yet */
-            bufchain_consume(&p->pending_input_data, len);
+            bufchain_consume(&ps->pending_input_data, len);
 
             /* we're done */
-            proxy_activate(p);
+            proxy_activate(ps);
             return 1;
         }
 
-        if (p->state == 4) {
+        if (ps->state == 4) {
             /* TODO: Handle GSSAPI authentication */
-            plug_closing_error(p->plug, "Proxy error: We don't support "
+            plug_closing_error(ps->plug, "Proxy error: We don't support "
                                "GSSAPI authentication");
             return 1;
         }
 
-        if (p->state == 5) {
-            const char *username = conf_get_str(p->conf, CONF_proxy_username);
-            const char *password = conf_get_str(p->conf, CONF_proxy_password);
+        if (ps->state == 5) {
+            const char *username = conf_get_str(ps->conf, CONF_proxy_username);
+            const char *password = conf_get_str(ps->conf, CONF_proxy_password);
             if (username[0] || password[0]) {
                 strbuf *auth = strbuf_new_nm();
                 put_byte(auth, 1); /* version number of subnegotiation */
                 if (!put_pstring(auth, username)) {
-                    p->error = "Proxy error: SOCKS 5 authentication cannot "
+                    ps->error = "Proxy error: SOCKS 5 authentication cannot "
                         "support usernames longer than 255 chars";
                     strbuf_free(auth);
                     return 1;
                 }
                 if (!put_pstring(auth, password)) {
-                    p->error = "Proxy error: SOCKS 5 authentication cannot "
+                    ps->error = "Proxy error: SOCKS 5 authentication cannot "
                         "support passwords longer than 255 chars";
                     strbuf_free(auth);
                     return 1;
                 }
-                sk_write(p->sub_socket, auth->s, auth->len);
+                sk_write(ps->sub_socket, auth->s, auth->len);
                 strbuf_free(auth);
-                p->state = 7;
+                ps->state = 7;
             } else
-                plug_closing_error(p->plug, "Proxy error: Server chose "
+                plug_closing_error(ps->plug, "Proxy error: Server chose "
                                    "username/password authentication "
                                    "but we didn't offer it!");
             return 1;
         }
 
-        if (p->state == 6) {
+        if (ps->state == 6) {
             int ret;
-            ret = proxy_socks5_selectchap(p);
+            ret = proxy_socks5_selectchap(ps);
             if (ret) return ret;
         }
 
     }
 
-    plug_closing_error(p->plug, "Proxy error: Unexpected proxy error");
+    plug_closing_error(ps->plug, "Proxy error: Unexpected proxy error");
     return 1;
 }
 
@@ -1413,13 +1413,13 @@ char *format_telnet_command(SockAddr *addr, int port, Conf *conf)
     return strbuf_to_str(buf);
 }
 
-int proxy_telnet_negotiate (ProxySocket *p, int change)
+int proxy_telnet_negotiate (ProxySocket *ps, int change)
 {
-    if (p->state == PROXY_CHANGE_NEW) {
+    if (ps->state == PROXY_CHANGE_NEW) {
         char *formatted_cmd;
 
-        formatted_cmd = format_telnet_command(p->remote_addr, p->remote_port,
-                                              p->conf);
+        formatted_cmd = format_telnet_command(ps->remote_addr, ps->remote_port,
+                                              ps->conf);
 
         {
             /*
@@ -1449,15 +1449,15 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
             *out = '\0';
 
             logmsg = dupprintf("Sending Telnet proxy command: %s", reescaped);
-            plug_log(p->plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
+            plug_log(ps->plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
             sfree(reescaped);
         }
 
-        sk_write(p->sub_socket, formatted_cmd, strlen(formatted_cmd));
+        sk_write(ps->sub_socket, formatted_cmd, strlen(formatted_cmd));
         sfree(formatted_cmd);
 
-        p->state = 1;
+        ps->state = 1;
         return 0;
     }
 
@@ -1468,7 +1468,7 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
          * a socket close, then some error must have occurred. we'll
          * just pass those errors up to the backend.
          */
-        plug_closing(p->plug, p->closing_type, p->closing_error_msg);
+        plug_closing(ps->plug, ps->closing_type, ps->closing_error_msg);
         return 0; /* ignored */
     }
 
@@ -1487,8 +1487,8 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
          * what should we do? close the socket with an appropriate
          * error message?
          */
-        return plug_accepting(p->plug,
-                              p->accepting_constructor, p->accepting_ctx);
+        return plug_accepting(ps->plug,
+                              ps->accepting_constructor, ps->accepting_ctx);
     }
 
     if (change == PROXY_CHANGE_RECEIVE) {
@@ -1497,12 +1497,12 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
          */
 
         /* we're done */
-        proxy_activate(p);
+        proxy_activate(ps);
         /* proxy activate will have dealt with
          * whatever is left of the buffer */
         return 1;
     }
 
-    plug_closing_error(p->plug, "Proxy error: Unexpected proxy error");
+    plug_closing_error(ps->plug, "Proxy error: Unexpected proxy error");
     return 1;
 }
