@@ -12,21 +12,9 @@
 #include "network.h"
 #include "proxy.h"
 
-void proxy_socks5_offerencryptedauth(BinarySink *bs)
-{
-    /* For telnet, don't add any new encrypted authentication routines */
-}
+const bool socks5_chap_available = false;
 
-int proxy_socks5_handlechap(ProxySocket *p)
+strbuf *chap_response(ptrlen challenge, ptrlen password)
 {
-    plug_closing_error(p->plug, "Proxy error: Trying to handle a "
-                       "SOCKS5 CHAP request in telnet-only build");
-    return 1;
-}
-
-int proxy_socks5_selectchap(ProxySocket *p)
-{
-    plug_closing_error(p->plug, "Proxy error: Trying to handle a "
-                       "SOCKS5 CHAP request in telnet-only build");
-    return 1;
+    unreachable("CHAP is not built into this binary");
 }

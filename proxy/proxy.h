@@ -11,6 +11,8 @@
 #define PUTTY_PROXY_H
 
 typedef struct ProxySocket ProxySocket;
+typedef struct ProxyNegotiator ProxyNegotiator;
+typedef struct ProxyNegotiatorVT ProxyNegotiatorVT;
 
 struct ProxySocket {
     const char *error;
@@ -25,59 +27,58 @@ struct ProxySocket {
     bufchain pending_input_data;
     bool pending_eof;
 
-#define PROXY_STATE_NEW    -1
-#define PROXY_STATE_ACTIVE  0
-
-    int state; /* proxy states greater than 0 are implementation
-                * dependent, but represent various stages/states
-                * of the initialization/setup/negotiation with the
-                * proxy server.
-                */
     bool freeze; /* should we freeze the underlying socket when
                   * we are done with the proxy negotiation? this
                   * simply caches the value of sk_set_frozen calls.
                   */
 
-#define PROXY_CHANGE_NEW      -1
-#define PROXY_CHANGE_RECEIVE   2
-
-    /* something has changed (a call from the sub socket
-     * layer into our Proxy Plug layer, or we were just
-     * created, etc), so the proxy layer needs to handle
-     * this change (the type of which is the second argument)
-     * and further the proxy negotiation process.
-     */
-
-    int (*negotiate) (ProxySocket * /* this */, int /* change type */);
-
-    /* current arguments of plug handlers
-     * (for use by proxy's negotiate function)
-     */
-
-    /* receive */
-    bool receive_urgent;
-    const char *receive_data;
-    int receive_len;
+    ProxyNegotiator *pn; /* non-NULL if still negotiating */
+    bufchain output_from_negotiator;
 
     /* configuration, used to look up proxy settings */
     Conf *conf;
-
-    /* CHAP transient data */
-    int chap_num_attributes;
-    int chap_num_attributes_processed;
-    int chap_current_attribute;
-    int chap_current_datalen;
 
     Socket sock;
     Plug plugimpl;
 };
 
-extern void proxy_activate (ProxySocket *);
+struct ProxyNegotiator {
+    const ProxyNegotiatorVT *vt;
 
-extern int proxy_http_negotiate (ProxySocket *, int);
-extern int proxy_telnet_negotiate (ProxySocket *, int);
-extern int proxy_socks4_negotiate (ProxySocket *, int);
-extern int proxy_socks5_negotiate (ProxySocket *, int);
+    /* Standard fields for any ProxyNegotiator. new() and free() don't
+     * have to set these up; that's done centrally, to save duplication. */
+    ProxySocket *ps;
+    bufchain *input;
+    bufchain_sink output[1];
+
+    /* Set to report success during proxy negotiation.  */
+    bool done;
+
+    /* Set to report an error during proxy negotiation. The main
+     * ProxySocket will free it, and will then guarantee never to call
+     * process_queue again. */
+    char *error;
+};
+
+struct ProxyNegotiatorVT {
+    ProxyNegotiator *(*new)(const ProxyNegotiatorVT *);
+    void (*process_queue)(ProxyNegotiator *);
+    void (*free)(ProxyNegotiator *);
+    const char *type;
+};
+
+static inline ProxyNegotiator *proxy_negotiator_new(
+    const ProxyNegotiatorVT *vt)
+{ return vt->new(vt); }
+static inline void proxy_negotiator_process_queue(ProxyNegotiator *pn)
+{ pn->vt->process_queue(pn); }
+static inline void proxy_negotiator_free(ProxyNegotiator *pn)
+{ pn->vt->free(pn); }
+
+extern const ProxyNegotiatorVT http_proxy_negotiator_vt;
+extern const ProxyNegotiatorVT socks4_proxy_negotiator_vt;
+extern const ProxyNegotiatorVT socks5_proxy_negotiator_vt;
+extern const ProxyNegotiatorVT telnet_proxy_negotiator_vt;
 
 /*
  * This may be reused by local-command proxies on individual
@@ -89,8 +90,7 @@ char *format_telnet_command(SockAddr *addr, int port, Conf *conf);
  * These are implemented in cproxy.c or nocproxy.c, depending on
  * whether encrypted proxy authentication is available.
  */
-extern void proxy_socks5_offerencryptedauth(BinarySink *);
-extern int proxy_socks5_handlechap (ProxySocket *);
-extern int proxy_socks5_selectchap(ProxySocket *);
+extern const bool socks5_chap_available;
+strbuf *chap_response(ptrlen challenge, ptrlen password);
 
 #endif

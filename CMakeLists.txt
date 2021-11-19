@@ -34,7 +34,12 @@ add_subdirectory(crypto)
 
 add_library(network STATIC
   be_misc.c nullplug.c errsock.c logging.c x11disp.c
-  proxy/proxy.c proxy/interactor.c)
+  proxy/proxy.c
+  proxy/http.c
+  proxy/socks4.c
+  proxy/socks5.c
+  proxy/telnet.c
+  proxy/interactor.c)
 
 add_library(keygen STATIC
   import.c)
