@@ -326,15 +326,21 @@ static void proxy_telnet_process_queue(ProxyNegotiator *pn)
     }
 
     /*
-     * Re-escape control chars in the command, for logging.
+     * Log the command, with some changes. Firstly, we regenerate it
+     * with the password masked; secondly, we escape control
+     * characters so that the log message is printable.
      */
+    conf_set_str(s->conf, CONF_proxy_password, "*password*");
     {
+        char *censored_cmd = format_telnet_command(
+            pn->ps->remote_addr, pn->ps->remote_port, s->conf, NULL);
+
         strbuf *logmsg = strbuf_new();
         const char *in;
 
         put_datapl(logmsg, PTRLEN_LITERAL("Sending Telnet proxy command: "));
 
-        for (in = s->formatted_cmd; *in; in++) {
+        for (in = censored_cmd; *in; in++) {
             if (*in == '\n') {
                 put_datapl(logmsg, PTRLEN_LITERAL("\\n"));
             } else if (*in == '\r') {
@@ -352,6 +358,7 @@ static void proxy_telnet_process_queue(ProxyNegotiator *pn)
 
         plug_log(pn->ps->plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg->s, 0);
         strbuf_free(logmsg);
+        sfree(censored_cmd);
     }
 
     /*
