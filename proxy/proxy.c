@@ -209,24 +209,27 @@ static void proxy_negotiate(ProxySocket *ps)
 {
     assert(ps->pn);
     proxy_negotiator_process_queue(ps->pn);
-    if (ps->pn->done) {
-        proxy_activate(ps);
-    } else if (ps->pn->error) {
+
+    if (ps->pn->error) {
         char *err = dupprintf("Proxy error: %s", ps->pn->error);
         sfree(ps->pn->error);
         proxy_negotiator_cleanup(ps);
         plug_closing_error(ps->plug, err);
         sfree(err);
+        return;
     } else if (ps->pn->aborted) {
         proxy_negotiator_cleanup(ps);
         plug_closing_user_abort(ps->plug);
-    } else {
-        while (bufchain_size(&ps->output_from_negotiator)) {
-            ptrlen data = bufchain_prefix(&ps->output_from_negotiator);
-            sk_write(ps->sub_socket, data.ptr, data.len);
-            bufchain_consume(&ps->output_from_negotiator, data.len);
-        }
+        return;
     }
+
+    while (bufchain_size(&ps->output_from_negotiator)) {
+        ptrlen data = bufchain_prefix(&ps->output_from_negotiator);
+        sk_write(ps->sub_socket, data.ptr, data.len);
+        bufchain_consume(&ps->output_from_negotiator, data.len);
+    }
+    if (ps->pn->done)
+        proxy_activate(ps);
 }
 
 static void plug_proxy_receive(
