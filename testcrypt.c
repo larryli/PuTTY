@@ -35,6 +35,7 @@
 #include "misc.h"
 #include "mpint.h"
 #include "crypto/ecc.h"
+#include "proxy/cproxy.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
@@ -461,6 +462,25 @@ static FingerprintType get_fptype(BinarySource *in)
             return ids[i].value;
 
     fatal_error("fingerprint type '%.*s': not found", PTRLEN_PRINTF(name));
+}
+
+static HttpDigestHash get_httpdigesthash(BinarySource *in)
+{
+    static const struct {
+        const char *key;
+        HttpDigestHash value;
+    } hashes[] = {
+        #define DECL_ARRAY(id, str, alg, bits) {str, id},
+        HTTP_DIGEST_HASHES(DECL_ARRAY)
+        #undef DECL_ARRAY
+    };
+
+    ptrlen name = get_word(in);
+    for (size_t i = 0; i < lenof(hashes); i++)
+        if (ptrlen_eq_string(name, hashes[i].key))
+            return hashes[i].value;
+
+    fatal_error("httpdigesthash '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
 static uintmax_t get_uint(BinarySource *in)
@@ -1384,6 +1404,7 @@ typedef PockleStatus TD_pocklestatus;
 typedef struct mr_result TD_mr_result;
 typedef Argon2Flavour TD_argon2flavour;
 typedef FingerprintType TD_fptype;
+typedef HttpDigestHash TD_httpdigesthash;
 
 #define FUNC0(rettype, function)                                        \
     static void handle_##function(BinarySource *in, strbuf *out) {      \

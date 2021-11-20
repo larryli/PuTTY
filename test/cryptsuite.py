@@ -3171,6 +3171,69 @@ class standard_test_vectors(MyTestBase):
             self.assertEqual(crc32_rfc1662(vec[:-4]), expected)
             self.assertEqual(crc32_rfc1662(vec), 0x2144DF1C)
 
+    def testHttpDigest(self):
+        # RFC 7616 section 3.9.1
+        params = ["Mufasa", "Circle of Life", "http-auth@example.org",
+                  "GET", "/dir/index.html", "auth",
+                  "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v",
+                  "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS", 1,
+                  "MD5", False]
+        cnonce = base64.decodebytes(
+            b'f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ')
+        with queued_specific_random_data(cnonce):
+            self.assertEqual(http_digest_response(*params),
+                             b'username="Mufasa", '
+                             b'realm="http-auth@example.org", '
+                             b'uri="/dir/index.html", '
+                             b'algorithm=MD5, '
+                             b'nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", '
+                             b'nc=00000001, '
+                             b'cnonce="f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ", '
+                             b'qop=auth, '
+                             b'response="8ca523f5e9506fed4657c9700eebdbec", '
+                             b'opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"')
+
+        # And again with all the same details except the hash
+        params[9] = "SHA-256"
+        with queued_specific_random_data(cnonce):
+            self.assertEqual(http_digest_response(*params),
+                             b'username="Mufasa", '
+                             b'realm="http-auth@example.org", '
+                             b'uri="/dir/index.html", '
+                             b'algorithm=SHA-256, '
+                             b'nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", '
+                             b'nc=00000001, '
+                             b'cnonce="f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ", '
+                             b'qop=auth, '
+                             b'response="753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1", '
+                             b'opaque="FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS"')
+
+        # RFC 7616 section 3.9.2, using SHA-512-256 (demonstrating
+        # that they think it's just a 256-bit truncation of SHA-512,
+        # and not the version defined in FIPS 180-4 which also uses
+        # a different initial hash state), and username hashing.
+        params = ["J\u00E4s\u00F8n Doe".encode("UTF-8"),
+                  "Secret, or not?", "api@example.org",
+                  "GET", "/doe.json", "auth",
+                  "5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK",
+                  "HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS", 1,
+                  "SHA-512-256", True]
+        cnonce = base64.decodebytes(
+            b'NTg6RKcb9boFIAS3KrFK9BGeh+iDa/sm6jUMp2wds69v')
+        with queued_specific_random_data(cnonce):
+            self.assertEqual(http_digest_response(*params),
+                             b'username="488869477bf257147b804c45308cd62ac4e25eb717b12b298c79e62dcea254ec", '
+                             b'realm="api@example.org", '
+                             b'uri="/doe.json", '
+                             b'algorithm=SHA-512-256, '
+                             b'nonce="5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK", '
+                             b'nc=00000001, '
+                             b'cnonce="NTg6RKcb9boFIAS3KrFK9BGeh+iDa/sm6jUMp2wds69v", '
+                             b'qop=auth, '
+                             b'response="ae66e67d6b427bd3f120414a82e4acff38e8ecd9101d6c861229025f607a79dd", '
+                             b'opaque="HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS", '
+                             b'userhash=true')
+
 if __name__ == "__main__":
     # Run the tests, suppressing automatic sys.exit and collecting the
     # unittest.TestProgram instance returned by unittest.main instead.

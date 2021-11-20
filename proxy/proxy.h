@@ -105,11 +105,6 @@ prompts_t *proxy_new_prompts(ProxySocket *ps);
 char *format_telnet_command(SockAddr *addr, int port, Conf *conf,
                             unsigned *flags_out);
 
-/*
- * These are implemented in cproxy.c or nocproxy.c, depending on
- * whether encrypted proxy authentication is available.
- */
-extern const bool socks5_chap_available;
-strbuf *chap_response(ptrlen challenge, ptrlen password);
+#include "cproxy.h"
 
 #endif

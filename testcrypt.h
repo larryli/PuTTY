@@ -318,6 +318,7 @@ FUNC1(uint, crc32_ssh1, val_string_ptrlen)
 FUNC2(uint, crc32_update, uint, val_string_ptrlen)
 FUNC2(boolean, crcda_detect, val_string_ptrlen, val_string_ptrlen)
 FUNC1(val_string, get_implementations_commasep, val_string_ptrlen)
+FUNC12(void, http_digest_response, out_val_string_binarysink, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, uint, httpdigesthash, boolean)
 
 /*
  * These functions aren't part of PuTTY's own API, but are additions

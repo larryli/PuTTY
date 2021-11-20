@@ -178,7 +178,7 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
     if typename in {
             "hashalg", "macalg", "keyalg", "cipheralg",
             "dh_group", "ecdh_alg", "rsaorder", "primegenpolicy",
-            "argon2flavour", "fptype"}:
+            "argon2flavour", "fptype", "httpdigesthash"}:
         arg = coerce_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:
             return arg
