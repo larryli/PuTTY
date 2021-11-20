@@ -49,6 +49,7 @@ typedef struct HttpProxyNegotiator {
     strbuf *username, *password;
     int http_status;
     bool connection_close;
+    bool tried_no_auth, try_auth_from_conf;
     prompts_t *prompts;
     int username_prompt_index, password_prompt_index;
     size_t content_length;
@@ -160,6 +161,8 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
      */
     put_dataz(s->username, conf_get_str(pn->ps->conf, CONF_proxy_username));
     put_dataz(s->password, conf_get_str(pn->ps->conf, CONF_proxy_password));
+    if (s->username->len || s->password->len)
+        s->try_auth_from_conf = true;
 
     while (true) {
         /*
@@ -175,10 +178,12 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
         }
 
         /*
-         * Optionally send an HTTP Basic auth header with the username and
-         * password.
+         * Optionally send an HTTP Basic auth header with the username
+         * and password. We do this only after we've first tried no
+         * authentication at all (even if we have a password to start
+         * with).
          */
-        {
+        if (s->tried_no_auth) {
             if (s->username->len || s->password->len) {
                 put_datalit(pn->output, "Proxy-Authorization: Basic ");
 
@@ -197,6 +202,8 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                 smemclr(base64_output, sizeof(base64_output));
                 put_datalit(pn->output, "\r\n");
             }
+        } else {
+            s->tried_no_auth = true;
         }
 
         /*
@@ -298,6 +305,13 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                 pn->error = dupprintf("HTTP proxy closed connection after "
                                       "asking for authentication");
                 crStopV;
+            }
+
+            /* If we have auth details from the Conf and haven't tried
+             * them yet, that's our first step. */
+            if (s->try_auth_from_conf) {
+                s->try_auth_from_conf = false;
+                continue;
             }
 
             /* Either we never had a password in the first place, or
