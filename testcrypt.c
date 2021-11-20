@@ -1488,8 +1488,67 @@ typedef FingerprintType TD_fptype;
                                        arg6, arg7, arg8, arg9));        \
     }
 
+#define FUNC10(rettype, function, type1, type2, type3, type4, type5,    \
+               type6, type7, type8, type9, type10)                      \
+    static void handle_##function(BinarySource *in, strbuf *out) {      \
+        TD_##type1 arg1 = get_##type1(in);                              \
+        TD_##type2 arg2 = get_##type2(in);                              \
+        TD_##type3 arg3 = get_##type3(in);                              \
+        TD_##type4 arg4 = get_##type4(in);                              \
+        TD_##type5 arg5 = get_##type5(in);                              \
+        TD_##type6 arg6 = get_##type6(in);                              \
+        TD_##type7 arg7 = get_##type7(in);                              \
+        TD_##type8 arg8 = get_##type8(in);                              \
+        TD_##type9 arg9 = get_##type9(in);                              \
+        TD_##type10 arg10 = get_##type10(in);                           \
+        return_##rettype(out, function(arg1, arg2, arg3, arg4, arg5,    \
+                                       arg6, arg7, arg8, arg9, arg10)); \
+    }
+
+#define FUNC11(rettype, function, type1, type2, type3, type4, type5,    \
+               type6, type7, type8, type9, type10, type11)              \
+    static void handle_##function(BinarySource *in, strbuf *out) {      \
+        TD_##type1 arg1 = get_##type1(in);                              \
+        TD_##type2 arg2 = get_##type2(in);                              \
+        TD_##type3 arg3 = get_##type3(in);                              \
+        TD_##type4 arg4 = get_##type4(in);                              \
+        TD_##type5 arg5 = get_##type5(in);                              \
+        TD_##type6 arg6 = get_##type6(in);                              \
+        TD_##type7 arg7 = get_##type7(in);                              \
+        TD_##type8 arg8 = get_##type8(in);                              \
+        TD_##type9 arg9 = get_##type9(in);                              \
+        TD_##type10 arg10 = get_##type10(in);                           \
+        TD_##type11 arg11 = get_##type11(in);                           \
+        return_##rettype(out, function(arg1, arg2, arg3, arg4, arg5,    \
+                                       arg6, arg7, arg8, arg9, arg10,   \
+                                       arg11));                         \
+    }
+
+#define FUNC12(rettype, function, type1, type2, type3, type4, type5,    \
+               type6, type7, type8, type9, type10, type11, type12)      \
+    static void handle_##function(BinarySource *in, strbuf *out) {      \
+        TD_##type1 arg1 = get_##type1(in);                              \
+        TD_##type2 arg2 = get_##type2(in);                              \
+        TD_##type3 arg3 = get_##type3(in);                              \
+        TD_##type4 arg4 = get_##type4(in);                              \
+        TD_##type5 arg5 = get_##type5(in);                              \
+        TD_##type6 arg6 = get_##type6(in);                              \
+        TD_##type7 arg7 = get_##type7(in);                              \
+        TD_##type8 arg8 = get_##type8(in);                              \
+        TD_##type9 arg9 = get_##type9(in);                              \
+        TD_##type10 arg10 = get_##type10(in);                           \
+        TD_##type11 arg11 = get_##type11(in);                           \
+        TD_##type12 arg12 = get_##type12(in);                           \
+        return_##rettype(out, function(arg1, arg2, arg3, arg4, arg5,    \
+                                       arg6, arg7, arg8, arg9, arg10,   \
+                                       arg11, arg12));                  \
+    }
+
 #include "testcrypt.h"
 
+#undef FUNC12
+#undef FUNC11
+#undef FUNC10
 #undef FUNC9
 #undef FUNC8
 #undef FUNC7
@@ -1522,18 +1581,24 @@ static void process_line(BinarySource *in, strbuf *out)
 #undef DISPATCH_COMMAND
 
 #define FUNC0(ret,fn)                   DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC1(ret,fn,x)                 DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC2(ret,fn,x,y)               DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC3(ret,fn,x,y,z)             DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC4(ret,fn,x,y,z,v)           DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC5(ret,fn,x,y,z,v,w)         DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC6(ret,fn,x,y,z,v,w,u)       DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC7(ret,fn,x,y,z,v,w,u,t)     DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC8(ret,fn,x,y,z,v,w,u,t,s)   DISPATCH_INTERNAL(#fn,handle_##fn);
-#define FUNC9(ret,fn,x,y,z,v,w,u,t,s,r) DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC1(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC2(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC3(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC4(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC5(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC6(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC7(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC8(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC9(ret,fn,...)               DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC10(ret,fn,...)              DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC11(ret,fn,...)              DISPATCH_INTERNAL(#fn,handle_##fn);
+#define FUNC12(ret,fn,...)              DISPATCH_INTERNAL(#fn,handle_##fn);
 
 #include "testcrypt.h"
 
+#undef FUNC12
+#undef FUNC11
+#undef FUNC10
 #undef FUNC9
 #undef FUNC8
 #undef FUNC7
