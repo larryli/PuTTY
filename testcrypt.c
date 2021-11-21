@@ -880,13 +880,11 @@ mp_int *monty_identity_wrapper(MontyContext *mc)
 {
     return mp_copy(monty_identity(mc));
 }
-#define monty_identity monty_identity_wrapper
 
 mp_int *monty_modulus_wrapper(MontyContext *mc)
 {
     return mp_copy(monty_modulus(mc));
 }
-#define monty_modulus monty_modulus_wrapper
 
 strbuf *ssh_hash_digest_wrapper(ssh_hash *h)
 {
@@ -895,8 +893,6 @@ strbuf *ssh_hash_digest_wrapper(ssh_hash *h)
     ssh_hash_digest(h, p);
     return sb;
 }
-#undef ssh_hash_digest
-#define ssh_hash_digest ssh_hash_digest_wrapper
 
 strbuf *ssh_hash_final_wrapper(ssh_hash *h)
 {
@@ -905,8 +901,6 @@ strbuf *ssh_hash_final_wrapper(ssh_hash *h)
     ssh_hash_final(h, p);
     return sb;
 }
-#undef ssh_hash_final
-#define ssh_hash_final ssh_hash_final_wrapper
 
 void ssh_cipher_setiv_wrapper(ssh_cipher *c, ptrlen iv)
 {
@@ -915,8 +909,6 @@ void ssh_cipher_setiv_wrapper(ssh_cipher *c, ptrlen iv)
                     ssh_cipher_alg(c)->blksize);
     ssh_cipher_setiv(c, iv.ptr);
 }
-#undef ssh_cipher_setiv
-#define ssh_cipher_setiv ssh_cipher_setiv_wrapper
 
 void ssh_cipher_setkey_wrapper(ssh_cipher *c, ptrlen key)
 {
@@ -925,8 +917,6 @@ void ssh_cipher_setkey_wrapper(ssh_cipher *c, ptrlen key)
                     ssh_cipher_alg(c)->padded_keybytes);
     ssh_cipher_setkey(c, key.ptr);
 }
-#undef ssh_cipher_setkey
-#define ssh_cipher_setkey ssh_cipher_setkey_wrapper
 
 strbuf *ssh_cipher_encrypt_wrapper(ssh_cipher *c, ptrlen input)
 {
@@ -938,8 +928,6 @@ strbuf *ssh_cipher_encrypt_wrapper(ssh_cipher *c, ptrlen input)
     ssh_cipher_encrypt(c, sb->u, sb->len);
     return sb;
 }
-#undef ssh_cipher_encrypt
-#define ssh_cipher_encrypt ssh_cipher_encrypt_wrapper
 
 strbuf *ssh_cipher_decrypt_wrapper(ssh_cipher *c, ptrlen input)
 {
@@ -951,8 +939,6 @@ strbuf *ssh_cipher_decrypt_wrapper(ssh_cipher *c, ptrlen input)
     ssh_cipher_decrypt(c, sb->u, sb->len);
     return sb;
 }
-#undef ssh_cipher_decrypt
-#define ssh_cipher_decrypt ssh_cipher_decrypt_wrapper
 
 strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
                                            unsigned long seq)
@@ -964,8 +950,6 @@ strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
     ssh_cipher_encrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
-#undef ssh_cipher_encrypt_length
-#define ssh_cipher_encrypt_length ssh_cipher_encrypt_length_wrapper
 
 strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
                                            unsigned long seq)
@@ -977,8 +961,6 @@ strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
     ssh_cipher_decrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
-#undef ssh_cipher_decrypt_length
-#define ssh_cipher_decrypt_length ssh_cipher_decrypt_length_wrapper
 
 strbuf *ssh2_mac_genresult_wrapper(ssh2_mac *m)
 {
@@ -987,14 +969,11 @@ strbuf *ssh2_mac_genresult_wrapper(ssh2_mac *m)
     ssh2_mac_genresult(m, u);
     return sb;
 }
-#undef ssh2_mac_genresult
-#define ssh2_mac_genresult ssh2_mac_genresult_wrapper
 
 bool dh_validate_f_wrapper(dh_ctx *dh, mp_int *f)
 {
     return dh_validate_f(dh, f) == NULL;
 }
-#define dh_validate_f dh_validate_f_wrapper
 
 void ssh_hash_update(ssh_hash *h, ptrlen pl)
 {
@@ -1026,7 +1005,6 @@ strbuf *rsa_ssh1_encrypt_wrapper(ptrlen input, RSAKey *key)
     }
     return sb;
 }
-#define rsa_ssh1_encrypt rsa_ssh1_encrypt_wrapper
 
 strbuf *rsa_ssh1_decrypt_pkcs1_wrapper(mp_int *input, RSAKey *key)
 {
@@ -1036,7 +1014,6 @@ strbuf *rsa_ssh1_decrypt_pkcs1_wrapper(mp_int *input, RSAKey *key)
         strbuf_clear(sb);
     return sb;
 }
-#define rsa_ssh1_decrypt_pkcs1 rsa_ssh1_decrypt_pkcs1_wrapper
 
 strbuf *des_encrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
 {
@@ -1049,7 +1026,6 @@ strbuf *des_encrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
     des_encrypt_xdmauth(key.ptr, sb->u, sb->len);
     return sb;
 }
-#define des_encrypt_xdmauth des_encrypt_xdmauth_wrapper
 
 strbuf *des_decrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
 {
@@ -1062,7 +1038,6 @@ strbuf *des_decrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
     des_decrypt_xdmauth(key.ptr, sb->u, sb->len);
     return sb;
 }
-#define des_decrypt_xdmauth des_decrypt_xdmauth_wrapper
 
 strbuf *des3_encrypt_pubkey_wrapper(ptrlen key, ptrlen data)
 {
@@ -1075,7 +1050,6 @@ strbuf *des3_encrypt_pubkey_wrapper(ptrlen key, ptrlen data)
     des3_encrypt_pubkey(key.ptr, sb->u, sb->len);
     return sb;
 }
-#define des3_encrypt_pubkey des3_encrypt_pubkey_wrapper
 
 strbuf *des3_decrypt_pubkey_wrapper(ptrlen key, ptrlen data)
 {
@@ -1088,7 +1062,6 @@ strbuf *des3_decrypt_pubkey_wrapper(ptrlen key, ptrlen data)
     des3_decrypt_pubkey(key.ptr, sb->u, sb->len);
     return sb;
 }
-#define des3_decrypt_pubkey des3_decrypt_pubkey_wrapper
 
 strbuf *des3_encrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 {
@@ -1103,7 +1076,6 @@ strbuf *des3_encrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
     des3_encrypt_pubkey_ossh(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
-#define des3_encrypt_pubkey_ossh des3_encrypt_pubkey_ossh_wrapper
 
 strbuf *des3_decrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 {
@@ -1118,7 +1090,6 @@ strbuf *des3_decrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
     des3_decrypt_pubkey_ossh(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
-#define des3_decrypt_pubkey_ossh des3_decrypt_pubkey_ossh_wrapper
 
 strbuf *aes256_encrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 {
@@ -1133,7 +1104,6 @@ strbuf *aes256_encrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
     aes256_encrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
-#define aes256_encrypt_pubkey aes256_encrypt_pubkey_wrapper
 
 strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 {
@@ -1148,7 +1118,6 @@ strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
     aes256_decrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
-#define aes256_decrypt_pubkey aes256_decrypt_pubkey_wrapper
 
 strbuf *prng_read_wrapper(prng *pr, size_t size)
 {
@@ -1156,7 +1125,6 @@ strbuf *prng_read_wrapper(prng *pr, size_t size)
     prng_read(pr, strbuf_append(sb, size), size);
     return sb;
 }
-#define prng_read prng_read_wrapper
 
 void prng_seed_update(prng *pr, ptrlen data)
 {
@@ -1192,7 +1160,6 @@ ssh_key *ppk_load_s_wrapper(BinarySource *src, char **comment,
     sfree(uk);
     return toret;
 }
-#define ppk_load_s ppk_load_s_wrapper
 
 int rsa1_load_s_wrapper(BinarySource *src, RSAKey *rsa, char **comment,
                         const char *passphrase, const char **errorstr)
@@ -1202,7 +1169,6 @@ int rsa1_load_s_wrapper(BinarySource *src, RSAKey *rsa, char **comment,
     rsa->comment = NULL;
     return toret;
 }
-#define rsa1_load_s rsa1_load_s_wrapper
 
 strbuf *ppk_save_sb_wrapper(
     ssh_key *key, const char *comment, const char *passphrase,
@@ -1229,7 +1195,6 @@ strbuf *ppk_save_sb_wrapper(
     sfree(uk.comment);
     return toret;
 }
-#define ppk_save_sb ppk_save_sb_wrapper
 
 strbuf *rsa1_save_sb_wrapper(RSAKey *key, const char *comment,
                              const char *passphrase)
@@ -1240,7 +1205,6 @@ strbuf *rsa1_save_sb_wrapper(RSAKey *key, const char *comment,
     key->comment = NULL;
     return toret;
 }
-#define rsa1_save_sb rsa1_save_sb_wrapper
 
 #define return_void(out, expression) (expression)
 
@@ -1251,7 +1215,6 @@ mp_int *primegen_generate_wrapper(
 {
     return primegen_generate(ctx, pcs, &null_progress);
 }
-#define primegen_generate primegen_generate_wrapper
 
 RSAKey *rsa1_generate(int bits, bool strong, PrimeGenerationContext *pgc)
 {
@@ -1266,7 +1229,6 @@ ssh_key *rsa_generate_wrapper(int bits, bool strong,
 {
     return &rsa1_generate(bits, strong, pgc)->sshk;
 }
-#define rsa_generate rsa_generate_wrapper
 
 ssh_key *dsa_generate_wrapper(int bits, PrimeGenerationContext *pgc)
 {
@@ -1274,7 +1236,6 @@ ssh_key *dsa_generate_wrapper(int bits, PrimeGenerationContext *pgc)
     dsa_generate(dsakey, bits, pgc, &null_progress);
     return &dsakey->sshk;
 }
-#define dsa_generate dsa_generate_wrapper
 
 ssh_key *ecdsa_generate_wrapper(int bits)
 {
@@ -1285,7 +1246,6 @@ ssh_key *ecdsa_generate_wrapper(int bits)
     }
     return &ek->sshk;
 }
-#define ecdsa_generate ecdsa_generate_wrapper
 
 ssh_key *eddsa_generate_wrapper(int bits)
 {
@@ -1296,7 +1256,6 @@ ssh_key *eddsa_generate_wrapper(int bits)
     }
     return &ek->sshk;
 }
-#define eddsa_generate eddsa_generate_wrapper
 
 size_t key_components_count(key_components *kc) { return kc->ncomponents; }
 const char *key_components_nth_name(key_components *kc, size_t n)
@@ -1322,7 +1281,6 @@ PockleStatus pockle_add_prime_wrapper(Pockle *pockle, mp_int *p,
 {
     return pockle_add_prime(pockle, p, mpl.integers, mpl.n, witness);
 }
-#define pockle_add_prime pockle_add_prime_wrapper
 
 strbuf *argon2_wrapper(Argon2Flavour flavour, uint32_t mem, uint32_t passes,
                        uint32_t parallel, uint32_t taglen,
@@ -1332,7 +1290,6 @@ strbuf *argon2_wrapper(Argon2Flavour flavour, uint32_t mem, uint32_t passes,
     argon2(flavour, mem, passes, parallel, taglen, P, S, K, X, out);
     return out;
 }
-#define argon2 argon2_wrapper
 
 strbuf *get_implementations_commasep(ptrlen alg)
 {
@@ -1590,20 +1547,25 @@ typedef HttpDigestHash TD_httpdigesthash;
 
 #define DEPARENTHESISE(...) __VA_ARGS__
 
+#define FUNC(outtype, fname, args) \
+    FUNC_INNER(outtype, fname, fname, args)
+#define FUNC_WRAPPED(outtype, fname, args) \
+    FUNC_INNER(outtype, fname, fname##_wrapper, args)
+
 #define ARG(type, arg)  _predummy_##arg; TD_##type arg; int _postdummy_##arg
 #define VOID _voiddummy
-#define FUNC(outtype, fname, args)              \
-    typedef struct ARGS_##fname {               \
-        int DEPARENTHESISE args;                \
+#define FUNC_INNER(outtype, fname, realname, args)      \
+    typedef struct ARGS_##fname {                       \
+        int DEPARENTHESISE args;                        \
     } ARGS_##fname;
 #include "testcrypt.h"
-#undef FUNC
+#undef FUNC_INNER
 #undef ARG
 #undef VOID
 
 #define ARG(type, arg) _args.arg = get_##type(_in)
 #define VOID ((void)0)
-#define FUNC(outtype, fname, args)                                      \
+#define FUNC_INNER(outtype, fname, realname, args)                      \
     static inline ARGS_##fname get_args_##fname(BinarySource *_in) {    \
         ARGS_##fname _args;                                             \
         memset(&_args, 0, sizeof(_args));                               \
@@ -1611,20 +1573,20 @@ typedef HttpDigestHash TD_httpdigesthash;
         return _args;                                                   \
     }
 #include "testcrypt.h"
-#undef FUNC
+#undef FUNC_INNER
 #undef ARG
 #undef VOID
 
 #define ARG(type, arg) _args.arg
 #define VOID
-#define FUNC(outtype, fname, args)                                      \
+#define FUNC_INNER(outtype, fname, realname, args)                      \
     static void handle_##fname(BinarySource *_in, strbuf *_out) {       \
         ARGS_##fname _args = get_args_##fname(_in);                     \
         (void)_args; /* suppress warning if no actual arguments */      \
-        return_##outtype(_out, fname args);                             \
+        return_##outtype(_out, realname args);                          \
     }
 #include "testcrypt.h"
-#undef FUNC
+#undef FUNC_INNER
 #undef ARG
 
 static void process_line(BinarySource *in, strbuf *out)
@@ -1647,12 +1609,13 @@ static void process_line(BinarySource *in, strbuf *out)
     DISPATCH_COMMAND(mp_dump);
 #undef DISPATCH_COMMAND
 
-#define FUNC(outtype, fname, args) DISPATCH_INTERNAL(#fname,handle_##fname);
+#define FUNC_INNER(outtype, fname, realname, args)      \
+    DISPATCH_INTERNAL(#fname,handle_##fname);
 #define ARG1(type, arg)
 #define ARGN(type, arg)
 #define VOID
 #include "testcrypt.h"
-#undef FUNC
+#undef FUNC_INNER
 #undef ARG
 #undef VOID
 

@@ -327,7 +327,8 @@ def _parse_testcrypt_header(tokens):
         return tok
 
     while True:
-        tok = expect("FUNC", "at start of function specification", eof_ok=True)
+        tok = expect({"FUNC", "FUNC_WRAPPED"},
+                     "at start of function specification", eof_ok=True)
         if tok is None:
             break
 

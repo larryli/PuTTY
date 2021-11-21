@@ -60,6 +60,12 @@
  * enumeration types (e.g. argon2flavour, rsaorder) or pointers to
  * const vtables of one kind or another (e.g. keyalg, hashalg,
  * primegenpolicy).
+ *
+ * If a function definition begins with FUNC_WRAPPED rather than FUNC,
+ * it means that the underlying C function has a suffix "_wrapper",
+ * e.g. ssh_cipher_setiv_wrapper(). Those wrappers are defined in
+ * testcrypt.c itself, and change the API or semantics in a way that
+ * makes the function more Python-friendly.
  */
 
 /*
@@ -127,8 +133,8 @@ FUNC(val_modsqrt, modsqrt_new, (ARG(val_mpint, p), ARG(val_mpint, any_nonsquare_
 /* The modsqrt functions' 'success' pointer becomes a second return value */
 FUNC(val_mpint, mp_modsqrt, (ARG(val_modsqrt, sc), ARG(val_mpint, x), ARG(out_uint, success)))
 FUNC(val_monty, monty_new, (ARG(val_mpint, modulus)))
-FUNC(val_mpint, monty_modulus, (ARG(val_monty, mc)))
-FUNC(val_mpint, monty_identity, (ARG(val_monty, mc)))
+FUNC_WRAPPED(val_mpint, monty_modulus, (ARG(val_monty, mc)))
+FUNC_WRAPPED(val_mpint, monty_identity, (ARG(val_monty, mc)))
 FUNC(void, monty_import_into, (ARG(val_monty, mc), ARG(val_mpint, r), ARG(val_mpint, x)))
 FUNC(val_mpint, monty_import, (ARG(val_monty, mc), ARG(val_mpint, x)))
 FUNC(void, monty_export_into, (ARG(val_monty, mc), ARG(val_mpint, r), ARG(val_mpint, x)))
@@ -196,8 +202,8 @@ FUNC(void, ecc_edwards_get_affine, (ARG(val_epoint, wp), ARG(out_val_mpint, x), 
 FUNC(opt_val_hash, ssh_hash_new, (ARG(hashalg, alg)))
 FUNC(void, ssh_hash_reset, (ARG(val_hash, h)))
 FUNC(val_hash, ssh_hash_copy, (ARG(val_hash, orig)))
-FUNC(val_string, ssh_hash_digest, (ARG(val_hash, h)))
-FUNC(val_string, ssh_hash_final, (ARG(consumed_val_hash, h)))
+FUNC_WRAPPED(val_string, ssh_hash_digest, (ARG(val_hash, h)))
+FUNC_WRAPPED(val_string, ssh_hash_final, (ARG(consumed_val_hash, h)))
 FUNC(void, ssh_hash_update, (ARG(val_hash, h), ARG(val_string_ptrlen, pl)))
 
 FUNC(opt_val_hash, blake2b_new_general, (ARG(uint, hashlen)))
@@ -211,7 +217,7 @@ FUNC(val_mac, ssh2_mac_new, (ARG(macalg, alg), ARG(opt_val_cipher, cipher)))
 FUNC(void, ssh2_mac_setkey, (ARG(val_mac, m), ARG(val_string_ptrlen, key)))
 FUNC(void, ssh2_mac_start, (ARG(val_mac, m)))
 FUNC(void, ssh2_mac_update, (ARG(val_mac, m), ARG(val_string_ptrlen, pl)))
-FUNC(val_string, ssh2_mac_genresult, (ARG(val_mac, m)))
+FUNC_WRAPPED(val_string, ssh2_mac_genresult, (ARG(val_mac, m)))
 FUNC(val_string_asciz_const, ssh2_mac_text_name, (ARG(val_mac, m)))
 
 /*
@@ -248,12 +254,12 @@ FUNC(opt_val_mpint, key_components_nth_mp, (ARG(val_keycomponents, kc), ARG(uint
  * string and return a separate string.
  */
 FUNC(opt_val_cipher, ssh_cipher_new, (ARG(cipheralg, alg)))
-FUNC(void, ssh_cipher_setiv, (ARG(val_cipher, c), ARG(val_string_ptrlen, iv)))
-FUNC(void, ssh_cipher_setkey, (ARG(val_cipher, c), ARG(val_string_ptrlen, key)))
-FUNC(val_string, ssh_cipher_encrypt, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, ssh_cipher_decrypt, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, ssh_cipher_encrypt_length, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk), ARG(uint, seq)))
-FUNC(val_string, ssh_cipher_decrypt_length, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk), ARG(uint, seq)))
+FUNC_WRAPPED(void, ssh_cipher_setiv, (ARG(val_cipher, c), ARG(val_string_ptrlen, iv)))
+FUNC_WRAPPED(void, ssh_cipher_setkey, (ARG(val_cipher, c), ARG(val_string_ptrlen, key)))
+FUNC_WRAPPED(val_string, ssh_cipher_encrypt, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, ssh_cipher_decrypt, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, ssh_cipher_encrypt_length, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk), ARG(uint, seq)))
+FUNC_WRAPPED(val_string, ssh_cipher_decrypt_length, (ARG(val_cipher, c), ARG(val_string_ptrlen, blk), ARG(uint, seq)))
 
 /*
  * Integer Diffie-Hellman.
@@ -262,7 +268,7 @@ FUNC(val_dh, dh_setup_group, (ARG(dh_group, kex)))
 FUNC(val_dh, dh_setup_gex, (ARG(val_mpint, pval), ARG(val_mpint, gval)))
 FUNC(uint, dh_modulus_bit_size, (ARG(val_dh, ctx)))
 FUNC(val_mpint, dh_create_e, (ARG(val_dh, ctx), ARG(uint, nbits)))
-FUNC(boolean, dh_validate_f, (ARG(val_dh, ctx), ARG(val_mpint, f)))
+FUNC_WRAPPED(boolean, dh_validate_f, (ARG(val_dh, ctx), ARG(val_mpint, f)))
 FUNC(val_mpint, dh_find_K, (ARG(val_dh, ctx), ARG(val_mpint, f)))
 
 /*
@@ -291,9 +297,9 @@ FUNC(val_rsakex, get_rsa_ssh1_priv_agent, (ARG(val_string_binarysource, src)))
 FUNC(val_rsa, rsa_new, (VOID))
 FUNC(void, get_rsa_ssh1_pub, (ARG(val_string_binarysource, src), ARG(val_rsa, key), ARG(rsaorder, order)))
 FUNC(void, get_rsa_ssh1_priv, (ARG(val_string_binarysource, src), ARG(val_rsa, key)))
-FUNC(opt_val_string, rsa_ssh1_encrypt, (ARG(val_string_ptrlen, data), ARG(val_rsa, key)))
+FUNC_WRAPPED(opt_val_string, rsa_ssh1_encrypt, (ARG(val_string_ptrlen, data), ARG(val_rsa, key)))
 FUNC(val_mpint, rsa_ssh1_decrypt, (ARG(val_mpint, input), ARG(val_rsa, key)))
-FUNC(val_string, rsa_ssh1_decrypt_pkcs1, (ARG(val_mpint, input), ARG(val_rsa, key)))
+FUNC_WRAPPED(val_string, rsa_ssh1_decrypt_pkcs1, (ARG(val_mpint, input), ARG(val_rsa, key)))
 FUNC(val_string_asciz, rsastr_fmt, (ARG(val_rsa, key)))
 FUNC(val_string_asciz, rsa_ssh1_fingerprint, (ARG(val_rsa, key)))
 FUNC(void, rsa_ssh1_public_blob, (ARG(out_val_string_binarysink, bs), ARG(val_rsa, key), ARG(rsaorder, order)))
@@ -309,7 +315,7 @@ FUNC(val_prng, prng_new, (ARG(hashalg, hashalg)))
 FUNC(void, prng_seed_begin, (ARG(val_prng, p)))
 FUNC(void, prng_seed_update, (ARG(val_prng, pr), ARG(val_string_ptrlen, data)))
 FUNC(void, prng_seed_finish, (ARG(val_prng, p)))
-FUNC(val_string, prng_read, (ARG(val_prng, p), ARG(uint, size)))
+FUNC_WRAPPED(val_string, prng_read, (ARG(val_prng, p), ARG(uint, size)))
 FUNC(void, prng_add_entropy, (ARG(val_prng, p), ARG(uint, source_id), ARG(val_string_ptrlen, data)))
 
 /*
@@ -320,29 +326,29 @@ FUNC(boolean, ppk_encrypted_s, (ARG(val_string_binarysource, src), ARG(out_opt_v
 FUNC(boolean, rsa1_encrypted_s, (ARG(val_string_binarysource, src), ARG(out_opt_val_string_asciz, comment)))
 FUNC(boolean, ppk_loadpub_s, (ARG(val_string_binarysource, src), ARG(out_opt_val_string_asciz, algorithm), ARG(out_val_string_binarysink, bs), ARG(out_opt_val_string_asciz, commentptr), ARG(out_opt_val_string_asciz_const, errorstr)))
 FUNC(int, rsa1_loadpub_s, (ARG(val_string_binarysource, src), ARG(out_val_string_binarysink, bs), ARG(out_opt_val_string_asciz, commentptr), ARG(out_opt_val_string_asciz_const, errorstr)))
-FUNC(opt_val_key, ppk_load_s, (ARG(val_string_binarysource, src), ARG(out_opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase), ARG(out_opt_val_string_asciz_const, errorstr)))
-FUNC(int, rsa1_load_s, (ARG(val_string_binarysource, src), ARG(val_rsa, key), ARG(out_opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase), ARG(out_opt_val_string_asciz_const, errorstr)))
-FUNC(val_string, ppk_save_sb, (ARG(val_key, key), ARG(opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase), ARG(uint, fmt_version), ARG(argon2flavour, flavour), ARG(uint, mem), ARG(uint, passes), ARG(uint, parallel)))
-FUNC(val_string, rsa1_save_sb, (ARG(val_rsa, key), ARG(opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase)))
+FUNC_WRAPPED(opt_val_key, ppk_load_s, (ARG(val_string_binarysource, src), ARG(out_opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase), ARG(out_opt_val_string_asciz_const, errorstr)))
+FUNC_WRAPPED(int, rsa1_load_s, (ARG(val_string_binarysource, src), ARG(val_rsa, key), ARG(out_opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase), ARG(out_opt_val_string_asciz_const, errorstr)))
+FUNC_WRAPPED(val_string, ppk_save_sb, (ARG(val_key, key), ARG(opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase), ARG(uint, fmt_version), ARG(argon2flavour, flavour), ARG(uint, mem), ARG(uint, passes), ARG(uint, parallel)))
+FUNC_WRAPPED(val_string, rsa1_save_sb, (ARG(val_rsa, key), ARG(opt_val_string_asciz, comment), ARG(opt_val_string_asciz, passphrase)))
 
 FUNC(val_string_asciz, ssh2_fingerprint_blob, (ARG(val_string_ptrlen, blob), ARG(fptype, fptype)))
 
 /*
  * Password hashing.
  */
-FUNC(val_string, argon2, (ARG(argon2flavour, flavour), ARG(uint, mem), ARG(uint, passes), ARG(uint, parallel), ARG(uint, taglen), ARG(val_string_ptrlen, P), ARG(val_string_ptrlen, S), ARG(val_string_ptrlen, K), ARG(val_string_ptrlen, X)))
+FUNC_WRAPPED(val_string, argon2, (ARG(argon2flavour, flavour), ARG(uint, mem), ARG(uint, passes), ARG(uint, parallel), ARG(uint, taglen), ARG(val_string_ptrlen, P), ARG(val_string_ptrlen, S), ARG(val_string_ptrlen, K), ARG(val_string_ptrlen, X)))
 FUNC(val_string, argon2_long_hash, (ARG(uint, length), ARG(val_string_ptrlen, data)))
 
 /*
  * Key generation functions.
  */
-FUNC(val_key, rsa_generate, (ARG(uint, bits), ARG(boolean, strong), ARG(val_pgc, pgc)))
-FUNC(val_key, dsa_generate, (ARG(uint, bits), ARG(val_pgc, pgc)))
-FUNC(opt_val_key, ecdsa_generate, (ARG(uint, bits)))
-FUNC(opt_val_key, eddsa_generate, (ARG(uint, bits)))
+FUNC_WRAPPED(val_key, rsa_generate, (ARG(uint, bits), ARG(boolean, strong), ARG(val_pgc, pgc)))
+FUNC_WRAPPED(val_key, dsa_generate, (ARG(uint, bits), ARG(val_pgc, pgc)))
+FUNC_WRAPPED(opt_val_key, ecdsa_generate, (ARG(uint, bits)))
+FUNC_WRAPPED(opt_val_key, eddsa_generate, (ARG(uint, bits)))
 FUNC(val_rsa, rsa1_generate, (ARG(uint, bits), ARG(boolean, strong), ARG(val_pgc, pgc)))
 FUNC(val_pgc, primegen_new_context, (ARG(primegenpolicy, policy)))
-FUNC(opt_val_mpint, primegen_generate, (ARG(val_pgc, ctx), ARG(consumed_val_pcs, pcs)))
+FUNC_WRAPPED(opt_val_mpint, primegen_generate, (ARG(val_pgc, ctx), ARG(consumed_val_pcs, pcs)))
 FUNC(val_string, primegen_mpu_certificate, (ARG(val_pgc, ctx), ARG(val_mpint, p)))
 FUNC(val_pcs, pcs_new, (ARG(uint, bits)))
 FUNC(val_pcs, pcs_new_with_firstbits, (ARG(uint, bits), ARG(uint, first), ARG(uint, nfirst)))
@@ -359,7 +365,7 @@ FUNC(val_pockle, pockle_new, (VOID))
 FUNC(uint, pockle_mark, (ARG(val_pockle, pockle)))
 FUNC(void, pockle_release, (ARG(val_pockle, pockle), ARG(uint, mark)))
 FUNC(pocklestatus, pockle_add_small_prime, (ARG(val_pockle, pockle), ARG(val_mpint, p)))
-FUNC(pocklestatus, pockle_add_prime, (ARG(val_pockle, pockle), ARG(val_mpint, p), ARG(mpint_list, factors), ARG(val_mpint, witness)))
+FUNC_WRAPPED(pocklestatus, pockle_add_prime, (ARG(val_pockle, pockle), ARG(val_mpint, p), ARG(mpint_list, factors), ARG(val_mpint, witness)))
 FUNC(val_string, pockle_mpu, (ARG(val_pockle, pockle), ARG(val_mpint, p)))
 FUNC(val_millerrabin, miller_rabin_new, (ARG(val_mpint, p)))
 FUNC(mr_result, miller_rabin_test, (ARG(val_millerrabin, mr), ARG(val_mpint, w)))
@@ -369,14 +375,14 @@ FUNC(mr_result, miller_rabin_test, (ARG(val_millerrabin, mr), ARG(val_mpint, w))
  */
 FUNC(val_wpoint, ecdsa_public, (ARG(val_mpint, private_key), ARG(keyalg, alg)))
 FUNC(val_epoint, eddsa_public, (ARG(val_mpint, private_key), ARG(keyalg, alg)))
-FUNC(val_string, des_encrypt_xdmauth, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, des_decrypt_xdmauth, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, des3_encrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, des3_decrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, des3_encrypt_pubkey_ossh, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, des3_decrypt_pubkey_ossh, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, aes256_encrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
-FUNC(val_string, aes256_decrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, des_encrypt_xdmauth, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, des_decrypt_xdmauth, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, des3_encrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, des3_decrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, des3_encrypt_pubkey_ossh, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, des3_decrypt_pubkey_ossh, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, aes256_encrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
+FUNC_WRAPPED(val_string, aes256_decrypt_pubkey, (ARG(val_string_ptrlen, key), ARG(val_string_ptrlen, iv), ARG(val_string_ptrlen, blk)))
 FUNC(uint, crc32_rfc1662, (ARG(val_string_ptrlen, data)))
 FUNC(uint, crc32_ssh1, (ARG(val_string_ptrlen, data)))
 FUNC(uint, crc32_update, (ARG(uint, crc_input), ARG(val_string_ptrlen, data)))
