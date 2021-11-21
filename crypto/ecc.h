@@ -63,7 +63,7 @@ WeierstrassPoint *ecc_weierstrass_point_new_from_x(
 /* Memory management: copy and free points. */
 void ecc_weierstrass_point_copy_into(
     WeierstrassPoint *dest, WeierstrassPoint *src);
-WeierstrassPoint *ecc_weierstrass_point_copy(WeierstrassPoint *wc);
+WeierstrassPoint *ecc_weierstrass_point_copy(WeierstrassPoint *orig);
 void ecc_weierstrass_point_free(WeierstrassPoint *point);
 
 /* Check whether a point is actually on the curve. */
@@ -223,7 +223,7 @@ EdwardsPoint *ecc_edwards_point_new_from_y(
 
 /* Copy and free points. */
 void ecc_edwards_point_copy_into(EdwardsPoint *dest, EdwardsPoint *src);
-EdwardsPoint *ecc_edwards_point_copy(EdwardsPoint *ec);
+EdwardsPoint *ecc_edwards_point_copy(EdwardsPoint *orig);
 void ecc_edwards_point_free(EdwardsPoint *point);
 
 /*
