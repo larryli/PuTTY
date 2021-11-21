@@ -908,12 +908,12 @@ strbuf *ssh_hash_final_wrapper(ssh_hash *h)
 #undef ssh_hash_final
 #define ssh_hash_final ssh_hash_final_wrapper
 
-void ssh_cipher_setiv_wrapper(ssh_cipher *c, ptrlen key)
+void ssh_cipher_setiv_wrapper(ssh_cipher *c, ptrlen iv)
 {
-    if (key.len != ssh_cipher_alg(c)->blksize)
+    if (iv.len != ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_setiv: needs exactly %d bytes",
                     ssh_cipher_alg(c)->blksize);
-    ssh_cipher_setiv(c, key.ptr);
+    ssh_cipher_setiv(c, iv.ptr);
 }
 #undef ssh_cipher_setiv
 #define ssh_cipher_setiv ssh_cipher_setiv_wrapper
