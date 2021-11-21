@@ -149,7 +149,7 @@ def marshal_string(val):
         else "%{:02x}".format(b)
         for b in val)
 
-def make_argword(arg, argtype, fnname, argindex, to_preserve):
+def make_argword(arg, argtype, fnname, argindex, argname, to_preserve):
     typename, consumed = argtype
     if typename.startswith("opt_"):
         if arg is None:
@@ -166,8 +166,8 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
     if isinstance(arg, Value):
         if arg._typename != typename:
             raise TypeError(
-                "{}() argument {:d} should be {} ({} given)".format(
-                fnname, argindex, typename, arg._typename))
+                "{}() argument #{:d} ({}) should be {} ({} given)".format(
+                fnname, argindex, argname, typename, arg._typename))
         ident = arg._ident
         if consumed:
             arg._consumed()
@@ -185,14 +185,14 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
             return arg
     if typename == "mpint_list":
         sublist = [make_argword(len(arg), ("uint", False),
-                                fnname, argindex, to_preserve)]
+                                fnname, argindex, argname, to_preserve)]
         for val in arg:
             sublist.append(make_argword(val, ("val_mpint", False),
-                                        fnname, argindex, to_preserve))
+                                        fnname, argindex, argname, to_preserve))
         return b" ".join(coerce_to_bytes(sub) for sub in sublist)
     raise TypeError(
-        "Can't convert {}() argument {:d} to {} (value was {!r})".format(
-            fnname, argindex, typename, arg))
+        "Can't convert {}() argument #{:d} ({}) to {} (value was {!r})".format(
+            fnname, argindex, argname, typename, arg))
 
 def unpack_string(identifier):
     retwords = childprocess.funcall("getstring", [identifier])
@@ -247,12 +247,20 @@ def make_retvals(rettypes, retwords, unpack_strings=True):
             for rettype, word in zip(rettypes, retwords)]
 
 class Function(object):
-    def __init__(self, fnname, rettypes, argtypes):
+    def __init__(self, fnname, rettypes, retnames, argtypes, argnames):
         self.fnname = fnname
         self.rettypes = rettypes
+        self.retnames = retnames
         self.argtypes = argtypes
+        self.argnames = argnames
     def __repr__(self):
-        return "<Function {}>".format(self.fnname)
+        return "<Function {}({}) -> ({})>".format(
+            self.fnname,
+            ", ".join(("consumed " if c else "")+t+" "+n
+                       for (t,c),n in zip(self.argtypes, self.argnames)),
+            ", ".join((t+" "+n if n is not None else t)
+                      for t,n in zip(self.rettypes, self.retnames)),
+    )
     def __call__(self, *args):
         if len(args) != len(self.argtypes):
             raise TypeError(
@@ -261,7 +269,8 @@ class Function(object):
         to_preserve = []
         retwords = childprocess.funcall(
             self.fnname, [make_argword(args[i], self.argtypes[i],
-                                       self.fnname, i, to_preserve)
+                                       self.fnname, i, self.argnames[i],
+                                       to_preserve)
                           for i in range(len(args))])
         retvals = make_retvals(self.rettypes, retwords)
         if len(retvals) == 0:
@@ -380,14 +389,18 @@ def _setup(scope):
     tokens = _lex_testcrypt_header(header)
     for function, rettype, arglist in _parse_testcrypt_header(tokens):
         rettypes = []
+        retnames = []
         if rettype != "void":
             rettypes.append(trim_argtype(rettype))
+            retnames.append(None)
 
         argtypes = []
+        argnames = []
         argsconsumed = []
         for arg, argname in arglist:
             if arg.startswith(outprefix):
                 rettypes.append(trim_argtype(arg[len(outprefix):]))
+                retnames.append(argname)
             else:
                 consumed = False
                 if arg.startswith(consprefix):
@@ -395,7 +408,9 @@ def _setup(scope):
                     consumed = True
                 arg = trim_argtype(arg)
                 argtypes.append((arg, consumed))
-        func = Function(function, rettypes, argtypes)
+                argnames.append(argname)
+        func = Function(function, rettypes, retnames,
+                        argtypes, argnames)
         scope[function] = func
         if len(argtypes) > 0:
             t = argtypes[0][0]
