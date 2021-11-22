@@ -228,288 +228,37 @@ typedef Argon2Flavour TD_argon2flavour;
 typedef FingerprintType TD_fptype;
 typedef HttpDigestHash TD_httpdigesthash;
 
-static const ssh_hashalg *get_hashalg(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh_hashalg *value;
-    } algs[] = {
-        {"md5", &ssh_md5},
-        {"sha1", &ssh_sha1},
-        {"sha1_sw", &ssh_sha1_sw},
-        {"sha256", &ssh_sha256},
-        {"sha384", &ssh_sha384},
-        {"sha512", &ssh_sha512},
-        {"sha256_sw", &ssh_sha256_sw},
-        {"sha384_sw", &ssh_sha384_sw},
-        {"sha512_sw", &ssh_sha512_sw},
-#if HAVE_SHA_NI
-        {"sha1_ni", &ssh_sha1_ni},
-        {"sha256_ni", &ssh_sha256_ni},
-#endif
-#if HAVE_NEON_CRYPTO
-        {"sha1_neon", &ssh_sha1_neon},
-        {"sha256_neon", &ssh_sha256_neon},
-#endif
-#if HAVE_NEON_SHA512
-        {"sha384_neon", &ssh_sha384_neon},
-        {"sha512_neon", &ssh_sha512_neon},
-#endif
-        {"sha3_224", &ssh_sha3_224},
-        {"sha3_256", &ssh_sha3_256},
-        {"sha3_384", &ssh_sha3_384},
-        {"sha3_512", &ssh_sha3_512},
-        {"shake256_114bytes", &ssh_shake256_114bytes},
-        {"blake2b", &ssh_blake2b},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("hashalg '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const ssh2_macalg *get_macalg(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh2_macalg *value;
-    } algs[] = {
-        {"hmac_md5", &ssh_hmac_md5},
-        {"hmac_sha1", &ssh_hmac_sha1},
-        {"hmac_sha1_buggy", &ssh_hmac_sha1_buggy},
-        {"hmac_sha1_96", &ssh_hmac_sha1_96},
-        {"hmac_sha1_96_buggy", &ssh_hmac_sha1_96_buggy},
-        {"hmac_sha256", &ssh_hmac_sha256},
-        {"poly1305", &ssh2_poly1305},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("macalg '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const ssh_keyalg *get_keyalg(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh_keyalg *value;
-    } algs[] = {
-        {"dsa", &ssh_dsa},
-        {"rsa", &ssh_rsa},
-        {"ed25519", &ssh_ecdsa_ed25519},
-        {"ed448", &ssh_ecdsa_ed448},
-        {"p256", &ssh_ecdsa_nistp256},
-        {"p384", &ssh_ecdsa_nistp384},
-        {"p521", &ssh_ecdsa_nistp521},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("keyalg '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const ssh_cipheralg *get_cipheralg(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh_cipheralg *value;
-    } algs[] = {
-        {"3des_ctr", &ssh_3des_ssh2_ctr},
-        {"3des_ssh2", &ssh_3des_ssh2},
-        {"3des_ssh1", &ssh_3des_ssh1},
-        {"des_cbc", &ssh_des},
-        {"aes256_ctr", &ssh_aes256_sdctr},
-        {"aes256_cbc", &ssh_aes256_cbc},
-        {"aes192_ctr", &ssh_aes192_sdctr},
-        {"aes192_cbc", &ssh_aes192_cbc},
-        {"aes128_ctr", &ssh_aes128_sdctr},
-        {"aes128_cbc", &ssh_aes128_cbc},
-        {"aes256_ctr_sw", &ssh_aes256_sdctr_sw},
-        {"aes256_cbc_sw", &ssh_aes256_cbc_sw},
-        {"aes192_ctr_sw", &ssh_aes192_sdctr_sw},
-        {"aes192_cbc_sw", &ssh_aes192_cbc_sw},
-        {"aes128_ctr_sw", &ssh_aes128_sdctr_sw},
-        {"aes128_cbc_sw", &ssh_aes128_cbc_sw},
-#if HAVE_AES_NI
-        {"aes256_ctr_ni", &ssh_aes256_sdctr_ni},
-        {"aes256_cbc_ni", &ssh_aes256_cbc_ni},
-        {"aes192_ctr_ni", &ssh_aes192_sdctr_ni},
-        {"aes192_cbc_ni", &ssh_aes192_cbc_ni},
-        {"aes128_ctr_ni", &ssh_aes128_sdctr_ni},
-        {"aes128_cbc_ni", &ssh_aes128_cbc_ni},
-#endif
-#if HAVE_NEON_CRYPTO
-        {"aes256_ctr_neon", &ssh_aes256_sdctr_neon},
-        {"aes256_cbc_neon", &ssh_aes256_cbc_neon},
-        {"aes192_ctr_neon", &ssh_aes192_sdctr_neon},
-        {"aes192_cbc_neon", &ssh_aes192_cbc_neon},
-        {"aes128_ctr_neon", &ssh_aes128_sdctr_neon},
-        {"aes128_cbc_neon", &ssh_aes128_cbc_neon},
-#endif
-        {"blowfish_ctr", &ssh_blowfish_ssh2_ctr},
-        {"blowfish_ssh2", &ssh_blowfish_ssh2},
-        {"blowfish_ssh1", &ssh_blowfish_ssh1},
-        {"arcfour256", &ssh_arcfour256_ssh2},
-        {"arcfour128", &ssh_arcfour128_ssh2},
-        {"chacha20_poly1305", &ssh2_chacha20_poly1305},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("cipheralg '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const ssh_kex *get_dh_group(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh_kex *value;
-    } algs[] = {
-        {"group1", &ssh_diffiehellman_group1_sha1},
-        {"group14", &ssh_diffiehellman_group14_sha256},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("dh_group '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const ssh_kex *get_ecdh_alg(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh_kex *value;
-    } algs[] = {
-        {"curve25519", &ssh_ec_kex_curve25519},
-        {"curve448", &ssh_ec_kex_curve448},
-        {"nistp256", &ssh_ec_kex_nistp256},
-        {"nistp384", &ssh_ec_kex_nistp384},
-        {"nistp521", &ssh_ec_kex_nistp521},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("ecdh_alg '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static RsaSsh1Order get_rsaorder(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        RsaSsh1Order value;
-    } orders[] = {
-        {"exponent_first", RSA_SSH1_EXPONENT_FIRST},
-        {"modulus_first", RSA_SSH1_MODULUS_FIRST},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(orders); i++)
-        if (ptrlen_eq_string(name, orders[i].key))
-            return orders[i].value;
-
-    fatal_error("rsaorder '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const PrimeGenerationPolicy *get_primegenpolicy(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const PrimeGenerationPolicy *value;
-    } algs[] = {
-        {"probabilistic", &primegen_probabilistic},
-        {"provable_fast", &primegen_provable_fast},
-        {"provable_maurer_simple", &primegen_provable_maurer_simple},
-        {"provable_maurer_complex", &primegen_provable_maurer_complex},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("primegenpolicy '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static Argon2Flavour get_argon2flavour(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        Argon2Flavour value;
-    } algs[] = {
-        {"d", Argon2d},
-        {"i", Argon2i},
-        {"id", Argon2id},
-        /* I expect to forget which spelling I chose, so let's support many */
-        {"argon2d", Argon2d},
-        {"argon2i", Argon2i},
-        {"argon2id", Argon2id},
-        {"Argon2d", Argon2d},
-        {"Argon2i", Argon2i},
-        {"Argon2id", Argon2id},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("Argon2 flavour '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static FingerprintType get_fptype(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        FingerprintType value;
-    } ids[] = {
-        {"md5", SSH_FPTYPE_MD5},
-        {"sha256", SSH_FPTYPE_SHA256},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(ids); i++)
-        if (ptrlen_eq_string(name, ids[i].key))
-            return ids[i].value;
-
-    fatal_error("fingerprint type '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static HttpDigestHash get_httpdigesthash(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        HttpDigestHash value;
-    } hashes[] = {
-        #define DECL_ARRAY(id, str, alg, bits) {str, id},
-        HTTP_DIGEST_HASHES(DECL_ARRAY)
-        #undef DECL_ARRAY
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(hashes); i++)
-        if (ptrlen_eq_string(name, hashes[i].key))
-            return hashes[i].value;
-
-    fatal_error("httpdigesthash '%.*s': not found", PTRLEN_PRINTF(name));
-}
+#define BEGIN_ENUM_TYPE(name)                                           \
+    static bool enum_translate_##name(ptrlen valname, TD_##name *out) { \
+        static const struct {                                           \
+            const char *key;                                            \
+            TD_##name value;                                            \
+        } mapping[] = {
+#define ENUM_VALUE(name, value) {name, value},
+#define END_ENUM_TYPE(name)                                             \
+        };                                                              \
+        for (size_t i = 0; i < lenof(mapping); i++)                     \
+            if (ptrlen_eq_string(valname, mapping[i].key)) {            \
+                if (out)                                                \
+                    *out = mapping[i].value;                            \
+                return true;                                            \
+            }                                                           \
+        return false;                                                   \
+    }                                                                   \
+                                                                        \
+    static TD_##name get_##name(BinarySource *in) {                     \
+        ptrlen valname = get_word(in);                                  \
+        TD_##name out;                                                  \
+        if (enum_translate_##name(valname, &out))                       \
+            return out;                                                 \
+        else                                                            \
+            fatal_error("%s '%.*s': not found",                         \
+                        #name, PTRLEN_PRINTF(valname));                 \
+    }
+#include "testcrypt-enum.h"
+#undef BEGIN_ENUM_TYPE
+#undef ENUM_VALUE
+#undef END_ENUM_TYPE
 
 static uintmax_t get_uint(BinarySource *in)
 {
