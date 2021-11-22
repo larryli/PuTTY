@@ -103,6 +103,8 @@ method_prefixes = {
 }
 method_lists = {t: [] for t in method_prefixes}
 
+checked_enum_values = {}
+
 class Value(object):
     def __init__(self, typename, ident):
         self._typename = typename
@@ -182,7 +184,13 @@ def make_argword(arg, argtype, fnname, argindex, argname, to_preserve):
             "argon2flavour", "fptype", "httpdigesthash"}:
         arg = coerce_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:
-            return arg
+            dictkey = (typename, arg)
+            if dictkey not in checked_enum_values:
+                retwords = childprocess.funcall("checkenum", [typename, arg])
+                assert len(retwords) == 1
+                checked_enum_values[dictkey] = (retwords[0] == b"ok")
+            if checked_enum_values[dictkey]:
+                return arg
     if typename == "mpint_list":
         sublist = [make_argword(len(arg), ("uint", False),
                                 fnname, argindex, argname, to_preserve)]

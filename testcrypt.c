@@ -623,6 +623,25 @@ static void handle_mp_dump(BinarySource *in, strbuf *out)
     put_byte(out, '\n');
 }
 
+static void handle_checkenum(BinarySource *in, strbuf *out)
+{
+    ptrlen type = get_word(in);
+    ptrlen value = get_word(in);
+    bool ok = false;
+
+    #define BEGIN_ENUM_TYPE(name) \
+    if (ptrlen_eq_string(type, #name))                  \
+        ok = enum_translate_##name(value, NULL);
+    #define ENUM_VALUE(name, value)
+    #define END_ENUM_TYPE(name)
+    #include "testcrypt-enum.h"
+    #undef BEGIN_ENUM_TYPE
+    #undef ENUM_VALUE
+    #undef END_ENUM_TYPE
+
+    put_dataz(out, ok ? "ok\n" : "bad\n");
+}
+
 static void random_queue(ptrlen pl)
 {
     bufchain_add(&random_data_queue, pl.ptr, pl.len);
@@ -1356,6 +1375,7 @@ static void process_line(BinarySource *in, strbuf *out)
     DISPATCH_COMMAND(getstring);
     DISPATCH_COMMAND(mp_literal);
     DISPATCH_COMMAND(mp_dump);
+    DISPATCH_COMMAND(checkenum);
 #undef DISPATCH_COMMAND
 
 #define FUNC_INNER(outtype, fname, realname, args)      \
