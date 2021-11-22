@@ -39,7 +39,7 @@ static const struct dh_extra extra_group1 = {
     false, dh_group1_construct,
 };
 
-static const ssh_kex ssh_diffiehellman_group1_sha1 = {
+const ssh_kex ssh_diffiehellman_group1_sha1 = {
     "diffie-hellman-group1-sha1", "group1",
     KEXTYPE_DH, &ssh_sha1, &extra_group1,
 };
@@ -54,12 +54,12 @@ static const struct dh_extra extra_group14 = {
     false, dh_group14_construct,
 };
 
-static const ssh_kex ssh_diffiehellman_group14_sha256 = {
+const ssh_kex ssh_diffiehellman_group14_sha256 = {
     "diffie-hellman-group14-sha256", "group14",
     KEXTYPE_DH, &ssh_sha256, &extra_group14,
 };
 
-static const ssh_kex ssh_diffiehellman_group14_sha1 = {
+const ssh_kex ssh_diffiehellman_group14_sha1 = {
     "diffie-hellman-group14-sha1", "group14",
     KEXTYPE_DH, &ssh_sha1, &extra_group14,
 };

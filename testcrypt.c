@@ -347,16 +347,16 @@ static const ssh_kex *get_dh_group(BinarySource *in)
 {
     static const struct {
         const char *key;
-        const ssh_kexes *value;
+        const ssh_kex *value;
     } algs[] = {
-        {"group1", &ssh_diffiehellman_group1},
-        {"group14", &ssh_diffiehellman_group14},
+        {"group1", &ssh_diffiehellman_group1_sha1},
+        {"group14", &ssh_diffiehellman_group14_sha256},
     };
 
     ptrlen name = get_word(in);
     for (size_t i = 0; i < lenof(algs); i++)
         if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value->list[0];
+            return algs[i].value;
 
     fatal_error("dh_group '%.*s': not found", PTRLEN_PRINTF(name));
 }
