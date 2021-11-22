@@ -200,6 +200,34 @@ static ptrlen get_word(BinarySource *in)
     return toret;
 }
 
+typedef uintmax_t TD_uint;
+typedef bool TD_boolean;
+typedef ptrlen TD_val_string_ptrlen;
+typedef char *TD_val_string_asciz;
+typedef BinarySource *TD_val_string_binarysource;
+typedef unsigned *TD_out_uint;
+typedef BinarySink *TD_out_val_string_binarysink;
+typedef const char *TD_opt_val_string_asciz;
+typedef char **TD_out_val_string_asciz;
+typedef char **TD_out_opt_val_string_asciz;
+typedef const char **TD_out_opt_val_string_asciz_const;
+typedef ssh_hash *TD_consumed_val_hash;
+typedef const ssh_hashalg *TD_hashalg;
+typedef const ssh2_macalg *TD_macalg;
+typedef const ssh_keyalg *TD_keyalg;
+typedef const ssh_cipheralg *TD_cipheralg;
+typedef const ssh_kex *TD_dh_group;
+typedef const ssh_kex *TD_ecdh_alg;
+typedef RsaSsh1Order TD_rsaorder;
+typedef key_components *TD_keycomponents;
+typedef const PrimeGenerationPolicy *TD_primegenpolicy;
+typedef struct mpint_list TD_mpint_list;
+typedef PockleStatus TD_pocklestatus;
+typedef struct mr_result TD_mr_result;
+typedef Argon2Flavour TD_argon2flavour;
+typedef FingerprintType TD_fptype;
+typedef HttpDigestHash TD_httpdigesthash;
+
 static const ssh_hashalg *get_hashalg(BinarySource *in)
 {
     static const struct {
@@ -1334,34 +1362,6 @@ strbuf *get_implementations_commasep(ptrlen alg)
 OPTIONAL_PTR_FUNC(cipher)
 OPTIONAL_PTR_FUNC(mpint)
 OPTIONAL_PTR_FUNC(string)
-
-typedef uintmax_t TD_uint;
-typedef bool TD_boolean;
-typedef ptrlen TD_val_string_ptrlen;
-typedef char *TD_val_string_asciz;
-typedef BinarySource *TD_val_string_binarysource;
-typedef unsigned *TD_out_uint;
-typedef BinarySink *TD_out_val_string_binarysink;
-typedef const char *TD_opt_val_string_asciz;
-typedef char **TD_out_val_string_asciz;
-typedef char **TD_out_opt_val_string_asciz;
-typedef const char **TD_out_opt_val_string_asciz_const;
-typedef ssh_hash *TD_consumed_val_hash;
-typedef const ssh_hashalg *TD_hashalg;
-typedef const ssh2_macalg *TD_macalg;
-typedef const ssh_keyalg *TD_keyalg;
-typedef const ssh_cipheralg *TD_cipheralg;
-typedef const ssh_kex *TD_dh_group;
-typedef const ssh_kex *TD_ecdh_alg;
-typedef RsaSsh1Order TD_rsaorder;
-typedef key_components *TD_keycomponents;
-typedef const PrimeGenerationPolicy *TD_primegenpolicy;
-typedef struct mpint_list TD_mpint_list;
-typedef PockleStatus TD_pocklestatus;
-typedef struct mr_result TD_mr_result;
-typedef Argon2Flavour TD_argon2flavour;
-typedef FingerprintType TD_fptype;
-typedef HttpDigestHash TD_httpdigesthash;
 
 /*
  * HERE BE DRAGONS: the horrible C preprocessor business that reads
