@@ -313,7 +313,7 @@ def _lex_testcrypt_header(header):
     while pos < end:
         m = pat.match(header, pos)
         assert m is not None, (
-            "Failed to lex testcrypt.h at byte position {:d}".format(pos))
+            "Failed to lex testcrypt-func.h at byte position {:d}".format(pos))
 
         pos = m.end()
         tok = m.group(1)
@@ -339,7 +339,7 @@ def _parse_testcrypt_header(tokens):
             description = lambda: "'"+what+"' "
             ok = tok == what
         if not ok:
-            sys.exit("testcrypt.h:{:d}: expected {}{}".format(
+            sys.exit("testcrypt-func.h:{:d}: expected {}{}".format(
                 pos, description(), why))
         return tok
 
@@ -392,7 +392,7 @@ def _setup(scope):
             arg = arg[:arg.index("_", len(valprefix))]
         return arg
 
-    with open(os.path.join(putty_srcdir, "testcrypt.h")) as f:
+    with open(os.path.join(putty_srcdir, "test", "testcrypt-func.h")) as f:
         header = f.read()
     tokens = _lex_testcrypt_header(header)
     for function, rettype, arglist in _parse_testcrypt_header(tokens):

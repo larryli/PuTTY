@@ -69,7 +69,7 @@ add_library(otherbackends STATIC
 add_subdirectory(otherbackends)
 
 add_executable(testcrypt
-  testcrypt.c sshpubk.c ssh/crc-attack-detector.c)
+  test/testcrypt.c sshpubk.c ssh/crc-attack-detector.c)
 target_link_libraries(testcrypt
   keygen crypto utils ${platform_libraries})
 

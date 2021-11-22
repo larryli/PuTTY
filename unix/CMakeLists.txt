@@ -98,11 +98,11 @@ add_executable(cgtest
 target_link_libraries(cgtest keygen console crypto utils)
 
 add_executable(testsc
-  ${CMAKE_SOURCE_DIR}/testsc.c)
+  ${CMAKE_SOURCE_DIR}/test/testsc.c)
 target_link_libraries(testsc keygen crypto utils)
 
 add_executable(testzlib
-  ${CMAKE_SOURCE_DIR}/testzlib.c
+  ${CMAKE_SOURCE_DIR}/test/testzlib.c
   ${CMAKE_SOURCE_DIR}/ssh/zlib.c)
 target_link_libraries(testzlib utils)
 
