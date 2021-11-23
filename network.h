@@ -389,9 +389,6 @@ void nullplug_sent(Plug *plug, size_t bufsize);
  * they use types defined here.
  */
 
-/*
- * Exports from be_misc.c.
- */
 void backend_socket_log(Seat *seat, LogContext *logctx,
                         PlugLogType type, SockAddr *addr, int port,
                         const char *error_msg, int error_code, Conf *conf,

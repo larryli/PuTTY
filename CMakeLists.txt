@@ -33,7 +33,7 @@ add_library(crypto STATIC
 add_subdirectory(crypto)
 
 add_library(network STATIC
-  be_misc.c nullplug.c errsock.c logging.c x11disp.c
+  stubs/nullplug.c errsock.c logging.c x11disp.c
   proxy/proxy.c
   proxy/http.c
   proxy/socks4.c
@@ -54,7 +54,7 @@ add_library(guiterminal STATIC
   $<TARGET_OBJECTS:logging>)
 
 add_library(noterminal STATIC
-  noterm.c ldisc.c)
+  stubs/noterm.c ldisc.c)
 
 add_library(all-backends OBJECT
   pinger.c)
@@ -124,7 +124,7 @@ installed_program(psftp)
 add_executable(psocks
   ${platform}/psocks.c
   psocks.c
-  norand.c
+  stubs/norand.c
   proxy/nocproxy.c
   proxy/nosshproxy.c
   ssh/portfwd.c)

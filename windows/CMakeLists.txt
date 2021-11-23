@@ -109,8 +109,8 @@ add_executable(puttytel
   putty.c
   help.c
   ${CMAKE_SOURCE_DIR}/be_nos_s.c
-  ${CMAKE_SOURCE_DIR}/nogss.c
-  ${CMAKE_SOURCE_DIR}/norand.c
+  ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+  ${CMAKE_SOURCE_DIR}/stubs/norand.c
   ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
   ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
   puttytel.rc)
@@ -125,7 +125,7 @@ installed_program(puttytel)
 
 add_executable(puttygen
   puttygen.c
-  ${CMAKE_SOURCE_DIR}/notiming.c
+  ${CMAKE_SOURCE_DIR}/stubs/notiming.c
   noise.c
   no-jump-list.c
   storage.c
@@ -150,9 +150,9 @@ if(HAVE_CONPTY)
     help.c
     conpty.c
     be_conpty.c
-    ${CMAKE_SOURCE_DIR}/nogss.c
-    ${CMAKE_SOURCE_DIR}/norand.c
-    ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
+    ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+    ${CMAKE_SOURCE_DIR}/stubs/norand.c
+    ${CMAKE_SOURCE_DIR}/proxy/stubs/nosshproxy.c
     pterm.rc)
   add_dependencies(pterm generated_licence_h)
   target_link_libraries(pterm
