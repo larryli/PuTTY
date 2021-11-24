@@ -144,8 +144,6 @@ static inline uintmax_t strtoumax(const char *nptr, char **endptr, int base)
 /* If you DECL_WINDOWS_FUNCTION as extern in a header file, use this to
  * define the function pointer in a source file */
 #define DEF_WINDOWS_FUNCTION(name) t_##name p_##name
-#define STR1(x) #x
-#define STR(x) STR1(x)
 #define GET_WINDOWS_FUNCTION_PP(module, name)                           \
     TYPECHECK((t_##name)NULL == name,                                   \
               (p_##name = module ?                                      \

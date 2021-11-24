@@ -44,8 +44,6 @@
 #include <X11/Xatom.h>
 #endif
 
-#define CAT2(x,y) x ## y
-#define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
 
 #if GTK_CHECK_VERSION(2,0,0)

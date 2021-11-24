@@ -210,4 +210,28 @@ typedef struct PacketProtocolLayer PacketProtocolLayer;
 #define NORETURN
 #endif
 
+/*
+ * Standard macro definitions. STR() behaves like the preprocessor
+ * stringification # operator, and CAT() behaves like the token paste
+ * ## operator, except that each one macro-expands its argument(s)
+ * first, unlike the raw version. E.g.
+ *
+ *   #__LINE__               ->    "__LINE__"
+ *   STR(__LINE__)           ->    "1234"             (or whatever)
+ *
+ * and similarly,
+ *
+ *   foo ## __LINE__         ->    foo__LINE__
+ *   CAT(foo, __LINE__)      ->    foo1234            (or whatever)
+ *
+ * The expansion is achieved by having each macro pass its arguments
+ * to a secondary inner macro, because parameter lists of a macro call
+ * get expanded before the called macro is invoked. So STR(__LINE__)
+ * -> STR_INNER(1234) -> #1234 -> "1234", and similarly for CAT.
+ */
+#define STR_INNER(x) #x
+#define STR(x) STR_INNER(x)
+#define CAT_INNER(x,y) x ## y
+#define CAT(x,y) CAT_INNER(x,y)
+
 #endif /* PUTTY_DEFS_H */
