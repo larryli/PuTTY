@@ -97,8 +97,13 @@ add_executable(bidi_test
 target_link_libraries(bidi_test guiterminal utils ${platform_libraries})
 
 add_executable(plink
-  ${platform}/plink.c
-  be_all_s.c)
+  ${platform}/plink.c)
+# Note: if we ever port Plink to a platform where we can't implement a
+# serial backend, this be_list command will need to become platform-
+# dependent, so that it only sets the SERIAL option on platforms where
+# that backend exists. For the moment, though, we have serial port
+# backends for both our platforms, so we can do this unconditionally.
+be_list(plink Plink SSH SERIAL OTHERBACKENDS)
 target_link_libraries(plink
   eventloop noterminal console sshclient otherbackends settings network crypto
   utils
@@ -106,16 +111,16 @@ target_link_libraries(plink
 installed_program(plink)
 
 add_executable(pscp
-  pscp.c
-  be_ssh.c)
+  pscp.c)
+be_list(pscp PSCP SSH)
 target_link_libraries(pscp
   sftpclient eventloop console sshclient settings network crypto utils
   ${platform_libraries})
 installed_program(pscp)
 
 add_executable(psftp
-  psftp.c
-  be_ssh.c)
+  psftp.c)
+be_list(psftp PSFTP SSH)
 target_link_libraries(psftp
   sftpclient eventloop console sshclient settings network crypto utils
   ${platform_libraries})

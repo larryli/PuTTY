@@ -235,8 +235,6 @@ void keylist_update(void)
 
 #define PAGEANT_DIR_PREFIX "/tmp/pageant"
 
-const char *const appname = "Pageant";
-
 static bool time_to_die = false;
 
 /*

@@ -78,6 +78,20 @@ else()
   set(platform unix)
 endif()
 
+function(be_list TARGET NAME)
+  cmake_parse_arguments(OPT "SSH;SERIAL;OTHERBACKENDS" "" "" "${ARGN}")
+  add_library(${TARGET}-be-list OBJECT ${CMAKE_SOURCE_DIR}/be_list.c)
+  foreach(setting SSH SERIAL OTHERBACKENDS)
+    if(OPT_${setting})
+      target_compile_definitions(${TARGET}-be-list PRIVATE ${setting}=1)
+    else()
+      target_compile_definitions(${TARGET}-be-list PRIVATE ${setting}=0)
+    endif()
+  endforeach()
+  target_compile_definitions(${TARGET}-be-list PRIVATE APPNAME=${NAME})
+  target_sources(${TARGET} PRIVATE $<TARGET_OBJECTS:${TARGET}-be-list>)
+endfunction()
+
 include(cmake/platforms/${platform}.cmake)
 
 include_directories(

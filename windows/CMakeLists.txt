@@ -92,8 +92,8 @@ add_executable(putty
   window.c
   putty.c
   help.c
-  ${CMAKE_SOURCE_DIR}/be_all_s.c
   putty.rc)
+be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
 add_dependencies(putty generated_licence_h)
 target_link_libraries(putty
   guiterminal guimisc eventloop sshclient otherbackends settings network crypto
@@ -108,12 +108,12 @@ add_executable(puttytel
   window.c
   putty.c
   help.c
-  ${CMAKE_SOURCE_DIR}/be_nos_s.c
   ${CMAKE_SOURCE_DIR}/stubs/nogss.c
   ${CMAKE_SOURCE_DIR}/stubs/norand.c
   ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
   ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
   puttytel.rc)
+be_list(puttytel PuTTYtel SERIAL OTHERBACKENDS)
 add_dependencies(puttytel generated_licence_h)
 target_link_libraries(puttytel
   guiterminal guimisc eventloop otherbackends settings network utils
@@ -149,11 +149,11 @@ if(HAVE_CONPTY)
     pterm.c
     help.c
     conpty.c
-    be_conpty.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
     ${CMAKE_SOURCE_DIR}/stubs/norand.c
-    ${CMAKE_SOURCE_DIR}/proxy/stubs/nosshproxy.c
+    ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pterm.rc)
+  be_list(pterm pterm)
   add_dependencies(pterm generated_licence_h)
   target_link_libraries(pterm
     guiterminal guimisc eventloop settings network utils

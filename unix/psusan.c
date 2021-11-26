@@ -41,8 +41,6 @@
 #include "ssh.h"
 #include "ssh/server.h"
 
-const char *const appname = "psusan";
-
 void modalfatalbox(const char *p, ...)
 {
     va_list ap;

@@ -171,7 +171,6 @@ bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
 void dlg_refresh(union control *ctrl, dlgparam *dp) { }
 bool dlg_is_visible(union control *ctrl, dlgparam *dp) { return false; }
 
-const char *const appname = "FuZZterm";
 const int ngsslibs = 0;
 const char *const gsslibnames[0] = { };
 const struct keyvalwhere gsslibkeywords[0] = { };

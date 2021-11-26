@@ -7,7 +7,6 @@
 
 #include "putty.h"
 
-const char *const appname = "pterm";
 const bool use_event_log = false;      /* pterm doesn't need it */
 const bool new_session = false, saved_sessions = false; /* or these */
 const bool dup_check_launchable = false; /* no need to check host name

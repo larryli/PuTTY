@@ -49,11 +49,11 @@ add_sources_from_current_dir(agent
 
 add_executable(fuzzterm
   ${CMAKE_SOURCE_DIR}/fuzzterm.c
-  ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/logging.c
   ${CMAKE_SOURCE_DIR}/stubs/noprint.c
   unicode.c
   no-gtk.c)
+be_list(fuzzterm FuZZterm)
 add_dependencies(fuzzterm generated_licence_h)
 target_link_libraries(fuzzterm
   guiterminal eventloop charset settings utils)
@@ -68,11 +68,11 @@ add_sources_from_current_dir(psocks no-gtk.c)
 
 add_executable(psusan
   psusan.c
-  ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/stubs/nogss.c
   ${CMAKE_SOURCE_DIR}/ssh/scpserver.c
   no-gtk.c
   pty.c)
+be_list(psusan psusan)
 target_link_libraries(psusan
   eventloop sshserver keygen settings network crypto utils)
 installed_program(psusan)
@@ -108,11 +108,11 @@ target_link_libraries(testzlib utils)
 
 add_executable(uppity
   uppity.c
-  ${CMAKE_SOURCE_DIR}/be_none.c
   ${CMAKE_SOURCE_DIR}/ssh/scpserver.c
   no-gtk.c
   pty.c
   ${CMAKE_SOURCE_DIR}/stubs/nogss.c)
+be_list(uppity Uppity)
 target_link_libraries(uppity
   eventloop sshserver keygen settings network crypto utils)
 
@@ -131,13 +131,13 @@ if(GTK_FOUND)
 
   add_executable(pageant
     pageant.c
-    ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
     askpass.c
     x11.c
     noise.c
     ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c)
+  be_list(pageant Pageant)
   target_link_libraries(pageant
     eventloop console agent settings network crypto utils
     ${GTK_LIBRARIES})
@@ -146,10 +146,10 @@ if(GTK_FOUND)
   add_executable(pterm
     pterm.c
     main-gtk-simple.c
-    ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pty.c)
+  be_list(pterm pterm)
   target_link_libraries(pterm
     guiterminal eventloop settings charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
@@ -159,18 +159,18 @@ if(GTK_FOUND)
     pterm.c
     main-gtk-application.c
     ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c
-    ${CMAKE_SOURCE_DIR}/be_none.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pty.c)
+  be_list(ptermapp pterm)
   target_link_libraries(ptermapp
     guiterminal eventloop settings charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 
   add_executable(putty
     putty.c
-    main-gtk-simple.c
-    ${CMAKE_SOURCE_DIR}/be_all_s.c)
+    main-gtk-simple.c)
+  be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
   target_link_libraries(putty
     guiterminal eventloop sshclient otherbackends settings
     network crypto charset utils
@@ -182,8 +182,8 @@ if(GTK_FOUND)
   add_executable(puttyapp
     putty.c
     main-gtk-application.c
-    ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c
-    ${CMAKE_SOURCE_DIR}/be_all_s.c)
+    ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c)
+  be_list(puttyapp PuTTY SSH SERIAL OTHERBACKENDS)
   target_link_libraries(puttyapp
     guiterminal eventloop sshclient otherbackends settings
     network crypto charset utils
@@ -192,11 +192,11 @@ if(GTK_FOUND)
   add_executable(puttytel
     putty.c
     main-gtk-simple.c
-    ${CMAKE_SOURCE_DIR}/be_nos_s.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
     ${CMAKE_SOURCE_DIR}/stubs/norand.c
     ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c)
+  be_list(puttytel PuTTYtel SERIAL OTHERBACKENDS)
   target_link_libraries(puttytel
     guiterminal eventloop otherbackends settings network charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
