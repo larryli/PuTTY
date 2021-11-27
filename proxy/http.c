@@ -430,22 +430,35 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                                 !get_token(s))
                                 goto bad_digest;
                             bool found = false;
+                            size_t i;
 
-                            for (size_t i = 0; i < N_HTTP_DIGEST_HASHES; i++) {
+                            for (i = 0; i < N_HTTP_DIGEST_HASHES; i++) {
                                 if (!stricmp(s->token->s, httphashnames[i])) {
-                                    s->digest_hash = i;
                                     found = true;
                                     break;
                                 }
                             }
 
                             if (!found) {
+                                /* We don't even recognise the name */
+                                pn->error = dupprintf(
+                                    "HTTP proxy requested Digest hash "
+                                    "algorithm '%s' which we do not recognise",
+                                    s->token->s);
+                                crStopV;
+                            }
+
+                            if (!httphashaccepted[i]) {
+                                /* We do recognise the name but we
+                                 * don't like it (see comment in cproxy.h) */
                                 pn->error = dupprintf(
                                     "HTTP proxy requested Digest hash "
                                     "algorithm '%s' which we do not support",
                                     s->token->s);
                                 crStopV;
                             }
+
+                            s->digest_hash = i;
                         } else if (!stricmp(s->token->s, "qop")) {
                             if (!get_separator(s, '=') ||
                                 !get_quoted_string(s))

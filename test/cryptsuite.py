@@ -3212,6 +3212,14 @@ class standard_test_vectors(MyTestBase):
         # that they think it's just a 256-bit truncation of SHA-512,
         # and not the version defined in FIPS 180-4 which also uses
         # a different initial hash state), and username hashing.
+        #
+        # We don't actually support SHA-512-256 in the top-level proxy
+        # client code (see the comment in proxy/cproxy.h). However,
+        # this internal http_digest_response function still provides
+        # it, simply so that we can run this test case from the RFC,
+        # because it's the only provided test case for username
+        # hashing, and this confirms that we've got the preimage right
+        # for the username hash.
         params = ["J\u00E4s\u00F8n Doe".encode("UTF-8"),
                   "Secret, or not?", "api@example.org",
                   "GET", "/doe.json", "auth",

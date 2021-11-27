@@ -138,7 +138,7 @@ END_ENUM_TYPE(fptype)
  * invent a separate one for testcrypt, reuse the existing names.
  */
 BEGIN_ENUM_TYPE(httpdigesthash)
-    #define DECL_ARRAY(id, str, alg, bits) ENUM_VALUE(str, id)
+    #define DECL_ARRAY(id, str, alg, bits, accepted) ENUM_VALUE(str, id)
     HTTP_DIGEST_HASHES(DECL_ARRAY)
     #undef DECL_ARRAY
 END_ENUM_TYPE(httpdigesthash)

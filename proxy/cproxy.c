@@ -41,18 +41,24 @@ void BinarySink_put_hex_data(BinarySink *bs, const void *vptr, size_t len)
     BinarySink_put_hex_data(BinarySink_UPCAST(bs), p, len)
 
 const char *const httphashnames[] = {
-    #define DECL_ARRAY(id, str, alg, bits) str,
+    #define DECL_ARRAY(id, str, alg, bits, accepted) str,
+    HTTP_DIGEST_HASHES(DECL_ARRAY)
+    #undef DECL_ARRAY
+};
+
+const bool httphashaccepted[] = {
+    #define DECL_ARRAY(id, str, alg, bits, accepted) accepted,
     HTTP_DIGEST_HASHES(DECL_ARRAY)
     #undef DECL_ARRAY
 };
 
 static const ssh_hashalg *const httphashalgs[] = {
-    #define DECL_ARRAY(id, str, alg, bits) alg,
+    #define DECL_ARRAY(id, str, alg, bits, accepted) alg,
     HTTP_DIGEST_HASHES(DECL_ARRAY)
     #undef DECL_ARRAY
 };
 static const size_t httphashlengths[] = {
-    #define DECL_ARRAY(id, str, alg, bits) bits/8,
+    #define DECL_ARRAY(id, str, alg, bits, accepted) bits/8,
     HTTP_DIGEST_HASHES(DECL_ARRAY)
     #undef DECL_ARRAY
 };
