@@ -1539,41 +1539,112 @@ mp_int *monty_export(MontyContext *mc, mp_int *x)
     return toret;
 }
 
-static void monty_reduce(MontyContext *mc, mp_int *x)
-{
-    mp_int reduced = monty_reduce_internal(mc, x, *mc->scratch);
-    mp_copy_into(x, &reduced);
-    mp_clear(mc->scratch);
-}
-
+#define MODPOW_LOG2_WINDOW_SIZE 5
+#define MODPOW_WINDOW_SIZE (1 << MODPOW_LOG2_WINDOW_SIZE)
 mp_int *monty_pow(MontyContext *mc, mp_int *base, mp_int *exponent)
 {
-    /* square builds up powers of the form base^{2^i}. */
-    mp_int *square = mp_copy(base);
-    size_t i = 0;
+    /*
+     * Modular exponentation is done from the top down, using a
+     * fixed-window technique.
+     *
+     * We have a table storing every power of the base from base^0 up
+     * to base^{w-1}, where w is a small power of 2, say 2^k. (k is
+     * defined above as MODPOW_LOG2_WINDOW_SIZE, and w = 2^k is
+     * defined as MODPOW_WINDOW_SIZE.)
+     *
+     * We break the exponent up into k-bit chunks, from the bottom up,
+     * that is
+     *
+     *   exponent = c_0 + 2^k c_1 + 2^{2k} c_2 + ... + 2^{nk} c_n
+     *
+     * and we compute base^exponent by computing in turn
+     *
+     *   base^{c_n}
+     *   base^{2^k c_n + c_{n-1}}
+     *   base^{2^{2k} c_n + 2^k c_{n-1} + c_{n-2}}
+     *   ...
+     *
+     * where each line is obtained by raising the previous line to the
+     * power 2^k (i.e. squaring it k times) and then multiplying in
+     * a value base^{c_i}, which we can look up in our table.
+     *
+     * Side-channel considerations: the exponent is secret, so
+     * actually doing a single table lookup by using a chunk of
+     * exponent bits as an array index would be an obvious leak of
+     * secret information into the cache. So instead, in each
+     * iteration, we read _all_ the table entries, and do a sequence
+     * of mp_select operations to leave just the one we wanted in the
+     * variable that will go into the multiplication. In other
+     * contexts (like software AES) that technique is so prohibitively
+     * slow that it makes you choose a strategy that doesn't use table
+     * lookups at all (we do bitslicing in preference); but here, this
+     * iteration through 2^k table elements is replacing k-1 bignum
+     * _multiplications_ that you'd have to use instead if you did
+     * simple square-and-multiply, and that makes it still a win.
+     */
 
-    /* out accumulates the output value. Starts at 1 (in Montgomery
-     * representation) and we multiply in each base^{2^i}. */
-    mp_int *out = mp_copy(mc->powers_of_r_mod_m[0]);
+    /* Table that holds base^0, ..., base^{w-1} */
+    mp_int *table[MODPOW_WINDOW_SIZE];
+    table[0] = mp_copy(monty_identity(mc));
+    for (size_t i = 1; i < MODPOW_WINDOW_SIZE; i++)
+        table[i] = monty_mul(mc, table[i-1], base);
 
-    /* tmp holds each product we compute and reduce. */
-    mp_int *tmp = mp_make_sized(mc->rw * 2);
+    /* out accumulates the output value */
+    mp_int *out = mp_make_sized(mc->rw);
+    mp_copy_into(out, monty_identity(mc));
+
+    /* table_entry will hold each value we get out of the table */
+    mp_int *table_entry = mp_make_sized(mc->rw);
+
+    /* Bit index of the chunk of bits we're working on. Start with the
+     * highest multiple of k strictly less than the size of our
+     * bignum, i.e. the highest-index chunk of bits that might
+     * conceivably contain any nonzero bit. */
+    size_t i = (exponent->nw * BIGNUM_INT_BITS) - 1;
+    i -= i % MODPOW_LOG2_WINDOW_SIZE;
+
+    bool first_iteration = true;
 
     while (true) {
-        mp_mul_into(tmp, out, square);
-        monty_reduce(mc, tmp);
-        mp_select_into(out, out, tmp, mp_get_bit(exponent, i));
+        /* Construct the table index */
+        unsigned table_index = 0;
+        for (size_t j = 0; j < MODPOW_LOG2_WINDOW_SIZE; j++)
+            table_index |= mp_get_bit(exponent, i+j) << j;
 
-        if (++i >= exponent->nw * BIGNUM_INT_BITS)
+        /* Iterate through the table to do a side-channel-safe lookup,
+         * ending up with table_entry = table[table_index] */
+        mp_copy_into(table_entry, table[0]);
+        for (size_t j = 1; j < MODPOW_WINDOW_SIZE; j++) {
+            unsigned not_this_one =
+                ((table_index ^ j) + MODPOW_WINDOW_SIZE - 1)
+                >> MODPOW_LOG2_WINDOW_SIZE;
+            mp_select_into(table_entry, table[j], table_entry, not_this_one);
+        }
+
+        if (!first_iteration) {
+            /* Multiply into the output */
+            monty_mul_into(mc, out, out, table_entry);
+        } else {
+            /* On the first iteration, we can save one multiplication
+             * by just copying */
+            mp_copy_into(out, table_entry);
+            first_iteration = false;
+        }
+
+        /* If that was the bottommost chunk of bits, we're done */
+        if (i == 0)
             break;
 
-        mp_mul_into(tmp, square, square);
-        monty_reduce(mc, tmp);
-        mp_copy_into(square, tmp);
+        /* Otherwise, square k times and go round again. */
+        for (size_t j = 0; j < MODPOW_LOG2_WINDOW_SIZE; j++)
+            monty_mul_into(mc, out, out, out);
+
+        i-= MODPOW_LOG2_WINDOW_SIZE;
     }
 
-    mp_free(square);
-    mp_free(tmp);
+    for (size_t i = 0; i < MODPOW_WINDOW_SIZE; i++)
+        mp_free(table[i]);
+    mp_free(table_entry);
     mp_clear(mc->scratch);
     return out;
 }
