@@ -128,7 +128,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         /*
          * Generate e for Diffie-Hellman.
          */
-        s->e = dh_create_e(s->dh_ctx, s->nbits * 2);
+        s->e = dh_create_e(s->dh_ctx);
 
         /*
          * Wait to receive f.

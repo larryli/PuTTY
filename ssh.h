@@ -1223,7 +1223,7 @@ dh_ctx *dh_setup_group(const ssh_kex *kex);
 dh_ctx *dh_setup_gex(mp_int *pval, mp_int *gval);
 int dh_modulus_bit_size(const dh_ctx *ctx);
 void dh_cleanup(dh_ctx *);
-mp_int *dh_create_e(dh_ctx *, int nbits);
+mp_int *dh_create_e(dh_ctx *);
 const char *dh_validate_f(dh_ctx *, mp_int *f);
 mp_int *dh_find_K(dh_ctx *, mp_int *f);
 

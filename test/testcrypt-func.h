@@ -339,7 +339,7 @@ FUNC_WRAPPED(val_string, ssh_cipher_decrypt_length, ARG(val_cipher, c),
 FUNC(val_dh, dh_setup_group, ARG(dh_group, group))
 FUNC(val_dh, dh_setup_gex, ARG(val_mpint, p), ARG(val_mpint, g))
 FUNC(uint, dh_modulus_bit_size, ARG(val_dh, ctx))
-FUNC(val_mpint, dh_create_e, ARG(val_dh, ctx), ARG(uint, nbits))
+FUNC(val_mpint, dh_create_e, ARG(val_dh, ctx))
 FUNC_WRAPPED(boolean, dh_validate_f, ARG(val_dh, ctx), ARG(val_mpint, f))
 FUNC(val_mpint, dh_find_K, ARG(val_dh, ctx), ARG(val_mpint, f))
 

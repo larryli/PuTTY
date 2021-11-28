@@ -118,7 +118,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
          * Now generate and send e for Diffie-Hellman.
          */
         seat_set_busy_status(s->ppl.seat, BUSY_CPU);
-        s->e = dh_create_e(s->dh_ctx, s->nbits * 2);
+        s->e = dh_create_e(s->dh_ctx);
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, s->kex_init_value);
         put_mp_ssh2(pktout, s->e);
         pq_push(s->ppl.out_pq, pktout);
@@ -322,7 +322,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                      "exchange with hash %s", ssh_hash_alg(s->exhash)->text_name);
         /* Now generate e for Diffie-Hellman. */
         seat_set_busy_status(s->ppl.seat, BUSY_CPU);
-        s->e = dh_create_e(s->dh_ctx, s->nbits * 2);
+        s->e = dh_create_e(s->dh_ctx);
 
         if (s->shgss->lib->gsslogmsg)
             ppl_logevent("%s", s->shgss->lib->gsslogmsg);

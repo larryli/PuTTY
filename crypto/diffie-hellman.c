@@ -200,19 +200,8 @@ void dh_cleanup(dh_ctx *ctx)
 /*
  * DH stage 1: invent a number x between 1 and q, and compute e =
  * g^x mod p. Return e.
- *
- * If `nbits' is greater than zero, it is used as an upper limit
- * for the number of bits in x. This is safe provided that (a) you
- * use twice as many bits in x as the number of bits you expect to
- * use in your session key, and (b) the DH group is a safe prime
- * (which SSH demands that it must be).
- *
- * P. C. van Oorschot, M. J. Wiener
- * "On Diffie-Hellman Key Agreement with Short Exponents".
- * Advances in Cryptology: Proceedings of Eurocrypt '96
- * Springer-Verlag, May 1996.
  */
-mp_int *dh_create_e(dh_ctx *ctx, int nbits)
+mp_int *dh_create_e(dh_ctx *ctx)
 {
     /*
      * Lower limit is just 2.
@@ -224,12 +213,6 @@ mp_int *dh_create_e(dh_ctx *ctx, int nbits)
      */
     mp_int *hi = mp_copy(ctx->q);
     mp_sub_integer_into(hi, hi, 1);
-    if (nbits) {
-        mp_int *pow2 = mp_power_2(nbits+1);
-        mp_min_into(pow2, pow2, hi);
-        mp_free(hi);
-        hi = pow2;
-    }
 
     /*
      * Make a random number in that range.
