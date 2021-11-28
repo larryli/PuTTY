@@ -354,7 +354,6 @@ def _parse_testcrypt_header(tokens):
         expect(",", "after return type")
         funcname = expect(is_id, "function name")
         expect(",", "after function name")
-        expect("(", "to begin argument list")
         args = []
         firstargkind = expect({"ARG", "VOID"}, "at start of argument list")
         if firstargkind == "VOID":
@@ -373,7 +372,6 @@ def _parse_testcrypt_header(tokens):
                 if punct == ")":
                     break
                 expect("ARG", "to begin next argument")
-        expect(")", "at end of FUNC")
         yield funcname, rettype, args
 
 def _setup(scope):

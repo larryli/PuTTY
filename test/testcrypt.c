@@ -1139,7 +1139,7 @@ OPTIONAL_PTR_FUNC(string)
  * In an ideal world, we would start from a specification like this in
  * testcrypt-func.h
  *
- *    FUNC(val_foo, example, (ARG(val_bar, bar), ARG(uint, n)))
+ *    FUNC(val_foo, example, ARG(val_bar, bar), ARG(uint, n))
  *
  * and generate a wrapper function looking like this:
  *
@@ -1217,9 +1217,9 @@ OPTIONAL_PTR_FUNC(string)
  *
  * So the commas must appear _between_ ARG(...) specifiers. And that
  * means they unavoidably appear in _every_ expansion of FUNC() (or
- * rather, every expansion that uses the argument list at all).
- * Therefore, we need to ensure they're harmless in the other two
- * functions as well.
+ * rather, every expansion that uses the variadic argument list at
+ * all). Therefore, we need to ensure they're harmless in the other
+ * two functions as well.
  *
  * In the get_args_example() function above, there's no real problem.
  * The list of assignments can perfectly well be separated by commas
@@ -1264,48 +1264,6 @@ OPTIONAL_PTR_FUNC(string)
  * 'int' after the open brace, and the ';' before the closing brace,
  * and we've got everything we need to make it all syntactically legal.
  *
- * Other points of note:
- *
- * Why the extra pair of parens around the whole argument list? You'd
- * like to think that FUNC could be a variadic macro, and just use
- * __VA_ARGS__ to expand all the arguments wherever they're needed.
- * But unfortunately there's a portability consideration: some of the
- * 'functions' wrapped by this system are actually macros in turn, and
- * if you use __VA_ARGS__ to expand multiple arguments from one macro
- * into the argument list of another macro, compilers disagree on what
- * happens: Visual Studio in particular will turn __VA_ARGS__ into
- * just one argument instead of multiple ones. That is, if you do this:
- *
- *     #define DESTINATION_MACRO(a, b) ... stuff using a and b ...
- *     #define WRAPPER(...) DESTINATION_MACRO(__VA_ARGS__)
- *     WRAPPER(1, 2)
- *
- * then most compilers will behave as if you'd called
- * DESTINATION_MACRO with 'a' expanding to 1 and 'b' expanding to 2.
- * But Visual Studio will consider that you called it with 'a'
- * expanding to the whole of __VA_ARGS__ - that is, the token sequence
- * '1 , 2' - and will expand 'b' to nothing at all!
- *
- * So we have a constraint that if ARGS is going to be turned into the
- * argument list to the actual called function - as it is in the final
- * handle_example() expansion shown above - then the commas can't come
- * from a variadic expansion of __VA_ARGS__. Hence, FUNC can't _be_ a
- * variadic macro. Instead, we wrap all the arguments in an extra pair
- * of parens, and generate the final call not by saying function(args)
- * but by saying just 'function args', since 'args' contains the
- * parens already.
- *
- * In get_args_example(), that's still fine, because our giant
- * comma-separated expression containing multiple assignment
- * subexpressions can legally be wrapped in parentheses as well. But
- * what do you do in the structure definition?
- *
- * Answer: _there_ we use a variadic macro to strip off the outer
- * parens, by expanding to just __VA_ARGS__. That's OK even in Visual
- * Studio, because in this particular context, __VA_ARGS__ is ending
- * up in a structure definition and definitely _not_ in the argument
- * list of another macro.
- *
  * Finally, what if a wrapped function has _no_ arguments? Two out of
  * three uses of the argument list here need some kind of special case
  * for that. That's why you have to write 'VOID' explicitly in an
@@ -1313,18 +1271,47 @@ OPTIONAL_PTR_FUNC(string)
  * whatever is needed to avoid a syntax error in that special case.
  */
 
-#define DEPARENTHESISE(...) __VA_ARGS__
+/*
+ * Workarounds for an awkwardness in Visual Studio's preprocessor,
+ * which disagrees with everyone else about what happens if you expand
+ * __VA_ARGS__ into the argument list of another macro. gcc and clang
+ * will treat the commas expanding from __VA_ARGS__ as argument
+ * separators, whereas VS will make them all part of a single argument
+ * to the secondary macro. We want the former behaviour, so we use
+ * the following workaround to enforce it.
+ *
+ * Each of these JUXTAPOSE macros simply places its arguments side by
+ * side. But the arguments are macro-expanded before JUXTAPOSE is
+ * called at all, so we can do this:
+ *
+ *      JUXTAPOSE(macroname, (__VA_ARGS__))
+ * ->   JUXTAPOSE(macroname, (foo, bar, baz))
+ * ->             macroname  (foo, bar, baz)
+ *
+ * and this preliminary expansion causes the commas to be treated
+ * normally by the time VS gets round to expanding the inner macro.
+ *
+ * We need two differently named JUXTAPOSE macros, because we have to
+ * do this trick twice: once to turn FUNC and FUNC_WRAPPED in
+ * testcrypt-funcs.h into the underlying common FUNC_INNER, and again
+ * to expand the final function call. And you can't expand a macro
+ * inside text expanded from the _same_ macro, so we have to do the
+ * outer and inner instances of this trick using macros of different
+ * names.
+ */
+#define JUXTAPOSE1(first, second) first second
+#define JUXTAPOSE2(first, second) first second
 
-#define FUNC(outtype, fname, args) \
-    FUNC_INNER(outtype, fname, fname, args)
-#define FUNC_WRAPPED(outtype, fname, args) \
-    FUNC_INNER(outtype, fname, fname##_wrapper, args)
+#define FUNC(outtype, fname, ...) \
+    JUXTAPOSE1(FUNC_INNER, (outtype, fname, fname, __VA_ARGS__))
+#define FUNC_WRAPPED(outtype, fname, ...) \
+    JUXTAPOSE1(FUNC_INNER, (outtype, fname, fname##_wrapper, __VA_ARGS__))
 
 #define ARG(type, arg)  _predummy_##arg; TD_##type arg; int _postdummy_##arg
 #define VOID _voiddummy
-#define FUNC_INNER(outtype, fname, realname, args)      \
+#define FUNC_INNER(outtype, fname, realname, ...)       \
     typedef struct ARGS_##fname {                       \
-        int DEPARENTHESISE args;                        \
+        int __VA_ARGS__;                                \
     } ARGS_##fname;
 #include "testcrypt-func.h"
 #undef FUNC_INNER
@@ -1333,11 +1320,11 @@ OPTIONAL_PTR_FUNC(string)
 
 #define ARG(type, arg) _args.arg = get_##type(_in)
 #define VOID ((void)0)
-#define FUNC_INNER(outtype, fname, realname, args)                      \
+#define FUNC_INNER(outtype, fname, realname, ...)                       \
     static inline ARGS_##fname get_args_##fname(BinarySource *_in) {    \
         ARGS_##fname _args;                                             \
         memset(&_args, 0, sizeof(_args));                               \
-        args;                                                           \
+        __VA_ARGS__;                                                    \
         return _args;                                                   \
     }
 #include "testcrypt-func.h"
@@ -1347,11 +1334,11 @@ OPTIONAL_PTR_FUNC(string)
 
 #define ARG(type, arg) _args.arg
 #define VOID
-#define FUNC_INNER(outtype, fname, realname, args)                      \
+#define FUNC_INNER(outtype, fname, realname, ...)                       \
     static void handle_##fname(BinarySource *_in, strbuf *_out) {       \
         ARGS_##fname _args = get_args_##fname(_in);                     \
         (void)_args; /* suppress warning if no actual arguments */      \
-        return_##outtype(_out, realname args);                          \
+        return_##outtype(_out, JUXTAPOSE2(realname, (__VA_ARGS__)));     \
     }
 #include "testcrypt-func.h"
 #undef FUNC_INNER
@@ -1378,7 +1365,7 @@ static void process_line(BinarySource *in, strbuf *out)
     DISPATCH_COMMAND(checkenum);
 #undef DISPATCH_COMMAND
 
-#define FUNC_INNER(outtype, fname, realname, args)      \
+#define FUNC_INNER(outtype, fname, realname, ...)       \
     DISPATCH_INTERNAL(#fname,handle_##fname);
 #define ARG1(type, arg)
 #define ARGN(type, arg)
