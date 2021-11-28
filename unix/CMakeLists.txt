@@ -48,7 +48,7 @@ add_sources_from_current_dir(agent
   agent-client.c)
 
 add_executable(fuzzterm
-  ${CMAKE_SOURCE_DIR}/fuzzterm.c
+  ${CMAKE_SOURCE_DIR}/test/fuzzterm.c
   ${CMAKE_SOURCE_DIR}/logging.c
   ${CMAKE_SOURCE_DIR}/stubs/noprint.c
   unicode.c
