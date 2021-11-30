@@ -4,7 +4,6 @@
 
 #include "defs.h"
 #include "misc.h"
-#include "ssh.h"
 
 bool ptrlen_eq_string(ptrlen pl, const char *str)
 {
