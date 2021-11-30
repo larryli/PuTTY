@@ -16,6 +16,7 @@ add_sources_from_current_dir(utils
   dupcat.c
   dupprintf.c
   dupstr.c
+  dup_mb_to_wc.c
   encode_utf8.c
   encode_wide_string_as_utf8.c
   fgetline.c
@@ -28,7 +29,6 @@ add_sources_from_current_dir(utils
   marshal.c
   memory.c
   memxor.c
-  miscucs.c
   null_lp.c
   nullseat.c
   nullstrcmp.c

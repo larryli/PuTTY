@@ -1,7 +1,8 @@
 /*
- * Centralised Unicode-related helper functions, separate from misc.c
- * so that they can be omitted from tools that aren't including
- * Unicode handling.
+ * dup_mb_to_wc: memory-allocating wrapper on mb_to_wc.
+ *
+ * Also dup_mb_to_wc_c: same but you already know the length of the
+ * string.
  */
 
 #include "putty.h"
