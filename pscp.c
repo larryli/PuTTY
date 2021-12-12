@@ -1813,7 +1813,7 @@ static void sink(const char *targ, const char *src)
             striptarget = stripslashes(act.name, true);
             if (striptarget != act.name) {
                 with_stripctrl(sanname, act.name) {
-                    with_stripctrl(santarg, act.name) {
+                    with_stripctrl(santarg, striptarget) {
                         tell_user(stderr, "warning: remote host sent a"
                                   " compound pathname '%s'", sanname);
                         tell_user(stderr, "         renaming local"
