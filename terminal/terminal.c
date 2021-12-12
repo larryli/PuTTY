@@ -3622,6 +3622,13 @@ static void term_out(Terminal *term)
     unsigned char localbuf[256], *chars;
     size_t nchars = 0;
 
+    /*
+     * During drag-selects, we do not process terminal input, because
+     * the user will want the screen to hold still to be selected.
+     */
+    if (term->selstate == DRAGGING)
+        return;
+
     unget = -1;
 
     chars = NULL;                      /* placate compiler warnings */
@@ -7236,8 +7243,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
      * should make sure to write any pending output if one has just
      * finished.
      */
-    if (term->selstate != DRAGGING)
-        term_out(term);
+    term_out(term);
     term_schedule_update(term);
 }
 
@@ -7550,8 +7556,7 @@ void term_lost_clipboard_ownership(Terminal *term, int clipboard)
      * should make sure to write any pending output if one has just
      * finished.
      */
-    if (term->selstate != DRAGGING)
-        term_out(term);
+    term_out(term);
 }
 
 static void term_added_data(Terminal *term)
@@ -7559,13 +7564,7 @@ static void term_added_data(Terminal *term)
     if (!term->in_term_out) {
         term->in_term_out = true;
         term_reset_cblink(term);
-        /*
-         * During drag-selects, we do not process terminal input,
-         * because the user will want the screen to hold still to
-         * be selected.
-         */
-        if (term->selstate != DRAGGING)
-            term_out(term);
+        term_out(term);
         term->in_term_out = false;
     }
 }
