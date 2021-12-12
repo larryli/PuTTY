@@ -326,6 +326,13 @@ static size_t gtk_seat_output(Seat *seat, SeatOutputType type,
     return term_data(inst->term, data, len);
 }
 
+static void gtkwin_unthrottle(TermWin *win, size_t bufsize)
+{
+    GtkFrontend *inst = container_of(win, GtkFrontend, termwin);
+    if (inst->backend)
+        backend_unthrottle(inst->backend, bufsize);
+}
+
 static bool gtk_seat_eof(Seat *seat)
 {
     /* GtkFrontend *inst = container_of(seat, GtkFrontend, seat); */
@@ -5156,6 +5163,7 @@ static const TermWinVtable gtk_termwin_vt = {
     .set_zorder = gtkwin_set_zorder,
     .palette_set = gtkwin_palette_set,
     .palette_get_overrides = gtkwin_palette_get_overrides,
+    .unthrottle = gtkwin_unthrottle,
 };
 
 void new_session_window(Conf *conf, const char *geometry_string)

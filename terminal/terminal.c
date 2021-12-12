@@ -98,7 +98,7 @@ static void deselect(Terminal *);
 static void term_print_finish(Terminal *);
 static void scroll(Terminal *, int, int, int, bool);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
-static void term_added_data(Terminal *term);
+static void term_added_data(Terminal *term, bool);
 static void term_update_raw_mouse_mode(Terminal *term);
 static void term_out_cb(void *);
 
@@ -3491,7 +3491,7 @@ static inline void term_keyinput_internal(
         int true_len = len >= 0 ? len : strlen(buf);
 
         bufchain_add(&term->inbuf, buf, true_len);
-        term_added_data(term);
+        term_added_data(term, false);
     }
     if (interactive)
         term_bracketed_paste_stop(term);
@@ -3639,7 +3639,7 @@ unsigned long term_translate(
  * in-memory display. There's a big state machine in here to
  * process escape sequences...
  */
-static void term_out(Terminal *term)
+static void term_out(Terminal *term, bool called_from_term_data)
 {
     unsigned long c;
     int unget;
@@ -5589,6 +5589,9 @@ static void term_out(Terminal *term)
 
     bufchain_consume(&term->inbuf, nchars_used);
 
+    if (!called_from_term_data)
+        win_unthrottle(term->win, bufchain_size(&term->inbuf));
+
     term_print_flush(term);
     if (term->logflush && term->logctx)
         logflush(term->logctx);
@@ -5597,7 +5600,7 @@ static void term_out(Terminal *term)
 /* Wrapper on term_out with the right prototype to be a toplevel callback */
 void term_out_cb(void *ctx)
 {
-    term_out((Terminal *)ctx);
+    term_out((Terminal *)ctx, false);
 }
 
 /*
@@ -7292,7 +7295,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
      * should make sure to write any pending output if one has just
      * finished.
      */
-    term_out(term);
+    term_out(term, false);
     term_schedule_update(term);
 }
 
@@ -7605,15 +7608,15 @@ void term_lost_clipboard_ownership(Terminal *term, int clipboard)
      * should make sure to write any pending output if one has just
      * finished.
      */
-    term_out(term);
+    term_out(term, false);
 }
 
-static void term_added_data(Terminal *term)
+static void term_added_data(Terminal *term, bool called_from_term_data)
 {
     if (!term->in_term_out) {
         term->in_term_out = true;
         term_reset_cblink(term);
-        term_out(term);
+        term_out(term, called_from_term_data);
         term->in_term_out = false;
     }
 }
@@ -7621,28 +7624,8 @@ static void term_added_data(Terminal *term)
 size_t term_data(Terminal *term, const void *data, size_t len)
 {
     bufchain_add(&term->inbuf, data, len);
-    term_added_data(term);
-
-    /*
-     * term_out() always completely empties inbuf. Therefore,
-     * there's no reason at all to return anything other than zero
-     * from this function, because there _can't_ be a question of
-     * the remote side needing to wait until term_out() has cleared
-     * a backlog.
-     *
-     * This is a slightly suboptimal way to deal with SSH-2 - in
-     * principle, the window mechanism would allow us to continue
-     * to accept data on forwarded ports and X connections even
-     * while the terminal processing was going slowly - but we
-     * can't do the 100% right thing without moving the terminal
-     * processing into a separate thread, and that might hurt
-     * portability. So we manage stdout buffering the old SSH-1 way:
-     * if the terminal processing goes slowly, the whole SSH
-     * connection stops accepting data until it's ready.
-     *
-     * In practice, I can't imagine this causing serious trouble.
-     */
-    return 0;
+    term_added_data(term, true);
+    return bufchain_size(&term->inbuf);
 }
 
 void term_provide_logctx(Terminal *term, LogContext *logctx)

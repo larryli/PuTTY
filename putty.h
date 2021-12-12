@@ -1593,6 +1593,11 @@ struct TermWinVtable {
      * object, because that doesn't happen until term_init
      * returns. */
     void (*palette_get_overrides)(TermWin *, Terminal *);
+
+    /* Notify the front end that the terminal's buffer of unprocessed
+     * output has reduced. (Front ends will likely pass this straight
+     * on to backend_unthrottle.) */
+    void (*unthrottle)(TermWin *, size_t bufsize);
 };
 
 static inline bool win_setup_draw_ctx(TermWin *win)
@@ -1649,6 +1654,8 @@ static inline void win_palette_set(
 { win->vt->palette_set(win, start, ncolours, colours); }
 static inline void win_palette_get_overrides(TermWin *win, Terminal *term)
 { win->vt->palette_get_overrides(win, term); }
+static inline void win_unthrottle(TermWin *win, size_t size)
+{ win->vt->unthrottle(win, size); }
 
 /*
  * Global functions not specific to a connection instance.

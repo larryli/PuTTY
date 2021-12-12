@@ -259,6 +259,7 @@ static void wintw_move(TermWin *, int x, int y);
 static void wintw_set_zorder(TermWin *, bool top);
 static void wintw_palette_set(TermWin *, unsigned, unsigned, const rgb *);
 static void wintw_palette_get_overrides(TermWin *, Terminal *);
+static void wintw_unthrottle(TermWin *win, size_t bufsize);
 
 static const TermWinVtable windows_termwin_vt = {
     .setup_draw_ctx = wintw_setup_draw_ctx,
@@ -284,6 +285,7 @@ static const TermWinVtable windows_termwin_vt = {
     .set_zorder = wintw_set_zorder,
     .palette_set = wintw_palette_set,
     .palette_get_overrides = wintw_palette_get_overrides,
+    .unthrottle = wintw_unthrottle,
 };
 
 static TermWin wintw[1];
@@ -5772,6 +5774,12 @@ static size_t win_seat_output(Seat *seat, SeatOutputType type,
                               const void *data, size_t len)
 {
     return term_data(term, data, len);
+}
+
+static void wintw_unthrottle(TermWin *win, size_t bufsize)
+{
+    if (backend)
+        backend_unthrottle(backend, bufsize);
 }
 
 static bool win_seat_eof(Seat *seat)

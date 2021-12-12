@@ -91,6 +91,7 @@ static void fuzz_set_zorder(TermWin *tw, bool top) {}
 static void fuzz_palette_set(TermWin *tw, unsigned start, unsigned ncolours,
                              const rgb *colours) {}
 static void fuzz_palette_get_overrides(TermWin *tw, Terminal *term) {}
+static void fuzz_unthrottle(TermWin *tw, size_t size) {}
 
 static const TermWinVtable fuzz_termwin_vt = {
     .setup_draw_ctx = fuzz_setup_draw_ctx,
@@ -115,6 +116,7 @@ static const TermWinVtable fuzz_termwin_vt = {
     .set_zorder = fuzz_set_zorder,
     .palette_set = fuzz_palette_set,
     .palette_get_overrides = fuzz_palette_get_overrides,
+    .unthrottle = fuzz_unthrottle,
 };
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, bool interactive) {}
