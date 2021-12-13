@@ -2972,6 +2972,17 @@ static void term_update_raw_mouse_mode(Terminal *term)
     term_schedule_update(term);
 }
 
+static void term_request_resize(Terminal *term, int cols, int rows)
+{
+    if (term->cols == cols && term->rows == rows)
+        return;                        /* don't need to do anything */
+
+    term->win_resize_pending = true;
+    term->win_resize_pending_w = cols;
+    term->win_resize_pending_h = rows;
+    term_schedule_update(term);
+}
+
 /*
  * Toggle terminal mode `mode' to state `state'. (`query' indicates
  * whether the mode is a DEC private one or a normal one.)
@@ -2995,12 +3006,8 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             break;
           case 3:                      /* DECCOLM: 80/132 columns */
             deselect(term);
-            if (!term->no_remote_resize) {
-                term->win_resize_pending = true;
-                term->win_resize_pending_w = state ? 132 : 80;
-                term->win_resize_pending_h = term->rows;
-                term_schedule_update(term);
-            }
+            if (!term->no_remote_resize)
+                term_request_resize(term, state ? 132 : 80, term->rows);
             term->reset_132 = state;
             term->alt_t = term->marg_t = 0;
             term->alt_b = term->marg_b = term->rows - 1;
@@ -4015,12 +4022,8 @@ static void term_out(Terminal *term)
                     if (term->ldisc)   /* cause ldisc to notice changes */
                         ldisc_echoedit_update(term->ldisc);
                     if (term->reset_132) {
-                        if (!term->no_remote_resize) {
-                            term->win_resize_pending = true;
-                            term->win_resize_pending_w = 80;
-                            term->win_resize_pending_h = term->rows;
-                            term_schedule_update(term);
-                        }
+                        if (!term->no_remote_resize)
+                            term_request_resize(term, 80, term->rows);
                         term->reset_132 = false;
                     }
                     if (term->scroll_on_disp)
@@ -4655,13 +4658,8 @@ static void term_out(Terminal *term)
                             && (term->esc_args[0] < 1 ||
                                 term->esc_args[0] >= 24)) {
                             compatibility(VT340TEXT);
-                            if (!term->no_remote_resize) {
-                                term->win_resize_pending = true;
-                                term->win_resize_pending_w = term->cols;
-                                term->win_resize_pending_h =
-                                    def(term->esc_args[0], 24);
-                                term_schedule_update(term);
-                            }
+                            if (!term->no_remote_resize)
+                                term_request_resize(term, term->cols, 24);
                             deselect(term);
                         } else if (term->esc_nargs >= 1 &&
                                    term->esc_args[0] >= 1 &&
@@ -4719,14 +4717,12 @@ static void term_out(Terminal *term)
                               case 8:
                                 if (term->esc_nargs >= 3 &&
                                     !term->no_remote_resize) {
-                                    term->win_resize_pending = true;
-                                    term->win_resize_pending_w =
+                                    term_request_resize(
+                                        term,
                                         def(term->esc_args[2],
-                                            term->conf_width);
-                                    term->win_resize_pending_h =
+                                            term->conf_width),
                                         def(term->esc_args[1],
-                                            term->conf_height);
-                                    term_schedule_update(term);
+                                            term->conf_height));
                                 }
                                 break;
                               case 9:
@@ -4841,13 +4837,11 @@ static void term_out(Terminal *term)
                          */
                         compatibility(VT420);
                         if (term->esc_nargs == 1 && term->esc_args[0] > 0) {
-                            if (!term->no_remote_resize) {
-                                term->win_resize_pending = true;
-                                term->win_resize_pending_w = term->cols;
-                                term->win_resize_pending_h =
-                                    def(term->esc_args[0], term->conf_height);
-                                term_schedule_update(term);
-                            }
+                            if (!term->no_remote_resize)
+                                term_request_resize(
+                                    term,
+                                    term->cols,
+                                    def(term->esc_args[0], term->conf_height));
                             deselect(term);
                         }
                         break;
@@ -4859,13 +4853,11 @@ static void term_out(Terminal *term)
                          */
                         compatibility(VT340TEXT);
                         if (term->esc_nargs <= 1) {
-                            if (!term->no_remote_resize) {
-                                term->win_resize_pending = true;
-                                term->win_resize_pending_w =
-                                    def(term->esc_args[0], term->conf_width);
-                                term->win_resize_pending_h = term->rows;
-                                term_schedule_update(term);
-                            }
+                            if (!term->no_remote_resize)
+                                term_request_resize(
+                                    term,
+                                    def(term->esc_args[0], term->conf_width),
+                                    term->rows);
                             deselect(term);
                         }
                         break;
@@ -5070,13 +5062,10 @@ static void term_out(Terminal *term)
                          * Well we should do a soft reset at this point ...
                          */
                         if (!has_compat(VT420) && has_compat(VT100)) {
-                            if (!term->no_remote_resize) {
-                                term->win_resize_pending = true;
-                                term->win_resize_pending_w =
-                                    term->reset_132 ? 132 : 80;
-                                term->win_resize_pending_h = 24;
-                                term_schedule_update(term);
-                            }
+                            if (!term->no_remote_resize)
+                                term_request_resize(term,
+                                                    term->reset_132 ? 132 : 80,
+                                                    24);
                         }
 #endif
                         break;
