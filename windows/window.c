@@ -1590,6 +1590,8 @@ static void deinit_fonts(void)
     trust_icon = INVALID_HANDLE_VALUE;
 }
 
+static bool sent_term_size; /* only live during wintw_request_resize() */
+
 static void wintw_request_resize(TermWin *tw, int w, int h)
 {
     const struct BackendVtable *vt;
@@ -1635,7 +1637,18 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
         }
     }
 
-    term_size(term, h, w, conf_get_int(conf, CONF_savelines));
+    /*
+     * We want to send exactly one term_size() to the terminal,
+     * telling it what size it ended up after this operation.
+     *
+     * If we don't get the size we asked for in SetWindowPos, then
+     * we'll be sent a WM_SIZE message, whose handler will make that
+     * call, all before SetWindowPos even returns to here.
+     *
+     * But if that _didn't_ happen, we'll need to call term_size
+     * ourselves afterwards.
+     */
+    sent_term_size = false;
 
     if (conf_get_int(conf, CONF_resize_action) != RESIZE_FONT &&
         !IsZoomed(wgs.term_hwnd)) {
@@ -1647,6 +1660,9 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
             SWP_NOMOVE | SWP_NOZORDER);
     } else
         reset_window(0);
+
+    if (!sent_term_size)
+        term_size(term, h, w, conf_get_int(conf, CONF_savelines));
 
     InvalidateRect(wgs.term_hwnd, NULL, true);
 }
@@ -2088,6 +2104,11 @@ static void wm_size_resize_term(LPARAM lParam, bool border)
     } else {
         term_size(term, h, w,
                   conf_get_int(conf, CONF_savelines));
+        /* If this is happening re-entrantly during the call to
+         * SetWindowPos in wintw_request_resize, let it know that
+         * we've already done a term_size() so that it doesn't have
+         * to. */
+        sent_term_size = true;
     }
 }
 
