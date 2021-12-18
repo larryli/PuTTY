@@ -2454,6 +2454,51 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 
+#if GTK_CHECK_VERSION(2,0,0)
+    /*
+     * Initial check: don't even try to resize a window if it's in one
+     * of the states that make that impossible. This includes being
+     * maximised; being full-screen (if we ever implement that); or
+     * being in various tiled states.
+     *
+     * On X11, the effect of trying to resize the window when it can't
+     * be resized should be that the window manager sends us a
+     * synthetic ConfigureNotify event restating our existing size
+     * (ICCCM section 4.1.5 "Configuring the Window"). That's awkward
+     * to deal with, but not impossible; so for X11 alone, we might
+     * not bother with this check.
+     *
+     * (In any case, X11 has other reasons why a window resize might
+     * be rejected, which this enumeration can't be aware of in any
+     * case. For example, if your window manager is a tiling one, then
+     * all your windows are _de facto_ tiled, but not _de jure_ in a
+     * way that GDK will know about. So we have to handle those
+     * synthetic ConfigureNotifies in any case.)
+     *
+     * On Wayland, as of GTK 3.24.20, the effects are much worse: it
+     * looks to me as if GTK stops ever sending us "draw" events, or
+     * even a size_allocate, so the display locks up completely until
+     * you toggle the maximised state of the window by some other
+     * means. So it's worth checking!
+     */
+    GdkWindow *gdkwin = gtk_widget_get_window(inst->window);
+    if (gdkwin) {
+        GdkWindowState state = gdk_window_get_state(gdkwin);
+        if (state & (GDK_WINDOW_STATE_MAXIMIZED |
+                     GDK_WINDOW_STATE_FULLSCREEN |
+#if GTK_CHECK_VERSION(3,0,0)
+                     GDK_WINDOW_STATE_TILED |
+                     GDK_WINDOW_STATE_TOP_TILED |
+                     GDK_WINDOW_STATE_RIGHT_TILED |
+                     GDK_WINDOW_STATE_BOTTOM_TILED |
+                     GDK_WINDOW_STATE_LEFT_TILED |
+#endif
+                     0)) {
+            return;
+        }
+    }
+#endif
+
 #if !GTK_CHECK_VERSION(3,0,0)
 
     int large_x, large_y;
