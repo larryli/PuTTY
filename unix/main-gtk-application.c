@@ -84,21 +84,8 @@ char *x_get_default(const char *key) { return NULL; }
 const bool buildinfo_gtk_relevant = true;
 
 #if !GTK_CHECK_VERSION(3,0,0)
-/* This front end only works in GTK 3. If that's not what we've got,
- * it's easier to just turn this program into a trivial stub by ifdef
- * in the source than it is to remove it in the makefile edifice. */
-int main(int argc, char **argv)
-{
-    fprintf(stderr, "GtkApplication frontend doesn't work pre-GTK3\n");
-    return 1;
-}
-GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend) { return NULL; }
-void launch_duplicate_session(Conf *conf) {}
-void launch_new_session(void) {}
-void launch_saved_session(const char *str) {}
-void session_window_closed(void) {}
-void window_setup_error(const char *errmsg) {}
-#else /* GTK_CHECK_VERSION(3,0,0) */
+#error This front end only works in GTK 3
+#endif
 
 static void startup(GApplication *app, gpointer user_data)
 {
@@ -336,5 +323,3 @@ int main(int argc, char **argv)
 
     return status;
 }
-
-#endif /* GTK_CHECK_VERSION(3,0,0) */

@@ -155,17 +155,19 @@ if(GTK_FOUND)
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
   installed_program(pterm)
 
-  add_executable(ptermapp
-    pterm.c
-    main-gtk-application.c
-    ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c
-    ${CMAKE_SOURCE_DIR}/stubs/nogss.c
-    ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
-    pty.c)
-  be_list(ptermapp pterm)
-  target_link_libraries(ptermapp
-    guiterminal eventloop settings charset utils
-    ${GTK_LIBRARIES} ${X11_LIBRARIES})
+  if(GTK_VERSION GREATER_EQUAL 3)
+    add_executable(ptermapp
+      pterm.c
+      main-gtk-application.c
+      ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c
+      ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+      ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
+      pty.c)
+    be_list(ptermapp pterm)
+    target_link_libraries(ptermapp
+      guiterminal eventloop settings charset utils
+      ${GTK_LIBRARIES} ${X11_LIBRARIES})
+  endif()
 
   add_executable(putty
     putty.c
@@ -179,15 +181,17 @@ if(GTK_FOUND)
     PROPERTIES LINK_INTERFACE_MULTIPLICITY 2)
   installed_program(putty)
 
-  add_executable(puttyapp
-    putty.c
-    main-gtk-application.c
-    ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c)
-  be_list(puttyapp PuTTY SSH SERIAL OTHERBACKENDS)
-  target_link_libraries(puttyapp
-    guiterminal eventloop sshclient otherbackends settings
-    network crypto charset utils
-    ${GTK_LIBRARIES} ${X11_LIBRARIES})
+  if(GTK_VERSION GREATER_EQUAL 3)
+    add_executable(puttyapp
+      putty.c
+      main-gtk-application.c
+      ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c)
+    be_list(puttyapp PuTTY SSH SERIAL OTHERBACKENDS)
+    target_link_libraries(puttyapp
+      guiterminal eventloop sshclient otherbackends settings
+      network crypto charset utils
+      ${GTK_LIBRARIES} ${X11_LIBRARIES})
+  endif()
 
   add_executable(puttytel
     putty.c
