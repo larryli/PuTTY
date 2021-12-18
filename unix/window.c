@@ -651,12 +651,13 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void window_state_event(GtkWidget *widget, GdkEventWindowState *event,
-                               gpointer user_data)
+static gboolean window_state_event(
+    GtkWidget *widget, GdkEventWindowState *event, gpointer user_data)
 {
     GtkFrontend *inst = (GtkFrontend *)user_data;
     term_notify_minimised(
         inst->term, event->new_window_state & GDK_WINDOW_STATE_ICONIFIED);
+    return false;
 }
 #endif
 
