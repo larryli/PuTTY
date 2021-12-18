@@ -3626,8 +3626,8 @@ static void term_out(Terminal *term)
 {
     unsigned long c;
     int unget;
-    unsigned char localbuf[256], *chars;
-    size_t nchars = 0;
+    const unsigned char *chars;
+    size_t nchars_got = 0, nchars_used = 0;
 
     /*
      * During drag-selects, we do not process terminal input, because
@@ -3639,21 +3639,36 @@ static void term_out(Terminal *term)
     unget = -1;
 
     chars = NULL;                      /* placate compiler warnings */
-    while (nchars > 0 || unget != -1 || bufchain_size(&term->inbuf) > 0) {
-        if (unget == -1) {
-            if (nchars == 0) {
+    while (nchars_got < nchars_used ||
+           unget != -1 ||
+           bufchain_size(&term->inbuf) > 0) {
+        if (unget != -1) {
+            /*
+             * Handle a character we left in 'unget' the last time
+             * round this loop. This happens if a UTF-8 sequence is
+             * aborted early, by containing fewer continuation bytes
+             * than its introducer expected: the non-continuation byte
+             * that interrupted the sequence must now be processed
+             * as a fresh piece of input in its own right.
+             */
+            c = unget;
+            unget = -1;
+        } else {
+            if (nchars_got == nchars_used) {
+                /* Delete the previous chunk from the bufchain */
+                bufchain_consume(&term->inbuf, nchars_used);
+                nchars_used = 0;
+
+                if (bufchain_size(&term->inbuf) == 0)
+                    break;             /* no more data */
+
                 ptrlen data = bufchain_prefix(&term->inbuf);
-                if (data.len > sizeof(localbuf))
-                    data.len = sizeof(localbuf);
-                memcpy(localbuf, data.ptr, data.len);
-                bufchain_consume(&term->inbuf, data.len);
-                nchars = data.len;
-                chars = localbuf;
+                chars = data.ptr;
+                nchars_got = data.len;
                 assert(chars != NULL);
-                assert(nchars > 0);
+                assert(nchars_used < nchars_got);
             }
-            c = *chars++;
-            nchars--;
+            c = chars[nchars_used++];
 
             /*
              * Optionally log the session traffic to a file. Useful for
@@ -3661,9 +3676,6 @@ static void term_out(Terminal *term)
              */
             if (term->logtype == LGTYP_DEBUG && term->logctx)
                 logtraffic(term->logctx, (unsigned char) c, LGTYP_DEBUG);
-        } else {
-            c = unget;
-            unget = -1;
         }
 
         /* Note only VT220+ are 8-bit VT102 is seven bit, it shouldn't even
@@ -5534,6 +5546,8 @@ static void term_out(Terminal *term)
             check_selection(term, term->curs, cursplus);
         }
     }
+
+    bufchain_consume(&term->inbuf, nchars_used);
 
     term_print_flush(term);
     if (term->logflush && term->logctx)
