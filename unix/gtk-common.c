@@ -86,6 +86,8 @@ gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
     if (condition & G_IO_OUT)
         select_result(sourcefd, SELECT_W);
 
+    run_toplevel_callbacks();
+
     return true;
 }
 #else
@@ -97,6 +99,8 @@ void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
         select_result(sourcefd, SELECT_R);
     if (condition & GDK_INPUT_WRITE)
         select_result(sourcefd, SELECT_W);
+
+    run_toplevel_callbacks();
 }
 #endif
 
