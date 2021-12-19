@@ -89,6 +89,7 @@ struct GtkFrontend {
     gboolean sbar_visible;
     gboolean drawing_area_got_size, drawing_area_realised;
     gboolean drawing_area_setup_needed;
+    bool drawing_area_setup_called;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
@@ -700,7 +701,6 @@ static void draw_backing_rect(GtkFrontend *inst);
 static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 {
     int w, h, new_scale;
-    bool need_size = false;
 
     /*
      * See if the terminal size has changed.
@@ -716,11 +716,7 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
         conf_set_int(inst->conf, CONF_width, inst->width);
         conf_set_int(inst->conf, CONF_height, inst->height);
         /*
-         * We'll need to tell terminal.c about the resize below.
-         */
-        need_size = true;
-        /*
-         * And we must refresh the window's backing image.
+         * We must refresh the window's backing image.
          */
         inst->drawing_area_setup_needed = true;
     }
@@ -742,10 +738,23 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
         inst->drawing_area_setup_needed = true;
 
     /*
-     * This event might be spurious; some GTK setups have been known
-     * to call it when nothing at all has changed. Check if we have
-     * any reason to proceed.
+     * GTK will sometimes send us configure events when nothing about
+     * the window size has actually changed. In some situations this
+     * can happen quite often, so it's a worthwhile optimisation to
+     * detect that situation and avoid the expensive reinitialisation
+     * of the backing surface / image, and so on.
+     *
+     * However, we must still communicate to the terminal that we
+     * received a resize event, because sometimes a trivial resize
+     * event (to the same size we already were) is a signal from the
+     * window system that a _nontrivial_ resize we recently asked for
+     * has failed to happen.
      */
+
+    inst->drawing_area_setup_called = true;
+    if (inst->term)
+        term_size(inst->term, h, w, conf_get_int(inst->conf, CONF_savelines));
+
     if (!inst->drawing_area_setup_needed)
         return;
 
@@ -776,10 +785,6 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 
     draw_backing_rect(inst);
 
-    if (need_size && inst->term) {
-        term_size(inst->term, h, w, conf_get_int(inst->conf, CONF_savelines));
-    }
-
     if (inst->term)
         term_invalidate(inst->term);
 
@@ -804,6 +809,14 @@ static void drawing_area_setup_simple(GtkFrontend *inst)
     GtkAllocation alloc = inst->area->allocation;
 #endif
     drawing_area_setup(inst, alloc.width, alloc.height);
+}
+
+static void drawing_area_setup_cb(void *vctx)
+{
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+
+    if (!inst->drawing_area_setup_called)
+        drawing_area_setup_simple(inst);
 }
 
 static void area_realised(GtkWidget *widget, GtkFrontend *inst)
@@ -844,6 +857,10 @@ static gboolean window_configured(
         term_notify_window_pos(inst->term, event->x, event->y);
         term_notify_window_size_pixels(
             inst->term, event->width, event->height);
+        if (inst->drawing_area_realised && inst->drawing_area_got_size) {
+            inst->drawing_area_setup_called = false;
+            queue_toplevel_callback(drawing_area_setup_cb, inst);
+        }
     }
     return false;
 }
@@ -2450,6 +2467,14 @@ static void compute_whole_window_size(GtkFrontend *inst,
                                       int *wpix, int *hpix);
 #endif
 
+static void gtkwin_deny_term_resize(void *vctx)
+{
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+    if (inst->term)
+        term_size(inst->term, inst->term->rows, inst->term->cols,
+                  inst->term->savelines);
+}
+
 static void gtkwin_request_resize(TermWin *tw, int w, int h)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
@@ -2494,6 +2519,7 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
                      GDK_WINDOW_STATE_LEFT_TILED |
 #endif
                      0)) {
+            queue_toplevel_callback(gtkwin_deny_term_resize, inst);
             return;
         }
     }
