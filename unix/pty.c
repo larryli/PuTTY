@@ -73,6 +73,7 @@ struct Pty {
     int master_i, master_o, master_e;
 
     Seat *seat;
+    size_t output_backlog;
     char name[FILENAME_MAX];
     pid_t child_pid;
     int term_width, term_height;
@@ -82,6 +83,8 @@ struct Pty {
     bool pending_eof;
     Backend backend;
 };
+
+#define PTY_MAX_BACKLOG 32768
 
 /*
  * We store all the (active) PtyFd structures in a tree sorted by fd,
@@ -589,6 +592,7 @@ void pty_pre_init(void)
 }
 
 static void pty_try_wait(void);
+static void pty_uxsel_setup(Pty *pty);
 
 static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 {
@@ -673,7 +677,9 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
                 perror("read pty master");
                 exit(1);
             } else if (ret > 0) {
-                seat_output(pty->seat, !is_stdout, buf, ret);
+                pty->output_backlog = seat_output(
+                    pty->seat, !is_stdout, buf, ret);
+                pty_uxsel_setup(pty);
             }
         } else if (event == SELECT_W) {
             /*
@@ -775,8 +781,10 @@ static void pty_uxsel_setup_fd(Pty *pty, int fd)
     if (fd < 0)
         return;
 
-    /* read from standard output and standard error pipes */
-    if (pty->master_o == fd || pty->master_e == fd)
+    /* read from standard output and standard error pipes, assuming
+     * we're not too backlogged */
+    if ((pty->master_o == fd || pty->master_e == fd) &&
+        pty->output_backlog < PTY_MAX_BACKLOG)
         rwx |= SELECT_R;
     /* write to standard input pipe if we have any data */
     if (pty->master_i == fd && bufchain_size(&pty->output_data))
@@ -1514,8 +1522,9 @@ static bool pty_sendok(Backend *be)
 
 static void pty_unthrottle(Backend *be, size_t backlog)
 {
-    /* Pty *pty = container_of(be, Pty, backend); */
-    /* do nothing */
+    Pty *pty = container_of(be, Pty, backend);
+    pty->output_backlog = backlog;
+    pty_uxsel_setup(pty);
 }
 
 static bool pty_ldisc(Backend *be, int option)
