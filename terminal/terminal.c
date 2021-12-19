@@ -100,6 +100,7 @@ static void scroll(Terminal *, int, int, int, bool);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
 static void term_added_data(Terminal *term);
 static void term_update_raw_mouse_mode(Terminal *term);
+static void term_out_cb(void *);
 
 static termline *newtermline(Terminal *term, int cols, bool bce)
 {
@@ -1219,6 +1220,12 @@ static void term_timer(void *ctx, unsigned long now)
 
     if (term->window_update_pending)
         term_update_callback(term);
+
+    if (term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY &&
+        now == term->win_resize_timeout) {
+        term->win_resize_pending = WIN_RESIZE_NO;
+        queue_toplevel_callback(term_out_cb, term);
+    }
 }
 
 static void term_update_callback(void *ctx)
@@ -1415,10 +1422,12 @@ void term_update(Terminal *term)
                  term->win_move_pending_y);
         term->win_move_pending = false;
     }
-    if (term->win_resize_pending) {
+    if (term->win_resize_pending == WIN_RESIZE_NEED_SEND) {
+        term->win_resize_pending = WIN_RESIZE_AWAIT_REPLY;
         win_request_resize(term->win, term->win_resize_pending_w,
                            term->win_resize_pending_h);
-        term->win_resize_pending = false;
+        term->win_resize_timeout = schedule_timer(
+            WIN_RESIZE_TIMEOUT, term_timer, term);
     }
     if (term->win_zorder_pending) {
         win_set_zorder(term->win, term->win_zorder_top);
@@ -2043,7 +2052,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->winpixsize_x = term->winpixsize_y = 0;
 
     term->win_move_pending = false;
-    term->win_resize_pending = false;
+    term->win_resize_pending = WIN_RESIZE_NO;
     term->win_zorder_pending = false;
     term->win_minimise_pending = false;
     term->win_maximise_pending = false;
@@ -2141,6 +2150,14 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     int i, j, oldrows = term->rows;
     int sblen;
     int save_alt_which = term->alt_which;
+
+    /* If we were holding buffered terminal data because we were
+     * waiting for confirmation of a resize, queue a callback to start
+     * processing it again. */
+    if (term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY) {
+        term->win_resize_pending = WIN_RESIZE_NO;
+        queue_toplevel_callback(term_out_cb, term);
+    }
 
     if (newrows == term->rows && newcols == term->cols &&
         newsavelines == term->savelines)
@@ -2977,7 +2994,7 @@ static void term_request_resize(Terminal *term, int cols, int rows)
     if (term->cols == cols && term->rows == rows)
         return;                        /* don't need to do anything */
 
-    term->win_resize_pending = true;
+    term->win_resize_pending = WIN_RESIZE_NEED_SEND;
     term->win_resize_pending_w = cols;
     term->win_resize_pending_h = rows;
     term_schedule_update(term);
@@ -3654,6 +3671,29 @@ static void term_out(Terminal *term)
             c = unget;
             unget = -1;
         } else {
+            /*
+             * If we're waiting for a terminal resize triggered by an
+             * escape sequence, we defer processing the terminal
+             * output until we receive acknowledgment from the front
+             * end that the resize has happened, so that further
+             * output will be processed in the context of the new
+             * size.
+             *
+             * This test goes inside the main while-loop, so that we
+             * exit early if we encounter a resize escape sequence
+             * part way through term->inbuf.
+             *
+             * It's also in the branch of this if statement that
+             * doesn't deal with a character left in 'unget' by the
+             * previous loop iteration, because if we break out of
+             * this loop with an ungot character still pending, we'll
+             * lose it. (And in any case, if the previous thing that
+             * happened was a truncated UTF-8 sequence, then it won't
+             * have scheduled a pending resize.)
+             */
+            if (term->win_resize_pending != WIN_RESIZE_NO)
+                break;
+
             if (nchars_got == nchars_used) {
                 /* Delete the previous chunk from the bufchain */
                 bufchain_consume(&term->inbuf, nchars_used);
@@ -5552,6 +5592,12 @@ static void term_out(Terminal *term)
     term_print_flush(term);
     if (term->logflush && term->logctx)
         logflush(term->logctx);
+}
+
+/* Wrapper on term_out with the right prototype to be a toplevel callback */
+void term_out_cb(void *ctx)
+{
+    term_out((Terminal *)ctx);
 }
 
 /*

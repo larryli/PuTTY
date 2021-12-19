@@ -381,8 +381,6 @@ struct terminal_tag {
      */
     bool win_move_pending;
     int win_move_pending_x, win_move_pending_y;
-    bool win_resize_pending;
-    int win_resize_pending_w, win_resize_pending_h;
     bool win_zorder_pending;
     bool win_zorder_top;
     bool win_minimise_pending;
@@ -396,6 +394,57 @@ struct terminal_tag {
     bool win_scrollbar_update_pending;
     bool win_palette_pending;
     unsigned win_palette_pending_min, win_palette_pending_limit;
+
+    /*
+     * Unlike the rest of the above 'pending' flags, the one for
+     * window resizing has to be more complicated, because it's very
+     * likely that a server sending a window-resize escape sequence is
+     * going to follow it up immediately with further terminal output
+     * that draws a full-screen application expecting the terminal to
+     * be the new size.
+     *
+     * So, once we've requested a window resize from the TermWin, we
+     * have to stop processing terminal data until we get back the
+     * notification that our window really has changed size (or until
+     * we find out that it's not going to).
+     *
+     * Hence, window resizes go through a small state machine with two
+     * different kinds of 'pending'. NEED_SEND is the state where
+     * we've received an escape sequence asking for a new size but not
+     * yet sent it to the TermWin via win_request_resize; AWAIT_REPLY
+     * is the state where we've sent it to the TermWin and are
+     * expecting a call back to term_size().
+     *
+     * So _both_ of those 'pending' states inhibit terminal output
+     * processing.
+     *
+     * (Hence, once we're in either state, we should never handle
+     * another resize sequence, so the only possible path through this
+     * state machine is to get all the way back to the ground state
+     * before doing anything else interesting.)
+     */
+    enum {
+        WIN_RESIZE_NO, WIN_RESIZE_NEED_SEND, WIN_RESIZE_AWAIT_REPLY
+    } win_resize_pending;
+    int win_resize_pending_w, win_resize_pending_h;
+
+    /*
+     * Not every frontend / TermWin implementation can be relied on
+     * 100% to reply to a resize request in a timely manner. (In X11
+     * it's all asynchronous and goes via the window manager, and if
+     * your window manager is seriously unwell, you'd rather not have
+     * terminal windows start becoming unusable as a knock-on effect,
+     * since those are just the thing you might need to use for
+     * emergency WM maintenance!) So when we enter AWAIT_REPLY status,
+     * we also set a 5-second timer, after which we'll regretfully
+     * conclude that a resize is probably not going to happen after
+     * all.
+     *
+     * However, in non-emergency cases, the plan is that this
+     * shouldn't be needed, for one reason or another.
+     */
+    long win_resize_timeout;
+    #define WIN_RESIZE_TIMEOUT (TICKSPERSEC*5)
 };
 
 static inline bool in_utf(Terminal *term)
