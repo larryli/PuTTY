@@ -4500,8 +4500,8 @@ void set_geom_hints(GtkFrontend *inst)
     if (vt && vt->flags & BACKEND_RESIZE_FORBIDDEN) {
         /* Window resizing forbidden.  Set both minimum and maximum
          * dimensions to be the initial size. */
-        geom.min_width = inst->width*inst->font_width + 2*inst->window_border;
-        geom.min_height = inst->height*inst->font_height + 2*inst->window_border;
+        geom.min_width = geom.base_width + geom.width_inc * inst->width;
+        geom.min_height = geom.base_height + geom.height_inc * inst->height;
         geom.max_width = geom.min_width;
         geom.max_height = geom.min_height;
         flags |= GDK_HINT_MAX_SIZE;
