@@ -4488,6 +4488,35 @@ static void compute_geom_hints(GtkFrontend *inst, GdkGeometry *geom)
 
 void set_geom_hints(GtkFrontend *inst)
 {
+    /*
+     * 2021-12-20: I've found that on Ubuntu 20.04 Wayland (using GTK
+     * 3.24.20), setting geometry hints causes the window size to come
+     * out wrong. As far as I can tell, that's because the GDK Wayland
+     * backend internally considers windows to be a lot larger than
+     * their obvious display size (*even* considering visible window
+     * furniture like title bars), with an extra margin on every side
+     * to account for surrounding effects like shadows. And the
+     * geometry hints like base size and resize increment are applied
+     * to that larger size rather than the more obvious 'client area'
+     * size. So when we ask for a window of exactly the size we want,
+     * it gets modified by GDK based on the geometry hints, but
+     * applying this extra margin, which causes the size to be a
+     * little bit too small.
+     *
+     * I don't know how you can sensibly find out the size of that
+     * margin. If I did, I could account for it in the geometry hints.
+     * But I also see that gtk_window_set_geometry_hints is removed in
+     * GTK 4, which suggests that probably doing a lot of hard work to
+     * fix this is not the way forward.
+     *
+     * So instead, I simply avoid setting geometry hints at all on any
+     * GDK backend other than X11, and hopefully that's a workaround.
+     */
+#if GTK_CHECK_VERSION(3,0,0)
+    if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
+        return;
+#endif
+
     const struct BackendVtable *vt;
     GdkGeometry geom;
     gint flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
@@ -5271,6 +5300,14 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
         }
     }
+
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+        const BackendVtable *vt = select_backend(inst->conf);
+        if (vt && vt->flags & BACKEND_RESIZE_FORBIDDEN)
+            gtk_window_set_resizable(GTK_WINDOW(inst->window), false);
+    }
+#endif
 
     inst->width = conf_get_int(inst->conf, CONF_width);
     inst->height = conf_get_int(inst->conf, CONF_height);
