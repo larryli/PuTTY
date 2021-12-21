@@ -336,25 +336,8 @@ static void proxy_telnet_process_queue(ProxyNegotiator *pn)
             pn->ps->remote_addr, pn->ps->remote_port, s->conf, NULL);
 
         strbuf *logmsg = strbuf_new();
-        const char *in;
-
         put_datapl(logmsg, PTRLEN_LITERAL("Sending Telnet proxy command: "));
-
-        for (in = censored_cmd; *in; in++) {
-            if (*in == '\n') {
-                put_datapl(logmsg, PTRLEN_LITERAL("\\n"));
-            } else if (*in == '\r') {
-                put_datapl(logmsg, PTRLEN_LITERAL("\\r"));
-            } else if (*in == '\t') {
-                put_datapl(logmsg, PTRLEN_LITERAL("\\t"));
-            } else if (*in == '\\') {
-                put_datapl(logmsg, PTRLEN_LITERAL("\\\\"));
-            } else if (0x20 <= *in && *in < 0x7F) {
-                put_byte(logmsg, *in);
-            } else {
-                put_fmt(logmsg, "\\x%02X", (unsigned)*in & 0xFF);
-            }
-        }
+        put_c_string_literal(logmsg, ptrlen_from_asciz(censored_cmd));
 
         plug_log(pn->ps->plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg->s, 0);
         strbuf_free(logmsg);

@@ -1,31 +1,39 @@
 /*
- * Write data to a file in the form of a C string literal, with any
- * non-printable-ASCII character escaped appropriately.
+ * Write data to a file or BinarySink in the form of a C string
+ * literal, with any non-printable-ASCII character escaped
+ * appropriately.
  */
 
 #include "defs.h"
 #include "misc.h"
 
-void write_c_string_literal(FILE *fp, ptrlen str)
+void BinarySink_put_c_string_literal(BinarySink *bs, ptrlen str)
 {
     for (const char *p = str.ptr; p < (const char *)str.ptr + str.len; p++) {
         char c = *p;
 
         if (c == '\n')
-            fputs("\\n", fp);
+            put_datalit(bs, "\\n");
         else if (c == '\r')
-            fputs("\\r", fp);
+            put_datalit(bs, "\\r");
         else if (c == '\t')
-            fputs("\\t", fp);
+            put_datalit(bs, "\\t");
         else if (c == '\b')
-            fputs("\\b", fp);
+            put_datalit(bs, "\\b");
         else if (c == '\\')
-            fputs("\\\\", fp);
+            put_datalit(bs, "\\\\");
         else if (c == '"')
-            fputs("\\\"", fp);
+            put_datalit(bs, "\\\"");
         else if (c >= 32 && c <= 126)
-            fputc(c, fp);
+            put_byte(bs, c);
         else
-            fprintf(fp, "\\%03o", (unsigned char)c);
+            put_fmt(bs, "\\%03o", (unsigned)c & 0xFFU);
     }
+}
+
+void write_c_string_literal(FILE *fp, ptrlen str)
+{
+    stdio_sink s;
+    stdio_sink_init(&s, fp);
+    put_c_string_literal(&s, str);
 }

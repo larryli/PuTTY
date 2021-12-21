@@ -152,6 +152,10 @@ struct BinarySink {
 #define put_fmtv(bs, fmt, ap) \
     BinarySink_put_fmtv(BinarySink_UPCAST(bs), fmt, ap)
 
+/* More complicated function implemented in write_c_string_literal.c */
+#define put_c_string_literal(bs, str) \
+    BinarySink_put_c_string_literal(BinarySink_UPCAST(bs), str)
+
 /*
  * The underlying real C functions that implement most of those
  * macros. Generally you won't want to call these directly, because
@@ -180,6 +184,7 @@ void BinarySink_put_mp_ssh1(BinarySink *bs, mp_int *x);
 void BinarySink_put_mp_ssh2(BinarySink *bs, mp_int *x);
 void BinarySink_put_fmt(BinarySink *, const char *fmt, ...) PRINTF_LIKE(2, 3);
 void BinarySink_put_fmtv(BinarySink *, const char *fmt, va_list ap);
+void BinarySink_put_c_string_literal(BinarySink *, ptrlen);
 
 /* ---------------------------------------------------------------------- */
 
