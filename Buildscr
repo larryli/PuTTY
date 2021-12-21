@@ -126,6 +126,9 @@ in . do mkdir docbuild
 in docbuild do cmake ../putty/doc
 in docbuild do make -j$(nproc) VERBOSE=1
 in putty/doc do cp ../../docbuild/*.1 .
+in putty/doc do cp ../../docbuild/puttydoc.txt .
+in putty/doc do cp ../../docbuild/putty.chm .
+in putty/doc do cp -r ../../docbuild/html .
 
 in putty do ./mksrcarc.sh
 in putty do ./mkunxarc.sh '$(Uxarcsuffix)'
