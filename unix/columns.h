@@ -30,6 +30,7 @@ struct Columns_tag {
     /* private after here */
     GList *children;                   /* this holds ColumnsChild structures */
     GList *taborder;                   /* this just holds GtkWidgets */
+    ColumnsChild *vexpand;
     gint spacing;
 };
 
@@ -57,6 +58,7 @@ void columns_add(Columns *cols, GtkWidget *child,
 void columns_taborder_last(Columns *cols, GtkWidget *child);
 void columns_force_left_align(Columns *cols, GtkWidget *child);
 void columns_force_same_height(Columns *cols, GtkWidget *ch1, GtkWidget *ch2);
+void columns_vexpand(Columns *cols, GtkWidget *child);
 
 #ifdef __cplusplus
 }

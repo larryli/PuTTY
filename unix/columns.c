@@ -358,6 +358,9 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
                 gtk_widget_queue_resize(GTK_WIDGET(container));
         }
 
+        if (cols->vexpand == child)
+            cols->vexpand = NULL;
+
         g_free(child);
         if (was_visible)
             gtk_widget_queue_resize(GTK_WIDGET(container));
@@ -553,6 +556,18 @@ void columns_taborder_last(Columns *cols, GtkWidget *widget)
         cols->taborder = g_list_append(cols->taborder, widget);
         break;
     }
+}
+
+void columns_vexpand(Columns *cols, GtkWidget *widget)
+{
+    g_return_if_fail(cols != NULL);
+    g_return_if_fail(IS_COLUMNS(cols));
+    g_return_if_fail(widget != NULL);
+
+    ColumnsChild *child = columns_find_child(cols, widget);
+    g_return_if_fail(child != NULL);
+
+    cols->vexpand = child;
 }
 
 /*
@@ -873,7 +888,14 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
 {
     ColumnsChild *child;
     GList *children;
-    gint i, ncols, colspan, *colypos, realheight, fakeheight;
+    gint i, ncols, colspan, *colypos, realheight, fakeheight, vexpand_extra;
+
+    if (cols->vexpand) {
+        gint minheight = columns_compute_height(cols, get_height);
+        vexpand_extra = ourheight - minheight;
+    } else {
+        vexpand_extra = 0;
+    }
 
     ncols = 1;
     /* As in size_request, colypos is the lowest y reached in each column. */
@@ -900,7 +922,10 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
         if (!gtk_widget_get_visible(child->widget))
             continue;
 
-        realheight = fakeheight = get_height(child);
+        realheight = get_height(child);
+        if (child == cols->vexpand)
+            realheight += vexpand_extra;
+        fakeheight = realheight;
         if (child->same_height_as) {
             gint childheight2 = get_height(child->same_height_as);
             if (fakeheight < childheight2)

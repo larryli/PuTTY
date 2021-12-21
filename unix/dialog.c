@@ -4050,6 +4050,10 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
                                  "QUITE LONG 'COS SSH LOG ENTRIES ARE WIDE"),
                                 -1);
     our_dialog_add_to_content_area(GTK_WINDOW(window), w1, true, true, 0);
+    {
+        struct uctrl *uc = dlg_find_byctrl(&es->dp, es->listctrl);
+        columns_vexpand(COLUMNS(w1), uc->toplevel);
+    }
     gtk_widget_show(w1);
 
     es->dp.data = es;
