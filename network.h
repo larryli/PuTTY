@@ -195,7 +195,7 @@ SockAddr *name_lookup(const char *host, int port, char **canonicalname,
 Socket *platform_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
-                                Plug *plug, Conf *conf);
+                                Plug *plug, Conf *conf, Interactor *itr);
 
 /* callback for SSH jump-host proxying */
 Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,

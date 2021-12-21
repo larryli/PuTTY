@@ -17,7 +17,7 @@
 Socket *platform_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,
-                                Plug *plug, Conf *conf)
+                                Plug *plug, Conf *conf, Interactor *itr)
 {
     char *cmd;
 
