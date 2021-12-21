@@ -73,6 +73,9 @@ extern const bool http_digest_available;
  *  - algorithm to use for computing it (as a const ssh_hashalg *)
  *  - length to truncate the output to
  *  - whether we accept it in http.c or not.
+ *
+ * Finally, the ordering of the accepted hashes is our preference
+ * order among them if the server offers a choice.
  */
 #define HTTP_DIGEST_HASHES(X)                                           \
     X(HTTP_DIGEST_MD5, "MD5", &ssh_md5, 128, true)                      \
