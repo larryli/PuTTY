@@ -382,6 +382,9 @@ bool so_peercred(int fd, int *pid, int *uid, int *gid);
  */
 Socket *make_fd_socket(int infd, int outfd, int inerrfd,
                        SockAddr *addr, int port, Plug *plug);
+Socket *make_deferred_fd_socket(DeferredSocketOpener *opener,
+                                SockAddr *addr, int port, Plug *plug);
+void setup_fd_socket(Socket *s, int infd, int outfd, int inerrfd);
 
 /*
  * Default font setting, which can vary depending on NOT_X_WINDOWS.

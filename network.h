@@ -402,4 +402,31 @@ void psb_init(ProxyStderrBuf *psb);
 void log_proxy_stderr(
     Plug *plug, ProxyStderrBuf *psb, const void *vdata, size_t len);
 
+/* ----------------------------------------------------------------------
+ * The DeferredSocketOpener trait. This is a thing that some Socket
+ * implementations may choose to own if they need to delay actually
+ * setting up the underlying connection. For example, sockets used in
+ * local-proxy handling (Unix FdSocket / Windows HandleSocket) might
+ * need to do this if they have to prompt the user interactively for
+ * parts of the command they'll run.
+ *
+ * Mostly, a DeferredSocketOpener implementation will keep to itself,
+ * arrange its own callbacks in order to do whatever setup it needs,
+ * and when it's ready, call back to its parent Socket via some
+ * implementation-specific API of its own. So the shared API here
+ * requires almost nothing: the only thing we need is a free function,
+ * so that if the owner of a Socket of this kind needs to close it
+ * before the deferred connection process is finished, the Socket can
+ * also clean up the DeferredSocketOpener dangling off it.
+ */
+
+struct DeferredSocketOpener {
+    const DeferredSocketOpenerVtable *vt;
+};
+struct DeferredSocketOpenerVtable {
+    void (*free)(DeferredSocketOpener *);
+};
+static inline void deferred_socket_opener_free(DeferredSocketOpener *dso)
+{ dso->vt->free(dso); }
+
 #endif

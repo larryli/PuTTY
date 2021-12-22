@@ -339,6 +339,10 @@ extern HANDLE winselcli_event;
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
                            SockAddr *addr, int port, Plug *plug,
                            bool overlapped); /* winhsock */
+Socket *make_deferred_handle_socket(DeferredSocketOpener *opener,
+                                    SockAddr *addr, int port, Plug *plug);
+void setup_handle_socket(Socket *s, HANDLE send_H, HANDLE recv_H,
+                         HANDLE stderr_H, bool overlapped);
 Socket *new_named_pipe_client(const char *pipename, Plug *plug); /* winnpc */
 Socket *new_named_pipe_listener(const char *pipename, Plug *plug); /* winnps */
 
