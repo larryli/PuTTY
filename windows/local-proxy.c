@@ -12,29 +12,14 @@
 #include "network.h"
 #include "proxy/proxy.h"
 
-Socket *platform_new_connection(SockAddr *addr, const char *hostname,
-                                int port, bool privport,
-                                bool oobinline, bool nodelay, bool keepalive,
-                                Plug *plug, Conf *conf, Interactor *itr)
+char *platform_setup_local_proxy(Socket *socket, const char *cmd)
 {
-    char *cmd;
     HANDLE us_to_cmd, cmd_from_us;
     HANDLE us_from_cmd, cmd_to_us;
     HANDLE us_from_cmd_err, cmd_err_to_us;
     SECURITY_ATTRIBUTES sa;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
-
-    if (conf_get_int(conf, CONF_proxy_type) != PROXY_CMD)
-        return NULL;
-
-    cmd = format_telnet_command(addr, port, conf, NULL);
-
-    {
-        char *msg = dupprintf("Starting local proxy command: %s", cmd);
-        plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, msg, 0);
-        sfree(msg);
-    }
 
     /*
      * Create the pipes to the proxy command, and spawn the proxy
@@ -44,30 +29,24 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
     sa.lpSecurityDescriptor = NULL;    /* default */
     sa.bInheritHandle = true;
     if (!CreatePipe(&us_from_cmd, &cmd_to_us, &sa, 0)) {
-        sfree(cmd);
-        return new_error_socket_fmt(
-            plug, "Unable to create pipes for proxy command: %s",
-            win_strerror(GetLastError()));
+        return dupprintf("Unable to create pipes for proxy command: %s",
+                         win_strerror(GetLastError()));
     }
 
     if (!CreatePipe(&cmd_from_us, &us_to_cmd, &sa, 0)) {
-        sfree(cmd);
         CloseHandle(us_from_cmd);
         CloseHandle(cmd_to_us);
-        return new_error_socket_fmt(
-            plug, "Unable to create pipes for proxy command: %s",
-            win_strerror(GetLastError()));
+        return dupprintf("Unable to create pipes for proxy command: %s",
+                         win_strerror(GetLastError()));
     }
 
     if (!CreatePipe(&us_from_cmd_err, &cmd_err_to_us, &sa, 0)) {
-        sfree(cmd);
         CloseHandle(us_from_cmd);
         CloseHandle(cmd_to_us);
         CloseHandle(us_to_cmd);
         CloseHandle(cmd_from_us);
-        return new_error_socket_fmt(
-            plug, "Unable to create pipes for proxy command: %s",
-            win_strerror(GetLastError()));
+        return dupprintf("Unable to create pipes for proxy command: %s",
+                         win_strerror(GetLastError()));
     }
 
     SetHandleInformation(us_to_cmd, HANDLE_FLAG_INHERIT, 0);
@@ -85,13 +64,13 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
     si.hStdInput = cmd_from_us;
     si.hStdOutput = cmd_to_us;
     si.hStdError = cmd_err_to_us;
-    CreateProcess(NULL, cmd, NULL, NULL, true,
+    char *cmd_mutable = dupstr(cmd); /* CreateProcess needs non-const char * */
+    CreateProcess(NULL, cmd_mutable, NULL, NULL, true,
                   CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS,
                   NULL, NULL, &si, &pi);
+    sfree(cmd_mutable);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-
-    sfree(cmd);
 
     CloseHandle(cmd_from_us);
     CloseHandle(cmd_to_us);
@@ -99,6 +78,23 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
     if (cmd_err_to_us != NULL)
         CloseHandle(cmd_err_to_us);
 
-    return make_handle_socket(us_to_cmd, us_from_cmd, us_from_cmd_err,
-                              addr, port, plug, false);
+    setup_handle_socket(socket, us_to_cmd, us_from_cmd, us_from_cmd_err,
+                        false);
+
+    return NULL;
+}
+
+Socket *platform_new_connection(SockAddr *addr, const char *hostname,
+                                int port, bool privport,
+                                bool oobinline, bool nodelay, bool keepalive,
+                                Plug *plug, Conf *conf, Interactor *itr)
+{
+    if (conf_get_int(conf, CONF_proxy_type) != PROXY_CMD)
+        return NULL;
+
+    DeferredSocketOpener *opener = local_proxy_opener(
+        addr, port, plug, conf, itr);
+    Socket *socket = make_deferred_handle_socket(opener, addr, port, plug);
+    local_proxy_opener_set_socket(opener, socket);
+    return socket;
 }

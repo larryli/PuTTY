@@ -105,6 +105,12 @@ prompts_t *proxy_new_prompts(ProxySocket *ps);
 char *format_telnet_command(SockAddr *addr, int port, Conf *conf,
                             unsigned *flags_out);
 
+DeferredSocketOpener *local_proxy_opener(
+    SockAddr *addr, int port, Plug *plug, Conf *conf, Interactor *itr);
+void local_proxy_opener_set_socket(DeferredSocketOpener *opener,
+                                   Socket *socket);
+char *platform_setup_local_proxy(Socket *socket, const char *cmd);
+
 #include "cproxy.h"
 
 #endif

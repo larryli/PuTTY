@@ -39,6 +39,7 @@ add_library(network STATIC
   proxy/socks4.c
   proxy/socks5.c
   proxy/telnet.c
+  proxy/local.c
   proxy/interactor.c)
 
 add_library(keygen STATIC
