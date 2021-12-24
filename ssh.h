@@ -1413,8 +1413,7 @@ void aes256_decrypt_pubkey(const void *key, const void *iv,
 void des_encrypt_xdmauth(const void *key, void *blk, int len);
 void des_decrypt_xdmauth(const void *key, void *blk, int len);
 
-void openssh_bcrypt(const char *passphrase,
-                    const unsigned char *salt, int saltbytes,
+void openssh_bcrypt(ptrlen passphrase, ptrlen salt,
                     int rounds, unsigned char *out, int outbytes);
 
 /*

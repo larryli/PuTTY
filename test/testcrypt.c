@@ -1087,6 +1087,15 @@ strbuf *argon2_wrapper(Argon2Flavour flavour, uint32_t mem, uint32_t passes,
     return out;
 }
 
+strbuf *openssh_bcrypt_wrapper(ptrlen passphrase, ptrlen salt,
+                               unsigned rounds, unsigned outbytes)
+{
+    strbuf *out = strbuf_new();
+    openssh_bcrypt(passphrase, salt, rounds,
+                   strbuf_append(out, outbytes), outbytes);
+    return out;
+}
+
 strbuf *get_implementations_commasep(ptrlen alg)
 {
     strbuf *out = strbuf_new();

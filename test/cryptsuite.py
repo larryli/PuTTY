@@ -2106,6 +2106,20 @@ culpa qui officia deserunt mollit anim id est laborum.
                 "aeae2a21201eef5e347de22c922192e8f46274b0c9d33e965155a91e7686"
                 "9d530e"))
 
+    def testOpenSSHBcrypt(self):
+        # Test case created by making an OpenSSH private key file
+        # using their own ssh-keygen, then decrypting it successfully
+        # using PuTTYgen and printing the inputs and outputs to
+        # openssh_bcrypt in the process. So this output key is known
+        # to agree with OpenSSH's own answer.
+
+        self.assertEqualBin(
+            openssh_bcrypt('test passphrase',
+                           unhex('d0c3b40ace4afeaf8c0f81202ae36718'),
+                           16, 48),
+            unhex('d78ba86e7273de0e007ab0ba256646823d5c902bc44293ae'
+                  '78547e9a7f629be928cc78ff78a75a4feb7aa6f125079c7d'))
+
     def testRSAVerify(self):
         def blobs(n, e, d, p, q, iqmp):
             pubblob = ssh_string(b"ssh-rsa") + ssh2_mpint(e) + ssh2_mpint(n)

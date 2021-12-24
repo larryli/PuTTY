@@ -69,8 +69,7 @@ void bcrypt_genblock(int counter,
     smemclr(&hashed_salt, sizeof(hashed_salt));
 }
 
-void openssh_bcrypt(const char *passphrase,
-                    const unsigned char *salt, int saltbytes,
+void openssh_bcrypt(ptrlen passphrase, ptrlen salt,
                     int rounds, unsigned char *out, int outbytes)
 {
     unsigned char hashed_passphrase[64];
@@ -80,7 +79,7 @@ void openssh_bcrypt(const char *passphrase,
     int modulus, residue, i, j, round;
 
     /* Hash the passphrase to get the bcrypt key material */
-    hash_simple(&ssh_sha512, ptrlen_from_asciz(passphrase), hashed_passphrase);
+    hash_simple(&ssh_sha512, passphrase, hashed_passphrase);
 
     /* We output key bytes in a scattered fashion to meld all output
      * key blocks into all parts of the output. To do this, we pick a
@@ -97,8 +96,8 @@ void openssh_bcrypt(const char *passphrase,
          * by bcrypt in the following loop */
         memset(outblock, 0, sizeof(outblock));
 
-        thissalt = salt;
-        thissaltbytes = saltbytes;
+        thissalt = salt.ptr;
+        thissaltbytes = salt.len;
         for (round = 0; round < rounds; round++) {
             bcrypt_genblock(round == 0 ? residue+1 : 0,
                             hashed_passphrase,

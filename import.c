@@ -1363,9 +1363,8 @@ static ssh2_userkey *openssh_new_read(
             memset(keybuf, 0, keysize);
             break;
           case ON_K_BCRYPT:
-            openssh_bcrypt(passphrase,
-                           key->kdfopts.bcrypt.salt.ptr,
-                           key->kdfopts.bcrypt.salt.len,
+            openssh_bcrypt(ptrlen_from_asciz(passphrase),
+                           key->kdfopts.bcrypt.salt,
                            key->kdfopts.bcrypt.rounds,
                            keybuf, keysize);
             break;
@@ -1583,9 +1582,9 @@ static bool openssh_new_write(
             unsigned char keybuf[48];
             ssh_cipher *cipher;
 
-            openssh_bcrypt(passphrase,
-                           bcrypt_salt, sizeof(bcrypt_salt), bcrypt_rounds,
-                           keybuf, sizeof(keybuf));
+            openssh_bcrypt(ptrlen_from_asciz(passphrase),
+                           make_ptrlen(bcrypt_salt, sizeof(bcrypt_salt)),
+                           bcrypt_rounds, keybuf, sizeof(keybuf));
 
             cipher = ssh_cipher_new(&ssh_aes256_sdctr);
             ssh_cipher_setkey(cipher, keybuf);

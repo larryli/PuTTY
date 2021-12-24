@@ -447,6 +447,9 @@ FUNC_WRAPPED(val_string, argon2, ARG(argon2flavour, flavour), ARG(uint, mem),
              ARG(val_string_ptrlen, K), ARG(val_string_ptrlen, X))
 FUNC(val_string, argon2_long_hash, ARG(uint, length),
      ARG(val_string_ptrlen, data))
+FUNC_WRAPPED(val_string, openssh_bcrypt, ARG(val_string_ptrlen, passphrase),
+             ARG(val_string_ptrlen, salt), ARG(uint, rounds),
+             ARG(uint, outbytes))
 
 /*
  * Key generation functions.
