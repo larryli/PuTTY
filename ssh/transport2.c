@@ -1310,18 +1310,18 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
             }
         }
         if (betteralgs) {
-                /* Use the special warning prompt that lets us provide
-                 * a list of better algorithms */
-                s->dlgret = seat_confirm_weak_cached_hostkey(
-                    ppl_get_iseat(&s->ppl), s->hostkey_alg->ssh_id, betteralgs,
-                    ssh2_transport_dialog_callback, s);
+            /* Use the special warning prompt that lets us provide
+             * a list of better algorithms */
+            s->dlgret = seat_confirm_weak_cached_hostkey(
+                ppl_get_iseat(&s->ppl), s->hostkey_alg->ssh_id, betteralgs,
+                ssh2_transport_dialog_callback, s);
             sfree(betteralgs);
         } else {
-                /* If none exist, use the more general 'weak crypto'
-                 * warning prompt */
-                s->dlgret = ssh2_transport_confirm_weak_crypto_primitive(
-                    s, "host key type", s->hostkey_alg->ssh_id,
-                    s->hostkey_alg);
+            /* If none exist, use the more general 'weak crypto'
+             * warning prompt */
+            s->dlgret = ssh2_transport_confirm_weak_crypto_primitive(
+                s, "host key type", s->hostkey_alg->ssh_id,
+                s->hostkey_alg);
         }
         crMaybeWaitUntilV(s->dlgret >= 0);
         if (s->dlgret == 0) {
