@@ -1815,9 +1815,9 @@ static bool ssh2_transport_timer_update(struct ssh2_transport_state *s,
     return false;
 }
 
-void ssh2_transport_dialog_callback(void *loginv, int ret)
+void ssh2_transport_dialog_callback(void *vctx, int ret)
 {
-    struct ssh2_transport_state *s = (struct ssh2_transport_state *)loginv;
+    struct ssh2_transport_state *s = (struct ssh2_transport_state *)vctx;
     s->dlgret = ret;
     ssh_ppl_process_queue(&s->ppl);
 }
