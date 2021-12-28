@@ -90,7 +90,7 @@ int cmdline_get_passwd_input(prompts_t *p)
      * passwords), and (currently) we only cope with a password prompt
      * that comes in a prompt-set on its own.
      */
-    if (!cmdline_password || p->n_prompts != 1 || p->prompts[0]->echo) {
+    if (p->n_prompts != 1 || p->prompts[0]->echo) {
         return -1;
     }
 
@@ -100,6 +100,15 @@ int cmdline_get_passwd_input(prompts_t *p)
      */
     if (tried_once)
         return 0;
+
+    /*
+     * If we never had a password available in the first place, we
+     * can't do anything in any case. (But we delay this test until
+     * after tried_once, so that after we free cmdline_password below,
+     * we'll still remember that we _used_ to have one.)
+     */
+    if (!cmdline_password)
+        return -1;
 
     prompt_set_result(p->prompts[0], cmdline_password);
     smemclr(cmdline_password, strlen(cmdline_password));
