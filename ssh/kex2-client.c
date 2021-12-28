@@ -853,7 +853,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 ppl_logevent("Host key fingerprint is:");
                 ppl_logevent("%s", fingerprints[fptype_default]);
 
-                s->dlgret = verify_ssh_host_key(
+                s->spr = verify_ssh_host_key(
                     ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport,
                     s->hkey, ssh_key_cache_id(s->hkey), s->keystr, keydisp,
                     fingerprints, ssh2_transport_dialog_callback, s);
@@ -862,13 +862,12 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 sfree(keydisp);
             }
 #ifdef FUZZING
-            s->dlgret = 1;
+            s->spr = SPR_OK;
 #endif
-            crMaybeWaitUntilV(s->dlgret >= 0);
-            if (s->dlgret == 0) {
-                ssh_user_close(s->ppl.ssh,
-                               "User aborted at host key verification");
+            crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+            if (spr_is_abort(s->spr)) {
                 *aborted = true;
+                ssh_spr_close(s->ppl.ssh, s->spr, "host key verification");
                 return;
             }
 

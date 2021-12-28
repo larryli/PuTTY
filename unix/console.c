@@ -102,10 +102,10 @@ static int block_and_read(int fd, void *buf, size_t len)
     return ret;
 }
 
-int console_confirm_ssh_host_key(
+SeatPromptResult console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     char line[32];
     struct termios cf;
@@ -134,7 +134,7 @@ int console_confirm_ssh_host_key(
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
         postmsg(&cf);
-        return 0;
+        return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
     }
 
     fputs(intro, stderr);
@@ -173,17 +173,17 @@ int console_confirm_ssh_host_key(
         if (line[0] == 'y' || line[0] == 'Y')
             store_host_key(host, port, keytype, keystr);
         postmsg(&cf);
-        return 1;
+        return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);
         postmsg(&cf);
-        return 0;
+        return SPR_USER_ABORT;
     }
 }
 
-int console_confirm_weak_crypto_primitive(
+SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     char line[32];
     struct termios cf;
@@ -194,7 +194,8 @@ int console_confirm_weak_crypto_primitive(
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
         postmsg(&cf);
-        return 0;
+        return SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
+                            "in batch mode");
     }
 
     fputs(console_continue_prompt, stderr);
@@ -214,17 +215,17 @@ int console_confirm_weak_crypto_primitive(
 
     if (line[0] == 'y' || line[0] == 'Y') {
         postmsg(&cf);
-        return 1;
+        return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);
         postmsg(&cf);
-        return 0;
+        return SPR_USER_ABORT;
     }
 }
 
-int console_confirm_weak_cached_hostkey(
+SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     char line[32];
     struct termios cf;
@@ -235,7 +236,8 @@ int console_confirm_weak_cached_hostkey(
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
         postmsg(&cf);
-        return 0;
+        return SPR_SW_ABORT("Cannot confirm a weak cached host key "
+                            "in batch mode");
     }
 
     fputs(console_continue_prompt, stderr);
@@ -255,11 +257,11 @@ int console_confirm_weak_cached_hostkey(
 
     if (line[0] == 'y' || line[0] == 'Y') {
         postmsg(&cf);
-        return 1;
+        return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);
         postmsg(&cf);
-        return 0;
+        return SPR_USER_ABORT;
     }
 }
 
@@ -443,7 +445,7 @@ static void console_write(FILE *outfp, ptrlen data)
     fflush(outfp);
 }
 
-int console_get_userpass_input(prompts_t *p)
+SeatPromptResult console_get_userpass_input(prompts_t *p)
 {
     size_t curr_prompt;
     FILE *outfp = NULL;
@@ -459,7 +461,8 @@ int console_get_userpass_input(prompts_t *p)
     }
 
     if (p->n_prompts && console_batch_mode)
-        return 0;
+        return SPR_SW_ABORT("Cannot answer interactive prompts "
+                            "in batch mode");
 
     console_open(&outfp, &infd);
 
@@ -498,14 +501,26 @@ int console_get_userpass_input(prompts_t *p)
         console_write(outfp, ptrlen_from_asciz(pr->prompt));
 
         bool failed = false;
+        SeatPromptResult spr;
         while (1) {
             size_t toread = 65536;
             size_t prev_result_len = pr->result->len;
             void *ptr = strbuf_append(pr->result, toread);
             int ret = read(infd, ptr, toread);
 
-            if (ret <= 0) {
+            if (ret == 0) {
+                /* Regard EOF on the terminal as a deliberate user-abort */
                 failed = true;
+                spr = SPR_USER_ABORT;
+                break;
+            }
+
+            if (ret < 0) {
+                /* Any other failure to read from the terminal is treated as
+                 * an unexpected error and reported to the user. */
+                failed = true;
+                spr = make_spr_sw_abort_errno(
+                    "Error reading from terminal", errno);
                 break;
             }
 
@@ -521,13 +536,13 @@ int console_get_userpass_input(prompts_t *p)
 
         if (failed) {
             console_close(outfp, infd);
-            return 0;                  /* failure due to read error */
+            return spr;
         }
     }
 
     console_close(outfp, infd);
 
-    return 1; /* success */
+    return SPR_OK;
 }
 
 bool is_interactive(void)

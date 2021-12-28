@@ -655,12 +655,12 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
             add_prompt(s->prompts, dupstr("Proxy password: "), false);
 
             while (true) {
-                int prompt_result = seat_get_userpass_input(
+                SeatPromptResult spr = seat_get_userpass_input(
                     interactor_announce(pn->itr), s->prompts);
-                if (prompt_result > 0) {
+                if (spr.kind == SPRK_OK) {
                     break;
-                } else if (prompt_result == 0) {
-                    pn->aborted = true;
+                } else if (spr_is_abort(spr)) {
+                    proxy_spr_abort(pn, spr);
                     crStopV;
                 }
                 crReturnV;

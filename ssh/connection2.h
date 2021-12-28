@@ -37,7 +37,7 @@ struct ssh2_connection_state {
     bool portfwdmgr_configured;
 
     prompts_t *antispoof_prompt;
-    int antispoof_ret;
+    SeatPromptResult antispoof_ret;
 
     const SftpServerVtable *sftpserver_vt;
     const SshServerConfig *ssc;

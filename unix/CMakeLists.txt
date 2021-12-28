@@ -12,6 +12,7 @@ add_sources_from_current_dir(utils
   utils/keysym_to_unicode.c
   utils/make_dir_and_check_ours.c
   utils/make_dir_path.c
+  utils/make_spr_sw_abort_errno.c
   utils/nonblock.c
   utils/open_for_write_would_lose_data.c
   utils/pgp_fingerprints.c

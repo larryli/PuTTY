@@ -35,7 +35,7 @@ struct Rlogin {
     Interactor interactor;
 };
 
-static void rlogin_startup(Rlogin *rlogin, int prompt_result,
+static void rlogin_startup(Rlogin *rlogin, SeatPromptResult spr,
                            const char *ruser);
 static void rlogin_try_username_prompt(void *ctx);
 
@@ -65,7 +65,7 @@ static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
              */
             /* Next terminal output will come from server */
             seat_set_trust_status(rlogin->seat, false);
-            rlogin_startup(rlogin, 1, ruser);
+            rlogin_startup(rlogin, SPR_OK, ruser);
             sfree(ruser);
         } else {
             /*
@@ -160,17 +160,25 @@ static void rlogin_sent(Plug *plug, size_t bufsize)
     seat_sent(rlogin->seat, rlogin->bufsize);
 }
 
-static void rlogin_startup(Rlogin *rlogin, int prompt_result,
+static void rlogin_startup(Rlogin *rlogin, SeatPromptResult spr,
                            const char *ruser)
 {
     char z = 0;
     char *p;
 
-    if (prompt_result == 0) {
+    if (spr.kind == SPRK_USER_ABORT) {
         /* User aborted at the username prompt. */
         sk_close(rlogin->s);
         rlogin->s = NULL;
         seat_notify_remote_exit(rlogin->seat);
+    } else if (spr.kind == SPRK_SW_ABORT) {
+        /* Something else went wrong at the username prompt, so we
+         * have to show some kind of error. */
+        sk_close(rlogin->s);
+        rlogin->s = NULL;
+        char *err = spr_get_error_message(spr);
+        seat_connection_fatal(rlogin->seat, "%s", err);
+        sfree(err);
     } else {
         sk_write(rlogin->s, &z, 1);
         p = conf_get_str(rlogin->conf, CONF_localusername);
@@ -332,9 +340,9 @@ static void rlogin_try_username_prompt(void *ctx)
 {
     Rlogin *rlogin = (Rlogin *)ctx;
 
-    int ret = seat_get_userpass_input(
+    SeatPromptResult spr = seat_get_userpass_input(
         interactor_announce(&rlogin->interactor), rlogin->prompt);
-    if (ret < 0)
+    if (spr.kind == SPRK_INCOMPLETE)
         return;
 
     /* Next terminal output will come from server */
@@ -345,7 +353,7 @@ static void rlogin_try_username_prompt(void *ctx)
      * rlogin_startup will signal to rlogin_sendok by nulling out
      * rlogin->prompt. */
     rlogin_startup(
-        rlogin, ret, prompt_get_result_ref(rlogin->prompt->prompts[0]));
+        rlogin, spr, prompt_get_result_ref(rlogin->prompt->prompts[0]));
 }
 
 /*

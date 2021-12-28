@@ -320,7 +320,7 @@ static StripCtrlChars *win_seat_stripctrl_new(
 static size_t win_seat_output(
     Seat *seat, SeatOutputType type, const void *, size_t);
 static bool win_seat_eof(Seat *seat);
-static int win_seat_get_userpass_input(Seat *seat, prompts_t *p);
+static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p);
 static void win_seat_notify_remote_exit(Seat *seat);
 static void win_seat_connection_fatal(Seat *seat, const char *msg);
 static void win_seat_update_specials_menu(Seat *seat);
@@ -5787,13 +5787,13 @@ static bool win_seat_eof(Seat *seat)
     return true;   /* do respond to incoming EOF with outgoing */
 }
 
-static int win_seat_get_userpass_input(Seat *seat, prompts_t *p)
+static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
-    int ret;
-    ret = cmdline_get_passwd_input(p);
-    if (ret == -1)
-        ret = term_get_userpass_input(term, p);
-    return ret;
+    SeatPromptResult spr;
+    spr = cmdline_get_passwd_input(p);
+    if (spr.kind == SPRK_INCOMPLETE)
+        spr = term_get_userpass_input(term, p);
+    return spr;
 }
 
 static void win_seat_set_trust_status(Seat *seat, bool trusted)

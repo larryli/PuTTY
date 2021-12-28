@@ -214,6 +214,15 @@ static char *readpassphrase(const char *filename)
 
 #define DEFAULT_RSADSA_BITS 2048
 
+static void spr_error(SeatPromptResult spr)
+{
+    if (spr.kind == SPRK_SW_ABORT) {
+        char *err = spr_get_error_message(spr);
+        fprintf(stderr, "puttygen: unable to read passphrase: %s", err);
+        sfree(err);
+    }
+}
+
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
 const bool buildinfo_gtk_relevant = false;
 
@@ -941,16 +950,16 @@ int main(int argc, char **argv)
         if (encrypted && load_encrypted) {
             if (!old_passphrase) {
                 prompts_t *p = new_prompts();
-                int ret;
+                SeatPromptResult spr;
                 p->to_server = false;
                 p->from_server = false;
                 p->name = dupstr("SSH key passphrase");
                 add_prompt(p, dupstr("Enter passphrase to load key: "), false);
-                ret = console_get_userpass_input(p);
-                assert(ret >= 0);
-                if (!ret) {
+                spr = console_get_userpass_input(p);
+                assert(spr.kind != SPRK_INCOMPLETE);
+                if (spr_is_abort(spr)) {
                     free_prompts(p);
-                    perror("puttygen: unable to read passphrase");
+                    spr_error(spr);
                     RETURN(1);
                 } else {
                     old_passphrase = prompt_get_result(p->prompts[0]);
@@ -1090,18 +1099,18 @@ int main(int argc, char **argv)
     if (!new_passphrase && (change_passphrase ||
                             (keytype != NOKEYGEN && outtype != TEXT))) {
         prompts_t *p = new_prompts();
-        int ret;
+        SeatPromptResult spr;
 
         p->to_server = false;
         p->from_server = false;
         p->name = dupstr("New SSH key passphrase");
         add_prompt(p, dupstr("Enter passphrase to save key: "), false);
         add_prompt(p, dupstr("Re-enter passphrase to verify: "), false);
-        ret = console_get_userpass_input(p);
-        assert(ret >= 0);
-        if (!ret) {
+        spr = console_get_userpass_input(p);
+        assert(spr.kind != SPRK_INCOMPLETE);
+        if (spr_is_abort(spr)) {
             free_prompts(p);
-            perror("puttygen: unable to read new passphrase");
+            spr_error(spr);
             RETURN(1);
         } else {
             if (strcmp(prompt_get_result_ref(p->prompts[0]),

@@ -32,10 +32,10 @@ void console_print_error_msg(const char *prefix, const char *msg)
     fflush(stderr);
 }
 
-int console_confirm_ssh_host_key(
+SeatPromptResult console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -64,7 +64,7 @@ int console_confirm_ssh_host_key(
 
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
-        return 0;
+        return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
     }
 
     fputs(intro, stderr);
@@ -102,16 +102,16 @@ int console_confirm_ssh_host_key(
         line[0] != 'q' && line[0] != 'Q') {
         if (line[0] == 'y' || line[0] == 'Y')
             store_host_key(host, port, keytype, keystr);
-        return 1;
+        return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);
-        return 0;
+        return SPR_USER_ABORT;
     }
 }
 
-int console_confirm_weak_crypto_primitive(
+SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -122,7 +122,8 @@ int console_confirm_weak_crypto_primitive(
 
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
-        return 0;
+        return SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
+                            "in batch mode");
     }
 
     fputs(console_continue_prompt, stderr);
@@ -136,16 +137,16 @@ int console_confirm_weak_crypto_primitive(
     SetConsoleMode(hin, savemode);
 
     if (line[0] == 'y' || line[0] == 'Y') {
-        return 1;
+        return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);
-        return 0;
+        return SPR_USER_ABORT;
     }
 }
 
-int console_confirm_weak_cached_hostkey(
+SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -156,7 +157,8 @@ int console_confirm_weak_cached_hostkey(
 
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
-        return 0;
+        return SPR_SW_ABORT("Cannot confirm a weak cached host key "
+                            "in batch mode");
     }
 
     fputs(console_continue_prompt, stderr);
@@ -170,10 +172,10 @@ int console_confirm_weak_cached_hostkey(
     SetConsoleMode(hin, savemode);
 
     if (line[0] == 'y' || line[0] == 'Y') {
-        return 1;
+        return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);
-        return 0;
+        return SPR_USER_ABORT;
     }
 }
 
@@ -343,7 +345,7 @@ static void console_write(HANDLE hout, ptrlen data)
     WriteFile(hout, data.ptr, data.len, &dummy, NULL);
 }
 
-int console_get_userpass_input(prompts_t *p)
+SeatPromptResult console_get_userpass_input(prompts_t *p)
 {
     HANDLE hin = INVALID_HANDLE_VALUE, hout = INVALID_HANDLE_VALUE;
     size_t curr_prompt;
@@ -365,7 +367,8 @@ int console_get_userpass_input(prompts_t *p)
      */
     if (p->n_prompts) {
         if (console_batch_mode)
-            return 0;
+            return SPR_SW_ABORT("Cannot answer interactive prompts "
+                                "in batch mode");
         hin = GetStdHandle(STD_INPUT_HANDLE);
         if (hin == INVALID_HANDLE_VALUE) {
             fprintf(stderr, "Cannot get standard input handle\n");
@@ -418,6 +421,7 @@ int console_get_userpass_input(prompts_t *p)
         console_write(hout, ptrlen_from_asciz(pr->prompt));
 
         bool failed = false;
+        SeatPromptResult spr;
         while (1) {
             /*
              * Amount of data to try to read from the console in one
@@ -440,8 +444,17 @@ int console_get_userpass_input(prompts_t *p)
             void *ptr = strbuf_append(pr->result, toread);
 
             DWORD ret = 0;
-            if (!ReadFile(hin, ptr, toread, &ret, NULL) || ret == 0) {
+            if (!ReadFile(hin, ptr, toread, &ret, NULL)) {
+                /* An OS error when reading from the console is treated as an
+                 * unexpected error and reported to the user. */
                 failed = true;
+                spr = make_spr_sw_abort_winerror(
+                    "Error reading from console", GetLastError());
+                break;
+            } else if (ret == 0) {
+                /* Regard EOF on the terminal as a deliberate user-abort */
+                failed = true;
+                spr = SPR_USER_ABORT;
                 break;
             }
 
@@ -457,10 +470,9 @@ int console_get_userpass_input(prompts_t *p)
         if (!pr->echo)
             console_write(hout, PTRLEN_LITERAL("\r\n"));
 
-        if (failed) {
-            return 0;                  /* failure due to read error */
-        }
+        if (failed)
+            return spr;
     }
 
-    return 1; /* success */
+    return SPR_OK;
 }

@@ -339,14 +339,14 @@ static bool gtk_seat_eof(Seat *seat)
     return true;   /* do respond to incoming EOF with outgoing */
 }
 
-static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p)
+static SeatPromptResult gtk_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
-    int ret;
-    ret = cmdline_get_passwd_input(p);
-    if (ret == -1)
-        ret = term_get_userpass_input(inst->term, p);
-    return ret;
+    SeatPromptResult spr;
+    spr = cmdline_get_passwd_input(p);
+    if (spr.kind == SPRK_INCOMPLETE)
+        spr = term_get_userpass_input(inst->term, p);
+    return spr;
 }
 
 static bool gtk_seat_is_utf8(Seat *seat)

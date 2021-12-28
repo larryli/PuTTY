@@ -218,7 +218,7 @@ static bool tempseat_has_mixed_input_stream(Seat *seat)
  * for the network connection.
  */
 
-static int tempseat_get_userpass_input(Seat *seat, prompts_t *p)
+static SeatPromptResult tempseat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     /*
      * Interactive prompts of this nature are a thing that a backend
@@ -235,25 +235,25 @@ static size_t tempseat_banner(Seat *seat, const void *data, size_t len)
     unreachable("banner should never be called on TempSeat");
 }
 
-static int tempseat_confirm_ssh_host_key(
+static SeatPromptResult tempseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     unreachable("confirm_ssh_host_key should never be called on TempSeat");
 }
 
-static int tempseat_confirm_weak_crypto_primitive(
+static SeatPromptResult tempseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     unreachable("confirm_weak_crypto_primitive "
                 "should never be called on TempSeat");
 }
 
-static int tempseat_confirm_weak_cached_hostkey(
+static SeatPromptResult tempseat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     unreachable("confirm_weak_cached_hostkey "
                 "should never be called on TempSeat");

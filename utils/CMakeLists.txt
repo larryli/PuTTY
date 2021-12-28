@@ -26,6 +26,7 @@ add_sources_from_current_dir(utils
   host_strduptrim.c
   host_strrchr.c
   log_proxy_stderr.c
+  make_spr_sw_abort_static.c
   marshal.c
   memory.c
   memxor.c
@@ -42,6 +43,7 @@ add_sources_from_current_dir(utils
   sk_free_peer_info.c
   smemclr.c
   smemeq.c
+  spr_get_error_message.c
   ssh2_pick_fingerprint.c
   sshutils.c
   strbuf.c

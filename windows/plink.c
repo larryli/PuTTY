@@ -65,13 +65,13 @@ static bool plink_eof(Seat *seat)
     return false;   /* do not respond to incoming EOF with outgoing */
 }
 
-static int plink_get_userpass_input(Seat *seat, prompts_t *p)
+static SeatPromptResult plink_get_userpass_input(Seat *seat, prompts_t *p)
 {
-    int ret;
-    ret = cmdline_get_passwd_input(p);
-    if (ret == -1)
-        ret = console_get_userpass_input(p);
-    return ret;
+    SeatPromptResult spr;
+    spr = cmdline_get_passwd_input(p);
+    if (spr.kind == SPRK_INCOMPLETE)
+        spr = console_get_userpass_input(p);
+    return spr;
 }
 
 static bool plink_seat_interactive(Seat *seat)

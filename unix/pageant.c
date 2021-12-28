@@ -437,18 +437,22 @@ static FingerprintType key_list_fptype = SSH_FPTYPE_DEFAULT;
 
 static char *askpass_tty(const char *prompt)
 {
-    int ret;
     prompts_t *p = new_prompts();
     p->to_server = false;
     p->from_server = false;
     p->name = dupstr("Pageant passphrase prompt");
     add_prompt(p, dupcat(prompt, ": "), false);
-    ret = console_get_userpass_input(p);
-    assert(ret >= 0);
+    SeatPromptResult spr = console_get_userpass_input(p);
+    assert(spr.kind != SPRK_INCOMPLETE);
 
-    if (!ret) {
-        perror("pageant: unable to read passphrase");
+    if (spr.kind == SPRK_USER_ABORT) {
         free_prompts(p);
+        return NULL;
+    } else if (spr.kind == SPRK_SW_ABORT) {
+        free_prompts(p);
+        char *err = spr_get_error_message(spr);
+        fprintf(stderr, "pageant: unable to read passphrase: %s", err);
+        sfree(err);
         return NULL;
     } else {
         char *passphrase = prompt_get_result(p->prompts[0]);

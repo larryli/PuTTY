@@ -65,10 +65,10 @@ char *get_random_data_diagnostic(int len, const char *device)
 
 static int nprompts, promptsgot;
 static const char *prompts[3];
-int console_get_userpass_input_diagnostic(prompts_t *p)
+SeatPromptResult console_get_userpass_input_diagnostic(prompts_t *p)
 {
     size_t i;
-    int ret = 1;
+    SeatPromptResult ret = SPR_OK;
     for (i = 0; i < p->n_prompts; i++) {
         if (promptsgot < nprompts) {
             prompt_set_result(p->prompts[i], prompts[promptsgot++]);
@@ -77,7 +77,7 @@ int console_get_userpass_input_diagnostic(prompts_t *p)
                        p->prompts[i]->prompt, p->prompts[i]->result->s);
         } else {
             promptsgot++;           /* track number of requests anyway */
-            ret = 0;
+            ret = SPR_SW_ABORT("preloaded prompt unavailable in cgtest");
             if (cgtest_verbose)
                 printf("  prompt \"%s\": no response preloaded\n",
                        p->prompts[i]->prompt);

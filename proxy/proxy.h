@@ -91,10 +91,11 @@ extern const ProxyNegotiatorVT socks5_proxy_negotiator_vt;
 extern const ProxyNegotiatorVT telnet_proxy_negotiator_vt;
 
 /*
- * Centralised function to allow ProxyNegotiators to get hold of a
- * prompts_t.
+ * Centralised functions to allow ProxyNegotiators to get hold of a
+ * prompts_t, and to deal with SeatPromptResults coming back.
  */
 prompts_t *proxy_new_prompts(ProxySocket *ps);
+void proxy_spr_abort(ProxyNegotiator *pn, SeatPromptResult spr);
 
 /*
  * This may be reused by local-command proxies on individual

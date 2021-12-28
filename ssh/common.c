@@ -845,15 +845,13 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
  * host key is already known. If so, it returns success on its own
  * account; otherwise, it calls out to the Seat to give an interactive
  * prompt (the nature of which varies depending on the Seat itself).
- *
- * Return values are 0 for 'abort connection', 1 for 'ok, carry on',
- * and negative for 'answer not received yet, wait for a callback'.
  */
 
-int verify_ssh_host_key(
+SeatPromptResult verify_ssh_host_key(
     InteractionReadySeat iseat, Conf *conf, const char *host, int port,
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
-    char **fingerprints, void (*callback)(void *ctx, int result), void *ctx)
+    char **fingerprints, void (*callback)(void *ctx, SeatPromptResult result),
+    void *ctx)
 {
     /*
      * First, check if the Conf includes a manual specification of the
@@ -878,7 +876,7 @@ int verify_ssh_host_key(
                 fingerprint = p ? p+1 : fingerprint;
                 if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys,
                                          fingerprint))
-                    return 1;                  /* success */
+                    return SPR_OK;
             }
         }
 
@@ -902,12 +900,12 @@ int verify_ssh_host_key(
             if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys,
                                      base64blob)) {
                 sfree(base64blob);
-                return 1;                  /* success */
+                return SPR_OK;
             }
             sfree(base64blob);
         }
 
-        return 0;
+        return SPR_SW_ABORT("Host key not in manually configured list");
     }
 
     /*
@@ -915,7 +913,7 @@ int verify_ssh_host_key(
      */
     int storage_status = check_stored_host_key(host, port, keytype, keystr);
     if (storage_status == 0) /* matching key was found in the cache */
-        return 1;            /* success */
+        return SPR_OK;
 
     /*
      * The key is either missing from the cache, or does not match.
@@ -993,4 +991,23 @@ void ssh1_compute_session_id(
         put_byte(hash, mp_get_byte(servkey->modulus, i));
     put_data(hash, cookie, 8);
     ssh_hash_final(hash, session_id);
+}
+
+/* ----------------------------------------------------------------------
+ * Wrapper function to handle the abort-connection modes of a
+ * SeatPromptResult without a lot of verbiage at every call site.
+ *
+ * Can become ssh_sw_abort or ssh_user_close, depending on the kind of
+ * negative SeatPromptResult.
+ */
+void ssh_spr_close(Ssh *ssh, SeatPromptResult spr, const char *context)
+{
+    if (spr.kind == SPRK_USER_ABORT) {
+        ssh_user_close(ssh, "User aborted at %s", context);
+    } else {
+        assert(spr.kind == SPRK_SW_ABORT);
+        char *err = spr_get_error_message(spr);
+        ssh_sw_abort(ssh, "%s", err);
+        sfree(err);
+    }
 }

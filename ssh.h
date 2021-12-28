@@ -423,6 +423,7 @@ void ssh_proto_error(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
 void ssh_sw_abort(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
 void ssh_sw_abort_deferred(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
 void ssh_user_close(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void ssh_spr_close(Ssh *ssh, SeatPromptResult spr, const char *context);
 
 /* Bit positions in the SSH-1 cipher protocol word */
 #define SSH1_CIPHER_IDEA        1
@@ -1709,10 +1710,11 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset);
 void add_to_commasep(strbuf *buf, const char *data);
 bool get_commasep_word(ptrlen *list, ptrlen *word);
 
-int verify_ssh_host_key(
+SeatPromptResult verify_ssh_host_key(
     InteractionReadySeat iseat, Conf *conf, const char *host, int port,
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
-    char **fingerprints, void (*callback)(void *ctx, int result), void *ctx);
+    char **fingerprints, void (*callback)(void *ctx, SeatPromptResult result),
+    void *ctx);
 
 typedef struct ssh_transient_hostkey_cache ssh_transient_hostkey_cache;
 ssh_transient_hostkey_cache *ssh_transient_hostkey_cache_new(void);

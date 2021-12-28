@@ -976,10 +976,10 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-int win_seat_confirm_ssh_host_key(
+SeatPromptResult win_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *vctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *vctx)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
 
@@ -1008,21 +1008,21 @@ int win_seat_confirm_ssh_host_key(
     assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
     if (mbret == IDC_HK_ACCEPT) {
         store_host_key(host, port, keytype, keystr);
-        return 1;
+        return SPR_OK;
     } else if (mbret == IDC_HK_ONCE) {
-        return 1;
+        return SPR_OK;
     }
 
-    return 0;   /* abandon the connection */
+    return SPR_USER_ABORT;
 }
 
 /*
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-int win_seat_confirm_weak_crypto_primitive(
+SeatPromptResult win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
@@ -1041,14 +1041,14 @@ int win_seat_confirm_weak_crypto_primitive(
     sfree(message);
     sfree(title);
     if (mbret == IDYES)
-        return 1;
+        return SPR_OK;
     else
-        return 0;
+        return SPR_USER_ABORT;
 }
 
-int win_seat_confirm_weak_cached_hostkey(
+SeatPromptResult win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
@@ -1069,9 +1069,9 @@ int win_seat_confirm_weak_cached_hostkey(
     sfree(message);
     sfree(title);
     if (mbret == IDYES)
-        return 1;
+        return SPR_OK;
     else
-        return 0;
+        return SPR_USER_ABORT;
 }
 
 /*

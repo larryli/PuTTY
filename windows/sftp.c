@@ -12,13 +12,13 @@
 #include "ssh.h"
 #include "security-api.h"
 
-int filexfer_get_userpass_input(Seat *seat, prompts_t *p)
+SeatPromptResult filexfer_get_userpass_input(Seat *seat, prompts_t *p)
 {
-    int ret;
-    ret = cmdline_get_passwd_input(p);
-    if (ret == -1)
-        ret = console_get_userpass_input(p);
-    return ret;
+    SeatPromptResult spr;
+    spr = cmdline_get_passwd_input(p);
+    if (spr.kind == SPRK_INCOMPLETE)
+        spr = console_get_userpass_input(p);
+    return spr;
 }
 
 void platform_get_x11_auth(struct X11Display *display, Conf *conf)

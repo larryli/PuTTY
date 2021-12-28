@@ -97,7 +97,7 @@ static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
 
 static bool ssh2_transport_timer_update(struct ssh2_transport_state *s,
                                         unsigned long rekey_time);
-static int ssh2_transport_confirm_weak_crypto_primitive(
+static SeatPromptResult ssh2_transport_confirm_weak_crypto_primitive(
     struct ssh2_transport_state *s, const char *type, const char *name,
     const void *alg);
 
@@ -1265,11 +1265,11 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     }
 
     if (s->warn_kex) {
-        s->dlgret = ssh2_transport_confirm_weak_crypto_primitive(
+        s->spr = ssh2_transport_confirm_weak_crypto_primitive(
             s, "key-exchange algorithm", s->kex_alg->name, s->kex_alg);
-        crMaybeWaitUntilV(s->dlgret >= 0);
-        if (s->dlgret == 0) {
-            ssh_user_close(s->ppl.ssh, "User aborted at kex warning");
+        crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+        if (spr_is_abort(s->spr)) {
+            ssh_spr_close(s->ppl.ssh, s->spr, "kex warning");
             return;
         }
     }
@@ -1312,42 +1312,42 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         if (betteralgs) {
             /* Use the special warning prompt that lets us provide
              * a list of better algorithms */
-            s->dlgret = seat_confirm_weak_cached_hostkey(
+            s->spr = seat_confirm_weak_cached_hostkey(
                 ppl_get_iseat(&s->ppl), s->hostkey_alg->ssh_id, betteralgs,
                 ssh2_transport_dialog_callback, s);
             sfree(betteralgs);
         } else {
             /* If none exist, use the more general 'weak crypto'
              * warning prompt */
-            s->dlgret = ssh2_transport_confirm_weak_crypto_primitive(
+            s->spr = ssh2_transport_confirm_weak_crypto_primitive(
                 s, "host key type", s->hostkey_alg->ssh_id,
                 s->hostkey_alg);
         }
-        crMaybeWaitUntilV(s->dlgret >= 0);
-        if (s->dlgret == 0) {
-            ssh_user_close(s->ppl.ssh, "User aborted at host key warning");
+        crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+        if (spr_is_abort(s->spr)) {
+            ssh_spr_close(s->ppl.ssh, s->spr, "host key warning");
             return;
         }
     }
 
     if (s->warn_cscipher) {
-        s->dlgret = ssh2_transport_confirm_weak_crypto_primitive(
+        s->spr = ssh2_transport_confirm_weak_crypto_primitive(
             s, "client-to-server cipher", s->out.cipher->ssh2_id,
             s->out.cipher);
-        crMaybeWaitUntilV(s->dlgret >= 0);
-        if (s->dlgret == 0) {
-            ssh_user_close(s->ppl.ssh, "User aborted at cipher warning");
+        crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+        if (spr_is_abort(s->spr)) {
+            ssh_spr_close(s->ppl.ssh, s->spr, "cipher warning");
             return;
         }
     }
 
     if (s->warn_sccipher) {
-        s->dlgret = ssh2_transport_confirm_weak_crypto_primitive(
+        s->spr = ssh2_transport_confirm_weak_crypto_primitive(
             s, "server-to-client cipher", s->in.cipher->ssh2_id,
             s->in.cipher);
-        crMaybeWaitUntilV(s->dlgret >= 0);
-        if (s->dlgret == 0) {
-            ssh_user_close(s->ppl.ssh, "User aborted at cipher warning");
+        crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+        if (spr_is_abort(s->spr)) {
+            ssh_spr_close(s->ppl.ssh, s->spr, "cipher warning");
             return;
         }
     }
@@ -1815,10 +1815,10 @@ static bool ssh2_transport_timer_update(struct ssh2_transport_state *s,
     return false;
 }
 
-void ssh2_transport_dialog_callback(void *vctx, int ret)
+void ssh2_transport_dialog_callback(void *vctx, SeatPromptResult spr)
 {
     struct ssh2_transport_state *s = (struct ssh2_transport_state *)vctx;
-    s->dlgret = ret;
+    s->spr = spr;
     ssh_ppl_process_queue(&s->ppl);
 }
 
@@ -2139,12 +2139,12 @@ static int weak_algorithm_compare(void *av, void *bv)
  * tree234 s->weak_algorithms_consented_to to ensure we ask at most
  * once about any given crypto primitive.
  */
-static int ssh2_transport_confirm_weak_crypto_primitive(
+static SeatPromptResult ssh2_transport_confirm_weak_crypto_primitive(
     struct ssh2_transport_state *s, const char *type, const char *name,
     const void *alg)
 {
     if (find234(s->weak_algorithms_consented_to, (void *)alg, NULL))
-        return 1;
+        return SPR_OK;
     add234(s->weak_algorithms_consented_to, (void *)alg);
 
     return seat_confirm_weak_crypto_primitive(

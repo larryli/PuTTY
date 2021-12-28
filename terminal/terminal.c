@@ -7672,30 +7672,32 @@ static inline void term_write(Terminal *term, ptrlen data)
  * notification to the caller, and also turning off our own callback
  * that listens for more data arriving in the ldisc's input queue.
  */
-static inline int signal_prompts_t(Terminal *term, prompts_t *p, int result)
+static inline SeatPromptResult signal_prompts_t(Terminal *term, prompts_t *p,
+                                                SeatPromptResult spr)
 {
     assert(p->callback && "Asynchronous userpass input requires a callback");
     queue_toplevel_callback(p->callback, p->callback_ctx);
     ldisc_enable_prompt_callback(term->ldisc, NULL);
-    p->idata = result;
-    return result;
+    p->spr = spr;
+    return spr;
 }
 
 /*
  * Process some terminal data in the course of username/password
  * input.
  */
-int term_get_userpass_input(Terminal *term, prompts_t *p)
+SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p)
 {
     if (!term->ldisc) {
         /* Can't handle interactive prompts without an ldisc */
-        return signal_prompts_t(term, p, 0);
+        return signal_prompts_t(term, p, SPR_SW_ABORT(
+            "Terminal not prepared for interactive prompts"));
     }
 
-    if (p->idata >= 0) {
+    if (p->spr.kind != SPRK_INCOMPLETE) {
         /* We've already finished these prompts, so return the same
          * result again */
-        return p->idata;
+        return p->spr;
     }
 
     struct term_userpass_state *s = (struct term_userpass_state *)p->data;
@@ -7705,7 +7707,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p)
          * First call. Set some stuff up.
          */
         p->data = s = snew(struct term_userpass_state);
-        p->idata = -1;
+        p->spr = SPR_INCOMPLETE;
         s->curr_prompt = 0;
         s->done_prompt = false;
         /* We only print the `name' caption if we have to... */
@@ -7795,7 +7797,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p)
                 term_write(term, PTRLEN_LITERAL("\r\n"));
                 sfree(s);
                 p->data = NULL;
-                return signal_prompts_t(term, p, 0); /* user abort */
+                return signal_prompts_t(term, p, SPR_USER_ABORT);
               default:
                 /*
                  * This simplistic check for printability is disabled
@@ -7816,11 +7818,11 @@ int term_get_userpass_input(Terminal *term, prompts_t *p)
 
     if (s->curr_prompt < p->n_prompts) {
         ldisc_enable_prompt_callback(term->ldisc, p);
-        return -1; /* more data required */
+        return SPR_INCOMPLETE;
     } else {
         sfree(s);
         p->data = NULL;
-        return signal_prompts_t(term, p, +1); /* all done */
+        return signal_prompts_t(term, p, SPR_OK);
     }
 }
 

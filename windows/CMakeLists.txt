@@ -16,6 +16,7 @@ add_sources_from_current_dir(utils
   utils/load_system32_dll.c
   utils/ltime.c
   utils/makedlgitemborderless.c
+  utils/make_spr_sw_abort_winerror.c
   utils/message_box.c
   utils/minefield.c
   utils/open_for_write_would_lose_data.c

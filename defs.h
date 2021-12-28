@@ -114,6 +114,7 @@ typedef struct LogPolicyVtable LogPolicyVtable;
 
 typedef struct Seat Seat;
 typedef struct SeatVtable SeatVtable;
+typedef struct SeatPromptResult SeatPromptResult;
 
 typedef struct TermWin TermWin;
 typedef struct TermWinVtable TermWinVtable;

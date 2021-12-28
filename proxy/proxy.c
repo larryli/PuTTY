@@ -463,6 +463,16 @@ prompts_t *proxy_new_prompts(ProxySocket *ps)
     return prs;
 }
 
+void proxy_spr_abort(ProxyNegotiator *pn, SeatPromptResult spr)
+{
+    if (spr.kind == SPRK_SW_ABORT) {
+        pn->error = spr_get_error_message(spr);
+    } else {
+        assert(spr.kind == SPRK_USER_ABORT);
+        pn->aborted = true;
+    }
+}
+
 Socket *new_connection(SockAddr *addr, const char *hostname,
                        int port, bool privport,
                        bool oobinline, bool nodelay, bool keepalive,

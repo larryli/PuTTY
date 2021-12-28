@@ -994,7 +994,7 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
             dupstr("Access granted. Press Return to begin session. "), false);
         s->antispoof_ret = seat_get_userpass_input(
             ppl_get_iseat(&s->ppl), s->antispoof_prompt);
-        while (s->antispoof_ret < 0) {
+        while (s->antispoof_ret.kind == SPRK_INCOMPLETE) {
             crReturnV;
             s->antispoof_ret = seat_get_userpass_input(
                 ppl_get_iseat(&s->ppl), s->antispoof_prompt);

@@ -186,7 +186,7 @@ struct ssh2_transport_state {
     bool warned_about_no_gss_transient_hostkey;
     bool got_session_id;
     bool can_send_ext_info, post_newkeys_ext_info;
-    int dlgret;
+    SeatPromptResult spr;
     bool guessok;
     bool ignorepkt;
     struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST];
@@ -231,7 +231,7 @@ struct ssh2_transport_state {
 
 /* Helpers shared between transport and kex */
 PktIn *ssh2_transport_pop(struct ssh2_transport_state *s);
-void ssh2_transport_dialog_callback(void *, int);
+void ssh2_transport_dialog_callback(void *, SeatPromptResult);
 
 /* Provided by transport for use in kex */
 void ssh2transport_finalise_exhash(struct ssh2_transport_state *s);

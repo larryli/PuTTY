@@ -11,7 +11,7 @@ prompts_t *new_prompts(void)
     p->prompts = NULL;
     p->n_prompts = p->prompts_size = 0;
     p->data = NULL;
-    p->idata = -1;
+    p->spr = SPR_INCOMPLETE;
     p->to_server = true; /* to be on the safe side */
     p->name = p->instruction = NULL;
     p->name_reqd = p->instr_reqd = false;

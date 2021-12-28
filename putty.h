@@ -861,6 +861,82 @@ extern const char *const appname;
  */
 typedef void (*toplevel_callback_fn_t)(void *ctx);
 
+/* Enum of result types in SeatPromptResult below */
+typedef enum SeatPromptResultKind {
+    /* Answer not yet available at all; either try again later or wait
+     * for a callback (depending on the request's API) */
+    SPRK_INCOMPLETE,
+
+    /* We're abandoning the connection because the user interactively
+     * told us to. (Hence, no need to present an error message
+     * telling the user we're doing that: they already know.) */
+    SPRK_USER_ABORT,
+
+    /* We're abandoning the connection for some other reason (e.g. we
+     * were unable to present the prompt at all, or a batch-mode
+     * configuration told us to give the answer no). This may
+     * ultimately have stemmed from some user configuration, but they
+     * didn't _tell us right now_ to abandon this connection, so we
+     * still need to inform them that we've done so. */
+    SPRK_SW_ABORT,
+
+    /* We're proceeding with the connection and have all requested
+     * information (if any) */
+    SPRK_OK
+} SeatPromptResultKind;
+
+/* Small struct to present the results of interactive requests from
+ * backend to Seat (see below) */
+struct SeatPromptResult {
+    SeatPromptResultKind kind;
+
+    /*
+     * In the case of SPRK_SW_ABORT, the frontend provides an error
+     * message to present to the user. But dynamically allocating it
+     * up front would mean having to make sure it got freed at any
+     * call site where one of these structs is received (and freed
+     * _once_ no matter how many times the struct is copied). So
+     * instead we provide a function that will generate the error
+     * message into a BinarySink.
+     */
+    void (*errfn)(SeatPromptResult, BinarySink *);
+
+    /*
+     * And some fields the error function can use to construct the
+     * message (holding, e.g. an OS error code).
+     */
+    const char *errdata_lit; /* statically allocated, e.g. a string literal */
+    unsigned errdata_u;
+};
+
+/* Helper function to construct the simple versions of these
+ * structures inline */
+static inline SeatPromptResult make_spr_simple(SeatPromptResultKind kind)
+{
+    SeatPromptResult spr;
+    spr.kind = kind;
+    spr.errdata_lit = NULL;
+    return spr;
+}
+
+/* Most common constructor function for SPRK_SW_ABORT errors */
+SeatPromptResult make_spr_sw_abort_static(const char *);
+
+/* Convenience macros wrapping those constructors in turn */
+#define SPR_INCOMPLETE make_spr_simple(SPRK_INCOMPLETE)
+#define SPR_USER_ABORT make_spr_simple(SPRK_USER_ABORT)
+#define SPR_SW_ABORT(lit) make_spr_sw_abort_static(lit)
+#define SPR_OK make_spr_simple(SPRK_OK)
+
+/* Query function that folds both kinds of abort together */
+static inline bool spr_is_abort(SeatPromptResult spr)
+{
+    return spr.kind == SPRK_USER_ABORT || spr.kind == SPRK_SW_ABORT;
+}
+
+/* Function to return a dynamically allocated copy of the error message */
+char *spr_get_error_message(SeatPromptResult spr);
+
 /*
  * Mechanism for getting text strings such as usernames and passwords
  * from the front-end.
@@ -911,7 +987,7 @@ struct prompts_t {
     prompt_t **prompts;
     void *data;         /* slot for housekeeping data, managed by
                          * seat_get_userpass_input(); initially NULL */
-    int idata;          /* another slot private to the implementation */
+    SeatPromptResult spr; /* some implementations need to cache one of these */
 
     /*
      * Callback you can fill in to be notified when all the prompts'
@@ -1062,13 +1138,8 @@ struct SeatVtable {
      * Try to get answers from a set of interactive login prompts. The
      * prompts are provided in 'p'.
      *
-     * A positive return value means that all prompts have had answers
-     * filled in. A zero return means that the user performed a
-     * deliberate 'cancel' UI action. A negative return means that no
-     * answer can be given yet but please try again later.
-     *
-     * (FIXME: it would be nice to distinguish two classes of cancel
-     * action, so the user could specify 'I want to abandon this
+     * (FIXME: it would be nice to distinguish two classes of user-
+     * abort action, so the user could specify 'I want to abandon this
      * entire attempt to start a session' or the milder 'I want to
      * abandon this particular form of authentication and fall back to
      * a different one' - e.g. if you turn out not to be able to
@@ -1076,7 +1147,7 @@ struct SeatVtable {
      * fall back to password auth rather than aborting the whole
      * session.)
      */
-    int (*get_userpass_input)(Seat *seat, prompts_t *p);
+    SeatPromptResult (*get_userpass_input)(Seat *seat, prompts_t *p);
 
     /*
      * Notify the seat that the main session channel has been
@@ -1185,10 +1256,11 @@ struct SeatVtable {
      *    back via the provided function with a result that's either 0
      *    or +1'.
      */
-    int (*confirm_ssh_host_key)(
+    SeatPromptResult (*confirm_ssh_host_key)(
         Seat *seat, const char *host, int port, const char *keytype,
         char *keystr, const char *keydisp, char **key_fingerprints,
-        bool mismatch, void (*callback)(void *ctx, int result), void *ctx);
+        bool mismatch, void (*callback)(void *ctx, SeatPromptResult result),
+        void *ctx);
 
     /*
      * Check with the seat whether it's OK to use a cryptographic
@@ -1196,9 +1268,9 @@ struct SeatVtable {
      * the input Conf. Return values are the same as
      * confirm_ssh_host_key above.
      */
-    int (*confirm_weak_crypto_primitive)(
+    SeatPromptResult (*confirm_weak_crypto_primitive)(
         Seat *seat, const char *algtype, const char *algname,
-        void (*callback)(void *ctx, int result), void *ctx);
+        void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 
     /*
      * Variant form of confirm_weak_crypto_primitive, which prints a
@@ -1211,9 +1283,9 @@ struct SeatVtable {
      * threshold is available that we don't have cached. 'betteralgs'
      * lists the better algorithm(s).
      */
-    int (*confirm_weak_cached_hostkey)(
+    SeatPromptResult (*confirm_weak_cached_hostkey)(
         Seat *seat, const char *algname, const char *betteralgs,
-        void (*callback)(void *ctx, int result), void *ctx);
+        void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 
     /*
      * Indicates whether the seat is expecting to interact with the
@@ -1319,8 +1391,8 @@ static inline void seat_sent(Seat *seat, size_t bufsize)
 static inline size_t seat_banner(
     InteractionReadySeat iseat, const void *data, size_t len)
 { return iseat.seat->vt->banner(iseat.seat, data, len); }
-static inline int seat_get_userpass_input(InteractionReadySeat iseat,
-                                          prompts_t *p)
+static inline SeatPromptResult seat_get_userpass_input(
+    InteractionReadySeat iseat, prompts_t *p)
 { return iseat.seat->vt->get_userpass_input(iseat.seat, p); }
 static inline void seat_notify_session_started(Seat *seat)
 { seat->vt->notify_session_started(seat); }
@@ -1334,20 +1406,20 @@ static inline char *seat_get_ttymode(Seat *seat, const char *mode)
 { return seat->vt->get_ttymode(seat, mode); }
 static inline void seat_set_busy_status(Seat *seat, BusyStatus status)
 { seat->vt->set_busy_status(seat, status); }
-static inline int seat_confirm_ssh_host_key(
+static inline SeatPromptResult seat_confirm_ssh_host_key(
     InteractionReadySeat iseat, const char *h, int p, const char *ktyp,
     char *kstr, const char *kdsp, char **fps, bool mis,
-    void (*cb)(void *ctx, int result), void *ctx)
+    void (*cb)(void *ctx, SeatPromptResult result), void *ctx)
 { return iseat.seat->vt->confirm_ssh_host_key(
         iseat.seat, h, p, ktyp, kstr, kdsp, fps, mis, cb, ctx); }
-static inline int seat_confirm_weak_crypto_primitive(
+static inline SeatPromptResult seat_confirm_weak_crypto_primitive(
     InteractionReadySeat iseat, const char *atyp, const char *aname,
-    void (*cb)(void *ctx, int result), void *ctx)
+    void (*cb)(void *ctx, SeatPromptResult result), void *ctx)
 { return iseat.seat->vt->confirm_weak_crypto_primitive(
         iseat.seat, atyp, aname, cb, ctx); }
-static inline int seat_confirm_weak_cached_hostkey(
+static inline SeatPromptResult seat_confirm_weak_cached_hostkey(
     InteractionReadySeat iseat, const char *aname, const char *better,
-    void (*cb)(void *ctx, int result), void *ctx)
+    void (*cb)(void *ctx, SeatPromptResult result), void *ctx)
 { return iseat.seat->vt->confirm_weak_cached_hostkey(
         iseat.seat, aname, better, cb, ctx); }
 static inline bool seat_is_utf8(Seat *seat)
@@ -1412,7 +1484,7 @@ bool nullseat_eof(Seat *seat);
 void nullseat_sent(Seat *seat, size_t bufsize);
 size_t nullseat_banner(Seat *seat, const void *data, size_t len);
 size_t nullseat_banner_to_stderr(Seat *seat, const void *data, size_t len);
-int nullseat_get_userpass_input(Seat *seat, prompts_t *p);
+SeatPromptResult nullseat_get_userpass_input(Seat *seat, prompts_t *p);
 void nullseat_notify_session_started(Seat *seat);
 void nullseat_notify_remote_exit(Seat *seat);
 void nullseat_notify_remote_disconnect(Seat *seat);
@@ -1420,16 +1492,16 @@ void nullseat_connection_fatal(Seat *seat, const char *message);
 void nullseat_update_specials_menu(Seat *seat);
 char *nullseat_get_ttymode(Seat *seat, const char *mode);
 void nullseat_set_busy_status(Seat *seat, BusyStatus status);
-int nullseat_confirm_ssh_host_key(
+SeatPromptResult nullseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx);
-int nullseat_confirm_weak_crypto_primitive(
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult nullseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx);
-int nullseat_confirm_weak_cached_hostkey(
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult nullseat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx);
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 bool nullseat_is_never_utf8(Seat *seat);
 bool nullseat_is_always_utf8(Seat *seat);
 void nullseat_echoedit_update(Seat *seat, bool echoing, bool editing);
@@ -1455,16 +1527,16 @@ bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
  */
 
 void console_connection_fatal(Seat *seat, const char *message);
-int console_confirm_ssh_host_key(
+SeatPromptResult console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx);
-int console_confirm_weak_crypto_primitive(
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx);
-int console_confirm_weak_cached_hostkey(
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx);
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 StripCtrlChars *console_stripctrl_new(
         Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
 void console_set_trust_status(Seat *seat, bool trusted);
@@ -1474,7 +1546,7 @@ bool console_has_mixed_input_stream(Seat *seat);
 /*
  * Other centralised seat functions.
  */
-int filexfer_get_userpass_input(Seat *seat, prompts_t *p);
+SeatPromptResult filexfer_get_userpass_input(Seat *seat, prompts_t *p);
 bool cmdline_seat_verbose(Seat *seat);
 
 /*
@@ -2080,7 +2152,7 @@ void term_provide_backend(Terminal *term, Backend *backend);
 void term_provide_logctx(Terminal *term, LogContext *logctx);
 void term_set_focus(Terminal *term, bool has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
-int term_get_userpass_input(Terminal *term, prompts_t *p);
+SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p);
 void term_set_trust_status(Terminal *term, bool trusted);
 void term_keyinput(Terminal *, int codepage, const void *buf, int len);
 void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
@@ -2424,7 +2496,7 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
  * that aren't equivalents to things in windlg.c et al.
  */
 extern bool console_batch_mode, console_antispoof_prompt;
-int console_get_userpass_input(prompts_t *p);
+SeatPromptResult console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
 void console_print_error_msg_fmt_v(
@@ -2457,7 +2529,7 @@ void printer_finish_job(printer_job *);
 int cmdline_process_param(const char *, char *, int, Conf *);
 void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
-int cmdline_get_passwd_input(prompts_t *p);
+SeatPromptResult cmdline_get_passwd_input(prompts_t *p);
 bool cmdline_host_ok(Conf *);
 bool cmdline_verbose(void);
 bool cmdline_loaded_session(void);

@@ -330,7 +330,7 @@ static void sshproxy_notify_remote_disconnect(Seat *seat)
     queue_toplevel_callback(sshproxy_notify_remote_disconnect_callback, sp);
 }
 
-static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
+static SeatPromptResult sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
@@ -349,7 +349,8 @@ static int sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
      */
     sshproxy_error(sp, "Unable to provide interactive authentication "
                    "requested by proxy SSH connection");
-    return 0;
+    return SPR_SW_ABORT("Noninteractive SSH proxy cannot perform "
+                        "interactive authentication");
 }
 
 static void sshproxy_connection_fatal_callback(void *vctx)
@@ -368,10 +369,10 @@ static void sshproxy_connection_fatal(Seat *seat, const char *message)
     }
 }
 
-static int sshproxy_confirm_ssh_host_key(
+static SeatPromptResult sshproxy_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
@@ -390,12 +391,12 @@ static int sshproxy_confirm_ssh_host_key(
      * option in the absence of interactive confirmation, i.e. abort
      * the connection.
      */
-    return 0;
+    return SPR_SW_ABORT("Noninteractive SSH proxy cannot confirm host key");
 }
 
-static int sshproxy_confirm_weak_crypto_primitive(
+static SeatPromptResult sshproxy_confirm_weak_crypto_primitive(
         Seat *seat, const char *algtype, const char *algname,
-        void (*callback)(void *ctx, int result), void *ctx)
+        void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
@@ -415,12 +416,13 @@ static int sshproxy_confirm_weak_crypto_primitive(
     sshproxy_error(sp, "First %s supported by server is %s, below warning "
                    "threshold. Abandoning proxy SSH connection.",
                    algtype, algname);
-    return 0;
+    return SPR_SW_ABORT("Noninteractive SSH proxy cannot confirm "
+                        "weak crypto primitive");
 }
 
-static int sshproxy_confirm_weak_cached_hostkey(
+static SeatPromptResult sshproxy_confirm_weak_cached_hostkey(
         Seat *seat, const char *algname, const char *betteralgs,
-        void (*callback)(void *ctx, int result), void *ctx)
+        void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
@@ -440,7 +442,8 @@ static int sshproxy_confirm_weak_cached_hostkey(
     sshproxy_error(sp, "First host key type stored for server is %s, below "
                    "warning threshold. Abandoning proxy SSH connection.",
                    algname);
-    return 0;
+    return SPR_SW_ABORT("Noninteractive SSH proxy cannot confirm "
+                        "weak cached host key");
 }
 
 static StripCtrlChars *sshproxy_stripctrl_new(

@@ -50,7 +50,7 @@ struct ssh1_connection_state {
     bool sent_exit_status;             /* also for server mode */
 
     prompts_t *antispoof_prompt;
-    int antispoof_ret;
+    SeatPromptResult antispoof_ret;
 
     const SshServerConfig *ssc;
 

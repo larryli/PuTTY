@@ -149,16 +149,22 @@ static void local_proxy_opener_coroutine(void *vctx)
             }
 
             while (true) {
-                int prompt_result = seat_get_userpass_input(
+                SeatPromptResult spr = seat_get_userpass_input(
                     interactor_announce(&lp->interactor), lp->prompts);
-                if (prompt_result > 0) {
+                if (spr.kind == SPRK_OK) {
                     break;
-                } else if (prompt_result == 0) {
+                } else if (spr.kind == SPRK_USER_ABORT) {
                     local_proxy_opener_cleanup_interactor(lp);
                     plug_closing_user_abort(lp->plug);
                     /* That will have freed us, so we must just return
                      * without calling any crStop */
                     return;
+                } else if (spr.kind == SPRK_SW_ABORT) {
+                    local_proxy_opener_cleanup_interactor(lp);
+                    char *err = spr_get_error_message(spr);
+                    plug_closing_error(lp->plug, err);
+                    sfree(err);
+                    return; /* without crStop, as above */
                 }
                 crReturnV;
             }

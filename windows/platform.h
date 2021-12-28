@@ -216,16 +216,16 @@ int has_embedded_chm(void);            /* 1 = yes, 0 = no, -1 = N/A */
  * GUI seat methods in windlg.c, so that the vtable definition in
  * window.c can refer to them.
  */
-int win_seat_confirm_ssh_host_key(
+SeatPromptResult win_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx);
-int win_seat_confirm_weak_crypto_primitive(
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx);
-int win_seat_confirm_weak_cached_hostkey(
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx);
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 
 /*
  * Windows-specific clipboard helper function shared with windlg.c,
@@ -733,5 +733,7 @@ bool handle_special_filemapping_cmdline(char *cmdline, Conf *conf);
 /* network.c: network error reporting helpers taking OS error code */
 void plug_closing_system_error(Plug *plug, DWORD error);
 void plug_closing_winsock_error(Plug *plug, DWORD error);
+
+SeatPromptResult make_spr_sw_abort_winerror(const char *prefix, DWORD error);
 
 #endif /* PUTTY_WINDOWS_PLATFORM_H */

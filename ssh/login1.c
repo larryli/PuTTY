@@ -47,7 +47,7 @@ struct ssh1_login_state {
     char *publickey_comment;
     bool privatekey_available, privatekey_encrypted;
     prompts_t *cur_prompt;
-    int userpass_ret;
+    SeatPromptResult spr;
     char c;
     int pwpkt_type;
     void *agent_response_to_free;
@@ -58,7 +58,6 @@ struct ssh1_login_state {
     size_t agent_key_index, agent_key_limit;
     bool authed;
     RSAKey key;
-    int dlgret;
     Filename *keyfile;
     RSAKey servkey, hostkey;
 
@@ -70,7 +69,7 @@ struct ssh1_login_state {
 
 static void ssh1_login_free(PacketProtocolLayer *);
 static void ssh1_login_process_queue(PacketProtocolLayer *);
-static void ssh1_login_dialog_callback(void *, int);
+static void ssh1_login_dialog_callback(void *, SeatPromptResult);
 static void ssh1_login_special_cmd(PacketProtocolLayer *ppl,
                                    SessionSpecialCode code, int arg);
 static void ssh1_login_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
@@ -242,7 +241,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         char *keydisp = ssh1_pubkey_str(&s->hostkey);
         char **fingerprints = rsa_ssh1_fake_all_fingerprints(&s->hostkey);
 
-        s->dlgret = verify_ssh_host_key(
+        s->spr = verify_ssh_host_key(
             ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport, NULL,
             "rsa", keystr, keydisp, fingerprints,
             ssh1_login_dialog_callback, s);
@@ -253,13 +252,12 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     }
 
 #ifdef FUZZING
-    s->dlgret = 1;
+    s->spr = SPR_OK;
 #endif
-    crMaybeWaitUntilV(s->dlgret >= 0);
+    crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
 
-    if (s->dlgret == 0) {
-        ssh_user_close(s->ppl.ssh,
-                       "User aborted at host key verification");
+    if (spr_is_abort(s->spr)) {
+        ssh_spr_close(s->ppl.ssh, s->spr, "host key verification");
         return;
     }
 
@@ -324,12 +322,12 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
         /* Warn about chosen cipher if necessary. */
         if (warn) {
-            s->dlgret = seat_confirm_weak_crypto_primitive(
+            s->spr = seat_confirm_weak_crypto_primitive(
                 ppl_get_iseat(&s->ppl), "cipher", cipher_string,
                 ssh1_login_dialog_callback, s);
-            crMaybeWaitUntilV(s->dlgret >= 0);
-            if (s->dlgret == 0) {
-                ssh_user_close(s->ppl.ssh, "User aborted at cipher warning");
+            crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+            if (spr_is_abort(s->spr)) {
+                ssh_spr_close(s->ppl.ssh, s->spr, "cipher warning");
                 return;
             }
         }
@@ -391,18 +389,18 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         s->cur_prompt->from_server = false;
         s->cur_prompt->name = dupstr("SSH login name");
         add_prompt(s->cur_prompt, dupstr("login as: "), true);
-        s->userpass_ret = seat_get_userpass_input(
+        s->spr = seat_get_userpass_input(
             ppl_get_iseat(&s->ppl), s->cur_prompt);
-        while (s->userpass_ret < 0) {
+        while (s->spr.kind == SPRK_INCOMPLETE) {
             crReturnV;
-            s->userpass_ret = seat_get_userpass_input(
+            s->spr = seat_get_userpass_input(
                 ppl_get_iseat(&s->ppl), s->cur_prompt);
         }
-        if (!s->userpass_ret) {
+        if (spr_is_abort(s->spr)) {
             /*
              * Failed to get a username. Terminate.
              */
-            ssh_user_close(s->ppl.ssh, "No username provided");
+            ssh_spr_close(s->ppl.ssh, s->spr, "username prompt");
             return;
         }
         s->username = prompt_get_result(s->cur_prompt->prompts[0]);
@@ -688,17 +686,16 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     add_prompt(s->cur_prompt,
                                dupprintf("Passphrase for key \"%s\": ",
                                          s->publickey_comment), false);
-                    s->userpass_ret = seat_get_userpass_input(
+                    s->spr = seat_get_userpass_input(
                         ppl_get_iseat(&s->ppl), s->cur_prompt);
-                    while (s->userpass_ret < 0) {
+                    while (s->spr.kind == SPRK_INCOMPLETE) {
                         crReturnV;
-                        s->userpass_ret = seat_get_userpass_input(
+                        s->spr = seat_get_userpass_input(
                             ppl_get_iseat(&s->ppl), s->cur_prompt);
                     }
-                    if (!s->userpass_ret) {
+                    if (spr_is_abort(s->spr)) {
                         /* Failed to get a passphrase. Terminate. */
-                        ssh_user_close(s->ppl.ssh,
-                                       "User aborted at passphrase prompt");
+                        ssh_spr_close(s->ppl.ssh, s->spr, "passphrase prompt");
                         return;
                     }
                     passphrase = prompt_get_result(s->cur_prompt->prompts[0]);
@@ -943,20 +940,20 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
          * or CryptoCard exchange if we're doing TIS or CryptoCard
          * authentication.
          */
-        s->userpass_ret = seat_get_userpass_input(
+        s->spr = seat_get_userpass_input(
             ppl_get_iseat(&s->ppl), s->cur_prompt);
-        while (s->userpass_ret < 0) {
+        while (s->spr.kind == SPRK_INCOMPLETE) {
             crReturnV;
-            s->userpass_ret = seat_get_userpass_input(
+            s->spr = seat_get_userpass_input(
                 ppl_get_iseat(&s->ppl), s->cur_prompt);
         }
-        if (!s->userpass_ret) {
+        if (spr_is_abort(s->spr)) {
             /*
              * Failed to get a password (for example
              * because one was supplied on the command line
              * which has already failed to work). Terminate.
              */
-            ssh_user_close(s->ppl.ssh, "User aborted at password prompt");
+            ssh_spr_close(s->ppl.ssh, s->spr, "password prompt");
             return;
         }
 
@@ -1141,10 +1138,10 @@ static void ssh1_login_setup_tis_scc(struct ssh1_login_state *s)
     s->tis_scc_initialised = true;
 }
 
-static void ssh1_login_dialog_callback(void *loginv, int ret)
+static void ssh1_login_dialog_callback(void *loginv, SeatPromptResult spr)
 {
     struct ssh1_login_state *s = (struct ssh1_login_state *)loginv;
-    s->dlgret = ret;
+    s->spr = spr;
     ssh_ppl_process_queue(&s->ppl);
 }
 

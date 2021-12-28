@@ -3454,7 +3454,7 @@ struct confirm_ssh_host_key_dialog_ctx {
     char *keytype;
     char *keystr;
     char *more_info;
-    void (*callback)(void *callback_ctx, int result);
+    void (*callback)(void *callback_ctx, SeatPromptResult result);
     void *callback_ctx;
     Seat *seat;
 
@@ -3468,7 +3468,7 @@ static void confirm_ssh_host_key_result_callback(void *vctx, int result)
         (struct confirm_ssh_host_key_dialog_ctx *)vctx;
 
     if (result >= 0) {
-        int logical_result;
+        SeatPromptResult logical_result;
 
         /*
          * Convert the dialog-box return value (one of three
@@ -3478,11 +3478,11 @@ static void confirm_ssh_host_key_result_callback(void *vctx, int result)
          */
         if (result == 2) {
             store_host_key(ctx->host, ctx->port, ctx->keytype, ctx->keystr);
-            logical_result = 1;      /* continue with connection */
+            logical_result = SPR_OK;
         } else if (result == 1) {
-            logical_result = 1;      /* continue with connection */
+            logical_result = SPR_OK;
         } else {
-            logical_result = 0;      /* do not continue with connection */
+            logical_result = SPR_USER_ABORT;
         }
 
         ctx->callback(ctx->callback_ctx, logical_result);
@@ -3539,10 +3539,10 @@ static void more_info_button_clicked(GtkButton *button, gpointer vctx)
         &buttons_ok, more_info_closed, ctx);
 }
 
-int gtk_seat_confirm_ssh_host_key(
+SeatPromptResult gtk_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char absenttxt[] =
         "The host key is not cached for this server:\n\n"
@@ -3641,25 +3641,28 @@ int gtk_seat_confirm_ssh_host_key(
 
     sfree(text);
 
-    return -1;                         /* dialog still in progress */
+    return SPR_INCOMPLETE;             /* dialog still in progress */
 }
 
-struct simple_prompt_result_ctx {
-    void (*callback)(void *callback_ctx, int result);
+struct simple_prompt_result_spr_ctx {
+    void (*callback)(void *callback_ctx, SeatPromptResult spr);
     void *callback_ctx;
     Seat *seat;
     enum DialogSlot dialog_slot;
 };
 
-static void simple_prompt_result_callback(void *vctx, int result)
+static void simple_prompt_result_spr_callback(void *vctx, int result)
 {
-    struct simple_prompt_result_ctx *ctx =
-        (struct simple_prompt_result_ctx *)vctx;
+    struct simple_prompt_result_spr_ctx *ctx =
+        (struct simple_prompt_result_spr_ctx *)vctx;
 
     unregister_dialog(ctx->seat, ctx->dialog_slot);
 
-    if (result >= 0)
-        ctx->callback(ctx->callback_ctx, result);
+    if (result == 0)
+        ctx->callback(ctx->callback_ctx, SPR_USER_ABORT);
+    else if (result > 0)
+        ctx->callback(ctx->callback_ctx, SPR_OK);
+    /* if <0, we're cleaning up for some other reason */
 
     /*
      * Clean up this context structure, whether or not a result was
@@ -3672,9 +3675,9 @@ static void simple_prompt_result_callback(void *vctx, int result)
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-int gtk_seat_confirm_weak_crypto_primitive(
+SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char msg[] =
         "The first %s supported by the server is "
@@ -3682,12 +3685,12 @@ int gtk_seat_confirm_weak_crypto_primitive(
         "Continue with connection?";
 
     char *text;
-    struct simple_prompt_result_ctx *result_ctx;
+    struct simple_prompt_result_spr_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     text = dupprintf(msg, algtype, algname);
 
-    result_ctx = snew(struct simple_prompt_result_ctx);
+    result_ctx = snew(struct simple_prompt_result_spr_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->seat = seat;
@@ -3697,17 +3700,17 @@ int gtk_seat_confirm_weak_crypto_primitive(
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text,
         string_width("Reasonably long line of text as a width template"),
-        false, &buttons_yn, simple_prompt_result_callback, result_ctx);
+        false, &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
     register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
     sfree(text);
 
-    return -1;                         /* dialog still in progress */
+    return SPR_INCOMPLETE;
 }
 
-int gtk_seat_confirm_weak_cached_hostkey(
+SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
-    void (*callback)(void *ctx, int result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char msg[] =
         "The first host key type we have stored for this server\n"
@@ -3718,12 +3721,12 @@ int gtk_seat_confirm_weak_cached_hostkey(
         "Continue with connection?";
 
     char *text;
-    struct simple_prompt_result_ctx *result_ctx;
+    struct simple_prompt_result_spr_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     text = dupprintf(msg, algname, betteralgs);
 
-    result_ctx = snew(struct simple_prompt_result_ctx);
+    result_ctx = snew(struct simple_prompt_result_spr_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->seat = seat;
@@ -3734,12 +3737,12 @@ int gtk_seat_confirm_weak_cached_hostkey(
         mainwin, "PuTTY Security Alert", text,
         string_width("is ecdsa-nistp521, which is below the configured"
                      " warning threshold."),
-        false, &buttons_yn, simple_prompt_result_callback, result_ctx);
+        false, &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
     register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
     sfree(text);
 
-    return -1;                         /* dialog still in progress */
+    return SPR_INCOMPLETE;
 }
 
 void old_keyfile_warning(void)
@@ -4149,6 +4152,30 @@ void logevent_dlg(eventlog_stuff *es, const char *string)
     }
 }
 
+struct simple_prompt_result_int_ctx {
+    void (*callback)(void *callback_ctx, int result);
+    void *callback_ctx;
+    Seat *seat;
+    enum DialogSlot dialog_slot;
+};
+
+static void simple_prompt_result_int_callback(void *vctx, int result)
+{
+    struct simple_prompt_result_int_ctx *ctx =
+        (struct simple_prompt_result_int_ctx *)vctx;
+
+    unregister_dialog(ctx->seat, ctx->dialog_slot);
+
+    if (result >= 0)
+        ctx->callback(ctx->callback_ctx, result);
+
+    /*
+     * Clean up this context structure, whether or not a result was
+     * ever actually delivered from the dialog box.
+     */
+    sfree(ctx);
+}
+
 int gtkdlg_askappend(Seat *seat, Filename *filename,
                      void (*callback)(void *ctx, int result), void *ctx)
 {
@@ -4168,13 +4195,13 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
 
     char *message;
     char *mbtitle;
-    struct simple_prompt_result_ctx *result_ctx;
+    struct simple_prompt_result_int_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
     mbtitle = dupprintf("%s Log to File", appname);
 
-    result_ctx = snew(struct simple_prompt_result_ctx);
+    result_ctx = snew(struct simple_prompt_result_int_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->seat = seat;
@@ -4184,7 +4211,7 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
     msgbox = create_message_box(
         mainwin, mbtitle, message,
         string_width("LINE OF TEXT SUITABLE FOR THE ASKAPPEND WIDTH"),
-        false, &buttons_append, simple_prompt_result_callback, result_ctx);
+        false, &buttons_append, simple_prompt_result_int_callback, result_ctx);
     register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
     sfree(message);
