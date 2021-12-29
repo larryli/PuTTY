@@ -252,6 +252,39 @@ ports in and out of the WSL environment (e.g. expose a WSL2 network
 service through the hypervisor's internal NAT), forward Pageant into
 it, and so on.
 
+\S2{psusan-manpage-examples-cygwin} Cygwin
+
+Another Unix-like environment on Windows is Cygwin. That comes with
+its own GUI terminal application, \cw{mintty} (as it happens, a
+derivative of PuTTY); but if you'd prefer to use PuTTY itself to talk
+to your Cygwin terminal sessions, \cw{psusan} can help.
+
+To do this, you'll first need to build the Unix PuTTY tools inside
+Cygwin (via the usual \cw{cmake} method). Then, copy the resulting
+\cw{psusan.exe} into Cygwin's \cw{/bin} directory. (It has to be
+in that directory for non-Cygwin programs to run it; otherwise it
+won't be able to find the Cygwin DLL at startup.)
+
+Then set up your PuTTY saved session like this:
+
+\b set the local proxy command to run \cw{psusan.exe} via its real
+Windows path. You might also want to add the \cw{--sessiondir} option
+so that shell sessions start up in your Cygwin home directory. For
+example, you might use the command \cq{c:\\cygwin64\\bin\\psusan.exe
+--sessiondir /home/simon} (changing the pathname and username to match
+your setup).
+
+\b enter anything you like in the host name box; \cq{Cygwin} is
+probably a good choice
+
+\b set the protocol to \q{Bare ssh-connection}, as usual.
+
+Port forwarding is probably not particularly useful in this case,
+since Cygwin shares the same network port space as the host machine.
+But turning on agent forwarding is useful, because then the Cygwin
+command-line SSH client can talk to Pageant without any further
+configuration.
+
 \S2{psusan-manpage-examples-schroot} \cw{schroot}
 
 Another example of a container-like environment is the alternative
