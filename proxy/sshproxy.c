@@ -22,6 +22,9 @@ typedef struct SshProxy {
     Seat *clientseat;
     Interactor *clientitr;
 
+    bool got_proxy_password, tried_proxy_password;
+    char *proxy_password;
+
     ProxyStderrBuf psb;
     Plug *plug;
 
@@ -61,6 +64,8 @@ static void sshproxy_close(Socket *s)
         backend_free(sp->backend);
     if (sp->logctx)
         log_free(sp->logctx);
+    if (sp->proxy_password)
+        burnstr(sp->proxy_password);
     bufchain_clear(&sp->ssh_to_socket);
 
     delete_callbacks_for_context(sp);
@@ -334,6 +339,21 @@ static SeatPromptResult sshproxy_get_userpass_input(Seat *seat, prompts_t *p)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
+    /*
+     * If we have a stored proxy_password, use that, via logic similar
+     * to cmdline_get_passwd_input: we only try it if we're given a
+     * prompts_t containing exactly one prompt, and that prompt is set
+     * to non-echoing.
+     */
+    if (sp->got_proxy_password && !sp->tried_proxy_password &&
+        p->n_prompts == 1 && !p->prompts[0]->echo) {
+        prompt_set_result(p->prompts[0], sp->proxy_password);
+        burnstr(sp->proxy_password);
+        sp->proxy_password = NULL;
+        sp->tried_proxy_password = true;
+        return SPR_OK;
+    }
+
     if (sp->clientseat) {
         /*
          * If we have access to the outer Seat, pass this prompt
@@ -555,6 +575,12 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     const char *proxy_username = conf_get_str(clientconf, CONF_proxy_username);
     if (*proxy_username)
         conf_set_str(sp->conf, CONF_username, proxy_username);
+
+    const char *proxy_password = conf_get_str(clientconf, CONF_proxy_password);
+    if (*proxy_password) {
+        sp->proxy_password = dupstr(proxy_password);
+        sp->got_proxy_password = true;
+    }
 
     const struct BackendVtable *backvt = backend_vt_from_proto(
         conf_get_int(sp->conf, CONF_protocol));
