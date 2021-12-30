@@ -947,15 +947,19 @@ this:
 
 \c plink host1.example.com -nc host2.example.com:1234
 
-You might want to use this feature if you needed to make an SSH
-connection to a target host which you can only reach by going
-through a proxy host, and rather than using port forwarding you
-prefer to use the local proxy feature (see \k{config-proxy-type} for
-more about local proxies). In this situation you might select
-\q{Local} proxy type, set your local proxy command to be \cq{plink
-%proxyhost -nc %host:%port}, enter the target host name on the
-Session panel, and enter the directly reachable proxy host name on
-the Proxy panel.
+This can be useful if you're trying to make a connection to a target
+host which you can only reach by SSH forwarding through a proxy host.
+One way to do this would be to have an existing SSH connection to the
+proxy host, with a port forwarding, but if you prefer to have the
+connection started on demand as needed, then this approach can also
+work.
+
+However, this does depend on the program \e{using} the proxy being
+able to run a subprocess in place of making a network connection.
+PuTTY itself can do this using the \q{Local} proxy type, but there's a
+built-in more flexible way using the \q{SSH} proxy type. (See
+\k{config-proxy-type} for a description of both.) So this feature is
+probably most useful with another client program as the end user.
 
 This feature is only available in SSH protocol version 2 (since the
 version 1 protocol assumes you will always want to run a shell). It

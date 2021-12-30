@@ -1961,6 +1961,12 @@ and enter a command such as \c{connect myhost.com 22} to connect
 through to an external host. Selecting \I{Telnet proxy}\q{Telnet}
 allows you to tell PuTTY to use this type of proxy.
 
+\b Selecting \q{SSH} causes PuTTY to make a secondary SSH connection
+to the proxy host, and then open a port-forwarding channel to the
+final destination host. The \q{Proxy hostname} field will be
+interpreted as the name of a PuTTY saved session if one exists, or a
+hostname if not.
+
 \b Selecting \I{Local proxy}\q{Local} allows you to specify an arbitrary
 command on the local machine to act as a proxy. When the session is
 started, instead of creating a TCP connection, PuTTY runs the command
@@ -1971,11 +1977,6 @@ output streams.
 This could be used, for instance, to talk to some kind of network proxy
 that PuTTY does not natively support; or you could tunnel a connection
 over something other than TCP/IP entirely.
-
-If you want your local proxy command to make a secondary SSH
-connection to a proxy host and then tunnel the primary connection
-over that, you might well want the \c{-nc} command-line option in
-Plink. See \k{using-cmdline-ncmode} for more information.
 
 You can also enable this mode on the command line; see
 \k{using-cmdline-proxycmd}.
@@ -2069,17 +2070,34 @@ proxies and SOCKS 5 proxies.
 supports it (this is not supported in \i{PuTTYtel}); otherwise the
 password is sent to the proxy in \I{plaintext password}plain text.
 
-\b With HTTP proxying, the only currently supported authentication
-method is \I{HTTP basic}\q{basic}, where the password is sent to the proxy
-in \I{plaintext password}plain text.
+\b With HTTP proxying, authentication is via \q{\i{HTTP Digest}} if
+possible (again, not supported in PuTTYtel), or \q{\i{HTTP Basic}}. In
+the latter case, the password is sent to the proxy in \I{plaintext
+password}plain text.
 
 }
 
 \b SOCKS 4 can use the \q{Username} field, but does not support
 passwords.
 
+\b SSH proxying can use all the same forms of SSH authentication
+supported by PuTTY for its main connection. If the SSH server requests
+password authentication, the configured proxy password will be used,
+but other authentication methods such as public keys will be tried
+first, just as for a primary SSH connection.
+
 \b You can specify a way to include a username and password in the
 Telnet/Local proxy command (see \k{config-proxy-command}).
+
+If PuTTY discovers that it needs a proxy username or password and you
+have not specified one in the configuration, it will prompt for it
+interactively in the terminal.
+
+(For SSH proxying, this will also happen in the case of other
+interactive SSH login prompts, such as SSH key passphrases or GSSAPI.
+For the Telnet and Local proxy types, PuTTY will prompt for a username
+or password if you included \c{%user} or \c{%pass} in the command
+string and did not provide a corresponding configuration entry.)
 
 \S{config-proxy-command} Specifying the Telnet or Local proxy command
 

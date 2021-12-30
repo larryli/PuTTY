@@ -608,8 +608,11 @@ saved sessions from
 \IM{proxy authentication} proxy authentication
 \IM{proxy authentication} authentication, to proxy
 
-\IM{HTTP basic} HTTP \q{basic} authentication
-\IM{HTTP basic} \q{basic} authentication (HTTP)
+\IM{HTTP Basic} HTTP Basic authentication
+\IM{HTTP Basic} \q{basic} authentication (HTTP)
+
+\IM{HTTP Digest} HTTP Digest authentication
+\IM{HTTP Digest} \q{digest} authentication (HTTP)
 
 \IM{plaintext password} plain text password
 \IM{plaintext password} password, plain text
