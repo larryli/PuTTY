@@ -266,7 +266,7 @@ static void argon2_internal(uint32_t p, uint32_t T, uint32_t m, uint32_t t,
      * that in the initial slice on the first pass, we've already written
      * values into the first two columns during the initial setup above. So
      * 'jstart' indicates the starting index in each segment we process; it
-     * starts off as 2 so that we don't overwrite the inital setup, and then
+     * starts off as 2 so that we don't overwrite the initial setup, and then
      * after the first slice is done, we set it to 0, and it stays there.
      *
      * d_mode indicates whether we're being data-dependent (true) or

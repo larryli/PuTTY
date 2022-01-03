@@ -1544,7 +1544,7 @@ mp_int *monty_export(MontyContext *mc, mp_int *x)
 mp_int *monty_pow(MontyContext *mc, mp_int *base, mp_int *exponent)
 {
     /*
-     * Modular exponentation is done from the top down, using a
+     * Modular exponentiation is done from the top down, using a
      * fixed-window technique.
      *
      * We have a table storing every power of the base from base^0 up

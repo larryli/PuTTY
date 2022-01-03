@@ -615,7 +615,7 @@ void search234_start(search234_state *state, tree234 *t)
 {
     state->_node = t->root;
     state->_base = 0; /* index of first element in this node's subtree */
-    state->_last = -1; /* indicate that this node is not previously visted */
+    state->_last = -1; /* indicate that this node is not previously visited */
     search234_step(state, 0);
 }
 void search234_step(search234_state *state, int direction)

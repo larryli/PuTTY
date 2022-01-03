@@ -327,7 +327,7 @@ struct SftpServerVtable {
     /*
      * Handle actual filesystem requests.
      *
-     * Each of these functions replies by calling an appropiate
+     * Each of these functions replies by calling an appropriate
      * sftp_reply_foo() function on the given reply packet.
      */
 

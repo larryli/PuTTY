@@ -4178,7 +4178,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
         }
 
 
-        /* Nastyness with NUMLock - Shift-NUMLock is left alone though */
+        /* Nastiness with NUMLock - Shift-NUMLock is left alone though */
         if ((funky_type == FUNKY_VT400 ||
              (funky_type <= FUNKY_LINUX && term->app_keypad_keys &&
               !no_applic_k))

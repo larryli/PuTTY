@@ -3194,7 +3194,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
         text = retrieve_cutbuffer(inst, &length);
         if (length == 0)
             return;
-        /* Xterm is rumoured to expect Latin-1, though I havn't checked the
+        /* Xterm is rumoured to expect Latin-1, though I haven't checked the
          * source, so use that as a de-facto standard. */
         charset = CS_ISO8859_1;
         free_required = true;

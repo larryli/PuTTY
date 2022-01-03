@@ -1922,7 +1922,7 @@ static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
     s->gss_status |= GSS_KEX_CAPABLE;
 
     /*
-     * When rekeying to cascade, avoding doing this too close to the
+     * When rekeying to cascade, avoid doing this too close to the
      * context expiration time, since the key exchange might fail.
      */
     if (s->gss_ctxt_lifetime < MIN_CTXT_LIFETIME)

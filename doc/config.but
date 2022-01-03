@@ -614,7 +614,7 @@ This option affects the arrow keys, if you press one with any of the
 modifier keys Shift, Ctrl or Alt held down.
 
 \b In the default mode, labelled \c{Ctrl toggles app mode}, the Ctrl
-key toggles between the default arrow-key sequnces like \c{ESC [A} and
+key toggles between the default arrow-key sequences like \c{ESC [A} and
 \c{ESC [B}, and the sequences Digital's terminals generate in
 \q{application cursor keys} mode, i.e. \c{ESC O A} and so on. Shift
 and Alt have no effect.
@@ -1369,7 +1369,7 @@ which one of the options is \q{Paste}). (This context menu is always
 available by holding down Ctrl and right-clicking, regardless of the
 setting of this option.)
 
-(When PuTTY iself is running on Unix, it follows the X Window System
+(When PuTTY itself is running on Unix, it follows the X Window System
 convention.)
 
 \S{config-mouseshift} \q{Shift overrides application's use of mouse}
