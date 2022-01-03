@@ -123,17 +123,6 @@ static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
         LocalFree(psd);
 }
 
-char *agent_named_pipe_name(void)
-{
-    char *username, *suffix, *pipename;
-    username = get_username();
-    suffix = capi_obfuscate_string("Pageant");
-    pipename = dupprintf("\\\\.\\pipe\\pageant.%s.%s", username, suffix);
-    sfree(username);
-    sfree(suffix);
-    return pipename;
-}
-
 Socket *agent_connect(Plug *plug)
 {
     char *pipename = agent_named_pipe_name();
