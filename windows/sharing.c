@@ -36,8 +36,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
     char *name, *mutexname, *pipename;
     HANDLE mutex;
     Socket *retsock;
-    PSECURITY_DESCRIPTOR psd;
-    PACL acl;
 
     /*
      * Transform the platform-independent version of the connection
@@ -57,39 +55,12 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
      * Make a mutex name out of the connection identifier, and lock it
      * while we decide whether to be upstream or downstream.
      */
-    {
-        SECURITY_ATTRIBUTES sa;
-
-        mutexname = make_name(CONNSHARE_MUTEX_PREFIX, name);
-        if (!make_private_security_descriptor(MUTEX_ALL_ACCESS,
-                                              &psd, &acl, logtext)) {
-            sfree(mutexname);
-            sfree(name);
-            return SHARE_NONE;
-        }
-
-        memset(&sa, 0, sizeof(sa));
-        sa.nLength = sizeof(sa);
-        sa.lpSecurityDescriptor = psd;
-        sa.bInheritHandle = false;
-
-        mutex = CreateMutex(&sa, false, mutexname);
-
-        if (!mutex) {
-            *logtext = dupprintf("CreateMutex(\"%s\") failed: %s",
-                                 mutexname, win_strerror(GetLastError()));
-            sfree(mutexname);
-            sfree(name);
-            LocalFree(psd);
-            LocalFree(acl);
-            return SHARE_NONE;
-        }
-
+    mutexname = make_name(CONNSHARE_MUTEX_PREFIX, name);
+    mutex = lock_interprocess_mutex(mutexname, logtext);
+    if (!mutex) {
         sfree(mutexname);
-        LocalFree(psd);
-        LocalFree(acl);
-
-        WaitForSingleObject(mutex, INFINITE);
+        sfree(name);
+        return SHARE_NONE;
     }
 
     pipename = make_name(CONNSHARE_PIPE_PREFIX, name);
@@ -103,8 +74,7 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
             *logtext = pipename;
             *sock = retsock;
             sfree(name);
-            ReleaseMutex(mutex);
-            CloseHandle(mutex);
+            unlock_interprocess_mutex(mutex);
             return SHARE_DOWNSTREAM;
         }
         sfree(*ds_err);

@@ -740,4 +740,7 @@ void plug_closing_winsock_error(Plug *plug, DWORD error);
 
 SeatPromptResult make_spr_sw_abort_winerror(const char *prefix, DWORD error);
 
+HANDLE lock_interprocess_mutex(const char *mutexname, char **error);
+void unlock_interprocess_mutex(HANDLE mutex);
+
 #endif /* PUTTY_WINDOWS_PLATFORM_H */
