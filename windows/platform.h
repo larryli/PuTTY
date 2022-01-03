@@ -655,8 +655,9 @@ void handle_wait_activate(HandleWaitList *hwl, int index);
 void handle_wait_list_free(HandleWaitList *hwl);
 
 /*
- * Exports from winpgntc.c.
+ * Pageant-related pathnames.
  */
+char *agent_mutex_name(void);
 char *agent_named_pipe_name(void);
 
 /*

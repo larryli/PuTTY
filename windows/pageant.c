@@ -1375,10 +1375,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
     const char *command = NULL;
-    bool added_keys = false;
     bool show_keylist_on_startup = false;
     int argc, i;
     char **argv, **argstart;
+
+    typedef struct CommandLineKey {
+        Filename *fn;
+        bool add_encrypted;
+    } CommandLineKey;
+
+    CommandLineKey *clkeys = NULL;
+    size_t nclkeys = 0, clkeysize = 0;
 
     dll_hijacking_protection();
 
@@ -1431,19 +1438,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
-     * Find out if Pageant is already running.
-     */
-    already_running = agent_exists();
-
-    /*
-     * Initialise the cross-platform Pageant code.
-     */
-    if (!already_running) {
-        pageant_init();
-    }
-
-    /*
-     * Process the command line and add keys as listed on it.
+     * Process the command line, handling anything that can be done
+     * immediately, but deferring adding keys until after we've
+     * started up the main agent. Details of keys to be added are
+     * stored in the 'clkeys' array.
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
     bool doing_opts = true;
@@ -1493,19 +1491,122 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 exit(1);
             }
         } else {
-            Filename *fn = filename_from_str(p);
-            win_add_keyfile(fn, add_keys_encrypted);
-            filename_free(fn);
-            added_keys = true;
+            sgrowarray(clkeys, clkeysize, nclkeys);
+            CommandLineKey *clkey = &clkeys[nclkeys++];
+            clkey->fn = filename_from_str(p);
+            clkey->add_encrypted = add_keys_encrypted;
         }
     }
 
     /*
-     * Forget any passphrase that we retained while going over
-     * command line keyfiles.
+     * Create and lock an interprocess mutex while we figure out
+     * whether we're going to be the Pageant server or a client. That
+     * way, two Pageant processes started up simultaneously will be
+     * able to agree on which one becomes the server without a race
+     * condition.
      */
+    HANDLE mutex;
+    {
+        char *err;
+        char *mutexname = agent_mutex_name();
+        mutex = lock_interprocess_mutex(mutexname, &err);
+        sfree(mutexname);
+        if (!mutex) {
+            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+            return 1;
+        }
+    }
+
+    /*
+     * Find out if Pageant is already running.
+     */
+    already_running = agent_exists();
+
+    /*
+     * If it isn't, we're going to be the primary Pageant that stays
+     * running, so set up all the machinery to answer requests.
+     */
+    if (!already_running) {
+        /*
+         * Initialise the cross-platform Pageant code.
+         */
+        pageant_init();
+
+        /*
+         * Set up a named-pipe listener.
+         */
+        Plug *pl_plug;
+        wpc->plc.vt = &winpgnt_vtable;
+        wpc->plc.suppress_logging = true;
+        struct pageant_listen_state *pl =
+            pageant_listener_new(&pl_plug, &wpc->plc);
+        char *pipename = agent_named_pipe_name();
+        Socket *sock = new_named_pipe_listener(pipename, pl_plug);
+        if (sk_socket_error(sock)) {
+            char *err = dupprintf("Unable to open named pipe at %s "
+                                  "for SSH agent:\n%s", pipename,
+                                  sk_socket_error(sock));
+            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+            return 1;
+        }
+        pageant_listener_got_socket(pl, sock);
+        sfree(pipename);
+
+        /*
+         * Set up the window class for the hidden window that receives
+         * the WM_COPYDATA message used by the old-style Pageant IPC
+         * system.
+         */
+        if (!prev) {
+            WNDCLASS wndclass;
+
+            memset(&wndclass, 0, sizeof(wndclass));
+            wndclass.lpfnWndProc = wm_copydata_WndProc;
+            wndclass.hInstance = inst;
+            wndclass.lpszClassName = IPCCLASSNAME;
+
+            RegisterClass(&wndclass);
+        }
+
+        /*
+         * And launch the subthread which will open that hidden window and
+         * handle WM_COPYDATA messages on it.
+         */
+        wmcpc.vt = &wmcpc_vtable;
+        wmcpc.suppress_logging = true;
+        pageant_register_client(&wmcpc);
+        DWORD wm_copydata_threadid;
+        wmct.ev_msg_ready = CreateEvent(NULL, false, false, NULL);
+        wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);
+        HANDLE hThread = CreateThread(NULL, 0, wm_copydata_threadfunc,
+                                      &inst, 0, &wm_copydata_threadid);
+        if (hThread)
+            CloseHandle(hThread); /* we don't need the thread handle */
+        add_handle_wait(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
+    }
+
+    /*
+     * Now we're either a fully set up Pageant server, or we know one
+     * is running somewhere else. Either way, now it's safe to unlock
+     * the mutex.
+     */
+    unlock_interprocess_mutex(mutex);
+
+    /*
+     * Add any keys provided on the command line.
+     */
+    for (size_t i = 0; i < nclkeys; i++) {
+        CommandLineKey *clkey = &clkeys[i];
+        win_add_keyfile(clkey->fn, clkey->add_encrypted);
+        filename_free(clkey->fn);
+    }
+    sfree(clkeys);
+    /* And forget any passphrases we stashed during that loop. */
     pageant_forget_passphrases();
 
+    /*
+     * Now our keys are present, spawn a command, if we were asked to.
+     */
     if (command) {
         char *args;
         if (command[0] == '"')
@@ -1525,7 +1626,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * keys), complain.
      */
     if (already_running) {
-        if (!command && !added_keys) {
+        if (!command && !nclkeys) {
             MessageBox(NULL, "Pageant is already running", "Pageant Error",
                        MB_ICONERROR | MB_OK);
         }
@@ -1533,32 +1634,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
-     * Set up a named-pipe listener.
-     */
-    {
-        Plug *pl_plug;
-        wpc->plc.vt = &winpgnt_vtable;
-        wpc->plc.suppress_logging = true;
-        struct pageant_listen_state *pl =
-            pageant_listener_new(&pl_plug, &wpc->plc);
-        char *pipename = agent_named_pipe_name();
-        Socket *sock = new_named_pipe_listener(pipename, pl_plug);
-        if (sk_socket_error(sock)) {
-            char *err = dupprintf("Unable to open named pipe at %s "
-                                  "for SSH agent:\n%s", pipename,
-                                  sk_socket_error(sock));
-            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
-            return 1;
-        }
-        pageant_listener_got_socket(pl, sock);
-        sfree(pipename);
-    }
-
-    /*
-     * Set up window classes for two hidden windows: one that receives
-     * all the messages to do with our presence in the system tray,
-     * and one that receives the WM_COPYDATA message used by the
-     * old-style Pageant IPC system.
+     * Set up the window class for the hidden window that receives
+     * all the messages to do with our presence in the system tray.
      */
 
     if (!prev) {
@@ -1569,13 +1646,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         wndclass.hInstance = inst;
         wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
         wndclass.lpszClassName = TRAYCLASSNAME;
-
-        RegisterClass(&wndclass);
-
-        memset(&wndclass, 0, sizeof(wndclass));
-        wndclass.lpfnWndProc = wm_copydata_WndProc;
-        wndclass.hInstance = inst;
-        wndclass.lpszClassName = IPCCLASSNAME;
 
         RegisterClass(&wndclass);
     }
@@ -1623,18 +1693,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     ShowWindow(traywindow, SW_HIDE);
 
-    wmcpc.vt = &wmcpc_vtable;
-    wmcpc.suppress_logging = true;
-    pageant_register_client(&wmcpc);
-    DWORD wm_copydata_threadid;
-    wmct.ev_msg_ready = CreateEvent(NULL, false, false, NULL);
-    wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);
-    HANDLE hThread = CreateThread(NULL, 0, wm_copydata_threadfunc,
-                                  &inst, 0, &wm_copydata_threadid);
-    if (hThread)
-        CloseHandle(hThread);          /* we don't need the thread handle */
-    add_handle_wait(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
-
+    /* Open the visible key list window, if we've been asked to. */
     if (show_keylist_on_startup)
         create_keylist_window();
 
