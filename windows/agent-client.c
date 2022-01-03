@@ -12,8 +12,6 @@
 #include "security-api.h"
 #include "cryptoapi.h"
 
-#define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
-
 static bool wm_copydata_agent_exists(void)
 {
     HWND hwnd;

@@ -30,8 +30,6 @@
 #define WM_SYSTRAY   (WM_APP + 6)
 #define WM_SYSTRAY2  (WM_APP + 7)
 
-#define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
-
 #define APPNAME "Pageant"
 
 /* Titles and class names for invisible windows. IPCWINTITLE and

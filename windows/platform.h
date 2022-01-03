@@ -35,6 +35,10 @@
 #define BUILDINFO_PLATFORM "Windows"
 #endif
 
+/* Randomly-chosen dwData value identifying a WM_COPYDATA message as
+ * being a Pageant transaction */
+#define AGENT_COPYDATA_ID 0x804e50ba
+
 struct Filename {
     char *path;
 };
