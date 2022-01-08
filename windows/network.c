@@ -1131,6 +1131,8 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     SOCKADDR_IN6 a6;
 #endif
     SOCKADDR_IN a;
+    struct sockaddr *bindaddr;
+    unsigned bindsize;
 
     DWORD err;
     const char *errstr;
@@ -1198,8 +1200,9 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
                      (const char *)&on, sizeof(on));
     }
 
+    switch (address_family) {
 #ifndef NO_IPV6
-    if (address_family == AF_INET6) {
+      case AF_INET6: {
         memset(&a6, 0, sizeof(a6));
         a6.sin6_family = AF_INET6;
         if (local_host_only)
@@ -1226,9 +1229,12 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
             }
         }
         a6.sin6_port = p_htons(port);
-    } else
+        bindaddr = (struct sockaddr *)&a6;
+        bindsize = sizeof(a6);
+        break;
+      }
 #endif
-    {
+      case AF_INET: {
         bool got_addr = false;
         a.sin_family = AF_INET;
 
@@ -1256,16 +1262,15 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
         }
 
         a.sin_port = p_htons((short)port);
+        bindaddr = (struct sockaddr *)&a;
+        bindsize = sizeof(a);
+        break;
+      }
+      default:
+        unreachable("bad address family in sk_newlistener_internal");
     }
-#ifndef NO_IPV6
-    retcode = p_bind(s, (address_family == AF_INET6 ?
-                         (struct sockaddr *) &a6 :
-                         (struct sockaddr *) &a),
-                     (address_family ==
-                      AF_INET6 ? sizeof(a6) : sizeof(a)));
-#else
-    retcode = p_bind(s, (struct sockaddr *) &a, sizeof(a));
-#endif
+
+    retcode = p_bind(s, bindaddr, bindsize);
     if (retcode != SOCKET_ERROR) {
         err = 0;
     } else {
