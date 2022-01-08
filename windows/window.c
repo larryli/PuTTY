@@ -1639,32 +1639,39 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
         }
     }
 
-    /*
-     * We want to send exactly one term_size() to the terminal,
-     * telling it what size it ended up after this operation.
-     *
-     * If we don't get the size we asked for in SetWindowPos, then
-     * we'll be sent a WM_SIZE message, whose handler will make that
-     * call, all before SetWindowPos even returns to here.
-     *
-     * But if that _didn't_ happen, we'll need to call term_size
-     * ourselves afterwards.
-     */
-    sent_term_size = false;
-
     if (conf_get_int(conf, CONF_resize_action) != RESIZE_FONT &&
         !IsZoomed(wgs.term_hwnd)) {
+        /*
+         * We want to send exactly one term_size() to the terminal,
+         * telling it what size it ended up after this operation.
+         *
+         * If we don't get the size we asked for in SetWindowPos, then
+         * we'll be sent a WM_SIZE message, whose handler will make
+         * that call, all before SetWindowPos even returns to here.
+         *
+         * But if that _didn't_ happen, we'll need to call term_size
+         * ourselves afterwards.
+         */
+        sent_term_size = false;
+
         width = extra_width + font_width * w;
         height = extra_height + font_height * h;
 
         SetWindowPos(wgs.term_hwnd, NULL, 0, 0, width, height,
             SWP_NOACTIVATE | SWP_NOCOPYBITS |
             SWP_NOMOVE | SWP_NOZORDER);
-    } else
-        reset_window(0);
 
-    if (!sent_term_size)
+        if (!sent_term_size)
+            term_size(term, h, w, conf_get_int(conf, CONF_savelines));
+    } else {
+        /*
+         * If we're resizing by changing the font, we must tell the
+         * terminal the new size immediately, so that reset_window
+         * will know what to do.
+         */
         term_size(term, h, w, conf_get_int(conf, CONF_savelines));
+        reset_window(0);
+    }
 
     InvalidateRect(wgs.term_hwnd, NULL, true);
 }
