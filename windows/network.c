@@ -1196,78 +1196,78 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     }
 
 #ifndef NO_IPV6
-        if (address_family == AF_INET6) {
-            memset(&a6, 0, sizeof(a6));
-            a6.sin6_family = AF_INET6;
+    if (address_family == AF_INET6) {
+        memset(&a6, 0, sizeof(a6));
+        a6.sin6_family = AF_INET6;
+        if (local_host_only)
+            a6.sin6_addr = in6addr_loopback;
+        else
+            a6.sin6_addr = in6addr_any;
+        if (srcaddr != NULL && p_getaddrinfo) {
+            struct addrinfo hints;
+            struct addrinfo *ai;
+            int err;
+
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET6;
+            hints.ai_flags = 0;
+            {
+                /* strip [] on IPv6 address literals */
+                char *trimmed_addr = host_strduptrim(srcaddr);
+                err = p_getaddrinfo(trimmed_addr, NULL, &hints, &ai);
+                sfree(trimmed_addr);
+            }
+            if (err == 0 && ai->ai_family == AF_INET6) {
+                a6.sin6_addr =
+                    ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
+            }
+        }
+        a6.sin6_port = p_htons(port);
+    } else
+#endif
+    {
+        bool got_addr = false;
+        a.sin_family = AF_INET;
+
+        /*
+         * Bind to source address. First try an explicitly
+         * specified one...
+         */
+        if (srcaddr) {
+            a.sin_addr.s_addr = p_inet_addr(srcaddr);
+            if (a.sin_addr.s_addr != INADDR_NONE) {
+                /* Override localhost_only with specified listen addr. */
+                ret->localhost_only = ipv4_is_loopback(a.sin_addr);
+                got_addr = true;
+            }
+        }
+
+        /*
+         * ... and failing that, go with one of the standard ones.
+         */
+        if (!got_addr) {
             if (local_host_only)
-                a6.sin6_addr = in6addr_loopback;
+                a.sin_addr.s_addr = p_htonl(INADDR_LOOPBACK);
             else
-                a6.sin6_addr = in6addr_any;
-            if (srcaddr != NULL && p_getaddrinfo) {
-                struct addrinfo hints;
-                struct addrinfo *ai;
-                int err;
-
-                memset(&hints, 0, sizeof(hints));
-                hints.ai_family = AF_INET6;
-                hints.ai_flags = 0;
-                {
-                    /* strip [] on IPv6 address literals */
-                    char *trimmed_addr = host_strduptrim(srcaddr);
-                    err = p_getaddrinfo(trimmed_addr, NULL, &hints, &ai);
-                    sfree(trimmed_addr);
-                }
-                if (err == 0 && ai->ai_family == AF_INET6) {
-                    a6.sin6_addr =
-                        ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
-                }
-            }
-            a6.sin6_port = p_htons(port);
-        } else
-#endif
-        {
-            bool got_addr = false;
-            a.sin_family = AF_INET;
-
-            /*
-             * Bind to source address. First try an explicitly
-             * specified one...
-             */
-            if (srcaddr) {
-                a.sin_addr.s_addr = p_inet_addr(srcaddr);
-                if (a.sin_addr.s_addr != INADDR_NONE) {
-                    /* Override localhost_only with specified listen addr. */
-                    ret->localhost_only = ipv4_is_loopback(a.sin_addr);
-                    got_addr = true;
-                }
-            }
-
-            /*
-             * ... and failing that, go with one of the standard ones.
-             */
-            if (!got_addr) {
-                if (local_host_only)
-                    a.sin_addr.s_addr = p_htonl(INADDR_LOOPBACK);
-                else
-                    a.sin_addr.s_addr = p_htonl(INADDR_ANY);
-            }
-
-            a.sin_port = p_htons((short)port);
+                a.sin_addr.s_addr = p_htonl(INADDR_ANY);
         }
+
+        a.sin_port = p_htons((short)port);
+    }
 #ifndef NO_IPV6
-        retcode = p_bind(s, (address_family == AF_INET6 ?
-                           (struct sockaddr *) &a6 :
-                           (struct sockaddr *) &a),
-                       (address_family ==
-                        AF_INET6 ? sizeof(a6) : sizeof(a)));
+    retcode = p_bind(s, (address_family == AF_INET6 ?
+                         (struct sockaddr *) &a6 :
+                         (struct sockaddr *) &a),
+                     (address_family ==
+                      AF_INET6 ? sizeof(a6) : sizeof(a)));
 #else
-        retcode = p_bind(s, (struct sockaddr *) &a, sizeof(a));
+    retcode = p_bind(s, (struct sockaddr *) &a, sizeof(a));
 #endif
-        if (retcode != SOCKET_ERROR) {
-            err = 0;
-        } else {
-            err = p_WSAGetLastError();
-        }
+    if (retcode != SOCKET_ERROR) {
+        err = 0;
+    } else {
+        err = p_WSAGetLastError();
+    }
 
     if (err) {
         p_closesocket(s);
