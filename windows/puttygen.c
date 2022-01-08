@@ -633,7 +633,8 @@ struct MainDlgState {
     bool collecting_entropy;
     bool generation_thread_exists;
     bool key_exists;
-    int entropy_got, entropy_required, entropy_size;
+    int entropy_got, entropy_required;
+    strbuf *entropy;
     int key_bits, curve_bits;
     bool ssh2;
     keytype keytype;
@@ -642,7 +643,6 @@ struct MainDlgState {
     FingerprintType fptype;
     char **commentptr;                 /* points to key.comment or ssh2key.comment */
     ssh2_userkey ssh2key;
-    unsigned *entropy;
     union {
         RSAKey key;
         struct dsa_key dsakey;
@@ -1409,18 +1409,17 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
         if (state->collecting_entropy &&
             state->entropy && state->entropy_got < state->entropy_required) {
-            state->entropy[state->entropy_got++] = lParam;
-            state->entropy[state->entropy_got++] = GetMessageTime();
+            put_uint32(state->entropy, lParam);
+            put_uint32(state->entropy, GetMessageTime());
+            state->entropy_got += 2;
             SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS,
                                state->entropy_got, 0);
             if (state->entropy_got >= state->entropy_required) {
                 /*
                  * Seed the entropy pool
                  */
-                random_reseed(
-                    make_ptrlen(state->entropy, state->entropy_size));
-                smemclr(state->entropy, state->entropy_size);
-                sfree(state->entropy);
+                random_reseed(ptrlen_from_strbuf(state->entropy));
+                strbuf_free(state->entropy);
                 state->collecting_entropy = false;
 
                 start_generating_key(hwnd, state);
@@ -1638,9 +1637,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 state->collecting_entropy = true;
 
                 state->entropy_got = 0;
-                state->entropy_size = (state->entropy_required *
-                                       sizeof(unsigned));
-                state->entropy = snewn(state->entropy_required, unsigned);
+                state->entropy = strbuf_new_nm();
 
                 SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
                                    MAKELPARAM(0, state->entropy_required));
