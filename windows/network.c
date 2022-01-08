@@ -79,12 +79,24 @@ struct NetSocket {
     Socket sock;
 };
 
+/*
+ * Top-level discriminator for SockAddr.
+ *
+ * UNRESOLVED means a host name not yet put through DNS; IP means a
+ * resolved IP address (or list of them); NAMEDPIPE indicates that
+ * this SockAddr is phony, holding a Windows named pipe pathname
+ * instead of any address WinSock can understand.
+ */
+typedef enum SuperFamily {
+    UNRESOLVED,
+    IP,
+    NAMEDPIPE
+} SuperFamily;
+
 struct SockAddr {
     int refcount;
     char *error;
-    bool resolved;
-    bool namedpipe; /* indicates that this SockAddr is phony, holding a Windows
-                     * named pipe pathname instead of a network address */
+    SuperFamily superfamily;
 #ifndef NO_IPV6
     struct addrinfo *ais;              /* Addresses IPv6 style. */
 #endif
@@ -101,11 +113,11 @@ struct SockAddr {
  */
 #ifndef NO_IPV6
 #define SOCKADDR_FAMILY(addr, step) \
-    (!(addr)->resolved ? AF_UNSPEC : \
+    ((addr)->superfamily != IP ? AF_UNSPEC : \
      (step).ai ? (step).ai->ai_family : AF_INET)
 #else
 #define SOCKADDR_FAMILY(addr, step) \
-    (!(addr)->resolved ? AF_UNSPEC : AF_INET)
+    ((addr)->superfamily != IP ? AF_UNSPEC : AF_INET)
 #endif
 
 /*
@@ -446,9 +458,8 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
-    ret->namedpipe = false;
     ret->addresses = NULL;
-    ret->resolved = false;
+    ret->superfamily = UNRESOLVED;
     ret->refcount = 1;
     *realhost = '\0';
 
@@ -471,7 +482,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
                 sfree(trimmed_host);
             }
             if (err == 0)
-                ret->resolved = true;
+                ret->superfamily = IP;
         } else
 #endif
         {
@@ -480,12 +491,12 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
              * (NOTE: we don't use gethostbyname as a fallback!)
              */
             if ( (h = p_gethostbyname(host)) )
-                ret->resolved = true;
+                ret->superfamily = IP;
             else
                 err = p_WSAGetLastError();
         }
 
-        if (!ret->resolved) {
+        if (ret->superfamily != IP) {
             ret->error = (err == WSAENETDOWN ? "Network is down" :
                           err == WSAHOST_NOT_FOUND ? "Host does not exist" :
                           err == WSATRY_AGAIN ? "Host not found" :
@@ -536,7 +547,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
         ret->addresses = snewn(1, unsigned long);
         ret->naddresses = 1;
         ret->addresses[0] = p_ntohl(a);
-        ret->resolved = true;
+        ret->superfamily = IP;
         strncpy(realhost, host, sizeof(realhost));
     }
     realhost[lenof(realhost)-1] = '\0';
@@ -544,38 +555,30 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
     return ret;
 }
 
-SockAddr *sk_nonamelookup(const char *host)
+static SockAddr *sk_special_addr(SuperFamily superfamily, const char *name)
 {
     SockAddr *ret = snew(SockAddr);
     ret->error = NULL;
-    ret->resolved = false;
+    ret->superfamily = superfamily;
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
-    ret->namedpipe = false;
     ret->addresses = NULL;
     ret->naddresses = 0;
     ret->refcount = 1;
-    strncpy(ret->hostname, host, lenof(ret->hostname));
+    strncpy(ret->hostname, name, lenof(ret->hostname));
     ret->hostname[lenof(ret->hostname)-1] = '\0';
     return ret;
 }
 
+SockAddr *sk_nonamelookup(const char *host)
+{
+    return sk_special_addr(UNRESOLVED, host);
+}
+
 SockAddr *sk_namedpipe_addr(const char *pipename)
 {
-    SockAddr *ret = snew(SockAddr);
-    ret->error = NULL;
-    ret->resolved = false;
-#ifndef NO_IPV6
-    ret->ais = NULL;
-#endif
-    ret->namedpipe = true;
-    ret->addresses = NULL;
-    ret->naddresses = 0;
-    ret->refcount = 1;
-    strncpy(ret->hostname, pipename, lenof(ret->hostname));
-    ret->hostname[lenof(ret->hostname)-1] = '\0';
-    return ret;
+    return sk_special_addr(NAMEDPIPE, pipename);
 }
 
 static bool sk_nextaddr(SockAddr *addr, SockAddrStep *step)
@@ -662,7 +665,7 @@ static SockAddr sk_extractaddr_tmp(
 
 bool sk_addr_needs_port(SockAddr *addr)
 {
-    return !addr->namedpipe;
+    return addr->superfamily != NAMEDPIPE;
 }
 
 bool sk_hostname_is_local(const char *name)
