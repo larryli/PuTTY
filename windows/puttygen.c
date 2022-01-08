@@ -630,7 +630,6 @@ static DWORD WINAPI generate_key_thread(void *param)
 }
 
 struct MainDlgState {
-    bool collecting_entropy;
     bool generation_thread_exists;
     bool key_exists;
     int entropy_got, entropy_required;
@@ -1200,7 +1199,6 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
         state = snew(struct MainDlgState);
         state->generation_thread_exists = false;
-        state->collecting_entropy = false;
         state->entropy = NULL;
         state->key_exists = false;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) state);
@@ -1407,8 +1405,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         return 1;
       case WM_MOUSEMOVE:
         state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
-        if (state->collecting_entropy &&
-            state->entropy && state->entropy_got < state->entropy_required) {
+        if (state->entropy && state->entropy_got < state->entropy_required) {
             put_uint32(state->entropy, lParam);
             put_uint32(state->entropy, GetMessageTime());
             state->entropy_got += 2;
@@ -1420,7 +1417,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                  */
                 random_reseed(ptrlen_from_strbuf(state->entropy));
                 strbuf_free(state->entropy);
-                state->collecting_entropy = false;
+                state->entropy = NULL;
 
                 start_generating_key(hwnd, state);
             }
@@ -1634,7 +1631,6 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 ui_set_state(hwnd, state, 1);
                 SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
                 state->key_exists = false;
-                state->collecting_entropy = true;
 
                 state->entropy_got = 0;
                 state->entropy = strbuf_new_nm();
