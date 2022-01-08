@@ -634,6 +634,7 @@ struct MainDlgState {
     bool key_exists;
     int entropy_got, entropy_required;
     strbuf *entropy;
+    ULONG entropy_prev_msgtime;
     int key_bits, curve_bits;
     bool ssh2;
     keytype keytype;
@@ -650,6 +651,23 @@ struct MainDlgState {
     };
     HMENU filemenu, keymenu, cvtmenu;
 };
+
+/*
+ * Rate limit for incrementing the entropy_got counter.
+ *
+ * Some pointing devices (e.g. gaming mice) can be set to send
+ * mouse-movement events at an extremely high sample rate like 1kHz.
+ * In that situation, there's likely to be a strong correlation
+ * between the contents of successive movement events, so you have to
+ * regard the mouse movements as containing less entropy each.
+ *
+ * A reasonably simple approach to this is to continue to buffer all
+ * mouse data, but limit the rate at which we increment the counter
+ * for how much entropy we think we've collected. That way, the user
+ * still has to spend time wiggling the mouse back and forth in a way
+ * that varies with muscle motions and introduces randomness.
+ */
+#define ENTROPY_RATE_LIMIT 10 /* in units of GetMessageTime(), i.e. ms */
 
 static void hidemany(HWND hwnd, const int *ids, bool hideit)
 {
@@ -1406,9 +1424,13 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_MOUSEMOVE:
         state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
         if (state->entropy && state->entropy_got < state->entropy_required) {
+            ULONG msgtime = GetMessageTime();
             put_uint32(state->entropy, lParam);
-            put_uint32(state->entropy, GetMessageTime());
-            state->entropy_got += 2;
+            put_uint32(state->entropy, msgtime);
+            if (msgtime - state->entropy_prev_msgtime > ENTROPY_RATE_LIMIT) {
+                state->entropy_got += 2;
+                state->entropy_prev_msgtime = msgtime;
+            }
             SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS,
                                state->entropy_got, 0);
             if (state->entropy_got >= state->entropy_required) {
@@ -1634,6 +1656,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
                 state->entropy_got = 0;
                 state->entropy = strbuf_new_nm();
+                state->entropy_prev_msgtime = GetMessageTime();
 
                 SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
                                    MAKELPARAM(0, state->entropy_required));
