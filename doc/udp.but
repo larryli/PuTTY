@@ -28,9 +28,9 @@ platform-generic modules. The Unix-specific modules are all in the
 \c{unix} subdirectory; the Windows-specific modules are in the
 \c{windows} subdirectory.
 
-All the modules in the main source directory - notably \e{all} of
-the code for the various back ends - are platform-generic. We want
-to keep them that way.
+All the modules in the main source directory and other
+subdirectories - notably \e{all} of the code for the various back
+ends - are platform-generic. We want to keep them that way.
 
 This also means you should stick to the C semantics guaranteed by the
 C standard: try not to make assumptions about the precise size of
