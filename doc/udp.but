@@ -333,12 +333,11 @@ on a 640\u00D7{x}480 display. If you're adding controls to either of
 these boxes and you find yourself wanting to increase the size of
 the whole box, \e{don't}. Split it into more panels instead.
 
-\H{udp-ssh-coroutines} Coroutines in the SSH code
+\H{udp-ssh-coroutines} Coroutines in protocol code
 
-Large parts of the code in the various SSH modules (in fact most of
-the protocol layers) are structured using a set of macros that
-implement (something close to) Donald Knuth's \q{coroutines} concept
-in C.
+Large parts of the code in modules implementing wire protocols
+(mainly SSH) are structured using a set of macros that implement
+(something close to) Donald Knuth's \q{coroutines} concept in C.
 
 Essentially, the purpose of these macros are to arrange that a
 function can call \cw{crReturn()} to return to its caller, and the
@@ -349,7 +348,7 @@ This means that any local (automatic) variables declared in such a
 function will be corrupted every time you call \cw{crReturn}. If you
 need a variable to persist for longer than that, you \e{must} make it
 a field in some appropriate structure containing the persistent state
-of the coroutine \dash typically the main state structure for an SSH
+of the coroutine \dash typically the main state structure for a
 protocol layer.
 
 See
