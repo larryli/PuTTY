@@ -558,8 +558,8 @@ based on the offset within that structure of the field called
 
 This system is flexible enough to permit \q{multiple inheritance}, or
 rather, multiple \e{implementation}: having one object type implement
-more than one trait. For example, the \cw{Proxy} type implements both
-the \cw{Socket} trait and the \cw{Plug} trait that connects to it,
+more than one trait. For example, the \cw{ProxySocket} type implements
+both the \cw{Socket} trait and the \cw{Plug} trait that connects to it,
 because it has to act as an adapter between another instance of each
 of those types.
 
