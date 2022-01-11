@@ -56,7 +56,7 @@ and convenience. See \k{pageant} for further details.
 
 There is more than one \i{public-key algorithm} available. The most
 common are \i{RSA} and \i{ECDSA}, but others exist, notably \i{DSA}
-(otherwise known as DSS), the USA's federal Digital Signature Standard.
+(otherwise known as \i{DSS}), the USA's federal Digital Signature Standard.
 The key types supported by PuTTY are described in \k{puttygen-keytype}.
 
 \H{pubkey-puttygen} Using \i{PuTTYgen}, the PuTTY key generator
