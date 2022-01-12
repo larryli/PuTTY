@@ -177,12 +177,14 @@ are prime, because it generates the output number together with a
 proof of its primality. This takes more effort, but it eliminates that
 theoretical risk in the probabilistic method.
 
-There in one way in which PuTTYgen's proven-primes method is not
-strictly better than its probable-primes method. If you use PuTTYgen
-to generate RSA or DSA keys on a computer that is potentially
+There in one way in which PuTTYgen's \q{proven primes} method is not
+strictly better than its \q{probable primes} method. If you use
+PuTTYgen to generate an RSA key on a computer that is potentially
 susceptible to timing- or cache-based \i{side-channel attacks}, such
 as a shared computer, the \q{probable primes} method is designed to
 resist such attacks, whereas the \q{proven primes} methods are not.
+(This is only a concern for RSA keys; for other key types, primes
+are either not secret or not involved.)
 
 You might choose to switch from probable to proven primes if you have
 a local security standard that demands it, or if you don't trust the
