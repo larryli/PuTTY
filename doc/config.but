@@ -1962,10 +1962,17 @@ through to an external host. Selecting \I{Telnet proxy}\q{Telnet}
 allows you to tell PuTTY to use this type of proxy.
 
 \b Selecting \q{SSH} causes PuTTY to make a secondary SSH connection
-to the proxy host, and then open a port-forwarding channel to the
-final destination host. The \q{Proxy hostname} field will be
-interpreted as the name of a PuTTY saved session if one exists, or a
-hostname if not.
+to the proxy host (sometimes called a \q{\i{jump host}} in this
+context), and then open a port-forwarding channel to the
+final destination host. 
+
+\lcont{
+The \q{Proxy hostname} field will be interpreted as the name of a
+PuTTY saved session if one exists, or a hostname if not. This
+allows multi-hop jump paths, if the referenced saved session is
+itself configured to use an SSH proxy; and it allows combining SSH
+and non-SSH proxying.
+}
 
 \b Selecting \I{Local proxy}\q{Local} allows you to specify an arbitrary
 command on the local machine to act as a proxy. When the session is
@@ -2035,9 +2042,9 @@ set it to \q{Yes}, PuTTY will always pass host names straight to the
 proxy without trying to look them up first.
 
 If you set this option to \q{Auto} (the default), PuTTY will do
-something it considers appropriate for each type of proxy. Telnet,
-HTTP, and SOCKS5 proxies will have host names passed straight to
-them; SOCKS4 proxies will not.
+something it considers appropriate for each type of proxy. Most
+types of proxy (HTTP, SOCK5, SSH, Telnet, and local) will have host
+names passed straight to them; SOCKS4 proxies will not.
 
 Note that if you are doing DNS at the proxy, you should make sure
 that your proxy exclusion settings (see \k{config-proxy-exclude}) do
