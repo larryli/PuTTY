@@ -1390,6 +1390,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     bool show_keylist_on_startup = false;
     int argc;
     char **argv, **argstart;
+    const char *openssh_config_file = NULL;
 
     typedef struct CommandLineKey {
         Filename *fn;
@@ -1487,6 +1488,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             add_keys_encrypted = true;
         } else if (match_opt("-keylist")) {
             show_keylist_on_startup = true;
+        } else if (match_optval("-openssh-config", "-openssh_config")) {
+            openssh_config_file = val;
         } else if (match_opt("-c")) {
             /*
              * If we see `-c', then the rest of the command line
@@ -1554,6 +1557,23 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             return 1;
         }
         pageant_listener_got_socket(pl, sock);
+
+        /*
+         * If we've been asked to write out an OpenSSH config file
+         * pointing at the named pipe, do so.
+         */
+        if (openssh_config_file) {
+            FILE *fp = fopen(openssh_config_file, "w");
+            if (!fp) {
+                char *err = dupprintf("Unable to write OpenSSH config file "
+                                      "to %s", openssh_config_file);
+                MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+                return 1;
+            }
+            fprintf(fp, "IdentityAgent %s\n", pipename);
+            fclose(fp);
+        }
+
         sfree(pipename);
 
         /*
@@ -1751,6 +1771,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     if (keypath) filereq_free(keypath);
+
+    if (openssh_config_file) {
+        /*
+         * Leave this file around, but empty it, so that it doesn't
+         * refer to a pipe we aren't listening on any more.
+         */
+        FILE *fp = fopen(openssh_config_file, "w");
+        if (fp)
+            fclose(fp);
+    }
 
     cleanup_exit(msg.wParam);
     return msg.wParam;                 /* just in case optimiser complains */
