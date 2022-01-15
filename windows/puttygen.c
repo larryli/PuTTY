@@ -1996,9 +1996,21 @@ void cleanup_exit(int code)
 
 HINSTANCE hinst;
 
+static NORETURN void opt_error(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    char *msg = dupvprintf(fmt, ap);
+    va_end(ap);
+
+    MessageBox(NULL, msg, "PuTTYgen command line error", MB_ICONERROR | MB_OK);
+
+    exit(1);
+}
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    int argc, i;
+    int argc;
     char **argv;
     int ret;
 
@@ -2014,21 +2026,34 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     split_into_argv(cmdline, &argc, &argv, NULL);
 
-    for (i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "-pgpfp")) {
+    int argbits = -1;
+    AuxMatchOpt amo = aux_match_opt_init(argc, argv, 0, opt_error);
+    while (!aux_match_done(&amo)) {
+        char *val;
+        #define match_opt(...) aux_match_opt( \
+            &amo, NULL, __VA_ARGS__, (const char *)NULL)
+        #define match_optval(...) aux_match_opt( \
+            &amo, &val, __VA_ARGS__, (const char *)NULL)
+
+        if (aux_match_arg(&amo, &val)) {
+            if (!cmdline_keyfile) {
+                /*
+                 * Assume the first argument to be a private key file, and
+                 * attempt to load it.
+                 */
+                cmdline_keyfile = val;
+                continue;
+            } else {
+                opt_error("unexpected extra argument '%s'\n", val);
+            }
+        } else if (match_opt("-pgpfp")) {
             pgp_fingerprints_msgbox(NULL);
             return 1;
-        } else if (!strcmp(argv[i], "-restrict-acl") ||
-                   !strcmp(argv[i], "-restrict_acl") ||
-                   !strcmp(argv[i], "-restrictacl")) {
+        } else if (match_opt("-restrict-acl", "-restrict_acl",
+                             "-restrictacl")) {
             restrict_process_acl();
         } else {
-            /*
-             * Assume the first argument to be a private key file, and
-             * attempt to load it.
-             */
-            cmdline_keyfile = argv[i];
-            break;
+            opt_error("unrecognised option '%s'\n", amo.argv[amo.index]);
         }
     }
 

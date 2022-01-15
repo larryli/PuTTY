@@ -1371,12 +1371,24 @@ static struct winpgnt_client wpc[1];
 
 HINSTANCE hinst;
 
+static NORETURN void opt_error(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    char *msg = dupvprintf(fmt, ap);
+    va_end(ap);
+
+    MessageBox(NULL, msg, "Pageant command line error", MB_ICONERROR | MB_OK);
+
+    exit(1);
+}
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
     const char *command = NULL;
     bool show_keylist_on_startup = false;
-    int argc, i;
+    int argc;
     char **argv, **argstart;
 
     typedef struct CommandLineKey {
@@ -1444,57 +1456,49 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * stored in the 'clkeys' array.
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
-    bool doing_opts = true;
     bool add_keys_encrypted = false;
-    for (i = 0; i < argc; i++) {
-        char *p = argv[i];
-        if (*p == '-' && doing_opts) {
-            if (!strcmp(p, "-pgpfp")) {
-                pgp_fingerprints_msgbox(NULL);
-                return 1;
-            } else if (!strcmp(p, "-restrict-acl") ||
-                       !strcmp(p, "-restrict_acl") ||
-                       !strcmp(p, "-restrictacl")) {
-                restrict_process_acl();
-            } else if (!strcmp(p, "-restrict-putty-acl") ||
-                       !strcmp(p, "-restrict_putty_acl")) {
-                restrict_putty_acl = true;
-            } else if (!strcmp(p, "--no-decrypt") ||
-                       !strcmp(p, "-no-decrypt") ||
-                       !strcmp(p, "--no_decrypt") ||
-                       !strcmp(p, "-no_decrypt") ||
-                       !strcmp(p, "--nodecrypt") ||
-                       !strcmp(p, "-nodecrypt") ||
-                       !strcmp(p, "--encrypted") ||
-                       !strcmp(p, "-encrypted")) {
-                add_keys_encrypted = true;
-            } else if (!strcmp(p, "-keylist") || !strcmp(p, "--keylist")) {
-                show_keylist_on_startup = true;
-            } else if (!strcmp(p, "-c")) {
-                /*
-                 * If we see `-c', then the rest of the
-                 * command line should be treated as a
-                 * command to be spawned.
-                 */
-                if (i < argc-1)
-                    command = argstart[i+1];
-                else
-                    command = "";
-                break;
-            } else if (!strcmp(p, "--")) {
-                doing_opts = false;
-            } else {
-                char *msg = dupprintf("unrecognised command-line option\n"
-                                      "'%s'", p);
-                MessageBox(NULL, msg, "Pageant command-line syntax error",
-                           MB_ICONERROR | MB_OK);
-                exit(1);
-            }
-        } else {
+    AuxMatchOpt amo = aux_match_opt_init(argc, argv, 0, opt_error);
+    while (!aux_match_done(&amo)) {
+        char *val;
+        #define match_opt(...) aux_match_opt( \
+            &amo, NULL, __VA_ARGS__, (const char *)NULL)
+        #define match_optval(...) aux_match_opt( \
+            &amo, &val, __VA_ARGS__, (const char *)NULL)
+
+        if (aux_match_arg(&amo, &val)) {
+            /*
+             * Non-option arguments are expected to be key files, and
+             * added to clkeys.
+             */
             sgrowarray(clkeys, clkeysize, nclkeys);
             CommandLineKey *clkey = &clkeys[nclkeys++];
-            clkey->fn = filename_from_str(p);
+            clkey->fn = filename_from_str(val);
             clkey->add_encrypted = add_keys_encrypted;
+        } else if (match_opt("-pgpfp")) {
+            pgp_fingerprints_msgbox(NULL);
+            return 1;
+        } else if (match_opt("-restrict-acl", "-restrict_acl",
+                             "-restrictacl")) {
+            restrict_process_acl();
+        } else if (match_opt("-restrict-putty-acl", "-restrict_putty_acl")) {
+            restrict_putty_acl = true;
+        } else if (match_opt("-no-decrypt", "-no_decrypt",
+                             "-nodecrypt", "-encrypted")) {
+            add_keys_encrypted = true;
+        } else if (match_opt("-keylist")) {
+            show_keylist_on_startup = true;
+        } else if (match_opt("-c")) {
+            /*
+             * If we see `-c', then the rest of the command line
+             * should be treated as a command to be spawned.
+             */
+            if (amo.index < amo.argc-1)
+                command = argstart[amo.index + 1];
+            else
+                command = "";
+            break;
+        } else {
+            opt_error("unrecognised option '%s'\n", amo.argv[amo.index]);
         }
     }
 

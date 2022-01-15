@@ -744,4 +744,17 @@ SeatPromptResult make_spr_sw_abort_winerror(const char *prefix, DWORD error);
 HANDLE lock_interprocess_mutex(const char *mutexname, char **error);
 void unlock_interprocess_mutex(HANDLE mutex);
 
+typedef void (*aux_opt_error_fn_t)(const char *, ...);
+typedef struct AuxMatchOpt {
+    int index, argc;
+    char **argv;
+    bool doing_opts;
+    aux_opt_error_fn_t error;
+} AuxMatchOpt;
+AuxMatchOpt aux_match_opt_init(int argc, char **argv, int start_index,
+                               aux_opt_error_fn_t opt_error);
+bool aux_match_arg(AuxMatchOpt *amo, char **val);
+bool aux_match_opt(AuxMatchOpt *amo, char **val, const char *optname, ...);
+bool aux_match_done(AuxMatchOpt *amo);
+
 #endif /* PUTTY_WINDOWS_PLATFORM_H */

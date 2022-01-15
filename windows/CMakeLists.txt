@@ -4,6 +4,7 @@ add_sources_from_current_dir(utils
   utils/agent_mutex_name.c
   utils/agent_named_pipe_name.c
   utils/arm_arch_queries.c
+  utils/aux_match_opt.c
   utils/cryptoapi.c
   utils/defaults.c
   utils/dll_hijacking_protection.c
