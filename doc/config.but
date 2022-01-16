@@ -2455,7 +2455,7 @@ protection than SSH-2 without rekeys.
 
 \H{config-ssh-hostkey} The Host Keys panel
 
-The Host Keys panel allows you to configure options related to SSH-2
+The Host Keys panel allows you to configure options related to
 \i{host key management}.
 
 Host keys are used to prove the server's identity, and assure you that
@@ -2463,8 +2463,8 @@ the server is not being spoofed (either by a man-in-the-middle attack
 or by completely replacing it on the network). See \k{gs-hostkey} for
 a basic introduction to host keys.
 
-This entire panel is only relevant to SSH protocol version 2; none of
-these settings affect SSH-1 at all.
+Much of this panel is only relevant to SSH protocol version 2; SSH-1
+only supports one type of host key.
 
 \S{config-ssh-hostkey-order} \ii{Host key type} selection
 
@@ -2504,7 +2504,7 @@ to that for cipher selection (see \k{config-ssh-encryption}).
 
 \S{config-ssh-prefer-known-hostkeys} Preferring known host keys
 
-By default, PuTTY will adjust the preference order for host key
+By default, PuTTY will adjust the preference order for SSH-2 host key
 algorithms so that any host keys it already knows are moved to the top
 of the list.
 
