@@ -19,19 +19,3 @@ SeatPromptResult cmdline_get_passwd_input(prompts_t *p)
 {
     return SPR_INCOMPLETE;
 }
-
-/*
- * The main cmdline_process_param function is normally called from
- * applications' main(). An application linking against this stub
- * module shouldn't have a main() that calls it in the first place :-)
- * but it is just occasionally called by other supporting functions,
- * such as one in uxputty.c which sometimes handles a non-option
- * argument by making up equivalent options and passing them back to
- * this function. So we have to provide a link-time stub of this
- * function, but it had better not end up being called at run time.
- */
-int cmdline_process_param(const char *p, char *value,
-                          int need_save, Conf *conf)
-{
-    unreachable("cmdline_process_param should never be called");
-}
