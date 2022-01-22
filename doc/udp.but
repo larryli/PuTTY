@@ -278,16 +278,17 @@ should be aware that you might be re-entered if a network event
 comes in and is passed on to our window procedure by the
 \cw{MessageBox()} message loop.
 
-Also, the front ends (in particular Windows Plink) can use multiple
-threads if they like. However, Windows Plink keeps \e{very} tight
-control of its auxiliary threads, and uses them pretty much
-exclusively as a form of \cw{select()}. Pretty much all the code
-outside \cw{windows/winplink.c} is \e{only} ever called from the one
-primary thread; the others just loop round blocking on file handles
-and send messages to the main thread when some real work needs
-doing. This is not considered a portability hazard because that bit
-of \cw{windows/winplink.c} will need rewriting on other platforms in
-any case.
+Also, the front ends can use multiple threads if they like. For
+example, the Windows front-end code spawns subthreads to deal with
+bidirectional blocking I/O on non-network streams such as Windows
+pipes. However, it keeps tight control of its auxiliary threads, and
+uses them only for that one purpose, as a form of \cw{select()}.
+Pretty much all the code outside \cw{windows/handle-io.c} is \e{only}
+ever called from the one primary thread; the others just loop round
+blocking on file handles, and signal the main thread (via Windows
+event objects) when some real work needs doing. This is not considered
+a portability hazard because that code is already Windows-specific and
+needs rewriting on other platforms.
 
 One important consequence of this: PuTTY has only one thread in
 which to do everything. That \q{everything} may include managing
