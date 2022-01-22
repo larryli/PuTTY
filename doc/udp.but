@@ -171,9 +171,7 @@ to. C++ friendliness is really a side benefit.)
 We want PuTTY to continue being pure C, at least in the
 platform-independent parts and the currently existing ports. Patches
 which switch the Makefiles to compile it as C++ and start using
-classes will not be accepted. Also, in particular, we disapprove of
-\cw{//} comments, at least for the moment. (Perhaps once C99 becomes
-genuinely widespread we might be more lenient.)
+classes will not be accepted.
 
 The one exception: a port to a new platform may use languages other
 than C if they are necessary to code on that platform. If your
