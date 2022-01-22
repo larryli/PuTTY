@@ -2400,12 +2400,6 @@ char const *conf_dest(Conf *conf);
 void prepare_session(Conf *conf);
 
 /*
- * Exports from sercfg.c.
- */
-void ser_setup_config_box(struct controlbox *b, bool midsession,
-                          int parity_mask, int flow_mask);
-
-/*
  * Exports from version.c.
  */
 extern const char ver[];
