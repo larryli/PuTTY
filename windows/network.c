@@ -1809,7 +1809,7 @@ bool socket_writable(SOCKET skt)
         return false;
 }
 
-int net_service_lookup(char *service)
+int net_service_lookup(const char *service)
 {
     struct servent *se;
     se = p_getservbyname(service, NULL);

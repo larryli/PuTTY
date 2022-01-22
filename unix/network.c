@@ -1599,7 +1599,7 @@ static void uxsel_tell(NetSocket *s)
     uxsel_set(s->s, rwx, net_select_result);
 }
 
-int net_service_lookup(char *service)
+int net_service_lookup(const char *service)
 {
     struct servent *se;
     se = getservbyname(service, NULL);

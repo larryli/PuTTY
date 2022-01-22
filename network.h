@@ -346,7 +346,7 @@ void sk_free_peer_info(SocketPeerInfo *pi);
  * can just return 0 - this function is not required to handle
  * numeric port specifications.
  */
-int net_service_lookup(char *service);
+int net_service_lookup(const char *service);
 
 /*
  * Look up the local hostname; return value needs freeing.
