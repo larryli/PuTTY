@@ -22,6 +22,9 @@ if(HALIBUT AND PERL_EXECUTABLE)
   # If this is a source archive in which a fixed version.but was
   # provided, use that. Otherwise, infer one from the git checkout (if
   # possible).
+
+  set(manual_dependencies) # extra target names to depend on
+
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/version.but)
     set(VERSION_BUT ${CMAKE_CURRENT_SOURCE_DIR}/version.but)
   else()
@@ -43,16 +46,20 @@ if(HALIBUT AND PERL_EXECUTABLE)
         ${INTERMEDIATE_VERSION_BUT} ${VERSION_BUT}
       DEPENDS check_git_commit_for_doc ${INTERMEDIATE_VERSION_BUT}
       COMMENT "Updating cmake_version.but")
+    set(manual_dependencies ${manual_dependencies} cmake_version_but)
   endif()
 
-  add_custom_command(OUTPUT copy.but
+  add_custom_target(copy_but
+    BYPRODUCTS copy.but
     COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl
       --copyrightdoc -o copy.but
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl ${CMAKE_CURRENT_SOURCE_DIR}/../LICENCE)
-  add_custom_command(OUTPUT licence.but
+  add_custom_target(licence_but
+    BYPRODUCTS licence.but
     COMMAND ${PERL_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl
       --licencedoc -o licence.but
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../licence.pl ${CMAKE_CURRENT_SOURCE_DIR}/../LICENCE)
+  set(manual_dependencies ${manual_dependencies} copy_but licence_but)
 
   set(manual_sources
     ${CMAKE_CURRENT_BINARY_DIR}/copy.but
@@ -83,7 +90,7 @@ if(HALIBUT AND PERL_EXECUTABLE)
   add_custom_command(OUTPUT ${html_dir}/index.html
     COMMAND ${HALIBUT} --html ${manual_sources}
     WORKING_DIRECTORY ${html_dir}
-    DEPENDS ${manual_sources})
+    DEPENDS ${manual_sources} ${manual_dependencies})
   list(APPEND doc_outputs ${html_dir}/index.html)
 
   # Windows help.
@@ -92,14 +99,14 @@ if(HALIBUT AND PERL_EXECUTABLE)
   add_custom_command(OUTPUT putty.chm
     COMMAND ${HALIBUT} --chm chmextra.but ${manual_sources}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS ${manual_sources})
+    DEPENDS ${manual_sources} ${manual_dependencies})
   list(APPEND doc_outputs putty.chm)
 
   # Plain text.
   add_custom_command(OUTPUT puttydoc.txt
     COMMAND ${HALIBUT} --text ${manual_sources}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS ${manual_sources})
+    DEPENDS ${manual_sources} ${manual_dependencies})
   list(APPEND doc_outputs puttydoc.txt)
 endif()
 
