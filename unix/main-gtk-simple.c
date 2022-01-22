@@ -1,7 +1,7 @@
 /*
- * gtkmain.c: the common main-program code between the straight-up
- * Unix PuTTY and pterm, which they do not share with the
- * multi-session gtkapp.c.
+ * main-gtk-simple.c: the common main-program code between the
+ * straight-up Unix PuTTY and pterm, which they do not share with the
+ * multi-session main-gtk-application.c.
  */
 
 #define _GNU_SOURCE

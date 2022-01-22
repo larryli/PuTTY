@@ -1,5 +1,5 @@
 /*
- * winstore.c: Windows-specific implementation of the interface
+ * storage.c: Windows-specific implementation of the interface
  * defined in storage.h.
  */
 

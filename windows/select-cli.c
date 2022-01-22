@@ -1,5 +1,5 @@
 /*
- * Implementation of do_select() for winnet.c to use, suitable for use
+ * Implementation of do_select() for network.c to use, suitable for use
  * when there's no GUI window to have network activity reported to.
  *
  * It uses WSAEventSelect, where available, to convert network

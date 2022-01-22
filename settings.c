@@ -49,9 +49,9 @@ static const struct keyvalwhere hknames[] = {
 /*
  * All the terminal modes that we know about for the "TerminalModes"
  * setting. (Also used by config.c for the drop-down list.)
- * This is currently precisely the same as the set in ssh.c, but could
- * in principle differ if other backends started to support tty modes
- * (e.g., the pty backend).
+ * This is currently precisely the same as the set in
+ * ssh/ttymode-list.h, but could in principle differ if other backends
+ * started to support tty modes (e.g., the pty backend).
  * The set of modes in in this array is currently significant for
  * settings migration from old versions; if they change, review the
  * gppmap() invocation for "TerminalModes".

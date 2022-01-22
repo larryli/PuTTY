@@ -90,7 +90,7 @@ static int make_pipe_to_askpass(const char *msg)
         cloexec(pipefds[1]);
 
         /*
-         * See comment in fork_and_exec_self() in gtkmain.c.
+         * See comment in fork_and_exec_self() in main-gtk-simple.c.
          */
         execv("/proc/self/exe", (char **)args);
         execvp(progname, (char **)args);

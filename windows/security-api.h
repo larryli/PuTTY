@@ -1,6 +1,6 @@
 /*
  * security-api.h: some miscellaneous security-related helper functions,
- * defined in winsecur.c, that use the advapi32 library. Also
+ * defined in utils/security.c, that use the advapi32 library. Also
  * centralises the machinery for dynamically loading that library.
  */
 

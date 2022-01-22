@@ -19,7 +19,7 @@
 #include "gtkcompat.h"
 
 /*
- * Stubs to avoid uxpty.c needing to be linked in.
+ * Stubs to avoid pty.c needing to be linked in.
  */
 const bool use_pty_argv = false;
 char **pty_argv;                       /* never used */

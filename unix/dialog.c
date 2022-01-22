@@ -1,5 +1,5 @@
 /*
- * gtkdlg.c - GTK implementation of the PuTTY configuration box.
+ * dialog.c - GTK implementation of the PuTTY configuration box.
  */
 
 #include <assert.h>
@@ -1787,7 +1787,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
 #else /* !GTK_CHECK_VERSION(2,0,0) */
 
         /*
-         * Use the unifontsel code provided in gtkfont.c.
+         * Use the unifontsel code provided in unifont.c.
          */
 
         unifontsel *fontsel = unifontsel_new("Select a font");

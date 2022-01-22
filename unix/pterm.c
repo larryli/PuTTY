@@ -15,7 +15,7 @@ const bool use_pty_argv = true;
 
 const unsigned cmdline_tooltype = TOOLTYPE_NONNETWORK;
 
-/* gtkwin.c will call this, and in pterm it's not needed */
+/* window.c will call this, and in pterm it's not needed */
 void noise_ultralight(NoiseSourceId id, unsigned long data) { }
 
 const struct BackendVtable *select_backend(Conf *conf)

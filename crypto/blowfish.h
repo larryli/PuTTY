@@ -1,5 +1,5 @@
 /*
- * Header file shared between sshblowf.c and sshbcrypt.c. Exposes the
+ * Header file shared between blowfish.c and bcrypt.c. Exposes the
  * internal Blowfish routines needed by bcrypt.
  */
 

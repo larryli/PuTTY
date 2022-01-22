@@ -1,5 +1,5 @@
 /*
- * uxnogtk.c: link into non-GUI Unix programs so that they can tell
+ * no-gtk.c: link into non-GUI Unix programs so that they can tell
  * buildinfo about a lack of GTK.
  */
 

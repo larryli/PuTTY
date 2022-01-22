@@ -132,7 +132,7 @@ void nonfatal(const char *fmt, ...) { }
 /* needed by timing.c */
 void timer_change_notify(unsigned long next) { }
 
-/* needed by config.c and sercfg.c */
+/* needed by config.c */
 
 void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int whichbutton) { }
 int dlg_radiobutton_get(union control *ctrl, dlgparam *dp) { return 0; }

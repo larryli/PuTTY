@@ -1,5 +1,5 @@
 /*
- * winsftp.c: the Windows-specific parts of PSFTP and PSCP.
+ * sftp.c: the Windows-specific parts of PSFTP and PSCP.
  */
 
 #include <winsock2.h> /* need to put this first, for winelib builds */

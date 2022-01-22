@@ -1,6 +1,6 @@
 /*
- * winproxy.c: Windows implementation of platform_new_connection(),
- * supporting an OpenSSH-like proxy command via the winhandl.c
+ * local-proxy.c: Windows implementation of platform_new_connection(),
+ * supporting an OpenSSH-like proxy command via the handle-io.c
  * mechanism.
  */
 

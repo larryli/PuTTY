@@ -1,5 +1,5 @@
 /*
- * winjump.c: support for Windows 7 jump lists.
+ * jump-list.c: support for Windows 7 jump lists.
  *
  * The Windows 7 jumplist is a customizable list defined by the
  * application. It is persistent across application restarts: the OS

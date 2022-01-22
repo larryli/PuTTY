@@ -548,8 +548,8 @@ static EdwardsPoint *eddsa_decode(ptrlen encoded, const struct ec_curve *curve)
     mp_free(y);
 
     /* A point constructed in this way will always satisfy the curve
-     * equation, unless ecc.c wasn't able to construct one at all, in
-     * which case P is now NULL. Either way, return it. */
+     * equation, unless ecc-arithmetic.c wasn't able to construct one
+     * at all, in which case P is now NULL. Either way, return it. */
     return P;
 }
 

@@ -735,7 +735,7 @@ static inline const char *ssh2_mac_text_name(ssh2_mac *m)
 static inline const ssh2_macalg *ssh2_mac_alg(ssh2_mac *m)
 { return m->vt; }
 
-/* Centralised 'methods' for ssh2_mac, defined in sshmac.c. These run
+/* Centralised 'methods' for ssh2_mac, defined in mac.c. These run
  * the MAC in a specifically SSH-2 style, i.e. taking account of a
  * packet sequence number as well as the data to be authenticated. */
 bool ssh2_mac_verresult(ssh2_mac *, const void *);
@@ -1075,13 +1075,13 @@ extern const char sshver[];
 
 /*
  * Gross hack: pscp will try to start SFTP but fall back to scp1 if
- * that fails. This variable is the means by which scp.c can reach
+ * that fails. This variable is the means by which pscp.c can reach
  * into the SSH code and find out which one it got.
  */
 extern bool ssh_fallback_cmd(Backend *backend);
 
 /*
- * The PRNG type, defined in sshprng.c. Visible data fields are
+ * The PRNG type, defined in prng.c. Visible data fields are
  * 'savesize', which suggests how many random bytes you should request
  * from a particular PRNG instance to write to putty.rnd, and a
  * BinarySink implementation which you can use to write seed data in
@@ -1090,7 +1090,7 @@ extern bool ssh_fallback_cmd(Backend *backend);
 struct prng {
     size_t savesize;
     BinarySink_IMPLEMENTATION;
-    /* (also there's a surrounding implementation struct in sshprng.c) */
+    /* (also there's a surrounding implementation struct in prng.c) */
 };
 prng *prng_new(const ssh_hashalg *hashalg);
 void prng_free(prng *p);
@@ -1161,10 +1161,6 @@ struct X11FakeAuth {
     ssh_sharing_connstate *share_cs;
     share_channel *share_chan;
 };
-void *x11_make_greeting(int endian, int protomajor, int protominor,
-                        int auth_proto, const void *auth_data, int auth_len,
-                        const char *peer_ip, int peer_port,
-                        int *outlen);
 int x11_authcmp(void *av, void *bv); /* for putting X11FakeAuth in a tree234 */
 /*
  * x11_setup_display() parses the display variable and fills in an
@@ -1194,7 +1190,7 @@ SockAddr *platform_get_x11_unix_address(const char *path, int displaynum);
     /* make up a SockAddr naming the address for displaynum */
 char *platform_get_x_display(void);
     /* allocated local X display string, if any */
-/* Callbacks in x11.c usable _by_ platform X11 functions */
+/* X11-related helper functions in utils */
 /*
  * This function does the job of platform_get_x11_auth, provided
  * it is told where to find a normally formatted .Xauthority file:
@@ -1213,6 +1209,10 @@ void x11_get_auth_from_authfile(struct X11Display *display,
 void x11_format_auth_for_authfile(
     BinarySink *bs, SockAddr *addr, int display_no,
     ptrlen authproto, ptrlen authdata);
+void *x11_make_greeting(int endian, int protomajor, int protominor,
+                        int auth_proto, const void *auth_data, int auth_len,
+                        const char *peer_ip, int peer_port,
+                        int *outlen);
 int x11_identify_auth_proto(ptrlen protoname);
 void *x11_dehexify(ptrlen hex, int *outlen);
 bool x11_parse_ip(const char *addr_string, unsigned long *ip);

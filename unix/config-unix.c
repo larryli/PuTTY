@@ -1,5 +1,5 @@
 /*
- * uxcfg.c - the Unix-specific parts of the PuTTY configuration
+ * config-unix.c - the Unix-specific parts of the PuTTY configuration
  * box.
  */
 

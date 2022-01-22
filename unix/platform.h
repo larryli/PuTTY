@@ -143,7 +143,7 @@ unsigned long getticks(void);
 #define NAMED_CLIPBOARDS
 #endif
 
-/* The per-session frontend structure managed by gtkwin.c */
+/* The per-session frontend structure managed by window.c */
 typedef struct GtkFrontend GtkFrontend;
 
 /* Callback when a dialog box finishes, and a no-op implementation of it */
@@ -154,7 +154,7 @@ void trivial_post_dialog_fn(void *vctx, int result);
 void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx);
 void new_session_window(Conf *conf, const char *geometry_string);
 
-/* Defined in gtkmain.c */
+/* Defined in main-gtk-*.c */
 void launch_duplicate_session(Conf *conf);
 void launch_new_session(void);
 void launch_saved_session(const char *str);
@@ -166,10 +166,11 @@ GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend);
 
 const struct BackendVtable *select_backend(Conf *conf);
 
-/* Defined in gtkcomm.c */
+/* Defined in gtk-common.c */
 void gtkcomm_setup(void);
 
-/* Used to pass application-menu operations from gtkapp.c to gtkwin.c */
+/* Used to pass application-menu operations from
+ * main-gtk-application.c to window.c */
 enum MenuAction {
     MA_COPY, MA_PASTE, MA_COPY_ALL, MA_DUPLICATE_SESSION,
     MA_RESTART_SESSION, MA_CHANGE_SETTINGS, MA_CLEAR_SCROLLBACK,
@@ -184,7 +185,7 @@ extern const char *const *const main_icon[];
 extern const char *const *const cfg_icon[];
 extern const int n_main_icon, n_cfg_icon;
 
-/* Things gtkdlg.c needs from gtkwin.c */
+/* Things dialog.c needs from window.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 enum DialogSlot {
     DIALOG_SLOT_RECONFIGURE,
@@ -202,7 +203,7 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 extern GdkAtom compound_text_atom;
 #endif
 
-/* Things gtkwin.c needs from gtkdlg.c */
+/* Things window.c needs from dialog.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 GtkWidget *create_config_box(const char *title, Conf *conf,
                              bool midsession, int protcfginfo,
@@ -245,16 +246,16 @@ GtkWidget *create_message_box(
     post_dialog_fn_t after, void *afterctx);
 #endif
 
-/* gtkwin.c needs this special function in xkeysym.c */
+/* window.c needs this special function in utils */
 int keysym_to_unicode(int keysym);
 
-/* Things uxstore.c needs from gtkwin.c */
+/* Things storage.c needs from window.c */
 char *x_get_default(const char *key);
 
-/* Things uxstore.c provides to gtkwin.c */
+/* Things storage.c provides to window.c */
 void provide_xrm_string(const char *string, const char *progname);
 
-/* Function that {gtkapp,gtkmain}.c needs from ux{pterm,putty}.c. Does
+/* Function that main-gtk-*.c needs from {pterm,putty}.c. Does
  * early process setup that varies between applications (e.g.
  * pty_pre_init or sk_init), and is passed a boolean by the caller
  * indicating whether this is an OS X style multi-session monolithic
@@ -283,12 +284,12 @@ extern const bool use_pty_argv;
  * OS X environment munging: this is the prefix we expect to find on
  * environment variable names that were changed by osxlaunch.
  * Extracted from the command line of the OS X pterm main binary, and
- * used in uxpty.c to restore the original environment before
+ * used in pty.c to restore the original environment before
  * launching its subprocess.
  */
 extern char *pty_osx_envrestore_prefix;
 
-/* Things provided by uxcons.c */
+/* Things provided by console.c */
 struct termios;
 void stderr_tty_init(void); /* call at startup if stderr might be a tty */
 void premsg(struct termios *);
@@ -308,12 +309,12 @@ int next_fd(int *state, int *rwx);
 uxsel_id *uxsel_input_add(int fd, int rwx);  /* returns an id */
 void uxsel_input_remove(uxsel_id *id);
 
-/* uxcfg.c */
+/* config-unix.c */
 struct controlbox;
 void unix_setup_config_box(
     struct controlbox *b, bool midsession, int protocol);
 
-/* gtkcfg.c */
+/* config-gtk.c */
 void gtk_setup_config_box(
     struct controlbox *b, bool midsession, void *window);
 
@@ -335,7 +336,7 @@ void gtk_setup_config_box(
 void (*putty_signal(int sig, void (*func)(int)))(int);
 void block_signal(int sig, bool block_it);
 
-/* uxmisc.c */
+/* utils */
 void cloexec(int);
 void noncloexec(int);
 bool nonblock(int);
@@ -351,7 +352,7 @@ bool init_ucs(struct unicode_data *ucsdata, char *line_codepage,
               bool utf8_override, int font_charset, int vtmode);
 
 /*
- * Spare functions exported directly from uxnet.c.
+ * Spare functions exported directly from network.c.
  */
 void *sk_getxdmdata(Socket *sock, int *lenp);
 int sk_net_get_fd(Socket *sock);
@@ -368,17 +369,17 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 } while (0)
 
 /*
- * Exports from uxser.c.
+ * Exports from serial.c.
  */
 extern const struct BackendVtable serial_backend;
 
 /*
- * uxpeer.c, wrapping getsockopt(SO_PEERCRED).
+ * peerinfo.c, wrapping getsockopt(SO_PEERCRED).
  */
 bool so_peercred(int fd, int *pid, int *uid, int *gid);
 
 /*
- * uxfdsock.c.
+ * fd-socket.c.
  */
 Socket *make_fd_socket(int infd, int outfd, int inerrfd,
                        SockAddr *addr, int port, Plug *plug);
@@ -396,7 +397,7 @@ void setup_fd_socket(Socket *s, int infd, int outfd, int inerrfd);
 #endif
 
 /*
- * uxpty.c.
+ * pty.c.
  */
 void pty_pre_init(void);    /* pty+utmp setup before dropping privilege */
 /* Pass in the argv[] for an instance of the pty backend created by
@@ -406,7 +407,7 @@ void pty_pre_init(void);    /* pty+utmp setup before dropping privilege */
 extern char **pty_argv;
 
 /*
- * gtkask.c.
+ * askpass.c.
  */
 char *gtk_askpass_main(const char *display, const char *wintitle,
                        const char *prompt, bool *success);
@@ -422,12 +423,12 @@ static inline bool sk_peer_trusted(Socket *sock)
 }
 
 /*
- * uxsftpserver.c.
+ * sftpserver.c.
  */
 extern const SftpServerVtable unix_live_sftpserver_vt;
 
 /*
- * uxpoll.c.
+ * utils/pollwrap.c.
  */
 typedef struct pollwrapper pollwrapper;
 pollwrapper *pollwrap_new(void);
@@ -446,7 +447,7 @@ static inline bool pollwrap_check_fd_rwx(pollwrapper *pw, int fd, int rwx)
 }
 
 /*
- * uxcliloop.c.
+ * cliloop.c.
  */
 typedef bool (*cliloop_pw_setup_t)(void *ctx, pollwrapper *pw);
 typedef void (*cliloop_pw_check_t)(void *ctx, pollwrapper *pw);

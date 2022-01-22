@@ -1,5 +1,5 @@
 /*
- * scp.c  -  Scp (Secure Copy) client for PuTTY.
+ * pscp.c  -  Scp (Secure Copy) client for PuTTY.
  * Joris van Rantwijk, Simon Tatham
  *
  * This is mainly based on ssh-1.2.26/scp.c by Timo Rinne & Tatu Ylonen.

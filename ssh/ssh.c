@@ -1246,7 +1246,7 @@ static int ssh_cfg_info(Backend *be)
 
 /*
  * Gross hack: pscp will try to start SFTP but fall back to scp1 if
- * that fails. This variable is the means by which scp.c can reach
+ * that fails. This variable is the means by which pscp.c can reach
  * into the SSH code and find out which one it got.
  */
 extern bool ssh_fallback_cmd(Backend *be)

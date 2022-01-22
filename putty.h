@@ -1450,7 +1450,7 @@ static inline bool seat_get_cursor_position(Seat *seat, int *x, int *y)
 
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
- * defined in misc.c. */
+ * defined in utils. */
 void seat_connection_fatal(Seat *seat, const char *fmt, ...) PRINTF_LIKE(2, 3);
 
 /* Handy aliases for seat_output which set is_stderr to a fixed value. */
@@ -1523,7 +1523,7 @@ bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
 
 /*
  * Seat functions provided by the platform's console-application
- * support module (wincons.c, uxcons.c).
+ * support module (console.c in each platform subdirectory).
  */
 
 void console_connection_fatal(Seat *seat, const char *message);
@@ -2049,7 +2049,7 @@ void fontspec_serialise(BinarySink *bs, FontSpec *f);
 FontSpec *fontspec_deserialise(BinarySource *src);
 
 /*
- * Exports from noise.c.
+ * Exports from each platform's noise.c.
  */
 typedef enum NoiseSourceId {
     NOISE_SOURCE_TIME,
@@ -2075,6 +2075,10 @@ void noise_get_heavy(void (*func) (void *, int));
 void noise_get_light(void (*func) (void *, int));
 void noise_regular(void);
 void noise_ultralight(NoiseSourceId id, unsigned long data);
+
+/*
+ * Exports from sshrand.c.
+ */
 void random_save_seed(void);
 void random_destroy_seed(void);
 
@@ -2234,7 +2238,7 @@ static inline void lp_logging_error(LogPolicy *lp, const char *event)
 static inline bool lp_verbose(LogPolicy *lp)
 { return lp->vt->verbose(lp); }
 
-/* Defined in conscli.c, used in several console command-line tools */
+/* Defined in clicons.c, used in several console command-line tools */
 extern LogPolicy console_cli_logpolicy[];
 
 int console_askappend(LogPolicy *lp, Filename *filename,
@@ -2387,7 +2391,7 @@ void pinger_reconfig(Pinger *, Conf *oldconf, Conf *newconf);
 void pinger_free(Pinger *);
 
 /*
- * Exports from misc.c.
+ * Exports from modules in utils.
  */
 
 #include "misc.h"
@@ -2400,13 +2404,13 @@ char const *conf_dest(Conf *conf);
 void prepare_session(Conf *conf);
 
 /*
- * Exports from version.c.
+ * Exports from version.c and cmake_commit.c.
  */
 extern const char ver[];
 extern const char commitid[];
 
 /*
- * Exports from unicode.c.
+ * Exports from unicode.c in platform subdirs.
  */
 #ifndef CP_UTF8
 #define CP_UTF8 65001
@@ -2434,7 +2438,7 @@ int mk_wcwidth_cjk(unsigned int ucs);
 int mk_wcswidth_cjk(const unsigned int *pwcs, size_t n);
 
 /*
- * Exports from pageantc.c.
+ * Exports from agent-client.c in platform subdirs.
  *
  * agent_query returns NULL for here's-a-response, and non-NULL for
  * query-in- progress. In the latter case there will be a call to
@@ -2453,8 +2457,8 @@ int mk_wcswidth_cjk(const unsigned int *pwcs, size_t n);
  *
  * Passing a null pointer as callback forces agent_query to behave
  * synchronously, i.e. it will block if necessary, and guarantee to
- * return NULL. The wrapper function agent_query_synchronous() makes
- * this easier.
+ * return NULL. The wrapper function agent_query_synchronous()
+ * (defined in its own module aqsync.c) makes this easier.
  */
 typedef struct agent_pending_query agent_pending_query;
 agent_pending_query *agent_query(
@@ -2476,7 +2480,7 @@ int wc_match(const char *wildcard, const char *target);
 bool wc_unescape(char *output, const char *wildcard);
 
 /*
- * Exports from frontend (windlg.c etc)
+ * Exports from frontend (dialog.c etc)
  */
 void pgp_fingerprints(void);
 /*
@@ -2486,7 +2490,7 @@ void pgp_fingerprints(void);
 bool have_ssh_host_key(const char *host, int port, const char *keytype);
 
 /*
- * Exports from console frontends (wincons.c, uxcons.c)
+ * Exports from console frontends (console.c in platform subdirs)
  * that aren't equivalents to things in windlg.c et al.
  */
 extern bool console_batch_mode, console_antispoof_prompt;
@@ -2499,7 +2503,7 @@ void console_print_error_msg_fmt(const char *prefix, const char *fmt, ...)
     PRINTF_LIKE(2, 3);
 
 /*
- * Exports from printing.c.
+ * Exports from printing.c in platform subdirs.
  */
 typedef struct printer_enum_tag printer_enum;
 typedef struct printer_job_tag printer_job;

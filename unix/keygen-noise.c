@@ -1,5 +1,5 @@
 /*
- * uxgen.c: Unix implementation of get_heavy_noise() from cmdgen.c.
+ * keygen-noise.c: Unix implementation of get_heavy_noise() from cmdgen.c.
  */
 
 #include <stdio.h>

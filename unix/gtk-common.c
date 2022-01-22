@@ -1,5 +1,5 @@
 /*
- * gtkcomm.c: machinery in the GTK front end which is common to all
+ * gtk-common.c: machinery in the GTK front end which is common to all
  * programs that run a session in a terminal window, and also common
  * across all _sessions_ rather than specific to one session. (Timers,
  * uxsel etc.)

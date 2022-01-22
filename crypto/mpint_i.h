@@ -266,7 +266,7 @@
 #endif /* DEFINE_BIGNUMDBLINT */
 
 /* ----------------------------------------------------------------------
- * Data structures used inside bignum.c.
+ * Data structures used inside mpint.c.
  */
 
 struct mp_int {

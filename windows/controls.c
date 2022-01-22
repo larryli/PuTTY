@@ -1,5 +1,5 @@
 /*
- * winctrls.c: routines to self-manage the controls in a dialog
+ * controls.c: routines to self-manage the controls in a dialog
  * box.
  */
 

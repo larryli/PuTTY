@@ -1,5 +1,5 @@
 /*
- * windlg.c - dialogs for PuTTY(tel), including the configuration dialog.
+ * dialog.c - dialogs for PuTTY(tel), including the configuration dialog.
  */
 
 #include <stdio.h>

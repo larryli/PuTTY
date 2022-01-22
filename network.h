@@ -302,7 +302,7 @@ static inline SocketPeerInfo *sk_peer_info(Socket *s)
 
 /*
  * The structure returned from sk_peer_info, and a function to free
- * one (in misc.c).
+ * one (in utils).
  */
 struct SocketPeerInfo {
     int addressfamily;
@@ -340,7 +340,7 @@ struct SocketPeerInfo {
 void sk_free_peer_info(SocketPeerInfo *pi);
 
 /*
- * Simple wrapper on getservbyname(), needed by ssh.c. Returns the
+ * Simple wrapper on getservbyname(), needed by portfwd.c. Returns the
  * port number, in host byte order (suitable for printf and so on).
  * Returns 0 on failure. Any platform not supporting getservbyname
  * can just return 0 - this function is not required to handle

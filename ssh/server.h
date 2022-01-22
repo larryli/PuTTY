@@ -137,7 +137,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
 
 Conf *make_ssh_server_conf(void);
 
-/* Provided by Unix front end programs to uxsftpserver.c */
+/* Provided by Unix front end programs to unix/sftpserver.c */
 void make_unix_sftp_filehandle_key(void *data, size_t size);
 
 typedef struct agentfwd agentfwd;

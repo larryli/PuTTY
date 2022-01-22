@@ -1,5 +1,5 @@
 /*
- * local.c - translate our internal character set codes to and from
+ * localenc.c - translate our internal character set codes to and from
  * our own set of plausibly legible character-set names. Also
  * provides a canonical name for each encoding (useful for software
  * announcing what character set it will be using), and a set of

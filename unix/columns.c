@@ -1,5 +1,5 @@
 /*
- * gtkcols.c - implementation of the `Columns' GTK layout container.
+ * columns.c - implementation of the `Columns' GTK layout container.
  */
 
 #include <assert.h>

@@ -1,7 +1,7 @@
 /*
  * Display the fingerprints of the PGP Master Keys to the user.
  *
- * (This is in its own file rather than in uxcons.c, because it's
+ * (This is in its own file rather than in console.c, because it's
  * appropriate even for Unix GUI apps.)
  */
 

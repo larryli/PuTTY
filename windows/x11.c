@@ -1,5 +1,5 @@
 /*
- * winx11.c: fetch local auth data for X forwarding.
+ * x11.c: fetch local auth data for X forwarding.
  */
 
 #include <ctype.h>

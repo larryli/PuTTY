@@ -1,5 +1,5 @@
 /*
- * uxproxy.c: Unix implementation of platform_new_connection(),
+ * local-proxy.c: Unix implementation of platform_new_connection(),
  * supporting an OpenSSH-like proxy command.
  */
 

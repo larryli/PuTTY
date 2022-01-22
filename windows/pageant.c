@@ -187,7 +187,8 @@ static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
     } else {
         /*
          * Destroy this passphrase dialog box before passing the
-         * results back to pageant.c, to avoid re-entrancy issues.
+         * results back to the main pageant.c, to avoid re-entrancy
+         * issues.
          *
          * If we successfully got a passphrase from the user, but it
          * was _wrong_, then pageant_passphrase_request_success will
@@ -828,7 +829,7 @@ static void update_sessions(void)
  * communications. For backwards compatibility, and more particularly
  * for compatibility with derived works of PuTTY still using the old
  * Pageant client code, we accept it as an alternative to the one
- * returned from get_user_sid() in winpgntc.c.
+ * returned from get_user_sid().
  */
 PSID get_default_sid(void)
 {

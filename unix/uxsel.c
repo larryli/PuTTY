@@ -2,10 +2,10 @@
  * uxsel.c
  *
  * This module is a sort of all-purpose interchange for file
- * descriptors. At one end it talks to uxnet.c and pty.c and
+ * descriptors. At one end it talks to network.c and pty.c and
  * anything else which might have one or more fds that need
  * select() or poll()-type things doing to them during an extended
- * program run; at the other end it talks to pterm.c or uxplink.c or
+ * program run; at the other end it talks to window.c or plink.c or
  * anything else which might have its own means of actually doing
  * those select()-type things.
  */

@@ -1,5 +1,5 @@
 /*
- * winhandl.c: Module to give Windows front ends the general
+ * handle-io.c: Module to give Windows front ends the general
  * ability to deal with consoles, pipes, serial ports, or any other
  * type of data stream accessed through a Windows API HANDLE rather
  * than a WinSock SOCKET.

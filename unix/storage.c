@@ -1,5 +1,5 @@
 /*
- * uxstore.c: Unix-specific implementation of the interface defined
+ * storage.c: Unix-specific implementation of the interface defined
  * in storage.h.
  */
 

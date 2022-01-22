@@ -1,5 +1,6 @@
 /*
- * Header for misc.c.
+ * Header for miscellaneous helper functions, mostly defined in the
+ * utils subdirectory.
  */
 
 #ifndef PUTTY_MISC_H
@@ -33,7 +34,7 @@ void burnstr(char *string);
 
 /*
  * The visible part of a strbuf structure. There's a surrounding
- * implementation struct in misc.c, which isn't exposed to client
+ * implementation struct in strbuf.c, which isn't exposed to client
  * code.
  */
 struct strbuf {
@@ -63,11 +64,7 @@ strbuf *strbuf_new_for_agent_query(void);
 void strbuf_finalise_agent_query(strbuf *buf);
 
 /* String-to-Unicode converters that auto-allocate the destination and
- * work around the rather deficient interface of mb_to_wc.
- *
- * These actually live in miscucs.c, not misc.c (the distinction being
- * that the former is only linked into tools that also have the main
- * Unicode support). */
+ * work around the rather deficient interface of mb_to_wc. */
 wchar_t *dup_mb_to_wc_c(int codepage, int flags, const char *string, int len);
 wchar_t *dup_mb_to_wc(int codepage, int flags, const char *string);
 
@@ -132,9 +129,9 @@ static inline void bufchain_set_callback(bufchain *ch, IdempotentCallback *ic)
 {
     extern void queue_idempotent_callback(struct IdempotentCallback *ic);
     /* Wrapper that puts in the standard queue_idempotent_callback
-     * function. Lives here rather than in utils.c so that standalone
-     * programs can use the bufchain facility without this optional
-     * callback feature and not need to provide a stub of
+     * function. Lives here rather than in bufchain.c so that
+     * standalone programs can use the bufchain facility without this
+     * optional callback feature and not need to provide a stub of
      * queue_idempotent_callback. */
     bufchain_set_callback_inner(ch, ic, queue_idempotent_callback);
 }

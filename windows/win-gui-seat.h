@@ -1,6 +1,6 @@
 /*
  * Small implementation of Seat and LogPolicy shared between window.c
- * and windlg.c.
+ * and dialog.c.
  */
 
 typedef struct WinGuiSeat WinGuiSeat;
@@ -11,4 +11,4 @@ struct WinGuiSeat {
     LogPolicy logpolicy;
 };
 
-extern const LogPolicyVtable win_gui_logpolicy_vt; /* in windlg.c */
+extern const LogPolicyVtable win_gui_logpolicy_vt; /* in dialog.c */

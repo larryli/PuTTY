@@ -1,6 +1,6 @@
 /*
- * winnojmp.c: stub jump list functions for Windows executables that
- * don't update the jump list.
+ * no-jump-list.c: stub jump list functions for Windows executables
+ * that don't update the jump list.
  */
 
 void add_session_to_jumplist(const char * const sessionname) {}

@@ -1,5 +1,5 @@
 /*
- * uxsftp.c: the Unix-specific parts of PSFTP and PSCP.
+ * sftp.c: the Unix-specific parts of PSFTP and PSCP.
  */
 
 #include <sys/time.h>

@@ -1,5 +1,5 @@
 /*
- * Implementation of do_select() for winnet.c to use, that uses
+ * Implementation of do_select() for network.c to use, that uses
  * WSAAsyncSelect to convert network activity into window messages,
  * for integration into a GUI event loop.
  */

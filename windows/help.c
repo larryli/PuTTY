@@ -1,5 +1,5 @@
 /*
- * winhelp.c: centralised functions to launch Windows HTML Help files.
+ * help.c: centralised functions to launch Windows HTML Help files.
  */
 
 #include <stdio.h>

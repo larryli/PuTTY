@@ -1,6 +1,6 @@
 /*
- * uxcons.c: various interactive-prompt routines shared between the
- * Unix console PuTTY tools
+ * unix/console.c: various interactive-prompt routines shared between
+ * the Unix console PuTTY tools
  */
 
 #include <stdio.h>

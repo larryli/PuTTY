@@ -1,5 +1,5 @@
 /*
- * gtkcfg.c - the GTK-specific parts of the PuTTY configuration
+ * config-gtk.c - the GTK-specific parts of the PuTTY configuration
  * box.
  */
 

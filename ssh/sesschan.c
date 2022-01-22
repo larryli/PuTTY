@@ -230,7 +230,7 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
     sess->conf = conf_new();
     load_open_settings(NULL, sess->conf);
 
-    /* Set close-on-exit = true to suppress uxpty.c's "[pterm: process
+    /* Set close-on-exit = true to suppress pty.c's "[pterm: process
      * terminated with status x]" message */
     conf_set_int(sess->conf, CONF_close_on_exit, FORCE_ON);
 
@@ -303,7 +303,7 @@ static void sesschan_start_backend(sesschan *sess, const char *cmd)
      * will be set as part of X or agent forwarding, and shouldn't be
      * confusingly set in the absence of that.
      *
-     * (DISPLAY must also be cleared, but uxpty.c will do that anyway
+     * (DISPLAY must also be cleared, but pty.c will do that anyway
      * when our get_x_display method returns NULL.)
      */
     static const char *const env_to_unset[] = {
@@ -560,7 +560,7 @@ bool sesschan_send_break(Channel *chan, unsigned length)
 
     if (sess->backend) {
         /* We ignore the break length. We could pass it through as the
-         * 'arg' parameter, and have uxpty.c collect it and pass it on
+         * 'arg' parameter, and have pty.c collect it and pass it on
          * to tcsendbreak, but since tcsendbreak in turn assigns
          * implementation-defined semantics to _its_ duration
          * parameter, this all just sounds too difficult. */

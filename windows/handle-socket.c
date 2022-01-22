@@ -17,7 +17,7 @@
  * thread as blocking system calls and so once one is in progress it
  * can't sensibly be interrupted. Hence, after the user tries to
  * freeze one of these sockets, it's unavoidable that we may receive
- * one more load of data before we manage to get winhandl.c to stop
+ * one more load of data before we manage to get handle-io.c to stop
  * reading.
  */
 typedef enum HandleSocketFreezeState {
@@ -82,7 +82,7 @@ static size_t handle_gotdata(
         if (hs->frozen == FREEZING) {
             /*
              * If we've received data while this socket is supposed to
-             * be frozen (because the read winhandl.c started before
+             * be frozen (because the read handle-io.c started before
              * sk_set_frozen was called has now returned) then buffer
              * the data for when we unfreeze.
              */
@@ -248,7 +248,7 @@ static void sk_handle_set_frozen(Socket *s, bool is_frozen)
           case THAWING:
             /*
              * We were in the middle of emptying our bufchain, and got
-             * frozen again. In that case, winhandl.c is already
+             * frozen again. In that case, handle-io.c is already
              * throttled, so just return to FROZEN state. The toplevel
              * callback will notice and disable itself.
              */

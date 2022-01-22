@@ -1,6 +1,7 @@
 /*
- * gtkapp.c: a top-level front end to GUI PuTTY and pterm, using
- * GtkApplication. Suitable for OS X. Currently unfinished.
+ * main-gtk-application.c: a top-level front end to GUI PuTTY and
+ * pterm, using GtkApplication. Suitable for OS X. Currently
+ * unfinished.
  *
  * (You could run it on ordinary Linux GTK too, in principle, but I
  * don't think it would be particularly useful to do so, even once

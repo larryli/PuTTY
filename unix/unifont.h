@@ -1,5 +1,5 @@
 /*
- * Header file for gtkfont.c. Has to be separate from unix.h
+ * Header file for unifont.c. Has to be separate from unix.h
  * because it depends on GTK data types, hence can't be included
  * from cross-platform code (which doesn't go near GTK).
  */
@@ -47,10 +47,10 @@
 #endif
 
 /*
- * Exports from gtkfont.c.
+ * Exports from unifont.c.
  */
 typedef struct UnifontVtable UnifontVtable; /* contents internal to
-                                             * gtkfont.c */
+                                             * unifont.c */
 typedef struct unifont {
     const struct UnifontVtable *vt;
     /*

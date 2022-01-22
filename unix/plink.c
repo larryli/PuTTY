@@ -745,7 +745,7 @@ int main(int argc, char **argv)
                 --argc;
                 /* Explicitly pass "plink" in place of appname for
                  * error reporting purposes. appname will have been
-                 * set by be_foo.c to something more generic, probably
+                 * set by be_list.c to something more generic, probably
                  * "PuTTY". */
                 provide_xrm_string(*++argv, "plink");
             }

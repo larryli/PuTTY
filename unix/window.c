@@ -1,5 +1,5 @@
 /*
- * gtkwin.c: the main code that runs a PuTTY terminal emulator and
+ * window.c: the main code that runs a PuTTY terminal emulator and
  * backend in a GTK window.
  */
 
@@ -4443,7 +4443,7 @@ static void compute_geom_hints(GtkFrontend *inst, GdkGeometry *geom)
 
 #if GTK_CHECK_VERSION(3,0,0)
     /*
-     * And if we're running a gtkapp.c based program and
+     * And if we're running a main-gtk-application.c based program and
      * GtkApplicationWindow has given us a menu bar inside the window,
      * then we must take that into account as well.
      *
