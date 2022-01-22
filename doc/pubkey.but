@@ -507,12 +507,7 @@ The options supported on the command line are:
 \dt \cw{\-\-strong-rsa}
 
 \dd When generating an RSA key, make sure the prime factors of the key
-modulus are \q{strong primes}. A strong prime is a prime number chosen
-to have a particular structure that makes certain factoring algorithms
-more difficult to apply, so some security standards recommend their
-use. However, the most modern factoring algorithms are unaffected, so
-this option is probably not worth turning on \e{unless} you have a
-local standard that recommends it.
+modulus are \q{strong primes}. See \k{puttygen-primes}.
 
 \dt \cw{\-\-ppk-param} \e{key}\cw{=}\e{value}\cw{,}...
 
