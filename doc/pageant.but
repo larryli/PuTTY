@@ -172,6 +172,11 @@ by the command, like this:
 
 \S{pageant-cmdline-openssh} Integrating with Windows OpenSSH
 
+Windows's own port of OpenSSH uses the same mechanism as Pageant to
+talk to its SSH agent (Windows named pipes). This means that Windows
+OpenSSH can talk directly to Pageant, if it knows where to find
+Pageant's named pipe.
+
 When Pageant starts up, it can optionally write out a file containing
 an OpenSSH configuration directive that tells the Windows \c{ssh.exe}
 where to find Pageant. If you include this file from your Windows SSH
@@ -183,14 +188,34 @@ The option is \c{--openssh-config}, and you follow it with a filename.
 
 To refer to this file from your main OpenSSH configuration, you can
 use the \cq{Include} directive. For example, you might run Pageant
-like this:
+like this (with your own username substituted, of course):
 
 \c pageant --openssh-config C:\Users\Simon\.ssh\pageant.conf
 
-and then add a directive like this to your main \cq{.ssh\\config}
-file:
+and then add a directive like this to your main \cq{.ssh\\config} file
+(assuming that lives in the same directory that you just put
+\cw{pageant.conf}):
 
-\c Include C:\Users\Simon\.ssh\pageant.conf
+\c Include pageant.conf
+
+\s{Note}: this technique only works with \e{Windows's} port of
+OpenSSH, which lives at \cw{C:\\Windows\\System32\\OpenSSH\\ssh.exe}
+if you have it installed. (If not, it can be installed as a Windows
+optional feature, e.g., via Settings > Apps & features > Optional
+features > Add a feature > OpenSSH Client.)
+
+There are other versions of OpenSSH for Windows, notably the one that
+comes with Windows \cw{git}. Those will likely not work with the same
+configuration, because they tend to depend on Unix emulation layers
+like MinGW or MSys, so they won't speak Windows native pathname syntax
+or understand named pipes. The above instructions will only work with
+Windows's own version of OpenSSH.
+
+So, if you want to use Windows \cw{git} with an SSH key held in
+Pageant, you'll have to set the environment variable \cw{GIT_SSH}, to
+point at a different program. You could point it at
+\cw{c:\\Windows\\System32\\OpenSSH\\ssh.exe} once you've done this
+setup \dash but it's just as easy to point it at Plink!
 
 \S{pageant-cmdline-keylist} Starting with the key list visible
 
