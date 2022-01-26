@@ -130,20 +130,6 @@ if(GTK_FOUND)
     window.c unifont.c dialog.c config-gtk.c gtk-common.c config-unix.c unicode.c printing.c)
   add_dependencies(guiterminal generated_licence_h) # dialog.c uses licence.h
 
-  add_executable(pageant
-    pageant.c
-    ${CMAKE_SOURCE_DIR}/stubs/nogss.c
-    askpass.c
-    x11.c
-    noise.c
-    ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c
-    ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c)
-  be_list(pageant Pageant)
-  target_link_libraries(pageant
-    eventloop console agent settings network crypto utils
-    ${GTK_LIBRARIES})
-  installed_program(pageant)
-
   add_executable(pterm
     pterm.c
     main-gtk-simple.c
@@ -206,3 +192,26 @@ if(GTK_FOUND)
     guiterminal eventloop otherbackends settings network charset utils
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 endif()
+
+# Pageant is built whether we have GTK or not; in its absence we
+# degrade to a version that doesn't provide the GTK askpass.
+if(GTK_FOUND)
+  set(pageant_conditional_sources askpass.c)
+  set(pageant_libs ${GTK_LIBRARIES})
+else()
+  set(pageant_conditional_sources noaskpass.c no-gtk.c)
+  set(pageant_libs)
+endif()
+add_executable(pageant
+  pageant.c
+  ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+  x11.c
+  noise.c
+  ${CMAKE_SOURCE_DIR}/ssh/x11fwd.c
+  ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
+  ${pageant_conditional_sources})
+be_list(pageant Pageant)
+target_link_libraries(pageant
+  eventloop console agent settings network crypto utils
+  ${pageant_libs})
+installed_program(pageant)
