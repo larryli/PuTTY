@@ -111,14 +111,19 @@ struct SockAddr {
  * not been done and a simple host name is held in this SockAddr
  * structure.
  */
+static inline int sockaddr_family(SockAddr *addr, SockAddrStep step)
+{
+    switch (addr->superfamily) {
+      case IP:
 #ifndef NO_IPV6
-#define SOCKADDR_FAMILY(addr, step) \
-    ((addr)->superfamily != IP ? AF_UNSPEC : \
-     (step).ai ? (step).ai->ai_family : AF_INET)
-#else
-#define SOCKADDR_FAMILY(addr, step) \
-    ((addr)->superfamily != IP ? AF_UNSPEC : AF_INET)
+        if (step.ai)
+            return step.ai->ai_family;
 #endif
+        return AF_INET;
+      default:
+        return AF_UNSPEC;
+    }
+}
 
 /*
  * Start a SockAddrStep structure to step through multiple
@@ -622,7 +627,7 @@ void sk_getaddr(SockAddr *addr, char *buf, int buflen)
         }
     } else
 #endif
-    if (SOCKADDR_FAMILY(addr, step) == AF_INET) {
+    if (sockaddr_family(addr, step) == AF_INET) {
         struct in_addr a;
         assert(addr->addresses && step.curraddr < addr->naddresses);
         a.s_addr = p_htonl(addr->addresses[step.curraddr]);
@@ -653,7 +658,7 @@ static SockAddr sk_extractaddr_tmp(
 #ifndef NO_IPV6
     toret.ais = step->ai;
 #endif
-    if (SOCKADDR_FAMILY(addr, *step) == AF_INET
+    if (sockaddr_family(addr, *step) == AF_INET
 #ifndef NO_IPV6
         && !toret.ais
 #endif
@@ -713,7 +718,7 @@ bool sk_address_is_local(SockAddr *addr)
     SockAddrStep step;
     int family;
     START_STEP(addr, step);
-    family = SOCKADDR_FAMILY(addr, step);
+    family = sockaddr_family(addr, step);
 
 #ifndef NO_IPV6
     if (family == AF_INET6) {
@@ -749,7 +754,7 @@ int sk_addrtype(SockAddr *addr)
     SockAddrStep step;
     int family;
     START_STEP(addr, step);
-    family = SOCKADDR_FAMILY(addr, step);
+    family = sockaddr_family(addr, step);
 
     return (family == AF_INET ? ADDRTYPE_IPV4 :
 #ifndef NO_IPV6
@@ -763,7 +768,7 @@ void sk_addrcopy(SockAddr *addr, char *buf)
     SockAddrStep step;
     int family;
     START_STEP(addr, step);
-    family = SOCKADDR_FAMILY(addr, step);
+    family = sockaddr_family(addr, step);
 
     assert(family != AF_UNSPEC);
 #ifndef NO_IPV6
@@ -907,7 +912,7 @@ static DWORD try_connect(NetSocket *sock)
     /*
      * Open socket.
      */
-    family = SOCKADDR_FAMILY(sock->addr, sock->step);
+    family = sockaddr_family(sock->addr, sock->step);
 
     /*
      * Remove the socket from the tree before we overwrite its
