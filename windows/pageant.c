@@ -1391,6 +1391,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
     const char *command = NULL;
+    const char *unixsocket = NULL;
     bool show_keylist_on_startup = false;
     int argc;
     char **argv, **argstart;
@@ -1494,6 +1495,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             show_keylist_on_startup = true;
         } else if (match_optval("-openssh-config", "-openssh_config")) {
             openssh_config_file = val;
+        } else if (match_optval("-unix")) {
+            unixsocket = val;
         } else if (match_opt("-c")) {
             /*
              * If we see `-c', then the rest of the command line
@@ -1539,6 +1542,31 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (!already_running) {
         /*
+         * Set up the window class for the hidden window that receives
+         * all the messages to do with our presence in the system tray.
+         */
+
+        if (!prev) {
+            WNDCLASS wndclass;
+
+            memset(&wndclass, 0, sizeof(wndclass));
+            wndclass.lpfnWndProc = TrayWndProc;
+            wndclass.hInstance = inst;
+            wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
+            wndclass.lpszClassName = TRAYCLASSNAME;
+
+            RegisterClass(&wndclass);
+        }
+
+        keylist = NULL;
+
+        traywindow = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
+                                  WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                                  CW_USEDEFAULT, CW_USEDEFAULT,
+                                  100, 100, NULL, NULL, inst, NULL);
+        winselgui_set_hwnd(traywindow);
+
+        /*
          * Initialise the cross-platform Pageant code.
          */
         pageant_init();
@@ -1546,39 +1574,66 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         /*
          * Set up a named-pipe listener.
          */
-        Plug *pl_plug;
         wpc->plc.vt = &winpgnt_vtable;
         wpc->plc.suppress_logging = true;
-        struct pageant_listen_state *pl =
-            pageant_listener_new(&pl_plug, &wpc->plc);
-        char *pipename = agent_named_pipe_name();
-        Socket *sock = new_named_pipe_listener(pipename, pl_plug);
-        if (sk_socket_error(sock)) {
-            char *err = dupprintf("Unable to open named pipe at %s "
-                                  "for SSH agent:\n%s", pipename,
-                                  sk_socket_error(sock));
-            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
-            return 1;
-        }
-        pageant_listener_got_socket(pl, sock);
-
-        /*
-         * If we've been asked to write out an OpenSSH config file
-         * pointing at the named pipe, do so.
-         */
-        if (openssh_config_file) {
-            FILE *fp = fopen(openssh_config_file, "w");
-            if (!fp) {
-                char *err = dupprintf("Unable to write OpenSSH config file "
-                                      "to %s", openssh_config_file);
+        {
+            Plug *pl_plug;
+            struct pageant_listen_state *pl =
+                pageant_listener_new(&pl_plug, &wpc->plc);
+            char *pipename = agent_named_pipe_name();
+            Socket *sock = new_named_pipe_listener(pipename, pl_plug);
+            if (sk_socket_error(sock)) {
+                char *err = dupprintf("Unable to open named pipe at %s "
+                                      "for SSH agent:\n%s", pipename,
+                                      sk_socket_error(sock));
                 MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
                 return 1;
             }
-            fprintf(fp, "IdentityAgent %s\n", pipename);
-            fclose(fp);
+            pageant_listener_got_socket(pl, sock);
+
+            /*
+             * If we've been asked to write out an OpenSSH config file
+             * pointing at the named pipe, do so.
+             */
+            if (openssh_config_file) {
+                FILE *fp = fopen(openssh_config_file, "w");
+                if (!fp) {
+                    char *err = dupprintf("Unable to write OpenSSH config "
+                                          "file to %s", openssh_config_file);
+                    MessageBox(NULL, err, "Pageant Error",
+                               MB_ICONERROR | MB_OK);
+                    return 1;
+                }
+                fprintf(fp, "IdentityAgent %s\n", pipename);
+                fclose(fp);
+            }
+
+            sfree(pipename);
         }
 
-        sfree(pipename);
+        /*
+         * Set up an AF_UNIX listener too, if we were asked to.
+         */
+        if (unixsocket) {
+            sk_init();
+
+            /* FIXME: diagnose any error except file-not-found. Also,
+             * check the file type if possible? */
+            remove(unixsocket);
+
+            Plug *pl_plug;
+            struct pageant_listen_state *pl =
+                pageant_listener_new(&pl_plug, &wpc->plc);
+            Socket *sock = sk_newlistener_unix(unixsocket, pl_plug);
+            if (sk_socket_error(sock)) {
+                char *err = dupprintf("Unable to open AF_UNIX socket at %s "
+                                      "for SSH agent:\n%s", unixsocket,
+                                      sk_socket_error(sock));
+                MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+                return 1;
+            }
+            pageant_listener_got_socket(pl, sock);
+        }
 
         /*
          * Set up the window class for the hidden window that receives
@@ -1660,31 +1715,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         }
         return 0;
     }
-
-    /*
-     * Set up the window class for the hidden window that receives
-     * all the messages to do with our presence in the system tray.
-     */
-
-    if (!prev) {
-        WNDCLASS wndclass;
-
-        memset(&wndclass, 0, sizeof(wndclass));
-        wndclass.lpfnWndProc = TrayWndProc;
-        wndclass.hInstance = inst;
-        wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-        wndclass.lpszClassName = TRAYCLASSNAME;
-
-        RegisterClass(&wndclass);
-    }
-
-    keylist = NULL;
-
-    traywindow = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
-                              WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-                              CW_USEDEFAULT, CW_USEDEFAULT,
-                              100, 100, NULL, NULL, inst, NULL);
-    winselgui_set_hwnd(traywindow);
 
     /* Set up a system tray icon */
     AddTrayIcon(traywindow);
