@@ -41,6 +41,8 @@ define_negation(NO_MULTIMON HAVE_MULTIMON_H)
 check_include_files("windows.h;htmlhelp.h" HAVE_HTMLHELP_H)
 define_negation(NO_HTMLHELP HAVE_HTMLHELP_H)
 
+check_include_files("winsock2.h;afunix.h" HAVE_AFUNIX_H)
+
 check_symbol_exists(strtoumax "inttypes.h" HAVE_STRTOUMAX)
 check_symbol_exists(AddDllDirectory "windows.h" HAVE_ADDDLLDIRECTORY)
 check_symbol_exists(SetDefaultDllDirectories "windows.h"
