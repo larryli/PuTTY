@@ -1128,8 +1128,8 @@ Socket *sk_new(SockAddr *addr, int port, bool privport, bool oobinline,
     return &ret->sock;
 }
 
-Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
-                       bool local_host_only, int orig_address_family)
+Socket *sk_newlistener_internal(const char *srcaddr, int port, Plug *plug,
+                                bool local_host_only, int orig_address_family)
 {
     SOCKET s;
 #ifndef NO_IPV6
@@ -1144,7 +1144,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     NetSocket *ret;
     int retcode;
 
-    int address_family;
+    int address_family = orig_address_family;
 
     /*
      * Create NetSocket structure.
@@ -1163,16 +1163,6 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->addr = NULL;
-
-    /*
-     * Translate address_family from platform-independent constants
-     * into local reality.
-     */
-    address_family = (orig_address_family == ADDRTYPE_IPV4 ? AF_INET :
-#ifndef NO_IPV6
-                      orig_address_family == ADDRTYPE_IPV6 ? AF_INET6 :
-#endif
-                      AF_UNSPEC);
 
     /*
      * Our default, if passed the `don't care' value
@@ -1311,9 +1301,9 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
      * If we were given ADDRTYPE_UNSPEC, we must also create an
      * IPv6 listening socket and link it to this one.
      */
-    if (address_family == AF_INET && orig_address_family == ADDRTYPE_UNSPEC) {
-        Socket *other = sk_newlistener(srcaddr, port, plug,
-                                       local_host_only, ADDRTYPE_IPV6);
+    if (address_family == AF_INET && orig_address_family == AF_UNSPEC) {
+        Socket *other = sk_newlistener_internal(srcaddr, port, plug,
+                                                local_host_only, AF_INET6);
 
         if (other) {
             NetSocket *ns = container_of(other, NetSocket, sock);
@@ -1328,6 +1318,23 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 #endif
 
     return &ret->sock;
+}
+
+Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
+                       bool local_host_only, int orig_address_family)
+{
+    /*
+     * Translate address_family from platform-independent constants
+     * into local reality.
+     */
+    int address_family = (orig_address_family == ADDRTYPE_IPV4 ? AF_INET :
+#ifndef NO_IPV6
+                          orig_address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+#endif
+                          AF_UNSPEC);
+
+    return sk_newlistener_internal(srcaddr, port, plug, local_host_only,
+                                   address_family);
 }
 
 static void sk_net_close(Socket *sock)
