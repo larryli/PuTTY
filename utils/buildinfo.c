@@ -39,17 +39,18 @@ char *buildinfo(const char *newline)
      * that every real clause can start with #elif and there's no
      * anomalous first clause. That way the patch looks nicer when you
      * add extra ones.
+     *
+     * Mostly you can tell the version just from _MSC_VER, but in some
+     * cases, two different compiler versions have the same _MSC_VER
+     * value, and have to be distinguished by _MSC_FULL_VER.
      */
+#elif _MSC_VER == 1930
+    put_fmt(buf, " 2022 (17.0)");
+#elif _MSC_VER == 1929 && _MSC_FULL_VER >= 192930100
+    put_fmt(buf, " 2019 (16.11)");
+#elif _MSC_VER == 1929
+    put_fmt(buf, " 2019 (16.10)");
 #elif _MSC_VER == 1928 && _MSC_FULL_VER >= 192829500
-    /*
-     * 16.9 and 16.8 have the same _MSC_VER value, and have to be
-     * distinguished by _MSC_FULL_VER. As of 2021-03-04 that is not
-     * mentioned on the above page, but see e.g.
-     * https://developercommunity.visualstudio.com/t/the-169-cc-compiler-still-uses-the-same-version-nu/1335194#T-N1337120
-     * which says that 16.9 builds will have versions starting at
-     * 19.28.29500.* and going up. Hence, 19 28 29500 is what we
-     * compare _MSC_FULL_VER against above.
-     */
     put_fmt(buf, " 2019 (16.9)");
 #elif _MSC_VER == 1928
     put_fmt(buf, " 2019 (16.8)");
@@ -105,6 +106,9 @@ char *buildinfo(const char *newline)
     put_fmt(buf, ", unrecognised version");
 #endif
     put_fmt(buf, ", _MSC_VER=%d", (int)_MSC_VER);
+#ifdef _MSC_FULL_VER
+    put_fmt(buf, ", _MSC_FULL_VER=%d", (int)_MSC_FULL_VER);
+#endif
 #endif
 
 #ifdef BUILDINFO_GTK
