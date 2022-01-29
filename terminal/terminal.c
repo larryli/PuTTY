@@ -7677,7 +7677,8 @@ static inline SeatPromptResult signal_prompts_t(Terminal *term, prompts_t *p,
 {
     assert(p->callback && "Asynchronous userpass input requires a callback");
     queue_toplevel_callback(p->callback, p->callback_ctx);
-    ldisc_enable_prompt_callback(term->ldisc, NULL);
+    if (term->ldisc)
+        ldisc_enable_prompt_callback(term->ldisc, NULL);
     p->spr = spr;
     return spr;
 }
