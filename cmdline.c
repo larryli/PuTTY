@@ -585,6 +585,11 @@ int cmdline_process_param(const char *p, char *value,
             cmdline_error("the -pw option can only be used with the "
                           "SSH protocol");
         else {
+            if (cmdline_password) {
+                smemclr(cmdline_password, strlen(cmdline_password));
+                sfree(cmdline_password);
+            }
+
             cmdline_password = dupstr(value);
             /* Assuming that `value' is directly from argv, make a good faith
              * attempt to trample it, to stop it showing up in `ps' output
@@ -608,6 +613,11 @@ int cmdline_process_param(const char *p, char *value,
             if (!fp) {
                 cmdline_error("unable to open password file '%s'", value);
             } else {
+                if (cmdline_password) {
+                    smemclr(cmdline_password, strlen(cmdline_password));
+                    sfree(cmdline_password);
+                }
+
                 cmdline_password = chomp(fgetline(fp));
                 if (!cmdline_password) {
                     cmdline_error("unable to read a password from file '%s'",
