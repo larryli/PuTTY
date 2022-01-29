@@ -592,7 +592,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
      * our check is for whether the backend sets the flag promising
      * that it does.
      */
-    if (!(backvt->flags & BACKEND_SUPPORTS_NC_HOST)) {
+    if (!backvt || !(backvt->flags & BACKEND_SUPPORTS_NC_HOST)) {
         sp->errmsg = dupprintf("saved session '%s' is not an SSH session",
                                proxy_hostname);
         return &sp->sock;
