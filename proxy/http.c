@@ -479,7 +479,7 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                 crStopV;
             }
 
-            if (maj_ver < 1 && (maj_ver == 1 && min_ver < 1)) {
+            if (maj_ver < 1 || (maj_ver == 1 && min_ver < 1)) {
                 /* Before HTTP/1.1, connections close by default */
                 s->connection_close = true;
             }
