@@ -151,12 +151,6 @@ static Conf *conf;
 static LogContext *logctx;
 static Terminal *term;
 
-struct wm_netevent_params {
-    /* Used to pass data to wm_netevent_callback */
-    WPARAM wParam;
-    LPARAM lParam;
-};
-
 static void conf_cache_data(void);
 static int cursor_type;
 static int vtmode;
@@ -1115,16 +1109,6 @@ void cmdline_error(const char *fmt, ...)
     sfree(message);
     sfree(title);
     exit(1);
-}
-
-/*
- * Actually do the job requested by a WM_NETEVENT
- */
-static void wm_netevent_callback(void *vctx)
-{
-    struct wm_netevent_params *params = (struct wm_netevent_params *)vctx;
-    select_result(params->wParam, params->lParam);
-    sfree(vctx);
 }
 
 static inline rgb rgb_from_colorref(COLORREF cr)
@@ -2812,21 +2796,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         ShowCaret(hwnd);
         return 0;
       }
-      case WM_NETEVENT: {
-        /*
-         * To protect against re-entrancy when Windows's recv()
-         * immediately triggers a new WSAAsyncSelect window
-         * message, we don't call select_result directly from this
-         * handler but instead wait until we're back out at the
-         * top level of the message loop.
-         */
-        struct wm_netevent_params *params =
-            snew(struct wm_netevent_params);
-        params->wParam = wParam;
-        params->lParam = lParam;
-        queue_toplevel_callback(wm_netevent_callback, params);
+      case WM_NETEVENT:
+        winselgui_response(wParam, lParam);
         return 0;
-      }
       case WM_SETFOCUS:
         term_set_focus(term, true);
         CreateCaret(hwnd, caretbm, font_width, font_height);

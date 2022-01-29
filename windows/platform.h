@@ -333,6 +333,7 @@ const char *do_select(SOCKET skt, bool enable);
  */
 void winselgui_set_hwnd(HWND hwnd);
 void winselgui_clear_hwnd(void);
+void winselgui_response(WPARAM wParam, LPARAM lParam);
 
 void winselcli_setup(void);
 SOCKET winselcli_unique_socket(void);
