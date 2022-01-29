@@ -3602,7 +3602,6 @@ void do_bidi(BidiContext *ctx, bidi_char *text, size_t textlen)
 #ifdef REMOVE_FORMATTING_CHARACTERS
     abort(); /* can't use the standard algorithm in a live terminal */
 #else
-    assert(textlen >= 0);
     do_bidi_new(ctx, text, textlen);
 #endif
 }
