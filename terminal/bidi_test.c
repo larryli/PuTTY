@@ -44,7 +44,8 @@ static void run_test(const char *filename, unsigned lineno,
 {
     size_t bcs_orig_len = bcs_len;
     bidi_char *bcs_orig = snewn(bcs_orig_len, bidi_char);
-    memcpy(bcs_orig, bcs, bcs_orig_len * sizeof(bidi_char));
+    if (bcs_orig_len)
+        memcpy(bcs_orig, bcs, bcs_orig_len * sizeof(bidi_char));
 
     bcs_len = do_bidi_test(ctx, bcs, bcs_len, override);
 
@@ -334,6 +335,12 @@ int main(int argc, char **argv)
             }
         } else {
             const char *filename = arg;
+
+            if (!testfn) {
+                fprintf(stderr, "no mode argument provided before filename "
+                        "'%s'\n", filename);
+                return 1;
+            }
 
             if (!strcmp(filename, "-")) {
                 testfn("<standard input>", stdin);
