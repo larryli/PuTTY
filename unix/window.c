@@ -736,10 +736,8 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     new_scale = 1;
 #endif
 
-    int new_backing_w = w * inst->font_width + 2*inst->window_border;
-    int new_backing_h = h * inst->font_height + 2*inst->window_border;
-    new_backing_w *= new_scale;
-    new_backing_h *= new_scale;
+    int new_backing_w = width * new_scale;
+    int new_backing_h = height * new_scale;
 
     if (inst->backing_w != new_backing_w || inst->backing_h != new_backing_h)
         inst->drawing_area_setup_needed = true;
@@ -3754,16 +3752,12 @@ static void draw_stretch_after(GtkFrontend *inst, int x, int y,
 
 static void draw_backing_rect(GtkFrontend *inst)
 {
-    int w, h;
-
     if (!win_setup_draw_ctx(&inst->termwin))
         return;
 
-    w = inst->width * inst->font_width + 2*inst->window_border;
-    h = inst->height * inst->font_height + 2*inst->window_border;
     draw_set_colour(inst, 258, false);
-    draw_rectangle(inst, true, 0, 0, w, h);
-    draw_update(inst, 0, 0, w, h);
+    draw_rectangle(inst, true, 0, 0, inst->backing_w, inst->backing_h);
+    draw_update(inst, 0, 0, inst->backing_w, inst->backing_h);
     win_free_draw_ctx(&inst->termwin);
 }
 
