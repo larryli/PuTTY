@@ -2477,9 +2477,7 @@ static void compute_whole_window_size(GtkFrontend *inst,
 static void gtkwin_deny_term_resize(void *vctx)
 {
     GtkFrontend *inst = (GtkFrontend *)vctx;
-    if (inst->term)
-        term_size(inst->term, inst->term->rows, inst->term->cols,
-                  inst->term->savelines);
+    drawing_area_setup_simple(inst);
 }
 
 static void gtkwin_request_resize(TermWin *tw, int w, int h)
