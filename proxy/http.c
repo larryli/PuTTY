@@ -670,9 +670,9 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
             /* 407 is Proxy Authentication Required, which we may be
              * able to do something about. */
             if (s->connection_close) {
-                pn->error = dupprintf("HTTP proxy closed connection after "
-                                      "asking for authentication");
-                crStopV;
+                /* If we got 407 + connection closed, reconnect before
+                 * sending our next request. */
+                pn->reconnect = true;
             }
 
             /* If the best we can do is report some kind of error from
