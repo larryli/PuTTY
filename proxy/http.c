@@ -325,7 +325,7 @@ static HttpAuthDetails *parse_http_auth_header(HttpProxyNegotiator *s)
                 d->hash_username = !stricmp(s->token->s, "true");
             } else if (!stricmp(s->token->s, "algorithm")) {
                 if (!get_separator(s, '=') ||
-                    !get_token(s))
+                    (!get_token(s) && !get_quoted_string(s)))
                     return auth_error(d, "parse error in Digest algorithm "
                                       "field");
                 bool found = false;
