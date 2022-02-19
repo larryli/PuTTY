@@ -154,6 +154,7 @@ static void proxy_http_free(ProxyNegotiator *pn)
     X(HDR_CONTENT_LENGTH, "Content-Length") \
     X(HDR_TRANSFER_ENCODING, "Transfer-Encoding") \
     X(HDR_PROXY_AUTHENTICATE, "Proxy-Authenticate") \
+    X(HDR_PROXY_CONNECTION, "Proxy-Connection") \
     /* end of list */
 
 typedef enum HttpHeader {
@@ -550,7 +551,8 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                     if (!stricmp(s->token->s, "chunked"))
                         s->chunked_transfer = true;
                 }
-            } else if (hdr == HDR_CONNECTION) {
+            } else if (hdr == HDR_CONNECTION ||
+                       hdr == HDR_PROXY_CONNECTION) {
                 if (!get_token(s))
                     continue;
                 if (!stricmp(s->token->s, "close"))
