@@ -356,12 +356,26 @@ static int conpty_exitcode(Backend *be)
 {
     ConPTY *conpty = container_of(be, ConPTY, backend);
 
-    if (conpty->exited &&
-        0 <= conpty->exitstatus &&
-        conpty->exitstatus <= INT_MAX)
-        return conpty->exitstatus;
-    else
+    if (conpty->exited) {
+        /*
+         * PuTTY's representation of exit statuses expects them to be
+         * non-negative 'int' values. But Windows exit statuses can
+         * include all those exception codes like 0xC000001D which
+         * convert to negative 32-bit ints.
+         *
+         * I don't think there's a great deal of use for returning
+         * those in full detail, right now. (Though if we ever
+         * connected this system up to a Windows version of psusan or
+         * Uppity, perhaps there might be?)
+         *
+         * So we clip them at INT_MAX-1, since INT_MAX is reserved for
+         * 'exit so unclean as to inhibit Close On Clean Exit'.
+         */
+        return (0 <= conpty->exitstatus && conpty->exitstatus < INT_MAX) ?
+            conpty->exitstatus : INT_MAX-1;
+    } else {
         return -1;
+    }
 }
 
 static int conpty_cfg_info(Backend *be)
