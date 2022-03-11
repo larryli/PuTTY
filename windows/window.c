@@ -197,6 +197,9 @@ bool tried_pal = false;
 COLORREF colorref_modifier = 0;
 
 enum MONITOR_DPI_TYPE { MDT_EFFECTIVE_DPI, MDT_ANGULAR_DPI, MDT_RAW_DPI, MDT_DEFAULT };
+DECL_WINDOWS_FUNCTION(static, BOOL, GetMonitorInfoA, (HMONITOR, LPMONITORINFO));
+DECL_WINDOWS_FUNCTION(static, HMONITOR, MonitorFromPoint, (POINT, DWORD));
+DECL_WINDOWS_FUNCTION(static, HMONITOR, MonitorFromWindow, (HWND, DWORD));
 DECL_WINDOWS_FUNCTION(static, HRESULT, GetDpiForMonitor, (HMONITOR hmonitor, enum MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY));
 DECL_WINDOWS_FUNCTION(static, HRESULT, GetSystemMetricsForDpi, (int nIndex, UINT dpi));
 DECL_WINDOWS_FUNCTION(static, HRESULT, AdjustWindowRectExForDpi, (LPRECT lpRect, DWORD dwStyle, BOOL bMenu, DWORD dwExStyle, UINT dpi));
@@ -1293,9 +1296,9 @@ static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
 static void init_dpi_info(void)
 {
     if (dpi_info.cur_dpi.x == 0 || dpi_info.cur_dpi.y == 0) {
-        if (p_GetDpiForMonitor) {
+        if (p_GetDpiForMonitor && p_MonitorFromWindow) {
             UINT dpiX, dpiY;
-            HMONITOR currentMonitor = MonitorFromWindow(
+            HMONITOR currentMonitor = p_MonitorFromWindow(
                 wgs.term_hwnd, MONITOR_DEFAULTTOPRIMARY);
             if (p_GetDpiForMonitor(currentMonitor, MDT_EFFECTIVE_DPI,
                                    &dpiX, &dpiY) == S_OK) {
@@ -2618,27 +2621,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
                 GetCursorPos(&pt);
 #ifndef NO_MULTIMON
-                {
+                if (p_GetMonitorInfoA && p_MonitorFromPoint) {
                     HMONITOR mon;
                     MONITORINFO mi;
 
-                    mon = MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
+                    mon = p_MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
 
                     if (mon != NULL) {
                         mi.cbSize = sizeof(MONITORINFO);
-                        GetMonitorInfo(mon, &mi);
+                        p_GetMonitorInfoA(mon, &mi);
 
                         if (mi.rcMonitor.left == pt.x &&
                             mi.rcMonitor.top == pt.y) {
                             mouse_on_hotspot = true;
                         }
                     }
-                }
-#else
+                } else
+#endif
                 if (pt.x == 0 && pt.y == 0) {
                     mouse_on_hotspot = true;
                 }
-#endif
                 if (is_full_screen() && press &&
                     button == MBT_LEFT && mouse_on_hotspot) {
                     SendMessage(hwnd, WM_SYSCOMMAND, SC_MOUSEMENU,
@@ -4075,6 +4077,9 @@ static void init_winfuncs(void)
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
     GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
     GET_WINDOWS_FUNCTION_PP(winmm_module, PlaySound);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, GetMonitorInfoA);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, MonitorFromPoint);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, MonitorFromWindow);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(shcore_module, GetDpiForMonitor);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, GetSystemMetricsForDpi);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, AdjustWindowRectExForDpi);
@@ -5685,23 +5690,24 @@ static bool is_full_screen()
 static bool get_fullscreen_rect(RECT * ss)
 {
 #if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
+    if (p_GetMonitorInfoA && p_MonitorFromWindow) {
         HMONITOR mon;
         MONITORINFO mi;
-        mon = MonitorFromWindow(wgs.term_hwnd, MONITOR_DEFAULTTONEAREST);
+        mon = p_MonitorFromWindow(wgs.term_hwnd, MONITOR_DEFAULTTONEAREST);
         mi.cbSize = sizeof(mi);
-        GetMonitorInfo(mon, &mi);
+        p_GetMonitorInfoA(mon, &mi);
 
         /* structure copy */
         *ss = mi.rcMonitor;
         return true;
-#else
+    }
+#endif
 /* could also use code like this:
         ss->left = ss->top = 0;
         ss->right = GetSystemMetrics(SM_CXSCREEN);
         ss->bottom = GetSystemMetrics(SM_CYSCREEN);
 */
         return GetClientRect(GetDesktopWindow(), ss);
-#endif
 }
 
 
