@@ -575,6 +575,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         wgs.term_hwnd = CreateWindowExW(
             exwinmode, uappname, uappname, winmode, CW_USEDEFAULT,
             CW_USEDEFAULT, guess_width, guess_height, NULL, NULL, inst, NULL);
+        if (!wgs.term_hwnd) {
+            modalfatalbox("Unable to create terminal window: %s",
+                          win_strerror(GetLastError()));
+        }
         memset(&dpi_info, 0, sizeof(struct _dpi_info));
         init_dpi_info();
         sfree(uappname);
