@@ -13,8 +13,8 @@ HANDLE lock_interprocess_mutex(const char *mutexname, char **error)
     PACL acl = NULL;
     HANDLE mutex = NULL;
 
-    if (!make_private_security_descriptor(MUTEX_ALL_ACCESS,
-                                          &psd, &acl, error))
+    if (should_have_security() && !make_private_security_descriptor(
+            MUTEX_ALL_ACCESS, &psd, &acl, error))
         goto out;
 
     SECURITY_ATTRIBUTES sa;

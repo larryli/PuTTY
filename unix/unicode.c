@@ -31,6 +31,8 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
         memset(&state, 0, sizeof state);
 
         while (mblen > 0) {
+            if (n >= wclen)
+                return n;
             size_t i = mbrtowc(wcstr+n, mbstr, (size_t)mblen, &state);
             if (i == (size_t)-1 || i == (size_t)-2)
                 break;
@@ -44,6 +46,8 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
         int n = 0;
 
         while (mblen > 0) {
+            if (n >= wclen)
+                return n;
             wcstr[n] = 0xD800 | (mbstr[0] & 0xFF);
             n++;
             mbstr++;

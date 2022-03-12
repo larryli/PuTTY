@@ -4,6 +4,11 @@ DWORD osMajorVersion, osMinorVersion, osPlatformId;
 
 void init_winver(void)
 {
+    static bool initialised = false;
+    if (initialised)
+        return;
+    initialised = true;
+
     OSVERSIONINFO osVersion;
     static HMODULE kernel32_module;
     DECL_WINDOWS_FUNCTION(static, BOOL, GetVersionExA, (LPOSVERSIONINFO));

@@ -79,6 +79,11 @@ add_executable(test_host_strfoo
 target_compile_definitions(test_host_strfoo PRIVATE TEST)
 target_link_libraries(test_host_strfoo utils ${platform_libraries})
 
+add_executable(test_decode_utf8
+  utils/decode_utf8.c)
+target_compile_definitions(test_decode_utf8 PRIVATE TEST)
+target_link_libraries(test_decode_utf8 utils ${platform_libraries})
+
 add_executable(test_tree234
   utils/tree234.c)
 target_compile_definitions(test_tree234 PRIVATE TEST)

@@ -91,8 +91,6 @@ void modalfatalbox(const char *fmt, ...)
     exit(1);
 }
 
-static bool has_security;
-
 struct PassphraseProcStruct {
     bool modal;
     const char *help_topic;
@@ -999,7 +997,7 @@ static char *answer_filemapping_message(const char *mapname)
     debug("maphandle = %p\n", maphandle);
 #endif
 
-    if (has_security) {
+    if (should_have_security()) {
         DWORD retd;
 
         if ((expectedsid = get_user_sid()) == NULL) {
@@ -1387,6 +1385,23 @@ static NORETURN void opt_error(const char *fmt, ...)
     exit(1);
 }
 
+#ifdef LEGACY_WINDOWS
+BOOL sw_PeekMessage(LPMSG msg, HWND hwnd, UINT min, UINT max, UINT remove)
+{
+    static bool unicode_unavailable = false;
+    if (!unicode_unavailable) {
+        BOOL ret = PeekMessageW(msg, hwnd, min, max, remove);
+        if (!ret && GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
+            unicode_unavailable = true; /* don't try again */
+        else
+            return ret;
+    }
+    return PeekMessageA(msg, hwnd, min, max, remove);
+}
+#else
+#define sw_PeekMessage PeekMessageW
+#endif
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
@@ -1409,14 +1424,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hinst = inst;
 
-    /*
-     * Determine whether we're an NT system (should have security
-     * APIs) or a non-NT system (don't do security).
-     */
-    init_winver();
-    has_security = (osPlatformId == VER_PLATFORM_WIN32_NT);
-
-    if (has_security) {
+    if (should_have_security()) {
         /*
          * Attempt to get the security API we need.
          */
@@ -1576,7 +1584,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
          */
         wpc->plc.vt = &winpgnt_vtable;
         wpc->plc.suppress_logging = true;
-        {
+        if (should_have_security()) {
             Plug *pl_plug;
             struct pageant_listen_state *pl =
                 pageant_listener_new(&pl_plug, &wpc->plc);
@@ -1771,7 +1779,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             handle_wait_activate(hwl, n - WAIT_OBJECT_0);
         handle_wait_list_free(hwl);
 
-        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+        while (sw_PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT)
                 goto finished;         /* two-level break */
 
