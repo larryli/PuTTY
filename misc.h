@@ -67,6 +67,10 @@ void strbuf_finalise_agent_query(strbuf *buf);
  * work around the rather deficient interface of mb_to_wc. */
 wchar_t *dup_mb_to_wc_c(int codepage, int flags, const char *string, int len);
 wchar_t *dup_mb_to_wc(int codepage, int flags, const char *string);
+char *dup_wc_to_mb_c(int codepage, int flags, const wchar_t *string, int len,
+                     const char *defchr, struct unicode_data *ucsdata);
+char *dup_wc_to_mb(int codepage, int flags, const wchar_t *string,
+                   const char *defchr, struct unicode_data *ucsdata);
 
 static inline int toint(unsigned u)
 {

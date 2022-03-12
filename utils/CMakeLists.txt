@@ -17,6 +17,7 @@ add_sources_from_current_dir(utils
   dupprintf.c
   dupstr.c
   dup_mb_to_wc.c
+  dup_wc_to_mb.c
   encode_utf8.c
   encode_wide_string_as_utf8.c
   fgetline.c
