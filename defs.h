@@ -42,6 +42,8 @@
 #define SIZEx "Ix"
 #define SIZEu "Iu"
 uintmax_t strtoumax(const char *nptr, char **endptr, int base);
+/* Also, define a LEGACY_WINDOWS flag to enable other workarounds */
+#define LEGACY_WINDOWS
 #else
 #include <inttypes.h>
 /* Because we still support older MSVC libraries which don't recognise the
