@@ -4758,16 +4758,26 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 static void wintw_set_title(TermWin *tw, const char *title, int codepage)
 {
+    wchar_t *new_window_name = dup_mb_to_wc(codepage, 0, title);
+    if (!wcscmp(new_window_name, window_name)) {
+        sfree(new_window_name);
+        return;
+    }
     sfree(window_name);
-    window_name = dup_mb_to_wc(codepage, 0, title);
+    window_name = new_window_name;
     if (conf_get_bool(conf, CONF_win_name_always) || !IsIconic(wgs.term_hwnd))
         SetWindowTextW(wgs.term_hwnd, window_name);
 }
 
 static void wintw_set_icon_title(TermWin *tw, const char *title, int codepage)
 {
+    wchar_t *new_icon_name = dup_mb_to_wc(codepage, 0, title);
+    if (!wcscmp(new_icon_name, icon_name)) {
+        sfree(new_icon_name);
+        return;
+    }
     sfree(icon_name);
-    icon_name = dup_mb_to_wc(codepage, 0, title);
+    icon_name = new_icon_name;
     if (!conf_get_bool(conf, CONF_win_name_always) && IsIconic(wgs.term_hwnd))
         SetWindowTextW(wgs.term_hwnd, icon_name);
 }
