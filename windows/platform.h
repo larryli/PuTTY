@@ -606,7 +606,6 @@ void EnableSizeTip(bool bEnable);
 /*
  * Exports from unicode.c.
  */
-struct unicode_data;
 void init_ucs(Conf *, struct unicode_data *);
 
 /*

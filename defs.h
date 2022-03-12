@@ -192,6 +192,8 @@ typedef struct logblank_t logblank_t;
 typedef struct BinaryPacketProtocol BinaryPacketProtocol;
 typedef struct PacketProtocolLayer PacketProtocolLayer;
 
+struct unicode_data;
+
 /* Do a compile-time type-check of 'to_check' (without evaluating it),
  * as a side effect of returning the value 'to_return'. Note that
  * although this macro double-*expands* to_return, it always
