@@ -563,6 +563,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         if (vt && vt->flags & BACKEND_RESIZE_FORBIDDEN)
             resize_forbidden = true;
         wchar_t *uappname = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
+        window_name = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
+        icon_name = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
         if (!conf_get_bool(conf, CONF_scrollbar))
             winmode &= ~(WS_VSCROLL);
         if (conf_get_int(conf, CONF_resize_action) == RESIZE_DISABLED ||
