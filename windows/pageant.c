@@ -1382,6 +1382,23 @@ static NORETURN void opt_error(const char *fmt, ...)
     exit(1);
 }
 
+#ifdef LEGACY_WINDOWS
+BOOL sw_PeekMessage(LPMSG msg, HWND hwnd, UINT min, UINT max, UINT remove)
+{
+    static bool unicode_unavailable = false;
+    if (!unicode_unavailable) {
+        BOOL ret = PeekMessageW(msg, hwnd, min, max, remove);
+        if (!ret && GetLastError() == ERROR_CALL_NOT_IMPLEMENTED)
+            unicode_unavailable = true; /* don't try again */
+        else
+            return ret;
+    }
+    return PeekMessageA(msg, hwnd, min, max, remove);
+}
+#else
+#define sw_PeekMessage PeekMessageW
+#endif
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
@@ -1732,7 +1749,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             handle_wait_activate(hwl, n - WAIT_OBJECT_0);
         handle_wait_list_free(hwl);
 
-        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+        while (sw_PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT)
                 goto finished;         /* two-level break */
 
