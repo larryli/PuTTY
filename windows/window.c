@@ -450,6 +450,72 @@ static void close_session(void *ignored_context)
     }
 }
 
+/*
+ * Some machinery to deal with switching the window type between ANSI
+ * and Unicode. We prefer Unicode, but some PuTTY builds still try to
+ * run on machines so old that they don't support that mode. So we're
+ * prepared to fall back to an ANSI window if we have to. For this
+ * purpose, we swap out a few Windows API functions, and wrap
+ * SetWindowText so that if we're not in Unicode mode we first convert
+ * the wide string we're given.
+ */
+static bool unicode_window;
+static BOOL (WINAPI *sw_PeekMessage)(LPMSG, HWND, UINT, UINT, UINT);
+static LRESULT (WINAPI *sw_DispatchMessage)(const MSG *);
+static LRESULT (WINAPI *sw_DefWindowProc)(HWND, UINT, WPARAM, LPARAM);
+static void sw_SetWindowText(HWND hwnd, wchar_t *text)
+{
+    if (unicode_window) {
+        SetWindowTextW(hwnd, text);
+    } else {
+        char *mb = dup_wc_to_mb(DEFAULT_CODEPAGE, 0, text, "?", &ucsdata);
+        SetWindowTextA(hwnd, mb);
+        sfree(mb);
+    }
+}
+
+static HINSTANCE hprev;
+
+/*
+ * Also, registering window classes has to be done in a fiddly way.
+ */
+#define SETUP_WNDCLASS(wndclass, classname) do {                        \
+        wndclass.style = 0;                                             \
+        wndclass.lpfnWndProc = WndProc;                                 \
+        wndclass.cbClsExtra = 0;                                        \
+        wndclass.cbWndExtra = 0;                                        \
+        wndclass.hInstance = hinst;                                     \
+        wndclass.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(IDI_MAINICON)); \
+        wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);                 \
+        wndclass.hbrBackground = NULL;                                  \
+        wndclass.lpszMenuName = NULL;                                   \
+        wndclass.lpszClassName = classname;                             \
+    } while (0)
+wchar_t *terminal_window_class_w(void)
+{
+    static wchar_t *classname = NULL;
+    if (!classname)
+        classname = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
+    if (!hprev) {
+        WNDCLASSW wndclassw;
+        SETUP_WNDCLASS(wndclassw, classname);
+        RegisterClassW(&wndclassw);
+    }
+    return classname;
+}
+char *terminal_window_class_a(void)
+{
+    static char *classname = NULL;
+    if (!classname)
+        classname = dupcat(appname, ".ansi");
+    if (!hprev) {
+        WNDCLASSA wndclassa;
+        SETUP_WNDCLASS(wndclassa, classname);
+        RegisterClassA(&wndclassa);
+    }
+    return classname;
+}
+
 const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG |
     TOOLTYPE_PORT_ARG |
@@ -466,6 +532,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     dll_hijacking_protection();
 
     hinst = inst;
+    hprev = prev;
 
     sk_init();
 
@@ -514,23 +581,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     gui_term_process_cmdline(conf, cmdline);
 
-    if (!prev) {
-        WNDCLASSW wndclass;
-
-        wndclass.style = 0;
-        wndclass.lpfnWndProc = WndProc;
-        wndclass.cbClsExtra = 0;
-        wndclass.cbWndExtra = 0;
-        wndclass.hInstance = inst;
-        wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-        wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
-        wndclass.hbrBackground = NULL;
-        wndclass.lpszMenuName = NULL;
-        wndclass.lpszClassName = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
-
-        RegisterClassW(&wndclass);
-    }
-
     memset(&ucsdata, 0, sizeof(ucsdata));
 
     conf_cache_data();
@@ -577,9 +627,38 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             exwinmode |= WS_EX_TOPMOST;
         if (conf_get_bool(conf, CONF_sunken_edge))
             exwinmode |= WS_EX_CLIENTEDGE;
+
+#ifdef TEST_ANSI_WINDOW
+        /* For developer testing of ANSI window support, pretend
+         * CreateWindowExW failed */
+        wgs.term_hwnd = NULL;
+        SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+#else
+        unicode_window = true;
+        sw_PeekMessage = PeekMessageW;
+        sw_DispatchMessage = DispatchMessageW;
+        sw_DefWindowProc = DefWindowProcW;
         wgs.term_hwnd = CreateWindowExW(
-            exwinmode, uappname, uappname, winmode, CW_USEDEFAULT,
-            CW_USEDEFAULT, guess_width, guess_height, NULL, NULL, inst, NULL);
+            exwinmode, terminal_window_class_w(), uappname,
+            winmode, CW_USEDEFAULT, CW_USEDEFAULT,
+            guess_width, guess_height, NULL, NULL, inst, NULL);
+#endif
+
+#if defined LEGACY_WINDOWS || defined TEST_ANSI_WINDOW
+        if (!wgs.term_hwnd && GetLastError() == ERROR_CALL_NOT_IMPLEMENTED) {
+            /* Fall back to an ANSI window, swapping in all the ANSI
+             * window message handling functions */
+            unicode_window = false;
+            sw_PeekMessage = PeekMessageA;
+            sw_DispatchMessage = DispatchMessageA;
+            sw_DefWindowProc = DefWindowProcA;
+            wgs.term_hwnd = CreateWindowExA(
+                exwinmode, terminal_window_class_a(), appname,
+                winmode, CW_USEDEFAULT, CW_USEDEFAULT,
+                guess_width, guess_height, NULL, NULL, inst, NULL);
+        }
+#endif
+
         if (!wgs.term_hwnd) {
             modalfatalbox("Unable to create terminal window: %s",
                           win_strerror(GetLastError()));
@@ -776,13 +855,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             handle_wait_activate(hwl, n - WAIT_OBJECT_0);
         handle_wait_list_free(hwl);
 
-        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+        while (sw_PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT)
                 goto finished;         /* two-level break */
 
             HWND logbox = event_log_window();
             if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
-                DispatchMessageW(&msg);
+                sw_DispatchMessage(&msg);
 
             /*
              * WM_NETEVENT messages seem to jump ahead of others in
@@ -2202,7 +2281,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                  * within an interactive scrollbar-drag can be handled
                  * differently. */
                 in_scrollbar_loop = true;
-                LRESULT result = DefWindowProcW(hwnd, message, wParam, lParam);
+                LRESULT result = sw_DefWindowProc(
+                    hwnd, message, wParam, lParam);
                 in_scrollbar_loop = false;
                 return result;
             }
@@ -2996,11 +3076,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 term, r.right - r.left, r.bottom - r.top);
         }
         if (wParam == SIZE_MINIMIZED)
-            SetWindowTextW(hwnd,
-                           conf_get_bool(conf, CONF_win_name_always) ?
-                           window_name : icon_name);
+            sw_SetWindowText(hwnd,
+                             conf_get_bool(conf, CONF_win_name_always) ?
+                             window_name : icon_name);
         if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
-            SetWindowTextW(hwnd, window_name);
+            sw_SetWindowText(hwnd, window_name);
         if (wParam == SIZE_RESTORED) {
             processed_resize = false;
             clear_full_screen();
@@ -3222,7 +3302,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             } else {
                 len = TranslateKey(message, wParam, lParam, buf);
                 if (len == -1)
-                    return DefWindowProcW(hwnd, message, wParam, lParam);
+                    return sw_DefWindowProc(hwnd, message, wParam, lParam);
 
                 if (len != 0) {
                     /*
@@ -3320,7 +3400,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
          * post the things to us as part of a macro manoeuvre,
          * we're ready to cope.
          */
-        {
+        if (unicode_window) {
             static wchar_t pending_surrogate = 0;
             wchar_t c = wParam;
 
@@ -3334,6 +3414,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             } else if (!IS_SURROGATE(c)) {
                 term_keyinputw(term, &c, 1);
             }
+        } else {
+            char c = (unsigned char)wParam;
+            term_seen_key_event(term);
+            if (ldisc)
+                term_keyinput(term, CP_ACP, &c, 1);
         }
         return 0;
       case WM_SYSCOLORCHANGE:
@@ -3409,7 +3494,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
      * Any messages we don't process completely above are passed through to
      * DefWindowProc() for default processing.
      */
-    return DefWindowProcW(hwnd, message, wParam, lParam);
+    return sw_DefWindowProc(hwnd, message, wParam, lParam);
 }
 
 /*
@@ -4771,7 +4856,7 @@ static void wintw_set_title(TermWin *tw, const char *title, int codepage)
     sfree(window_name);
     window_name = new_window_name;
     if (conf_get_bool(conf, CONF_win_name_always) || !IsIconic(wgs.term_hwnd))
-        SetWindowTextW(wgs.term_hwnd, window_name);
+        sw_SetWindowText(wgs.term_hwnd, window_name);
 }
 
 static void wintw_set_icon_title(TermWin *tw, const char *title, int codepage)
@@ -4784,7 +4869,7 @@ static void wintw_set_icon_title(TermWin *tw, const char *title, int codepage)
     sfree(icon_name);
     icon_name = new_icon_name;
     if (!conf_get_bool(conf, CONF_win_name_always) && IsIconic(wgs.term_hwnd))
-        SetWindowTextW(wgs.term_hwnd, icon_name);
+        sw_SetWindowText(wgs.term_hwnd, icon_name);
 }
 
 static void wintw_set_scrollbar(TermWin *tw, int total, int start, int page)
