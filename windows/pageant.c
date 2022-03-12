@@ -91,8 +91,6 @@ void modalfatalbox(const char *fmt, ...)
     exit(1);
 }
 
-static bool has_security;
-
 struct PassphraseProcStruct {
     bool modal;
     const char *help_topic;
@@ -999,7 +997,7 @@ static char *answer_filemapping_message(const char *mapname)
     debug("maphandle = %p\n", maphandle);
 #endif
 
-    if (has_security) {
+    if (should_have_security()) {
         DWORD retd;
 
         if ((expectedsid = get_user_sid()) == NULL) {
@@ -1405,14 +1403,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hinst = inst;
 
-    /*
-     * Determine whether we're an NT system (should have security
-     * APIs) or a non-NT system (don't do security).
-     */
-    init_winver();
-    has_security = (osPlatformId == VER_PLATFORM_WIN32_NT);
-
-    if (has_security) {
+    if (should_have_security()) {
         /*
          * Attempt to get the security API we need.
          */
@@ -1543,39 +1534,42 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         /*
          * Set up a named-pipe listener.
          */
-        Plug *pl_plug;
         wpc->plc.vt = &winpgnt_vtable;
         wpc->plc.suppress_logging = true;
-        struct pageant_listen_state *pl =
-            pageant_listener_new(&pl_plug, &wpc->plc);
-        char *pipename = agent_named_pipe_name();
-        Socket *sock = new_named_pipe_listener(pipename, pl_plug);
-        if (sk_socket_error(sock)) {
-            char *err = dupprintf("Unable to open named pipe at %s "
-                                  "for SSH agent:\n%s", pipename,
-                                  sk_socket_error(sock));
-            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
-            return 1;
-        }
-        pageant_listener_got_socket(pl, sock);
-
-        /*
-         * If we've been asked to write out an OpenSSH config file
-         * pointing at the named pipe, do so.
-         */
-        if (openssh_config_file) {
-            FILE *fp = fopen(openssh_config_file, "w");
-            if (!fp) {
-                char *err = dupprintf("Unable to write OpenSSH config file "
-                                      "to %s", openssh_config_file);
+        if (should_have_security()) {
+            Plug *pl_plug;
+            struct pageant_listen_state *pl =
+                pageant_listener_new(&pl_plug, &wpc->plc);
+            char *pipename = agent_named_pipe_name();
+            Socket *sock = new_named_pipe_listener(pipename, pl_plug);
+            if (sk_socket_error(sock)) {
+                char *err = dupprintf("Unable to open named pipe at %s "
+                                      "for SSH agent:\n%s", pipename,
+                                      sk_socket_error(sock));
                 MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
                 return 1;
             }
-            fprintf(fp, "IdentityAgent %s\n", pipename);
-            fclose(fp);
-        }
+            pageant_listener_got_socket(pl, sock);
 
-        sfree(pipename);
+            /*
+             * If we've been asked to write out an OpenSSH config file
+             * pointing at the named pipe, do so.
+             */
+            if (openssh_config_file) {
+                FILE *fp = fopen(openssh_config_file, "w");
+                if (!fp) {
+                    char *err = dupprintf("Unable to write OpenSSH config "
+                                          "file to %s", openssh_config_file);
+                    MessageBox(NULL, err, "Pageant Error",
+                               MB_ICONERROR | MB_OK);
+                    return 1;
+                }
+                fprintf(fp, "IdentityAgent %s\n", pipename);
+                fclose(fp);
+            }
+
+            sfree(pipename);
+        }
 
         /*
          * Set up the window class for the hidden window that receives
