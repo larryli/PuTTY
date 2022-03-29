@@ -2162,6 +2162,8 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
     }
 
     if (event->button == 3 && ctrl) {
+        /* Just in case this happened in mid-select */
+        term_cancel_selection_drag(inst->term);
 #if GTK_CHECK_VERSION(3,22,0)
         gtk_menu_popup_at_pointer(GTK_MENU(inst->menu), (GdkEvent *)event);
 #else

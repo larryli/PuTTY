@@ -7299,6 +7299,23 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
     term_schedule_update(term);
 }
 
+void term_cancel_selection_drag(Terminal *term)
+{
+    /*
+     * In unusual circumstances, a mouse drag might be interrupted by
+     * something that steals the rest of the mouse gesture. An example
+     * is the GTK popup menu appearing. In that situation, we'll never
+     * receive the MA_RELEASE that finishes the DRAGGING state, which
+     * means terminal output could be suppressed indefinitely. Call
+     * this function from the front end in such situations to restore
+     * sensibleness.
+     */
+    if (term->selstate == DRAGGING)
+        term->selstate = NO_SELECTION;
+    term_out(term, false);
+    term_schedule_update(term);
+}
+
 static int shift_bitmap(bool shift, bool ctrl, bool alt, bool *consumed_alt)
 {
     int bitmap = (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0);
