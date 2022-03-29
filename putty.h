@@ -2137,6 +2137,7 @@ void term_pwron(Terminal *, bool);
 void term_clrsb(Terminal *);
 void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,
                 int, int, bool, bool, bool);
+void term_cancel_selection_drag(Terminal *);
 void term_key(Terminal *, Key_Sym, wchar_t *, size_t, unsigned int,
               unsigned int);
 void term_lost_clipboard_ownership(Terminal *, int clipboard);

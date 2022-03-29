@@ -2625,6 +2625,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
              (conf_get_int(conf, CONF_mouse_is_xterm) == 2))) {
             POINT cursorpos;
 
+            /* Just in case this happened in mid-select */
+            term_cancel_selection_drag(term);
+
             show_mouseptr(true);    /* make sure pointer is visible */
             GetCursorPos(&cursorpos);
             TrackPopupMenu(popup_menus[CTXMENU].menu,
