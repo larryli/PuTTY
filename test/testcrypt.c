@@ -211,7 +211,6 @@ typedef const char *TD_opt_val_string_asciz;
 typedef char **TD_out_val_string_asciz;
 typedef char **TD_out_opt_val_string_asciz;
 typedef const char **TD_out_opt_val_string_asciz_const;
-typedef ssh_hash *TD_consumed_val_hash;
 typedef const ssh_hashalg *TD_hashalg;
 typedef const ssh2_macalg *TD_macalg;
 typedef const ssh_keyalg *TD_keyalg;
