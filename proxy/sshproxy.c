@@ -100,12 +100,20 @@ static void sshproxy_write_eof(Socket *s)
 
 static void try_send_ssh_to_socket(void *ctx);
 
+static void try_send_ssh_to_socket_cb(void *ctx)
+{
+    SshProxy *sp = (SshProxy *)ctx;
+    try_send_ssh_to_socket(sp);
+    if (sp->backend)
+        backend_unthrottle(sp->backend, bufchain_size(&sp->ssh_to_socket));
+}
+
 static void sshproxy_set_frozen(Socket *s, bool is_frozen)
 {
     SshProxy *sp = container_of(s, SshProxy, sock);
     sp->frozen = is_frozen;
     if (!sp->frozen)
-        queue_toplevel_callback(try_send_ssh_to_socket, sp);
+        queue_toplevel_callback(try_send_ssh_to_socket_cb, sp);
 }
 
 static const char *sshproxy_socket_error(Socket *s)
