@@ -757,4 +757,7 @@ bool aux_match_arg(AuxMatchOpt *amo, char **val);
 bool aux_match_opt(AuxMatchOpt *amo, char **val, const char *optname, ...);
 bool aux_match_done(AuxMatchOpt *amo);
 
+char *save_screenshot(HWND hwnd, const char *outfile);
+void gui_terminal_ready(HWND hwnd, Seat *seat, Backend *backend);
+
 #endif /* PUTTY_WINDOWS_PLATFORM_H */

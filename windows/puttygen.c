@@ -27,6 +27,8 @@
 #define DEFAULT_EDCURVE_INDEX 0
 
 static char *cmdline_keyfile = NULL;
+static ptrlen cmdline_demo_keystr;
+static const char *demo_screenshot_filename = NULL;
 
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
@@ -1206,6 +1208,7 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
 static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
+    const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     static const char entropy_msg[] =
         "Please generate some randomness by moving the mouse over the blank area.";
     struct MainDlgState *state;
@@ -1429,9 +1432,30 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             Filename *fn = filename_from_str(cmdline_keyfile);
             load_key_file(hwnd, state, fn, false);
             filename_free(fn);
+        } else if (cmdline_demo_keystr.ptr) {
+            BinarySource src[1];
+            BinarySource_BARE_INIT_PL(src, cmdline_demo_keystr);
+            const char *errmsg;
+            ssh2_userkey *k = ppk_load_s(src, NULL, &errmsg);
+            assert(!errmsg);
+
+            update_ui_after_load(hwnd, state, "demo passphrase",
+                                 SSH_KEYTYPE_SSH2, NULL, k);
+
+            SetTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID, TICKSPERSEC, NULL);
         }
 
         return 1;
+      case WM_TIMER:
+        if ((UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
+            KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
+            const char *err = save_screenshot(hwnd, demo_screenshot_filename);
+            if (err)
+                MessageBox(hwnd, err, "Demo screenshot failure",
+                           MB_OK | MB_ICONERROR);
+            EndDialog(hwnd, 0);
+        }
+        return 0;
       case WM_MOUSEMOVE:
         state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
         if (state->entropy && state->entropy_got < state->entropy_required) {
@@ -2176,6 +2200,22 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                     opt_error("unrecognised PPK parameter '%s'\n", val);
                 }
             }
+        } else if (match_optval("-demo-screenshot")) {
+            demo_screenshot_filename = val;
+            cmdline_demo_keystr = PTRLEN_LITERAL(
+                "PuTTY-User-Key-File-3: ssh-ed25519\n"
+                "Encryption: none\n"
+                "Comment: ed25519-key-20220402\n"
+                "Public-Lines: 2\n"
+                "AAAAC3NzaC1lZDI1NTE5AAAAILzuIFwZ"
+                "8ZhgOlilcSb+9zPuCf/DmKJiloVlmWGy\n"
+                "xa/F\n"
+                "Private-Lines: 1\n"
+                "AAAAIPca6vLwtB2NJhZUpABQISR0gcQH8jjQLta19VyzA3wc\n"
+                "Private-MAC: 1159e9628259b35933b397379bbe8a14"
+                "a1f1d97fe91e446e45a9581a3408b70e\n");
+            params->keybutton = IDC_KEYSSH2EDDSA;
+            argbits = 255;
         } else {
             opt_error("unrecognised option '%s'\n", amo.argv[amo.index]);
         }

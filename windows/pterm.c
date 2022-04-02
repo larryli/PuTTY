@@ -45,3 +45,7 @@ const wchar_t *get_app_user_model_id(void)
 {
     return L"SimonTatham.Pterm";
 }
+
+void gui_terminal_ready(HWND hwnd, Seat *seat, Backend *backend)
+{
+}

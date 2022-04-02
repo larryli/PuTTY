@@ -28,6 +28,7 @@ add_sources_from_current_dir(utils
   utils/platform_get_x_display.c
   utils/registry_get_string.c
   utils/request_file.c
+  utils/screenshot.c
   utils/security.c
   utils/split_into_argv.c
   utils/version.c
