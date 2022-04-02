@@ -388,6 +388,8 @@ static void create_controls(HWND hwnd, char *path)
     }
 }
 
+const char *dialog_box_demo_screenshot_filename = NULL;
+
 /*
  * This function is the configuration box.
  * (Being a dialog procedure, in general it returns 0 if the default
@@ -396,6 +398,7 @@ static void create_controls(HWND hwnd, char *path)
 static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
                                            WPARAM wParam, LPARAM lParam)
 {
+    const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     HWND hw, treeview;
     struct treeview_faff tvfaff;
     int ret;
@@ -565,6 +568,21 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
          * spurious firing during the above setup procedure.
          */
         SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
+
+        if (dialog_box_demo_screenshot_filename)
+            SetTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID, TICKSPERSEC, NULL);
+        return 0;
+      case WM_TIMER:
+        if (dialog_box_demo_screenshot_filename &&
+            (UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
+            KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
+            const char *err = save_screenshot(
+                hwnd, dialog_box_demo_screenshot_filename);
+            if (err)
+                MessageBox(hwnd, err, "Demo screenshot failure",
+                           MB_OK | MB_ICONERROR);
+            SaneEndDialog(hwnd, 0);
+        }
         return 0;
       case WM_LBUTTONUP:
         /*

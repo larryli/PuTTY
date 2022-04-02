@@ -51,6 +51,8 @@ check_symbol_exists(GetNamedPipeClientProcessId "windows.h"
   HAVE_GETNAMEDPIPECLIENTPROCESSID)
 check_symbol_exists(CreatePseudoConsole "windows.h" HAVE_CONPTY)
 
+check_include_files("windows.h;dwmapi.h" HAVE_DWMAPI_H)
+
 check_c_source_compiles("
 #include <windows.h>
 GCP_RESULTSW gcpw;

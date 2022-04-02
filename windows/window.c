@@ -810,6 +810,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     term_set_focus(term, GetForegroundWindow() == wgs.term_hwnd);
     UpdateWindow(wgs.term_hwnd);
 
+    gui_terminal_ready(wgs.term_hwnd, &wgs.seat, backend);
+
     while (1) {
         int n;
         DWORD timeout;
