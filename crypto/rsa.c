@@ -1092,13 +1092,17 @@ static const struct ssh_rsa_kex_extra ssh_rsa_kex_extra_sha1 = { 1024 };
 static const struct ssh_rsa_kex_extra ssh_rsa_kex_extra_sha256 = { 2048 };
 
 static const ssh_kex ssh_rsa_kex_sha1 = {
-    "rsa1024-sha1", NULL, KEXTYPE_RSA,
-    &ssh_sha1, &ssh_rsa_kex_extra_sha1,
+    .name = "rsa1024-sha1",
+    .main_type = KEXTYPE_RSA,
+    .hash = &ssh_sha1,
+    .extra = &ssh_rsa_kex_extra_sha1,
 };
 
 static const ssh_kex ssh_rsa_kex_sha256 = {
-    "rsa2048-sha256", NULL, KEXTYPE_RSA,
-    &ssh_sha256, &ssh_rsa_kex_extra_sha256,
+    .name = "rsa2048-sha256",
+    .main_type = KEXTYPE_RSA,
+    .hash = &ssh_sha256,
+    .extra = &ssh_rsa_kex_extra_sha256,
 };
 
 static const ssh_kex *const rsa_kex_list[] = {

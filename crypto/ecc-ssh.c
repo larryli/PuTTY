@@ -1563,13 +1563,17 @@ static const struct eckex_extra kex_extra_curve25519 = {
     ssh_ecdhkex_m_getkey,
 };
 const ssh_kex ssh_ec_kex_curve25519 = {
-    "curve25519-sha256", NULL, KEXTYPE_ECDH,
-    &ssh_sha256, &kex_extra_curve25519,
+    .name = "curve25519-sha256",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha256,
+    .extra = &kex_extra_curve25519,
 };
 /* Pre-RFC alias */
 const ssh_kex ssh_ec_kex_curve25519_libssh = {
-    "curve25519-sha256@libssh.org", NULL, KEXTYPE_ECDH,
-    &ssh_sha256, &kex_extra_curve25519,
+    .name = "curve25519-sha256@libssh.org",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha256,
+    .extra = &kex_extra_curve25519,
 };
 
 static const struct eckex_extra kex_extra_curve448 = {
@@ -1580,8 +1584,10 @@ static const struct eckex_extra kex_extra_curve448 = {
     ssh_ecdhkex_m_getkey,
 };
 const ssh_kex ssh_ec_kex_curve448 = {
-    "curve448-sha512", NULL, KEXTYPE_ECDH,
-    &ssh_sha512, &kex_extra_curve448,
+    .name = "curve448-sha512",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha512,
+    .extra = &kex_extra_curve448,
 };
 
 static const struct eckex_extra kex_extra_nistp256 = {
@@ -1592,8 +1598,10 @@ static const struct eckex_extra kex_extra_nistp256 = {
     ssh_ecdhkex_w_getkey,
 };
 const ssh_kex ssh_ec_kex_nistp256 = {
-    "ecdh-sha2-nistp256", NULL, KEXTYPE_ECDH,
-    &ssh_sha256, &kex_extra_nistp256,
+    .name = "ecdh-sha2-nistp256",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha256,
+    .extra = &kex_extra_nistp256,
 };
 
 static const struct eckex_extra kex_extra_nistp384 = {
@@ -1604,8 +1612,10 @@ static const struct eckex_extra kex_extra_nistp384 = {
     ssh_ecdhkex_w_getkey,
 };
 const ssh_kex ssh_ec_kex_nistp384 = {
-    "ecdh-sha2-nistp384", NULL, KEXTYPE_ECDH,
-    &ssh_sha384, &kex_extra_nistp384,
+    .name = "ecdh-sha2-nistp384",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha384,
+    .extra = &kex_extra_nistp384,
 };
 
 static const struct eckex_extra kex_extra_nistp521 = {
@@ -1616,8 +1626,10 @@ static const struct eckex_extra kex_extra_nistp521 = {
     ssh_ecdhkex_w_getkey,
 };
 const ssh_kex ssh_ec_kex_nistp521 = {
-    "ecdh-sha2-nistp521", NULL, KEXTYPE_ECDH,
-    &ssh_sha512, &kex_extra_nistp521,
+    .name = "ecdh-sha2-nistp521",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha512,
+    .extra = &kex_extra_nistp521,
 };
 
 static const ssh_kex *const ec_kex_list[] = {

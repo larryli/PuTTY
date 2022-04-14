@@ -40,8 +40,11 @@ static const struct dh_extra extra_group1 = {
 };
 
 const ssh_kex ssh_diffiehellman_group1_sha1 = {
-    "diffie-hellman-group1-sha1", "group1",
-    KEXTYPE_DH, &ssh_sha1, &extra_group1,
+    .name = "diffie-hellman-group1-sha1",
+    .groupname = "group1",
+    .main_type = KEXTYPE_DH,
+    .hash = &ssh_sha1,
+    .extra = &extra_group1,
 };
 
 static const ssh_kex *const group1_list[] = {
@@ -55,13 +58,19 @@ static const struct dh_extra extra_group14 = {
 };
 
 const ssh_kex ssh_diffiehellman_group14_sha256 = {
-    "diffie-hellman-group14-sha256", "group14",
-    KEXTYPE_DH, &ssh_sha256, &extra_group14,
+    .name = "diffie-hellman-group14-sha256",
+    .groupname = "group14",
+    .main_type = KEXTYPE_DH,
+    .hash = &ssh_sha256,
+    .extra = &extra_group14,
 };
 
 const ssh_kex ssh_diffiehellman_group14_sha1 = {
-    "diffie-hellman-group14-sha1", "group14",
-    KEXTYPE_DH, &ssh_sha1, &extra_group14,
+    .name = "diffie-hellman-group14-sha1",
+    .groupname = "group14",
+    .main_type = KEXTYPE_DH,
+    .hash = &ssh_sha1,
+    .extra = &extra_group14,
 };
 
 static const ssh_kex *const group14_list[] = {
@@ -76,13 +85,19 @@ const ssh_kexes ssh_diffiehellman_group14 = {
 static const struct dh_extra extra_gex = { true };
 
 static const ssh_kex ssh_diffiehellman_gex_sha256 = {
-    "diffie-hellman-group-exchange-sha256", NULL,
-    KEXTYPE_DH, &ssh_sha256, &extra_gex,
+    .name = "diffie-hellman-group-exchange-sha256",
+    .groupname = NULL,
+    .main_type = KEXTYPE_DH,
+    .hash = &ssh_sha256,
+    .extra = &extra_gex,
 };
 
 static const ssh_kex ssh_diffiehellman_gex_sha1 = {
-    "diffie-hellman-group-exchange-sha1", NULL,
-    KEXTYPE_DH, &ssh_sha1, &extra_gex,
+    .name = "diffie-hellman-group-exchange-sha1",
+    .groupname = NULL,
+    .main_type = KEXTYPE_DH,
+    .hash = &ssh_sha1,
+    .extra = &extra_gex,
 };
 
 static const ssh_kex *const gex_list[] = {
@@ -107,18 +122,27 @@ const ssh_kexes ssh_diffiehellman_gex = { lenof(gex_list), gex_list };
 #define GSS_KRB5_OID_HASH "toWM5Slw5Ew8Mqkay+al2g=="
 
 static const ssh_kex ssh_gssk5_diffiehellman_gex_sha1 = {
-    "gss-gex-sha1-" GSS_KRB5_OID_HASH, NULL,
-    KEXTYPE_GSS, &ssh_sha1, &extra_gex,
+    .name = "gss-gex-sha1-" GSS_KRB5_OID_HASH,
+    .groupname = NULL,
+    .main_type = KEXTYPE_GSS,
+    .hash = &ssh_sha1,
+    .extra = &extra_gex,
 };
 
 static const ssh_kex ssh_gssk5_diffiehellman_group14_sha1 = {
-    "gss-group14-sha1-" GSS_KRB5_OID_HASH, "group14",
-    KEXTYPE_GSS, &ssh_sha1, &extra_group14,
+    .name = "gss-group14-sha1-" GSS_KRB5_OID_HASH,
+    .groupname = "group14",
+    .main_type = KEXTYPE_GSS,
+    .hash = &ssh_sha1,
+    .extra = &extra_group14,
 };
 
 static const ssh_kex ssh_gssk5_diffiehellman_group1_sha1 = {
-    "gss-group1-sha1-" GSS_KRB5_OID_HASH, "group1",
-    KEXTYPE_GSS, &ssh_sha1, &extra_group1,
+    .name = "gss-group1-sha1-" GSS_KRB5_OID_HASH,
+    .groupname = "group1",
+    .main_type = KEXTYPE_GSS,
+    .hash = &ssh_sha1,
+    .extra = &extra_group1,
 };
 
 static const ssh_kex *const gssk5_sha1_kex_list[] = {
