@@ -156,7 +156,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 return;
             }
         }
-        s->K = dh_find_K(s->dh_ctx, s->f);
+        mp_int *K = dh_find_K(s->dh_ctx, s->f);
+        put_mp_ssh2(s->kex_shared_secret, K);
+        mp_free(K);
 
         /* We assume everything from now on will be quick, and it might
          * involve user interaction. */
@@ -230,13 +232,15 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         {
             ptrlen keydata = get_string(pktin);
             put_stringpl(s->exhash, keydata);
-            s->K = ssh_ecdhkex_getkey(s->ecdh_key, keydata);
-            if (!get_err(pktin) && !s->K) {
+            mp_int *K = ssh_ecdhkex_getkey(s->ecdh_key, keydata);
+            if (!get_err(pktin) && !K) {
                 ssh_proto_error(s->ppl.ssh, "Received invalid elliptic curve "
                                 "point in ECDH reply");
                 *aborted = true;
                 return;
             }
+            put_mp_ssh2(s->kex_shared_secret, K);
+            mp_free(K);
         }
 
         s->sigdata = get_string(pktin);
@@ -485,7 +489,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 return;
             }
         }
-        s->K = dh_find_K(s->dh_ctx, s->f);
+        mp_int *K = dh_find_K(s->dh_ctx, s->f);
+        put_mp_ssh2(s->kex_shared_secret, K);
+        mp_free(K);
 
         /* We assume everything from now on will be quick, and it might
          * involve user interaction. */
@@ -584,15 +590,21 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             strbuf *buf, *outstr;
 
             mp_int *tmp = mp_random_bits(nbits - 1);
-            s->K = mp_power_2(nbits - 1);
-            mp_add_into(s->K, s->K, tmp);
+            mp_int *K = mp_power_2(nbits - 1);
+            mp_add_into(K, K, tmp);
             mp_free(tmp);
 
             /*
              * Encode this as an mpint.
              */
             buf = strbuf_new_nm();
-            put_mp_ssh2(buf, s->K);
+            put_mp_ssh2(buf, K);
+
+            /*
+             * Store a copy as the output shared secret from the kex.
+             */
+            put_mp_ssh2(s->kex_shared_secret, K);
+            mp_free(K);
 
             /*
              * Encrypt it with the given RSA key.

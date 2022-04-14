@@ -161,7 +161,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 return;
             }
         }
-        s->K = dh_find_K(s->dh_ctx, s->f);
+        mp_int *K = dh_find_K(s->dh_ctx, s->f);
+        put_mp_ssh2(s->kex_shared_secret, K);
+        mp_free(K);
 
         if (dh_is_gex(s->kex_alg)) {
             if (s->dh_got_size_bounds)
@@ -217,13 +219,15 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             ptrlen keydata = get_string(pktin);
             put_stringpl(s->exhash, keydata);
 
-            s->K = ssh_ecdhkex_getkey(s->ecdh_key, keydata);
-            if (!get_err(pktin) && !s->K) {
+            mp_int *K = ssh_ecdhkex_getkey(s->ecdh_key, keydata);
+            if (!get_err(pktin) && !K) {
                 ssh_proto_error(s->ppl.ssh, "Received invalid elliptic curve "
                                 "point in ECDH initial packet");
                 *aborted = true;
                 return;
             }
+            put_mp_ssh2(s->kex_shared_secret, K);
+            mp_free(K);
         }
 
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEX_ECDH_REPLY);
@@ -301,18 +305,22 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             return;
         }
 
+        mp_int *K;
         {
             ptrlen encrypted_secret = get_string(pktin);
             put_stringpl(s->exhash, encrypted_secret);
-            s->K = ssh_rsakex_decrypt(
+            K = ssh_rsakex_decrypt(
                 s->rsa_kex_key, s->kex_alg->hash, encrypted_secret);
         }
 
-        if (!s->K) {
+        if (!K) {
             ssh_proto_error(s->ppl.ssh, "Unable to decrypt RSA kex secret");
             *aborted = true;
             return;
         }
+
+        put_mp_ssh2(s->kex_shared_secret, K);
+        mp_free(K);
 
         if (s->rsa_kex_key_needs_freeing) {
             ssh_rsakex_freekey(s->rsa_kex_key);

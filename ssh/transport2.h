@@ -167,7 +167,8 @@ struct ssh2_transport_state {
 
     int nbits, pbits;
     bool warn_kex, warn_hk, warn_cscipher, warn_sccipher;
-    mp_int *p, *g, *e, *f, *K;
+    mp_int *p, *g, *e, *f;
+    strbuf *kex_shared_secret;
     strbuf *outgoing_kexinit, *incoming_kexinit;
     strbuf *client_kexinit, *server_kexinit; /* aliases to the above */
     int kex_init_value, kex_reply_value;

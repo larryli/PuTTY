@@ -219,7 +219,7 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
     if (s->f) mp_free(s->f);
     if (s->p) mp_free(s->p);
     if (s->g) mp_free(s->g);
-    if (s->K) mp_free(s->K);
+    if (s->kex_shared_secret) strbuf_free(s->kex_shared_secret);
     if (s->dh_ctx)
         dh_cleanup(s->dh_ctx);
     if (s->rsa_kex_key_needs_freeing) {
@@ -245,7 +245,7 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
  */
 static void ssh2_mkkey(
     struct ssh2_transport_state *s, strbuf *out,
-    mp_int *K, unsigned char *H, char chr, int keylen)
+    strbuf *kex_shared_secret, unsigned char *H, char chr, int keylen)
 {
     int hlen = s->kex_alg->hash->hlen;
     int keylen_padded;
@@ -273,7 +273,7 @@ static void ssh2_mkkey(
     /* First hlen bytes. */
     h = ssh_hash_new(s->kex_alg->hash);
     if (!(s->ppl.remote_bugs & BUG_SSH2_DERIVEKEY))
-        put_mp_ssh2(h, K);
+        put_datapl(h, ptrlen_from_strbuf(kex_shared_secret));
     put_data(h, H, hlen);
     put_byte(h, chr);
     put_data(h, s->session_id, s->session_id_len);
@@ -285,7 +285,7 @@ static void ssh2_mkkey(
 
         ssh_hash_reset(h);
         if (!(s->ppl.remote_bugs & BUG_SSH2_DERIVEKEY))
-            put_mp_ssh2(h, K);
+            put_datapl(h, ptrlen_from_strbuf(kex_shared_secret));
         put_data(h, H, hlen);
 
         for (offset = hlen; offset < keylen_padded; offset += hlen) {
@@ -1093,7 +1093,7 @@ static bool ssh2_scan_kexinits(
 
 void ssh2transport_finalise_exhash(struct ssh2_transport_state *s)
 {
-    put_mp_ssh2(s->exhash, s->K);
+    put_datapl(s->exhash, ptrlen_from_strbuf(s->kex_shared_secret));
     assert(ssh_hash_alg(s->exhash)->hlen <= sizeof(s->exchange_hash));
     ssh_hash_final(s->exhash, s->exchange_hash);
     s->exhash = NULL;
@@ -1363,6 +1363,9 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * Actually perform the key exchange.
      */
     s->exhash = ssh_hash_new(s->kex_alg->hash);
+    if (s->kex_shared_secret)
+        strbuf_free(s->kex_shared_secret);
+    s->kex_shared_secret = strbuf_new_nm();
     put_stringz(s->exhash, s->client_greeting);
     put_stringz(s->exhash, s->server_greeting);
     put_string(s->exhash, s->client_kexinit->u, s->client_kexinit->len);
@@ -1416,14 +1419,14 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         strbuf *mac_key = strbuf_new_nm();
 
         if (s->out.cipher) {
-            ssh2_mkkey(s, cipher_iv, s->K, s->exchange_hash,
+            ssh2_mkkey(s, cipher_iv, s->kex_shared_secret, s->exchange_hash,
                        'A' + s->out.mkkey_adjust, s->out.cipher->blksize);
-            ssh2_mkkey(s, cipher_key, s->K, s->exchange_hash,
+            ssh2_mkkey(s, cipher_key, s->kex_shared_secret, s->exchange_hash,
                        'C' + s->out.mkkey_adjust,
                        s->out.cipher->padded_keybytes);
         }
         if (s->out.mac) {
-            ssh2_mkkey(s, mac_key, s->K, s->exchange_hash,
+            ssh2_mkkey(s, mac_key, s->kex_shared_secret, s->exchange_hash,
                        'E' + s->out.mkkey_adjust, s->out.mac->keylen);
         }
 
@@ -1508,14 +1511,14 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         strbuf *mac_key = strbuf_new_nm();
 
         if (s->in.cipher) {
-            ssh2_mkkey(s, cipher_iv, s->K, s->exchange_hash,
+            ssh2_mkkey(s, cipher_iv, s->kex_shared_secret, s->exchange_hash,
                        'A' + s->in.mkkey_adjust, s->in.cipher->blksize);
-            ssh2_mkkey(s, cipher_key, s->K, s->exchange_hash,
+            ssh2_mkkey(s, cipher_key, s->kex_shared_secret, s->exchange_hash,
                        'C' + s->in.mkkey_adjust,
                        s->in.cipher->padded_keybytes);
         }
         if (s->in.mac) {
-            ssh2_mkkey(s, mac_key, s->K, s->exchange_hash,
+            ssh2_mkkey(s, mac_key, s->kex_shared_secret, s->exchange_hash,
                        'E' + s->in.mkkey_adjust, s->in.mac->keylen);
         }
 
@@ -1533,7 +1536,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     /*
      * Free shared secret.
      */
-    mp_free(s->K); s->K = NULL;
+    strbuf_free(s->kex_shared_secret);
+    s->kex_shared_secret = NULL;
 
     /*
      * Update the specials menu to list the remaining uncertified host
