@@ -1367,121 +1367,131 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
 };
 
 /* ----------------------------------------------------------------------
- * Exposed ECDH interface
+ * Exposed ECDH interfaces
  */
 
 struct eckex_extra {
     struct ec_curve *(*curve)(void);
-    void (*setup)(ecdh_key *dh);
-    void (*cleanup)(ecdh_key *dh);
-    void (*getpublic)(ecdh_key *dh, BinarySink *bs);
-    mp_int *(*getkey)(ecdh_key *dh, ptrlen remoteKey);
 };
 
-struct ecdh_key {
+typedef struct ecdh_key_w {
     const struct eckex_extra *extra;
     const struct ec_curve *curve;
     mp_int *private;
-    union {
-        WeierstrassPoint *w_public;
-        MontgomeryPoint *m_public;
-    };
-};
+    WeierstrassPoint *w_public;
 
-const char *ssh_ecdhkex_curve_textname(const ssh_kex *kex)
-{
-    const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
-    struct ec_curve *curve = extra->curve();
-    return curve->textname;
-}
+    ecdh_key ek;
+} ecdh_key_w;
 
-static void ssh_ecdhkex_w_setup(ecdh_key *dh)
-{
-    mp_int *one = mp_from_integer(1);
-    dh->private = mp_random_in_range(one, dh->curve->w.G_order);
-    mp_free(one);
+typedef struct ecdh_key_m {
+    const struct eckex_extra *extra;
+    const struct ec_curve *curve;
+    mp_int *private;
+    MontgomeryPoint *m_public;
 
-    dh->w_public = ecc_weierstrass_multiply(dh->curve->w.G, dh->private);
-}
+    ecdh_key ek;
+} ecdh_key_m;
 
-static void ssh_ecdhkex_m_setup(ecdh_key *dh)
-{
-    strbuf *bytes = strbuf_new_nm();
-    random_read(strbuf_append(bytes, dh->curve->fieldBytes),
-                dh->curve->fieldBytes);
-
-    dh->private = mp_from_bytes_le(ptrlen_from_strbuf(bytes));
-
-    /* Ensure the private key has the highest valid bit set, and no
-     * bits _above_ the highest valid one */
-    mp_reduce_mod_2to(dh->private, dh->curve->fieldBits);
-    mp_set_bit(dh->private, dh->curve->fieldBits - 1, 1);
-
-    /* Clear a curve-specific number of low bits */
-    for (unsigned bit = 0; bit < dh->curve->m.log2_cofactor; bit++)
-        mp_set_bit(dh->private, bit, 0);
-
-    strbuf_free(bytes);
-
-    dh->m_public = ecc_montgomery_multiply(dh->curve->m.G, dh->private);
-}
-
-ecdh_key *ssh_ecdhkex_newkey(const ssh_kex *kex)
+ecdh_key *ssh_ecdhkex_w_new(const ssh_kex *kex, bool is_server)
 {
     const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
     const struct ec_curve *curve = extra->curve();
 
-    ecdh_key *dh = snew(ecdh_key);
-    dh->extra = extra;
-    dh->curve = curve;
-    dh->extra->setup(dh);
-    return dh;
+    ecdh_key_w *dhw = snew(ecdh_key_w);
+    dhw->ek.vt = kex->ecdh_vt;
+    dhw->extra = extra;
+    dhw->curve = curve;
+
+    mp_int *one = mp_from_integer(1);
+    dhw->private = mp_random_in_range(one, dhw->curve->w.G_order);
+    mp_free(one);
+
+    dhw->w_public = ecc_weierstrass_multiply(dhw->curve->w.G, dhw->private);
+
+    return &dhw->ek;
+}
+
+ecdh_key *ssh_ecdhkex_m_new(const ssh_kex *kex, bool is_server)
+{
+    const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
+    const struct ec_curve *curve = extra->curve();
+
+    ecdh_key_m *dhm = snew(ecdh_key_m);
+    dhm->ek.vt = kex->ecdh_vt;
+    dhm->extra = extra;
+    dhm->curve = curve;
+
+    strbuf *bytes = strbuf_new_nm();
+    random_read(strbuf_append(bytes, dhm->curve->fieldBytes),
+                dhm->curve->fieldBytes);
+
+    dhm->private = mp_from_bytes_le(ptrlen_from_strbuf(bytes));
+
+    /* Ensure the private key has the highest valid bit set, and no
+     * bits _above_ the highest valid one */
+    mp_reduce_mod_2to(dhm->private, dhm->curve->fieldBits);
+    mp_set_bit(dhm->private, dhm->curve->fieldBits - 1, 1);
+
+    /* Clear a curve-specific number of low bits */
+    for (unsigned bit = 0; bit < dhm->curve->m.log2_cofactor; bit++)
+        mp_set_bit(dhm->private, bit, 0);
+
+    strbuf_free(bytes);
+
+    dhm->m_public = ecc_montgomery_multiply(dhm->curve->m.G, dhm->private);
+
+    return &dhm->ek;
 }
 
 static void ssh_ecdhkex_w_getpublic(ecdh_key *dh, BinarySink *bs)
 {
-    put_wpoint(bs, dh->w_public, dh->curve, true);
+    ecdh_key_w *dhw = container_of(dh, ecdh_key_w, ek);
+    put_wpoint(bs, dhw->w_public, dhw->curve, true);
 }
 
 static void ssh_ecdhkex_m_getpublic(ecdh_key *dh, BinarySink *bs)
 {
+    ecdh_key_m *dhm = container_of(dh, ecdh_key_m, ek);
     mp_int *x;
-    ecc_montgomery_get_affine(dh->m_public, &x);
-    for (size_t i = 0; i < dh->curve->fieldBytes; ++i)
+    ecc_montgomery_get_affine(dhm->m_public, &x);
+    for (size_t i = 0; i < dhm->curve->fieldBytes; ++i)
         put_byte(bs, mp_get_byte(x, i));
     mp_free(x);
 }
 
-void ssh_ecdhkex_getpublic(ecdh_key *dh, BinarySink *bs)
+static bool ssh_ecdhkex_w_getkey(ecdh_key *dh, ptrlen remoteKey,
+                                 BinarySink *bs)
 {
-    dh->extra->getpublic(dh, bs);
-}
+    ecdh_key_w *dhw = container_of(dh, ecdh_key_w, ek);
 
-static mp_int *ssh_ecdhkex_w_getkey(ecdh_key *dh, ptrlen remoteKey)
-{
-    WeierstrassPoint *remote_p = ecdsa_decode(remoteKey, dh->curve);
+    WeierstrassPoint *remote_p = ecdsa_decode(remoteKey, dhw->curve);
     if (!remote_p)
-        return NULL;
+        return false;
 
     if (ecc_weierstrass_is_identity(remote_p)) {
         /* Not a sensible Diffie-Hellman input value */
         ecc_weierstrass_point_free(remote_p);
-        return NULL;
+        return false;
     }
 
-    WeierstrassPoint *p = ecc_weierstrass_multiply(remote_p, dh->private);
+    WeierstrassPoint *p = ecc_weierstrass_multiply(remote_p, dhw->private);
 
     mp_int *x;
     ecc_weierstrass_get_affine(p, &x, NULL);
+    put_mp_ssh2(bs, x);
+    mp_free(x);
 
     ecc_weierstrass_point_free(remote_p);
     ecc_weierstrass_point_free(p);
 
-    return x;
+    return true;
 }
 
-static mp_int *ssh_ecdhkex_m_getkey(ecdh_key *dh, ptrlen remoteKey)
+static bool ssh_ecdhkex_m_getkey(ecdh_key *dh, ptrlen remoteKey,
+                                 BinarySink *bs)
 {
+    ecdh_key_m *dhm = container_of(dh, ecdh_key_m, ek);
+
     mp_int *remote_x = mp_from_bytes_le(remoteKey);
 
     /* Per RFC 7748 section 5, discard any set bits of the other
@@ -1489,18 +1499,18 @@ static mp_int *ssh_ecdhkex_m_getkey(ecdh_key *dh, ptrlen remoteKey)
      * to represent all valid values. However, an overlarge value that
      * still fits into the remaining number of bits is accepted, and
      * will be reduced mod p. */
-    mp_reduce_mod_2to(remote_x, dh->curve->fieldBits);
+    mp_reduce_mod_2to(remote_x, dhm->curve->fieldBits);
 
     MontgomeryPoint *remote_p = ecc_montgomery_point_new(
-        dh->curve->m.mc, remote_x);
+        dhm->curve->m.mc, remote_x);
     mp_free(remote_x);
 
-    MontgomeryPoint *p = ecc_montgomery_multiply(remote_p, dh->private);
+    MontgomeryPoint *p = ecc_montgomery_multiply(remote_p, dhm->private);
 
     if (ecc_montgomery_is_identity(p)) {
         ecc_montgomery_point_free(remote_p);
         ecc_montgomery_point_free(p);
-        return NULL;
+        return false;
     }
 
     mp_int *x;
@@ -1524,48 +1534,54 @@ static mp_int *ssh_ecdhkex_m_getkey(ecdh_key *dh, ptrlen remoteKey)
      * with the _low_ byte zero, i.e. a multiple of 256.
      */
     strbuf *sb = strbuf_new();
-    for (size_t i = 0; i < dh->curve->fieldBytes; ++i)
+    for (size_t i = 0; i < dhm->curve->fieldBytes; ++i)
         put_byte(sb, mp_get_byte(x, i));
     mp_free(x);
     x = mp_from_bytes_be(ptrlen_from_strbuf(sb));
     strbuf_free(sb);
+    put_mp_ssh2(bs, x);
+    mp_free(x);
 
-    return x;
+    return true;
 }
 
-mp_int *ssh_ecdhkex_getkey(ecdh_key *dh, ptrlen remoteKey)
+static void ssh_ecdhkex_w_free(ecdh_key *dh)
 {
-    return dh->extra->getkey(dh, remoteKey);
+    ecdh_key_w *dhw = container_of(dh, ecdh_key_w, ek);
+    mp_free(dhw->private);
+    ecc_weierstrass_point_free(dhw->w_public);
+    sfree(dhw);
 }
 
-static void ssh_ecdhkex_w_cleanup(ecdh_key *dh)
+static void ssh_ecdhkex_m_free(ecdh_key *dh)
 {
-    ecc_weierstrass_point_free(dh->w_public);
+    ecdh_key_m *dhm = container_of(dh, ecdh_key_m, ek);
+    mp_free(dhm->private);
+    ecc_montgomery_point_free(dhm->m_public);
+    sfree(dhm);
 }
 
-static void ssh_ecdhkex_m_cleanup(ecdh_key *dh)
+static char *ssh_ecdhkex_description(const ssh_kex *kex)
 {
-    ecc_montgomery_point_free(dh->m_public);
+    const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
+    const struct ec_curve *curve = extra->curve();
+    return dupprintf("ECDH key exchange with curve %s", curve->textname);
 }
 
-void ssh_ecdhkex_freekey(ecdh_key *dh)
-{
-    mp_free(dh->private);
-    dh->extra->cleanup(dh);
-    sfree(dh);
-}
+static const struct eckex_extra kex_extra_curve25519 = { ec_curve25519 };
 
-static const struct eckex_extra kex_extra_curve25519 = {
-    ec_curve25519,
-    ssh_ecdhkex_m_setup,
-    ssh_ecdhkex_m_cleanup,
-    ssh_ecdhkex_m_getpublic,
-    ssh_ecdhkex_m_getkey,
+static const ecdh_keyalg ssh_ecdhkex_m_alg = {
+    .new = ssh_ecdhkex_m_new,
+    .free = ssh_ecdhkex_m_free,
+    .getpublic = ssh_ecdhkex_m_getpublic,
+    .getkey = ssh_ecdhkex_m_getkey,
+    .description = ssh_ecdhkex_description,
 };
 const ssh_kex ssh_ec_kex_curve25519 = {
     .name = "curve25519-sha256",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha256,
+    .ecdh_vt = &ssh_ecdhkex_m_alg,
     .extra = &kex_extra_curve25519,
 };
 /* Pre-RFC alias */
@@ -1573,62 +1589,50 @@ const ssh_kex ssh_ec_kex_curve25519_libssh = {
     .name = "curve25519-sha256@libssh.org",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha256,
+    .ecdh_vt = &ssh_ecdhkex_m_alg,
     .extra = &kex_extra_curve25519,
 };
 
-static const struct eckex_extra kex_extra_curve448 = {
-    ec_curve448,
-    ssh_ecdhkex_m_setup,
-    ssh_ecdhkex_m_cleanup,
-    ssh_ecdhkex_m_getpublic,
-    ssh_ecdhkex_m_getkey,
-};
+static const struct eckex_extra kex_extra_curve448 = { ec_curve448 };
 const ssh_kex ssh_ec_kex_curve448 = {
     .name = "curve448-sha512",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha512,
+    .ecdh_vt = &ssh_ecdhkex_m_alg,
     .extra = &kex_extra_curve448,
 };
 
-static const struct eckex_extra kex_extra_nistp256 = {
-    ec_p256,
-    ssh_ecdhkex_w_setup,
-    ssh_ecdhkex_w_cleanup,
-    ssh_ecdhkex_w_getpublic,
-    ssh_ecdhkex_w_getkey,
+static const ecdh_keyalg ssh_ecdhkex_w_alg = {
+    .new = ssh_ecdhkex_w_new,
+    .free = ssh_ecdhkex_w_free,
+    .getpublic = ssh_ecdhkex_w_getpublic,
+    .getkey = ssh_ecdhkex_w_getkey,
+    .description = ssh_ecdhkex_description,
 };
+static const struct eckex_extra kex_extra_nistp256 = { ec_p256 };
 const ssh_kex ssh_ec_kex_nistp256 = {
     .name = "ecdh-sha2-nistp256",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha256,
+    .ecdh_vt = &ssh_ecdhkex_w_alg,
     .extra = &kex_extra_nistp256,
 };
 
-static const struct eckex_extra kex_extra_nistp384 = {
-    ec_p384,
-    ssh_ecdhkex_w_setup,
-    ssh_ecdhkex_w_cleanup,
-    ssh_ecdhkex_w_getpublic,
-    ssh_ecdhkex_w_getkey,
-};
+static const struct eckex_extra kex_extra_nistp384 = { ec_p384 };
 const ssh_kex ssh_ec_kex_nistp384 = {
     .name = "ecdh-sha2-nistp384",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha384,
+    .ecdh_vt = &ssh_ecdhkex_w_alg,
     .extra = &kex_extra_nistp384,
 };
 
-static const struct eckex_extra kex_extra_nistp521 = {
-    ec_p521,
-    ssh_ecdhkex_w_setup,
-    ssh_ecdhkex_w_cleanup,
-    ssh_ecdhkex_w_getpublic,
-    ssh_ecdhkex_w_getkey,
-};
+static const struct eckex_extra kex_extra_nistp521 = { ec_p521 };
 const ssh_kex ssh_ec_kex_nistp521 = {
     .name = "ecdh-sha2-nistp521",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha512,
+    .ecdh_vt = &ssh_ecdhkex_w_alg,
     .extra = &kex_extra_nistp521,
 };
 

@@ -227,7 +227,7 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
         sfree(s->rsa_kex_key);
     }
     if (s->ecdh_key)
-        ssh_ecdhkex_freekey(s->ecdh_key);
+        ecdh_key_free(s->ecdh_key);
     if (s->exhash)
         ssh_hash_free(s->exhash);
     strbuf_free(s->outgoing_kexinit);

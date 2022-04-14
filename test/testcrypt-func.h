@@ -346,11 +346,11 @@ FUNC(val_mpint, dh_find_K, ARG(val_dh, ctx), ARG(val_mpint, f))
 /*
  * Elliptic-curve Diffie-Hellman.
  */
-FUNC(val_ecdh, ssh_ecdhkex_newkey, ARG(ecdh_alg, alg))
-FUNC(void, ssh_ecdhkex_getpublic, ARG(val_ecdh, key),
+FUNC(val_ecdh, ecdh_key_new, ARG(ecdh_alg, alg), ARG(boolean, is_server))
+FUNC(void, ecdh_key_getpublic, ARG(val_ecdh, key),
      ARG(out_val_string_binarysink, pub))
-FUNC(opt_val_mpint, ssh_ecdhkex_getkey, ARG(val_ecdh, key),
-     ARG(val_string_ptrlen, pub))
+FUNC_WRAPPED(opt_val_string, ecdh_key_getkey, ARG(val_ecdh, key),
+             ARG(val_string_ptrlen, pub))
 
 /*
  * RSA key exchange, and also the BinarySource get function

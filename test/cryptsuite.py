@@ -1772,13 +1772,13 @@ class crypt(MyTestBase):
         ]
 
         with random_prng("doesn't matter"):
-            ecdh25519 = ssh_ecdhkex_newkey('curve25519')
-            ecdh448 = ssh_ecdhkex_newkey('curve448')
+            ecdh25519 = ecdh_key_new('curve25519', False)
+            ecdh448 = ecdh_key_new('curve448', False)
         for pub in bad_keys_25519:
-            key = ssh_ecdhkex_getkey(ecdh25519, unhex(pub))
+            key = ecdh_key_getkey(ecdh25519, unhex(pub))
             self.assertEqual(key, None)
         for pub in bad_keys_448:
-            key = ssh_ecdhkex_getkey(ecdh448, unhex(pub))
+            key = ecdh_key_getkey(ecdh448, unhex(pub))
             self.assertEqual(key, None)
 
     def testPRNG(self):
@@ -3107,9 +3107,9 @@ class standard_test_vectors(MyTestBase):
 
         for method, priv, pub, expected in rfc7748s5_2:
             with queued_specific_random_data(unhex(priv)):
-                ecdh = ssh_ecdhkex_newkey(method)
-            key = ssh_ecdhkex_getkey(ecdh, unhex(pub))
-            self.assertEqual(int(key), expected)
+                ecdh = ecdh_key_new(method, False)
+            key = ecdh_key_getkey(ecdh, unhex(pub))
+            self.assertEqual(key, ssh2_mpint(expected))
 
         # Bidirectional tests, consisting of the input random number
         # strings for both parties, and the expected public values and
@@ -3131,15 +3131,15 @@ class standard_test_vectors(MyTestBase):
 
         for method, apriv, apub, bpriv, bpub, expected in rfc7748s6:
             with queued_specific_random_data(unhex(apriv)):
-                alice = ssh_ecdhkex_newkey(method)
+                alice = ecdh_key_new(method, False)
             with queued_specific_random_data(unhex(bpriv)):
-                bob = ssh_ecdhkex_newkey(method)
-            self.assertEqualBin(ssh_ecdhkex_getpublic(alice), unhex(apub))
-            self.assertEqualBin(ssh_ecdhkex_getpublic(bob), unhex(bpub))
-            akey = ssh_ecdhkex_getkey(alice, unhex(bpub))
-            bkey = ssh_ecdhkex_getkey(bob, unhex(apub))
-            self.assertEqual(int(akey), expected)
-            self.assertEqual(int(bkey), expected)
+                bob = ecdh_key_new(method, False)
+            self.assertEqualBin(ecdh_key_getpublic(alice), unhex(apub))
+            self.assertEqualBin(ecdh_key_getpublic(bob), unhex(bpub))
+            akey = ecdh_key_getkey(alice, unhex(bpub))
+            bkey = ecdh_key_getkey(bob, unhex(apub))
+            self.assertEqual(akey, ssh2_mpint(expected))
+            self.assertEqual(bkey, ssh2_mpint(expected))
 
     def testCRC32(self):
         self.assertEqual(crc32_rfc1662("123456789"), 0xCBF43926)

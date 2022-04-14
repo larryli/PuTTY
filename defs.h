@@ -167,6 +167,7 @@ typedef struct ssh_cipher ssh_cipher;
 typedef struct ssh2_ciphers ssh2_ciphers;
 typedef struct dh_ctx dh_ctx;
 typedef struct ecdh_key ecdh_key;
+typedef struct ecdh_keyalg ecdh_keyalg;
 
 typedef struct dlgparam dlgparam;
 

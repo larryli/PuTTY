@@ -87,7 +87,7 @@ uint64_t prng_reseed_time_ms(void)
     X(cipher, ssh_cipher *, ssh_cipher_free(v))                         \
     X(mac, ssh2_mac *, ssh2_mac_free(v))                                \
     X(dh, dh_ctx *, dh_cleanup(v))                                      \
-    X(ecdh, ecdh_key *, ssh_ecdhkex_freekey(v))                         \
+    X(ecdh, ecdh_key *, ecdh_key_free(v))                               \
     X(rsakex, RSAKey *, ssh_rsakex_freekey(v))                          \
     X(rsa, RSAKey *, rsa_free(v))                                       \
     X(prng, prng *, prng_free(v))                                       \
@@ -785,6 +785,18 @@ static RSAKey *rsa_new(void)
     RSAKey *rsa = snew(RSAKey);
     memset(rsa, 0, sizeof(RSAKey));
     return rsa;
+}
+
+strbuf *ecdh_key_getkey_wrapper(ecdh_key *ek, ptrlen remoteKey)
+{
+    /* Fold the boolean return value in C into the string return value
+     * for this purpose, by returning NULL on failure */
+    strbuf *sb = strbuf_new();
+    if (!ecdh_key_getkey(ek, remoteKey, BinarySink_UPCAST(sb))) {
+        strbuf_free(sb);
+        return NULL;
+    }
+    return sb;
 }
 
 strbuf *rsa_ssh1_encrypt_wrapper(ptrlen input, RSAKey *key)

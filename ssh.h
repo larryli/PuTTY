@@ -616,15 +616,6 @@ mp_int *ssh_rsakex_decrypt(
     RSAKey *key, const ssh_hashalg *h, ptrlen ciphertext);
 
 /*
- * SSH2 ECDH key exchange functions
- */
-const char *ssh_ecdhkex_curve_textname(const ssh_kex *kex);
-ecdh_key *ssh_ecdhkex_newkey(const ssh_kex *kex);
-void ssh_ecdhkex_freekey(ecdh_key *key);
-void ssh_ecdhkex_getpublic(ecdh_key *key, BinarySink *bs);
-mp_int *ssh_ecdhkex_getkey(ecdh_key *key, ptrlen remoteKey);
-
-/*
  * Helper function for k generation in DSA, reused in ECDSA
  */
 mp_int *dsa_gen_k(const char *id_string,
@@ -806,6 +797,9 @@ struct ssh_kex {
     const char *name, *groupname;
     enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_ECDH, KEXTYPE_GSS } main_type;
     const ssh_hashalg *hash;
+    union {                  /* publicly visible data for each type */
+        const ecdh_keyalg *ecdh_vt;    /* for KEXTYPE_ECDH */
+    };
     const void *extra;                 /* private to the kex methods */
 };
 
@@ -883,6 +877,35 @@ static inline const char *ssh_key_ssh_id(ssh_key *key)
 { return key->vt->ssh_id; }
 static inline const char *ssh_key_cache_id(ssh_key *key)
 { return key->vt->cache_id; }
+
+/*
+ * SSH2 ECDH key exchange vtable
+ */
+struct ecdh_key {
+    const ecdh_keyalg *vt;
+};
+struct ecdh_keyalg {
+    /* Unusually, the 'new' method here doesn't directly take a vt
+     * pointer, because it will also need the containing ssh_kex
+     * structure for top-level parameters, and since that contains a
+     * vt pointer anyway, we might as well _only_ pass that. */
+    ecdh_key *(*new)(const ssh_kex *kex, bool is_server);
+    void (*free)(ecdh_key *key);
+    void (*getpublic)(ecdh_key *key, BinarySink *bs);
+    bool (*getkey)(ecdh_key *key, ptrlen remoteKey, BinarySink *bs);
+    char *(*description)(const ssh_kex *kex);
+};
+static inline ecdh_key *ecdh_key_new(const ssh_kex *kex, bool is_server)
+{ return kex->ecdh_vt->new(kex, is_server); }
+static inline void ecdh_key_free(ecdh_key *key)
+{ key->vt->free(key); }
+static inline void ecdh_key_getpublic(ecdh_key *key, BinarySink *bs)
+{ key->vt->getpublic(key, bs); }
+static inline bool ecdh_key_getkey(ecdh_key *key, ptrlen remoteKey,
+                                   BinarySink *bs)
+{ return key->vt->getkey(key, remoteKey, bs); }
+static inline char *ecdh_keyalg_description(const ssh_kex *kex)
+{ return kex->ecdh_vt->description(kex); }
 
 /*
  * Enumeration of signature flags from draft-miller-ssh-agent-02
