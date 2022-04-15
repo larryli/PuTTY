@@ -207,9 +207,9 @@ void smemclr(void *b, size_t len);
 /* Compare two fixed-length chunks of memory for equality, without
  * data-dependent control flow (so an attacker with a very accurate
  * stopwatch can't try to guess where the first mismatching byte was).
- * Returns false for mismatch or true for equality (unlike memcmp),
- * hinted at by the 'eq' in the name. */
-bool smemeq(const void *av, const void *bv, size_t len);
+ * Returns 0 for mismatch or 1 for equality (unlike memcmp), hinted at
+ * by the 'eq' in the name. */
+unsigned smemeq(const void *av, const void *bv, size_t len);
 
 /* Encode a single UTF-8 character. Assumes that illegal characters
  * (such as things in the surrogate range, or > 0x10FFFF) have already
