@@ -28,6 +28,7 @@ add_sources_from_current_dir(utils
   host_strcspn.c
   host_strduptrim.c
   host_strrchr.c
+  key_components.c
   log_proxy_stderr.c
   make_spr_sw_abort_static.c
   marshal.c
