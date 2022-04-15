@@ -87,19 +87,20 @@ class ChildProcess(object):
 childprocess = ChildProcess()
 
 method_prefixes = {
-    'val_wpoint': 'ecc_weierstrass_',
-    'val_mpoint': 'ecc_montgomery_',
-    'val_epoint': 'ecc_edwards_',
-    'val_hash': 'ssh_hash_',
-    'val_mac': 'ssh2_mac_',
-    'val_key': 'ssh_key_',
-    'val_cipher': 'ssh_cipher_',
-    'val_dh': 'dh_',
-    'val_ecdh': 'ssh_ecdhkex_',
-    'val_rsakex': 'ssh_rsakex_',
-    'val_prng': 'prng_',
-    'val_pcs': 'pcs_',
-    'val_pockle': 'pockle_',
+    'val_wpoint': ['ecc_weierstrass_'],
+    'val_mpoint': ['ecc_montgomery_'],
+    'val_epoint': ['ecc_edwards_'],
+    'val_hash': ['ssh_hash_'],
+    'val_mac': ['ssh2_mac_'],
+    'val_key': ['ssh_key_'],
+    'val_cipher': ['ssh_cipher_'],
+    'val_dh': ['dh_'],
+    'val_ecdh': ['ssh_ecdhkex_'],
+    'val_rsakex': ['ssh_rsakex_'],
+    'val_prng': ['prng_'],
+    'val_pcs': ['pcs_'],
+    'val_pockle': ['pockle_'],
+    'val_ntruencodeschedule': ['ntru_encode_schedule_', 'ntru_'],
 }
 method_lists = {t: [] for t in method_prefixes}
 
@@ -420,10 +421,12 @@ def _setup(scope):
         scope[function] = func
         if len(argtypes) > 0:
             t = argtypes[0][0]
-            if (t in method_prefixes and
-                function.startswith(method_prefixes[t])):
-                methodname = function[len(method_prefixes[t]):]
-                method_lists[t].append((methodname, func))
+            if t in method_prefixes:
+                for prefix in method_prefixes[t]:
+                    if function.startswith(prefix):
+                        methodname = function[len(prefix):]
+                        method_lists[t].append((methodname, func))
+                        break
 
 _setup(globals())
 del _setup
