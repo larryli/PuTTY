@@ -567,6 +567,8 @@ static void kexlist_handler(union control *ctrl, dlgparam *dlg,
             { "Diffie-Hellman group exchange",  KEX_DHGEX },
             { "RSA-based key exchange",         KEX_RSA },
             { "ECDH key exchange",              KEX_ECDH },
+            { "NTRU Prime / Curve25519 hybrid kex"
+              " (quantum-resistant)",           KEX_NTRU_HYBRID },
             { "-- warn below here --",          KEX_WARN }
         };
 

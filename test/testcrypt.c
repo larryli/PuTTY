@@ -35,6 +35,7 @@
 #include "misc.h"
 #include "mpint.h"
 #include "crypto/ecc.h"
+#include "crypto/ntru.h"
 #include "proxy/cproxy.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
@@ -96,6 +97,8 @@ uint64_t prng_reseed_time_ms(void)
     X(pgc, PrimeGenerationContext *, primegen_free_context(v))          \
     X(pockle, Pockle *, pockle_free(v))                                 \
     X(millerrabin, MillerRabin *, miller_rabin_free(v))                 \
+    X(ntrukeypair, NTRUKeyPair *, ntru_keypair_free(v))                 \
+    X(ntruencodeschedule, NTRUEncodeSchedule *, ntru_encode_schedule_free(v)) \
     /* end of list */
 
 typedef struct Value Value;
@@ -221,6 +224,7 @@ typedef RsaSsh1Order TD_rsaorder;
 typedef key_components *TD_keycomponents;
 typedef const PrimeGenerationPolicy *TD_primegenpolicy;
 typedef struct mpint_list TD_mpint_list;
+typedef struct int16_list *TD_int16_list;
 typedef PockleStatus TD_pocklestatus;
 typedef struct mr_result TD_mr_result;
 typedef Argon2Flavour TD_argon2flavour;
@@ -385,6 +389,46 @@ static struct mpint_list get_mpint_list(BinarySource *in)
     return mpl;
 }
 
+typedef struct int16_list {
+    size_t n;
+    uint16_t *integers;
+} int16_list;
+
+static void finaliser_int16_list_free(strbuf *out, void *vlist)
+{
+    int16_list *list = (int16_list *)vlist;
+    sfree(list->integers);
+    sfree(list);
+}
+
+static int16_list *make_int16_list(size_t n)
+{
+    int16_list *list = snew(int16_list);
+    list->n = n;
+    list->integers = snewn(n, uint16_t);
+    add_finaliser(finaliser_int16_list_free, list);
+    return list;
+}
+
+static int16_list *get_int16_list(BinarySource *in)
+{
+    size_t n = get_uint(in);
+    int16_list *list = make_int16_list(n);
+    for (size_t i = 0; i < n; i++)
+        list->integers[i] = get_uint(in);
+    return list;
+}
+
+static void return_int16_list(strbuf *out, int16_list *list)
+{
+    for (size_t i = 0; i < list->n; i++) {
+        if (i > 0)
+            put_byte(out, ',');
+        put_fmt(out, "%d", (int)(int16_t)list->integers[i]);
+    }
+    put_byte(out, '\n');
+}
+
 static void finaliser_return_uint(strbuf *out, void *ctx)
 {
     unsigned *uval = (unsigned *)ctx;
@@ -543,6 +587,7 @@ NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
 NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
 NULLABLE_RETURN_WRAPPER(val_mpint, mp_int *)
+NULLABLE_RETURN_WRAPPER(int16_list, int16_list *)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {
@@ -797,6 +842,130 @@ strbuf *ecdh_key_getkey_wrapper(ecdh_key *ek, ptrlen remoteKey)
         return NULL;
     }
     return sb;
+}
+
+static void int16_list_resize(int16_list *list, unsigned p)
+{
+    list->integers = sresize(list->integers, p, uint16_t);
+    for (size_t i = list->n; i < p; i++)
+        list->integers[i] = 0;
+}
+
+#if 0
+static int16_list ntru_ring_to_list_and_free(uint16_t *out, unsigned p)
+{
+    struct mpint_list mpl;
+    mpl.n = p;
+    mpl->integers = snewn(p, mp_int *);
+    for (unsigned i = 0; i < p; i++)
+        mpl->integers[i] = mp_from_integer((int16_t)out[i]);
+    sfree(out);
+    add_finaliser(finaliser_sfree, mpl->integers);
+    return mpl;
+}
+#endif
+
+int16_list *ntru_ring_multiply_wrapper(
+    int16_list *a, int16_list *b, unsigned p, unsigned q)
+{
+    int16_list_resize(a, p);
+    int16_list_resize(b, p);
+    int16_list *out = make_int16_list(p);
+    ntru_ring_multiply(out->integers, a->integers, b->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_ring_invert_wrapper(int16_list *in, unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    unsigned success = ntru_ring_invert(out->integers, in->integers, p, q);
+    if (!success)
+        return NULL;
+    return out;
+}
+
+int16_list *ntru_mod3_wrapper(int16_list *in, unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_mod3(out->integers, in->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_round3_wrapper(int16_list *in, unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_round3(out->integers, in->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_bias_wrapper(int16_list *in, unsigned bias,
+                              unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_bias(out->integers, in->integers, bias, p, q);
+    return out;
+}
+
+int16_list *ntru_scale_wrapper(int16_list *in, unsigned scale,
+                              unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_scale(out->integers, in->integers, scale, p, q);
+    return out;
+}
+
+NTRUEncodeSchedule *ntru_encode_schedule_wrapper(int16_list *in)
+{
+    return ntru_encode_schedule(in->integers, in->n);
+}
+
+void ntru_encode_wrapper(NTRUEncodeSchedule *sched, int16_list *rs,
+                         BinarySink *bs)
+{
+    ntru_encode(sched, rs->integers, bs);
+}
+
+int16_list *ntru_decode_wrapper(NTRUEncodeSchedule *sched, ptrlen data)
+{
+    int16_list *out = make_int16_list(ntru_encode_schedule_nvals(sched));
+    ntru_decode(sched, out->integers, data);
+    return out;
+}
+
+int16_list *ntru_gen_short_wrapper(unsigned p, unsigned w)
+{
+    int16_list *out = make_int16_list(p);
+    ntru_gen_short(out->integers, p, w);
+    return out;
+}
+
+int16_list *ntru_pubkey_wrapper(NTRUKeyPair *keypair)
+{
+    unsigned p = ntru_keypair_p(keypair);
+    int16_list *out = make_int16_list(p);
+    memcpy(out->integers, ntru_pubkey(keypair), p*sizeof(uint16_t));
+    return out;
+}
+
+int16_list *ntru_encrypt_wrapper(int16_list *plaintext, int16_list *pubkey,
+                                 unsigned p, unsigned q)
+{
+    int16_list *out = make_int16_list(p);
+    ntru_encrypt(out->integers, plaintext->integers, pubkey->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_decrypt_wrapper(int16_list *ciphertext, NTRUKeyPair *keypair)
+{
+    unsigned p = ntru_keypair_p(keypair);
+    int16_list *out = make_int16_list(p);
+    ntru_decrypt(out->integers, ciphertext->integers, keypair);
+    return out;
 }
 
 strbuf *rsa_ssh1_encrypt_wrapper(ptrlen input, RSAKey *key)

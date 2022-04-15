@@ -81,6 +81,7 @@
 #include "misc.h"
 #include "mpint.h"
 #include "crypto/ecc.h"
+#include "crypto/ntru.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
@@ -395,6 +396,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     HASHES(HASH_TESTLIST, X)                    \
     X(argon2)                                   \
     X(primegen_probabilistic)                   \
+    X(ntru)                                     \
     /* end of list */
 
 static void test_mp_get_nbits(void)
@@ -1554,6 +1556,74 @@ static void test_primegen(const PrimeGenerationPolicy *policy)
 static void test_primegen_probabilistic(void)
 {
     test_primegen(&primegen_probabilistic);
+}
+
+static void test_ntru(void)
+{
+    unsigned p = 11, q = 59, w = 3;
+    uint16_t *pubkey_orig = snewn(p, uint16_t);
+    uint16_t *pubkey_check = snewn(p, uint16_t);
+    uint16_t *pubkey = snewn(p, uint16_t);
+    uint16_t *plaintext = snewn(p, uint16_t);
+    uint16_t *ciphertext = snewn(p, uint16_t);
+
+    strbuf *buffer = strbuf_new();
+    strbuf_append(buffer, 16384);
+    BinarySource src[1];
+
+    for (size_t i = 0; i < looplimit(32); i++) {
+        while (true) {
+            random_advance_counter();
+            struct random_state st = random_get_state();
+
+            NTRUKeyPair *keypair = ntru_keygen_attempt(p, q, w);
+
+            if (keypair) {
+                memcpy(pubkey_orig, ntru_pubkey(keypair),
+                       p*sizeof(*pubkey_orig));
+                ntru_keypair_free(keypair);
+
+                random_set_state(st);
+
+                log_start();
+                NTRUKeyPair *keypair = ntru_keygen_attempt(p, q, w);
+                memcpy(pubkey_check, ntru_pubkey(keypair),
+                       p*sizeof(*pubkey_check));
+
+                ntru_gen_short(plaintext, p, w);
+                ntru_encrypt(ciphertext, plaintext, pubkey, p, w);
+                ntru_decrypt(plaintext, ciphertext, keypair);
+
+                strbuf_clear(buffer);
+                ntru_encode_pubkey(ntru_pubkey(keypair), p, q,
+                                   BinarySink_UPCAST(buffer));
+                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(buffer));
+                ntru_decode_pubkey(pubkey, p, q, src);
+
+                strbuf_clear(buffer);
+                ntru_encode_ciphertext(ciphertext, p, q,
+                                       BinarySink_UPCAST(buffer));
+                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(buffer));
+                ntru_decode_ciphertext(ciphertext, keypair, src);
+
+                strbuf_clear(buffer);
+                ntru_encode_plaintext(plaintext, p, BinarySink_UPCAST(buffer));
+                log_end();
+
+                break;
+            }
+
+            assert(!memcmp(pubkey_orig, pubkey_check,
+                           p*sizeof(*pubkey_check)));
+        }
+    }
+
+    sfree(pubkey_orig);
+    sfree(pubkey_check);
+    sfree(pubkey);
+    sfree(plaintext);
+    sfree(ciphertext);
+    strbuf_free(buffer);
 }
 
 static const struct test tests[] = {

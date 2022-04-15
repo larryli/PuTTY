@@ -353,6 +353,35 @@ FUNC_WRAPPED(opt_val_string, ecdh_key_getkey, ARG(val_ecdh, key),
              ARG(val_string_ptrlen, pub))
 
 /*
+ * NTRU and its subroutines.
+ */
+FUNC_WRAPPED(int16_list, ntru_ring_multiply, ARG(int16_list, a),
+             ARG(int16_list, b), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(opt_int16_list, ntru_ring_invert, ARG(int16_list, r),
+             ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_mod3, ARG(int16_list, r),
+             ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_round3, ARG(int16_list, r),
+             ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_bias, ARG(int16_list, r),
+             ARG(uint, bias), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_scale, ARG(int16_list, r),
+             ARG(uint, scale), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(val_ntruencodeschedule, ntru_encode_schedule, ARG(int16_list, ms))
+FUNC(uint, ntru_encode_schedule_length, ARG(val_ntruencodeschedule, sched))
+FUNC_WRAPPED(void, ntru_encode, ARG(val_ntruencodeschedule, sched),
+             ARG(int16_list, rs), ARG(out_val_string_binarysink, data))
+FUNC_WRAPPED(opt_int16_list, ntru_decode, ARG(val_ntruencodeschedule, sched),
+             ARG(val_string_ptrlen, data))
+FUNC_WRAPPED(int16_list, ntru_gen_short, ARG(uint, p), ARG(uint, w))
+FUNC(val_ntrukeypair, ntru_keygen, ARG(uint, p), ARG(uint, q), ARG(uint, w))
+FUNC_WRAPPED(int16_list, ntru_pubkey, ARG(val_ntrukeypair, keypair))
+FUNC_WRAPPED(int16_list, ntru_encrypt, ARG(int16_list, plaintext),
+             ARG(int16_list, pubkey), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_decrypt, ARG(int16_list, ciphertext),
+             ARG(val_ntrukeypair, keypair))
+
+/*
  * RSA key exchange, and also the BinarySource get function
  * get_ssh1_rsa_priv_agent, which is a convenient way to make an
  * RSAKey for RSA kex testing purposes.
