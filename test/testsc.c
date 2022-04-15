@@ -114,19 +114,23 @@ static void random_seed(const char *seedstr)
     random_buf_limit = 0;
 }
 
+static void random_advance_counter(void)
+{
+    ssh_hash_reset(random_hash);
+    put_asciz(random_hash, random_seedstr);
+    put_uint64(random_hash, random_counter);
+    random_counter++;
+    random_buf_limit = ssh_hash_alg(random_hash)->hlen;
+    ssh_hash_digest(random_hash, random_buf);
+}
+
 void random_read(void *vbuf, size_t size)
 {
     assert(random_seedstr);
     uint8_t *buf = (uint8_t *)vbuf;
     while (size-- > 0) {
-        if (random_buf_limit == 0) {
-            ssh_hash_reset(random_hash);
-            put_asciz(random_hash, random_seedstr);
-            put_uint64(random_hash, random_counter);
-            random_counter++;
-            random_buf_limit = ssh_hash_alg(random_hash)->hlen;
-            ssh_hash_digest(random_hash, random_buf);
-        }
+        if (random_buf_limit == 0)
+            random_advance_counter();
         *buf++ = random_buf[random_buf_limit--];
     }
 }
@@ -1514,6 +1518,7 @@ static void test_primegen(const PrimeGenerationPolicy *policy)
 
     for (size_t i = 0; i < looplimit(2); i++) {
         while (true) {
+            random_advance_counter();
             struct random_state st = random_get_state();
 
             PrimeCandidateSource *pcs = pcs_new(128);
