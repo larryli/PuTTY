@@ -16,8 +16,8 @@ void key_components_add_text(key_components *kc,
     sgrowarray(kc->components, kc->componentsize, kc->ncomponents);
     size_t n = kc->ncomponents++;
     kc->components[n].name = dupstr(name);
-    kc->components[n].is_mp_int = false;
-    kc->components[n].text = dupstr(value);
+    kc->components[n].type = KCT_TEXT;
+    kc->components[n].str = strbuf_dup_nm(ptrlen_from_asciz(value));
 }
 
 void key_components_add_mp(key_components *kc,
@@ -26,19 +26,24 @@ void key_components_add_mp(key_components *kc,
     sgrowarray(kc->components, kc->componentsize, kc->ncomponents);
     size_t n = kc->ncomponents++;
     kc->components[n].name = dupstr(name);
-    kc->components[n].is_mp_int = true;
+    kc->components[n].type = KCT_MPINT;
     kc->components[n].mp = mp_copy(value);
 }
 
 void key_components_free(key_components *kc)
 {
     for (size_t i = 0; i < kc->ncomponents; i++) {
-        sfree(kc->components[i].name);
-        if (kc->components[i].is_mp_int) {
-            mp_free(kc->components[i].mp);
-        } else {
-            smemclr(kc->components[i].text, strlen(kc->components[i].text));
-            sfree(kc->components[i].text);
+        key_component *comp = &kc->components[i];
+        sfree(comp->name);
+        switch (comp->type) {
+          case KCT_MPINT:
+            mp_free(comp->mp);
+            break;
+          case KCT_TEXT:
+            strbuf_free(comp->str);
+            break;
+          default:
+            unreachable("bad key component type");
         }
     }
     sfree(kc->components);

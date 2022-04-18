@@ -1227,16 +1227,18 @@ const char *key_components_nth_name(key_components *kc, size_t n)
     return (n >= kc->ncomponents ? NULL :
             kc->components[n].name);
 }
-const char *key_components_nth_str(key_components *kc, size_t n)
+strbuf *key_components_nth_str(key_components *kc, size_t n)
 {
-    return (n >= kc->ncomponents ? NULL :
-            kc->components[n].is_mp_int ? NULL :
-            kc->components[n].text);
+    if (n >= kc->ncomponents)
+        return NULL;
+    if (kc->components[n].type != KCT_TEXT)
+        return NULL;
+    return strbuf_dup(ptrlen_from_strbuf(kc->components[n].str));
 }
 mp_int *key_components_nth_mp(key_components *kc, size_t n)
 {
     return (n >= kc->ncomponents ? NULL :
-            !kc->components[n].is_mp_int ? NULL :
+            kc->components[n].type != KCT_MPINT ? NULL :
             mp_copy(kc->components[n].mp));
 }
 

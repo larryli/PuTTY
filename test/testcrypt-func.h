@@ -309,7 +309,7 @@ FUNC(uint, ssh_key_public_bits, ARG(keyalg, self), ARG(val_string_ptrlen, blob))
 FUNC(uint, key_components_count, ARG(val_keycomponents, kc))
 FUNC(opt_val_string_asciz_const, key_components_nth_name,
      ARG(val_keycomponents, kc), ARG(uint, n))
-FUNC(opt_val_string_asciz_const, key_components_nth_str,
+FUNC(opt_val_string, key_components_nth_str,
      ARG(val_keycomponents, kc), ARG(uint, n))
 FUNC(opt_val_mpint, key_components_nth_mp, ARG(val_keycomponents, kc),
      ARG(uint, n))

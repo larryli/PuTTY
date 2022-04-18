@@ -1312,16 +1312,23 @@ int main(int argc, char **argv)
         }
 
         for (size_t i = 0; i < kc->ncomponents; i++) {
-            if (kc->components[i].is_mp_int) {
-                char *hex = mp_get_hex(kc->components[i].mp);
-                fprintf(fp, "%s=0x%s\n", kc->components[i].name, hex);
+            key_component *comp = &kc->components[i];
+            fprintf(fp, "%s=", comp->name);
+            switch (comp->type) {
+              case KCT_MPINT: {
+                char *hex = mp_get_hex(comp->mp);
+                fprintf(fp, "0x%s\n", hex);
                 smemclr(hex, strlen(hex));
                 sfree(hex);
-            } else {
-                fprintf(fp, "%s=\"", kc->components[i].name);
-                write_c_string_literal(fp, ptrlen_from_asciz(
-                                           kc->components[i].text));
+                break;
+              }
+              case KCT_TEXT:
+                fputs("\"", fp);
+                write_c_string_literal(fp, ptrlen_from_strbuf(comp->str));
                 fputs("\"\n", fp);
+                break;
+              default:
+                unreachable("bad key component type");
             }
         }
 
