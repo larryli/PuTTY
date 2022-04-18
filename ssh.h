@@ -560,10 +560,16 @@ typedef struct key_components {
 key_components *key_components_new(void);
 void key_components_add_text(key_components *kc,
                              const char *name, const char *value);
+void key_components_add_text_pl(key_components *kc,
+                                const char *name, ptrlen value);
 void key_components_add_binary(key_components *kc,
                                const char *name, ptrlen value);
 void key_components_add_mp(key_components *kc,
                            const char *name, mp_int *value);
+void key_components_add_uint(key_components *kc,
+                             const char *name, uintmax_t value);
+void key_components_add_copy(key_components *kc,
+                             const char *name, const key_component *value);
 void key_components_free(key_components *kc);
 
 /*

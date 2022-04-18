@@ -26,6 +26,12 @@ void key_components_add_text(key_components *kc,
     key_components_add_str(kc, name, KCT_TEXT, ptrlen_from_asciz(value));
 }
 
+void key_components_add_text_pl(key_components *kc,
+                                const char *name, ptrlen value)
+{
+    key_components_add_str(kc, name, KCT_TEXT, value);
+}
+
 void key_components_add_binary(key_components *kc,
                                const char *name, ptrlen value)
 {
@@ -40,6 +46,29 @@ void key_components_add_mp(key_components *kc,
     kc->components[n].name = dupstr(name);
     kc->components[n].type = KCT_MPINT;
     kc->components[n].mp = mp_copy(value);
+}
+
+void key_components_add_uint(key_components *kc,
+                             const char *name, uintmax_t value)
+{
+    mp_int *mpvalue = mp_from_integer(value);
+    key_components_add_mp(kc, name, mpvalue);
+    mp_free(mpvalue);
+}
+
+void key_components_add_copy(key_components *kc,
+                             const char *name, const key_component *value)
+{
+    switch (value->type) {
+      case KCT_TEXT:
+      case KCT_BINARY:
+        key_components_add_str(kc, name, value->type,
+                               ptrlen_from_strbuf(value->str));
+        break;
+      case KCT_MPINT:
+        key_components_add_mp(kc, name, value->mp);
+        break;
+    }
 }
 
 void key_components_free(key_components *kc)
