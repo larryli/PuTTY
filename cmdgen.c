@@ -1327,6 +1327,38 @@ int main(int argc, char **argv)
                 write_c_string_literal(fp, ptrlen_from_strbuf(comp->str));
                 fputs("\"\n", fp);
                 break;
+              case KCT_BINARY: {
+                /*
+                 * Display format for binary key components is to show
+                 * them as base64, with a wrapper so that the actual
+                 * printed string is along the lines of
+                 * 'b64("aGVsbG8sIHdvcmxkCg==")'.
+                 *
+                 * That's a compromise between not being too verbose
+                 * for a human reader, and still being reasonably
+                 * friendly to people pasting the output of this
+                 * 'puttygen --dump' option into Python code (which
+                 * the format is designed to permit in general).
+                 *
+                 * Python users pasting a dump containing one of these
+                 * will have to define a function 'b64' in advance
+                 * which takes a string, which you can do most easily
+                 * using this import statement, as seen in
+                 * cryptsuite.py:
+                 *
+                 * from base64 import b64decode as b64
+                 */
+                fputs("b64(\"", fp);
+                char b64[4];
+                for (size_t j = 0; j < comp->str->len; j += 3) {
+                    size_t len = comp->str->len - j;
+                    if (len > 3) len = 3;
+                    base64_encode_atom(comp->str->u + j, len, b64);
+                    fwrite(b64, 1, 4, fp);
+                }
+                fputs("\")\n", fp);
+                break;
+              }
               default:
                 unreachable("bad key component type");
             }

@@ -10,14 +10,26 @@ key_components *key_components_new(void)
     return kc;
 }
 
-void key_components_add_text(key_components *kc,
-                             const char *name, const char *value)
+static void key_components_add_str(key_components *kc, const char *name,
+                                   KeyComponentType type, ptrlen data)
 {
     sgrowarray(kc->components, kc->componentsize, kc->ncomponents);
     size_t n = kc->ncomponents++;
     kc->components[n].name = dupstr(name);
-    kc->components[n].type = KCT_TEXT;
-    kc->components[n].str = strbuf_dup_nm(ptrlen_from_asciz(value));
+    kc->components[n].type = type;
+    kc->components[n].str = strbuf_dup_nm(data);
+}
+
+void key_components_add_text(key_components *kc,
+                             const char *name, const char *value)
+{
+    key_components_add_str(kc, name, KCT_TEXT, ptrlen_from_asciz(value));
+}
+
+void key_components_add_binary(key_components *kc,
+                               const char *name, ptrlen value)
+{
+    key_components_add_str(kc, name, KCT_BINARY, value);
 }
 
 void key_components_add_mp(key_components *kc,
@@ -40,6 +52,7 @@ void key_components_free(key_components *kc)
             mp_free(comp->mp);
             break;
           case KCT_TEXT:
+          case KCT_BINARY:
             strbuf_free(comp->str);
             break;
           default:

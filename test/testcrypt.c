@@ -1231,7 +1231,8 @@ strbuf *key_components_nth_str(key_components *kc, size_t n)
 {
     if (n >= kc->ncomponents)
         return NULL;
-    if (kc->components[n].type != KCT_TEXT)
+    if (kc->components[n].type != KCT_TEXT &&
+        kc->components[n].type != KCT_BINARY)
         return NULL;
     return strbuf_dup(ptrlen_from_strbuf(kc->components[n].str));
 }

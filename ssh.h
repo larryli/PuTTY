@@ -543,13 +543,13 @@ WeierstrassPoint *ecdsa_public(mp_int *private_key, const ssh_keyalg *alg);
 EdwardsPoint *eddsa_public(mp_int *private_key, const ssh_keyalg *alg);
 
 typedef enum KeyComponentType {
-    KCT_TEXT, KCT_MPINT
+    KCT_TEXT, KCT_BINARY, KCT_MPINT
 } KeyComponentType;
 typedef struct key_component {
     char *name;
     KeyComponentType type;
     union {
-        strbuf *str;                   /* used for KCT_TEXT */
+        strbuf *str;                   /* used for KCT_TEXT and KCT_BINARY */
         mp_int *mp;                    /* used for KCT_MPINT */
     };
 } key_component;
@@ -560,6 +560,8 @@ typedef struct key_components {
 key_components *key_components_new(void);
 void key_components_add_text(key_components *kc,
                              const char *name, const char *value);
+void key_components_add_binary(key_components *kc,
+                               const char *name, ptrlen value);
 void key_components_add_mp(key_components *kc,
                            const char *name, mp_int *value);
 void key_components_free(key_components *kc);
