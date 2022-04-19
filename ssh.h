@@ -854,6 +854,8 @@ struct ssh_keyalg {
     const char *ssh_id;    /* string identifier in the SSH protocol */
     const char *cache_id;  /* identifier used in PuTTY's host key cache */
     const void *extra;     /* private to the public key methods */
+    bool is_certificate;   /* is this a certified key type? */
+    const ssh_keyalg *base_alg; /* if so, for what underlying key alg? */
 };
 
 static inline ssh_key *ssh_key_new_pub(const ssh_keyalg *self, ptrlen pub)
@@ -1098,6 +1100,14 @@ extern const ssh_keyalg ssh_ecdsa_ed448;
 extern const ssh_keyalg ssh_ecdsa_nistp256;
 extern const ssh_keyalg ssh_ecdsa_nistp384;
 extern const ssh_keyalg ssh_ecdsa_nistp521;
+extern const ssh_keyalg opensshcert_ssh_dsa;
+extern const ssh_keyalg opensshcert_ssh_rsa;
+extern const ssh_keyalg opensshcert_ssh_rsa_sha256;
+extern const ssh_keyalg opensshcert_ssh_rsa_sha512;
+extern const ssh_keyalg opensshcert_ssh_ecdsa_ed25519;
+extern const ssh_keyalg opensshcert_ssh_ecdsa_nistp256;
+extern const ssh_keyalg opensshcert_ssh_ecdsa_nistp384;
+extern const ssh_keyalg opensshcert_ssh_ecdsa_nistp521;
 extern const ssh2_macalg ssh_hmac_md5;
 extern const ssh2_macalg ssh_hmac_sha1;
 extern const ssh2_macalg ssh_hmac_sha1_buggy;

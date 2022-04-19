@@ -21,6 +21,7 @@ add_sources_from_current_dir(crypto
   md5.c
   mpint.c
   ntru.c
+  openssh-certs.c
   prng.c
   pubkey-pem.c
   pubkey-ppk.c
