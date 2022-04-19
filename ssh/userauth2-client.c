@@ -348,10 +348,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             s->agent_keys_len = nkeys;
             s->agent_keys = snewn(s->agent_keys_len, agent_key);
             for (size_t i = 0; i < nkeys; i++) {
-                s->agent_keys[i].blob = strbuf_new();
-                put_datapl(s->agent_keys[i].blob, get_string(s->asrc));
-                s->agent_keys[i].comment = strbuf_new();
-                put_datapl(s->agent_keys[i].comment, get_string(s->asrc));
+                s->agent_keys[i].blob = strbuf_dup(get_string(s->asrc));
+                s->agent_keys[i].comment = strbuf_dup(get_string(s->asrc));
 
                 /* Also, extract the algorithm string from the start
                  * of the public-key blob. */

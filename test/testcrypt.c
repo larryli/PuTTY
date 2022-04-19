@@ -763,8 +763,7 @@ strbuf *ssh_cipher_encrypt_wrapper(ssh_cipher *c, ptrlen input)
     if (input.len % ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_encrypt: needs a multiple of %d bytes",
                     ssh_cipher_alg(c)->blksize);
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_encrypt(c, sb->u, sb->len);
     return sb;
 }
@@ -774,8 +773,7 @@ strbuf *ssh_cipher_decrypt_wrapper(ssh_cipher *c, ptrlen input)
     if (input.len % ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_decrypt: needs a multiple of %d bytes",
                     ssh_cipher_alg(c)->blksize);
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_decrypt(c, sb->u, sb->len);
     return sb;
 }
@@ -785,8 +783,7 @@ strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
 {
     if (input.len != 4)
         fatal_error("ssh_cipher_encrypt_length: needs exactly 4 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_encrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
@@ -796,8 +793,7 @@ strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
 {
     if (input.len % ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_decrypt_length: needs exactly 4 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_decrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
@@ -997,8 +993,7 @@ strbuf *des_encrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
         fatal_error("des_encrypt_xdmauth: key must be 7 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des_encrypt_xdmauth: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des_encrypt_xdmauth(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1009,8 +1004,7 @@ strbuf *des_decrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
         fatal_error("des_decrypt_xdmauth: key must be 7 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des_decrypt_xdmauth: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des_decrypt_xdmauth(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1021,8 +1015,7 @@ strbuf *des3_encrypt_pubkey_wrapper(ptrlen key, ptrlen data)
         fatal_error("des3_encrypt_pubkey: key must be 16 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_encrypt_pubkey: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_encrypt_pubkey(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1033,8 +1026,7 @@ strbuf *des3_decrypt_pubkey_wrapper(ptrlen key, ptrlen data)
         fatal_error("des3_decrypt_pubkey: key must be 16 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_decrypt_pubkey: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_decrypt_pubkey(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1047,8 +1039,7 @@ strbuf *des3_encrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("des3_encrypt_pubkey_ossh: iv must be 8 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_encrypt_pubkey_ossh: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_encrypt_pubkey_ossh(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1061,8 +1052,7 @@ strbuf *des3_decrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("des3_encrypt_pubkey_ossh: iv must be 8 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_decrypt_pubkey_ossh: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_decrypt_pubkey_ossh(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1075,8 +1065,7 @@ strbuf *aes256_encrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("aes256_encrypt_pubkey: iv must be 16 bytes long");
     if (data.len % 16 != 0)
         fatal_error("aes256_encrypt_pubkey: data must be a multiple of 16 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     aes256_encrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1089,8 +1078,7 @@ strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("aes256_encrypt_pubkey: iv must be 16 bytes long");
     if (data.len % 16 != 0)
         fatal_error("aes256_decrypt_pubkey: data must be a multiple of 16 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     aes256_decrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }

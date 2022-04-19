@@ -52,6 +52,10 @@ struct strbuf {
 strbuf *strbuf_new(void);
 strbuf *strbuf_new_nm(void);
 
+/* Helpers to allocate a strbuf containing an existing string */
+strbuf *strbuf_dup(ptrlen string);
+strbuf *strbuf_dup_nm(ptrlen string);
+
 void strbuf_free(strbuf *buf);
 void *strbuf_append(strbuf *buf, size_t len);
 void strbuf_shrink_to(strbuf *buf, size_t new_len);

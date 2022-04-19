@@ -199,8 +199,7 @@ static int rsa1_load_s_internal(BinarySource *src, RSAKey *key, bool pub_only,
         if (enclen & 7)
             goto end;
 
-        buf = strbuf_new_nm();
-        put_datapl(buf, get_data(src, enclen));
+        buf = strbuf_dup_nm(get_data(src, enclen));
 
         unsigned char keybuf[16];
         hash_simple(&ssh_md5, ptrlen_from_asciz(passphrase), keybuf);

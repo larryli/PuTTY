@@ -521,8 +521,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                                      RSA_SSH1_EXPONENT_FIRST);
                     const char *blobend = get_ptr(s->asrc);
 
-                    s->agent_keys[i].comment = strbuf_new();
-                    put_datapl(s->agent_keys[i].comment, get_string(s->asrc));
+                    s->agent_keys[i].comment = strbuf_dup(get_string(s->asrc));
 
                     s->agent_keys[i].blob = make_ptrlen(
                         blobstart, blobend - blobstart);

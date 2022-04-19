@@ -518,11 +518,8 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
         BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(
                                       pk->encrypted_key_file));
 
-        strbuf *ppsb = strbuf_new_nm();
-        put_datapl(ppsb, passphrase);
-
+        strbuf *ppsb = strbuf_dup_nm(passphrase);
         pk->skey = ppk_load_s(src, ppsb->s, &error);
-
         strbuf_free(ppsb);
 
         if (!pk->skey) {
@@ -840,8 +837,7 @@ static PageantAsyncOp *pageant_make_op(
         so->pao.reqid = reqid;
         so->pk = pk;
         so->pkr.prev = so->pkr.next = NULL;
-        so->data_to_sign = strbuf_new();
-        put_datapl(so->data_to_sign, sigdata);
+        so->data_to_sign = strbuf_dup(sigdata);
         so->flags = flags;
         so->failure_type = failure_type;
         so->crLine = 0;
@@ -1180,8 +1176,7 @@ static PageantAsyncOp *pageant_make_op(
                  * existing record, if it doesn't have one already.
                  */
                 if (!pk->encrypted_key_file) {
-                    pk->encrypted_key_file = strbuf_new_nm();
-                    put_datapl(pk->encrypted_key_file, keyfile);
+                    pk->encrypted_key_file = strbuf_dup_nm(keyfile);
 
                     keylist_update();
                     put_byte(sb, SSH_AGENT_SUCCESS);
@@ -1205,8 +1200,7 @@ static PageantAsyncOp *pageant_make_op(
                 public_blob = NULL;
                 pk->sort.public_blob = ptrlen_from_strbuf(pk->public_blob);
                 pk->comment = dupstr(comment);
-                pk->encrypted_key_file = strbuf_new_nm();
-                put_datapl(pk->encrypted_key_file, keyfile);
+                pk->encrypted_key_file = strbuf_dup_nm(keyfile);
 
                 PageantKey *added = add234(keytree, pk);
                 assert(added == pk); (void)added;
@@ -2233,8 +2227,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
     if (kl1) {
         for (size_t i = 0; i < kl1->nkeys; i++) {
-            cbkey.blob = strbuf_new();
-            put_datapl(cbkey.blob, kl1->keys[i].blob);
+            cbkey.blob = strbuf_dup(kl1->keys[i].blob);
             cbkey.comment = mkstr(kl1->keys[i].comment);
             cbkey.ssh_version = 1;
 
@@ -2265,8 +2258,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
     if (kl2) {
         for (size_t i = 0; i < kl2->nkeys; i++) {
-            cbkey.blob = strbuf_new();
-            put_datapl(cbkey.blob, kl2->keys[i].blob);
+            cbkey.blob = strbuf_dup(kl2->keys[i].blob);
             cbkey.comment = mkstr(kl2->keys[i].comment);
             cbkey.ssh_version = 2;
 
