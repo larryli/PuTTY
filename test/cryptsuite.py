@@ -8,7 +8,7 @@ import functools
 import contextlib
 import hashlib
 import binascii
-import base64
+from base64 import b64decode as b64
 import json
 try:
     from math import gcd
@@ -20,11 +20,6 @@ from testcrypt import *
 from ssh import *
 
 assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
-
-try:
-    base64decode = base64.decodebytes
-except AttributeError:
-    base64decode = base64.decodestring
 
 def unhex(s):
     return binascii.unhexlify(s.replace(" ", "").replace("\n", ""))
@@ -1386,9 +1381,9 @@ class crypt(MyTestBase):
 
     def testSSH2Fingerprints(self):
         # A sensible key blob that we can make sense of.
-        sensible_blob = base64.decodebytes(
-            b'AAAAC3NzaC1lZDI1NTE5AAAAICWiV0VAD4lQ7taUN7vZ5Rkc'
-            b'SLJBW5ubn6ZINwCOzpn3')
+        sensible_blob = b64(
+            'AAAAC3NzaC1lZDI1NTE5AAAAICWiV0VAD4lQ7taUN7vZ5Rkc'
+            'SLJBW5ubn6ZINwCOzpn3')
         self.assertEqual(ssh2_fingerprint_blob(sensible_blob, "sha256"),
                          b'ssh-ed25519 255 SHA256:'
                          b'E4VmaHW0sUF7SUgSEOmMJ8WBtt0e/j3zbsKvyqfFnu4')
@@ -2300,8 +2295,8 @@ culpa qui officia deserunt mollit anim id est laborum.
 
         for alg, pubb64, privb64, bits, cachestr, siglist in test_keys:
             # Decode the blobs in the above test data.
-            pubblob = base64decode(pubb64.encode('ASCII'))
-            privblob = base64decode(privb64.encode('ASCII'))
+            pubblob = b64(pubb64)
+            privblob = b64(privb64)
 
             # Check the method that examines a public blob directly
             # and returns an integer showing the key size.
@@ -2335,7 +2330,7 @@ culpa qui officia deserunt mollit anim id est laborum.
             # value.
             for flags, sigb64 in siglist:
                 # Decode the signature blob from the test data.
-                sigblob = base64decode(sigb64.encode('ASCII'))
+                sigblob = b64(sigb64)
 
                 # Sign our test message, and check it produces exactly
                 # the expected signature blob.
@@ -3293,8 +3288,7 @@ class standard_test_vectors(MyTestBase):
                   "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v",
                   "FQhe/qaU925kfnzjCev0ciny7QMkPqMAFRtzCUYo5tdS", 1,
                   "MD5", False]
-        cnonce = base64.decodebytes(
-            b'f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ')
+        cnonce = b64('f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ')
         with queued_specific_random_data(cnonce):
             self.assertEqual(http_digest_response(*params),
                              b'username="Mufasa", '
@@ -3341,8 +3335,7 @@ class standard_test_vectors(MyTestBase):
                   "5TsQWLVdgBdmrQ0XsxbDODV+57QdFR34I9HAbC/RVvkK",
                   "HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS", 1,
                   "SHA-512-256", True]
-        cnonce = base64.decodebytes(
-            b'NTg6RKcb9boFIAS3KrFK9BGeh+iDa/sm6jUMp2wds69v')
+        cnonce = b64('NTg6RKcb9boFIAS3KrFK9BGeh+iDa/sm6jUMp2wds69v')
         with queued_specific_random_data(cnonce):
             self.assertEqual(http_digest_response(*params),
                              b'username="488869477bf257147b804c45308cd62ac4e25eb717b12b298c79e62dcea254ec", '
