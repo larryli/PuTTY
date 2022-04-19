@@ -137,6 +137,8 @@ void help(void)
            "  -L    equivalent to `-O public-openssh'\n"
            "  -p    equivalent to `-O public'\n"
            "  --dump   equivalent to `-O text'\n"
+           "  --certificate file   incorporate a certificate into the key\n"
+           "  --remove-certificate remove any certificate from the key\n"
            "  --reencrypt          load a key and save it with fresh "
            "encryption\n"
            "  --old-passphrase file\n"
@@ -250,6 +252,8 @@ int main(int argc, char **argv)
     char *old_passphrase = NULL, *new_passphrase = NULL;
     bool load_encrypted;
     const char *random_device = NULL;
+    char *certfile = NULL;
+    bool remove_cert = false;
     int exit_status = 0;
     const PrimeGenerationPolicy *primegen = &primegen_probabilistic;
     bool strong_rsa = false;
@@ -392,6 +396,18 @@ int main(int argc, char **argv)
                         }
                     } else if (!strcmp(opt, "-strong-rsa")) {
                         strong_rsa = true;
+                    } else if (!strcmp(opt, "-certificate")) {
+                      if (!val && argc > 1)
+                          --argc, val = *++argv;
+                      if (!val) {
+                        errs = true;
+                        fprintf(stderr, "puttygen: option `-%s'"
+                                " expects an argument\n", opt);
+                      } else {
+                        certfile = val;
+                      }
+                    } else if (!strcmp(opt, "-remove-certificate")) {
+                        remove_cert = true;
                     } else if (!strcmp(opt, "-reencrypt")) {
                         reencrypt = true;
                     } else if (!strcmp(opt, "-ppk-param") ||
@@ -799,7 +815,8 @@ int main(int argc, char **argv)
             outfiletmp = dupcat(outfile, ".tmp");
         }
 
-        if (!change_passphrase && !comment && !reencrypt) {
+        if (!change_passphrase && !comment && !reencrypt && !certfile &&
+            !remove_cert) {
             fprintf(stderr, "puttygen: this command would perform no useful"
                     " action\n");
             RETURN(1);
@@ -846,6 +863,26 @@ int main(int argc, char **argv)
     if (load_encrypted && !intype_has_private) {
         fprintf(stderr, "puttygen: cannot perform this action on a "
                 "public-key-only input file\n");
+        RETURN(1);
+    }
+
+    /*
+     * Check consistency properties relating to certificates.
+     */
+    if (certfile && !(sshver == 2 && intype_has_private &&
+                      outtype_has_private && infile)) {
+        fprintf(stderr, "puttygen: certificates can only be added to "
+                "existing SSH-2 private key files\n");
+        RETURN(1);
+    }
+    if (remove_cert && !(sshver == 2 && infile)) {
+        fprintf(stderr, "puttygen: certificates can only be removed from "
+                "existing SSH-2 key files\n");
+        RETURN(1);
+    }
+    if (certfile && remove_cert) {
+        fprintf(stderr, "puttygen: cannot both add and remove a "
+                "certificate\n");
         RETURN(1);
     }
 
@@ -1078,6 +1115,124 @@ int main(int argc, char **argv)
             assert(ssh2key);
             sfree(ssh2key->comment);
             ssh2key->comment = dupstr(comment);
+        }
+    }
+
+    /*
+     * Swap out the public key for a different one, if asked to.
+     */
+    if (certfile) {
+        Filename *certfilename = filename_from_str(certfile);
+        LoadedFile *certfile_lf;
+        const char *error = NULL;
+
+        if (!strcmp(certfile, "-"))
+            certfile_lf = lf_load_keyfile_fp(stdin, &error);
+        else
+            certfile_lf = lf_load_keyfile(certfilename, &error);
+
+        filename_free(certfilename);
+
+        if (!certfile_lf) {
+            fprintf(stderr, "puttygen: unable to load certificate file `%s': "
+                    "%s\n", certfile, error);
+            RETURN(1);
+        }
+
+        char *algname = NULL;
+        char *comment = NULL;
+        strbuf *pub = strbuf_new();
+        if (!ppk_loadpub_s(BinarySource_UPCAST(certfile_lf), &algname,
+                           BinarySink_UPCAST(pub), &comment, &error)) {
+            fprintf(stderr, "puttygen: unable to load certificate file `%s': "
+                    "%s\n", certfile, error);
+            strbuf_free(pub);
+            sfree(algname);
+            sfree(comment);
+            lf_free(certfile_lf);
+            RETURN(1);
+        }
+
+        lf_free(certfile_lf);
+        sfree(comment);
+
+        const ssh_keyalg *alg = find_pubkey_alg(algname);
+        if (!alg) {
+            fprintf(stderr, "puttygen: certificate file `%s' has unsupported "
+                    "algorithm name `%s'\n", certfile, algname);
+            strbuf_free(pub);
+            sfree(algname);
+            RETURN(1);
+        }
+
+        sfree(algname);
+
+        /* Check the two public keys match apart from certificates */
+        strbuf *old_basepub = strbuf_new();
+        ssh_key_public_blob(ssh_key_base_key(ssh2key->key),
+                            BinarySink_UPCAST(old_basepub));
+
+        ssh_key *new_pubkey = ssh_key_new_pub(alg, ptrlen_from_strbuf(pub));
+        strbuf *new_basepub = strbuf_new();
+        ssh_key_public_blob(ssh_key_base_key(new_pubkey),
+                            BinarySink_UPCAST(new_basepub));
+        ssh_key_free(new_pubkey);
+
+        bool match = ptrlen_eq_ptrlen(ptrlen_from_strbuf(old_basepub),
+                                      ptrlen_from_strbuf(new_basepub));
+        strbuf_free(old_basepub);
+        strbuf_free(new_basepub);
+
+        if (!match) {
+            fprintf(stderr, "puttygen: certificate in `%s' does not match "
+                    "public key in `%s'\n", certfile, infile);
+            strbuf_free(pub);
+            RETURN(1);
+        }
+
+        strbuf *priv = strbuf_new_nm();
+        ssh_key_private_blob(ssh2key->key, BinarySink_UPCAST(priv));
+        ssh_key *newkey = ssh_key_new_priv(
+            alg, ptrlen_from_strbuf(pub), ptrlen_from_strbuf(priv));
+        strbuf_free(pub);
+        strbuf_free(priv);
+
+        if (!newkey) {
+            fprintf(stderr, "puttygen: unable to combine certificate in `%s' "
+                    "with private key\n", certfile);
+            RETURN(1);
+        }
+
+        ssh_key_free(ssh2key->key);
+        ssh2key->key = newkey;
+    } else if (remove_cert) {
+        /*
+         * Removing a certificate can be meaningfully done to a pure
+         * public key blob, as well as a full key pair.
+         */
+        if (ssh2key) {
+            ssh_key *newkey = ssh_key_clone(ssh_key_base_key(ssh2key->key));
+            ssh_key_free(ssh2key->key);
+            ssh2key->key = newkey;
+        } else if (ssh2blob) {
+            ptrlen algname = pubkey_blob_to_alg_name(
+                ptrlen_from_strbuf(ssh2blob));
+
+            const ssh_keyalg *alg = find_pubkey_alg_len(algname);
+
+            if (!alg) {
+                fprintf(stderr, "puttygen: input file `%s' has unsupported "
+                        "algorithm name `%.*s'\n", infile,
+                        PTRLEN_PRINTF(algname));
+                RETURN(1);
+            }
+
+            ssh_key *tmpkey = ssh_key_new_pub(
+                alg, ptrlen_from_strbuf(ssh2blob));
+            strbuf_clear(ssh2blob);
+            ssh_key_public_blob(ssh_key_base_key(tmpkey),
+                                BinarySink_UPCAST(ssh2blob));
+            ssh_key_free(tmpkey);
         }
     }
 
