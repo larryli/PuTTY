@@ -498,6 +498,7 @@ const ssh_keyalg ssh_dsa = {
     .cache_str = dsa_cache_str,
     .components = dsa_components,
     .pubkey_bits = dsa_pubkey_bits,
+    .supported_flags = nullkey_supported_flags,
     .ssh_id = "ssh-dss",
     .cache_id = "dss",
 };

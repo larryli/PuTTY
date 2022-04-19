@@ -839,6 +839,11 @@ static char *rsa2_invalid(ssh_key *key, unsigned flags)
     return NULL;
 }
 
+static unsigned ssh_rsa_supported_flags(const ssh_keyalg *self)
+{
+    return SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512;
+}
+
 static const struct ssh2_rsa_extra
     rsa_extra = { 0 },
     rsa_sha256_extra = { SSH_AGENT_RSA_SHA2_256 },
@@ -863,21 +868,21 @@ static const struct ssh2_rsa_extra
 const ssh_keyalg ssh_rsa = {
     COMMON_KEYALG_FIELDS,
     .ssh_id = "ssh-rsa",
-    .supported_flags = SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512,
+    .supported_flags = ssh_rsa_supported_flags,
     .extra = &rsa_extra,
 };
 
 const ssh_keyalg ssh_rsa_sha256 = {
     COMMON_KEYALG_FIELDS,
     .ssh_id = "rsa-sha2-256",
-    .supported_flags = 0,
+    .supported_flags = nullkey_supported_flags,
     .extra = &rsa_sha256_extra,
 };
 
 const ssh_keyalg ssh_rsa_sha512 = {
     COMMON_KEYALG_FIELDS,
     .ssh_id = "rsa-sha2-512",
-    .supported_flags = 0,
+    .supported_flags = nullkey_supported_flags,
     .extra = &rsa_sha512_extra,
 };
 

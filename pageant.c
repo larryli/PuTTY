@@ -432,7 +432,7 @@ static void signop_coroutine(PageantAsyncOp *pao)
         signop_unlink(so);
     }
 
-    uint32_t supported_flags = ssh_key_alg(so->pk->skey->key)->supported_flags;
+    uint32_t supported_flags = ssh_key_supported_flags(so->pk->skey->key);
     if (so->flags & ~supported_flags) {
         /*
          * We MUST reject any message containing flags we don't
