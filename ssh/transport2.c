@@ -640,17 +640,21 @@ static void ssh2_write_kexinit_lists(
             alg->u.hk.hkflags = 0;
             alg->u.hk.warn = false;
 
-            if (keyalg == &ssh_rsa) {
-                alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
-                                          "rsa-sha2-256");
-                alg->u.hk.hostkey = keyalg;
-                alg->u.hk.hkflags = SSH_AGENT_RSA_SHA2_256;
-                alg->u.hk.warn = false;
+            uint32_t supported_flags = ssh_keyalg_supported_flags(keyalg);
+            static const uint32_t try_flags[] = {
+                SSH_AGENT_RSA_SHA2_256,
+                SSH_AGENT_RSA_SHA2_512,
+            };
+            for (size_t i = 0; i < lenof(try_flags); i++) {
+                if (try_flags[i] & ~supported_flags)
+                    continue;          /* these flags not supported */
 
-                alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
-                                          "rsa-sha2-512");
+                alg = ssh2_kexinit_addalg(
+                    &kexlists[KEXLIST_HOSTKEY],
+                    ssh_keyalg_alternate_ssh_id(keyalg, try_flags[i]));
+
                 alg->u.hk.hostkey = keyalg;
-                alg->u.hk.hkflags = SSH_AGENT_RSA_SHA2_512;
+                alg->u.hk.hkflags = try_flags[i];
                 alg->u.hk.warn = false;
             }
         }

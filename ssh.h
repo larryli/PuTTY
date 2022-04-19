@@ -835,6 +835,7 @@ struct ssh_keyalg {
     /* 'Class methods' that don't deal with an ssh_key at all */
     int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
     unsigned (*supported_flags) (const ssh_keyalg *self);
+    const char *(*alternate_ssh_id) (const ssh_keyalg *self, unsigned flags);
 
     /* Constant data fields giving information about the key type */
     const char *ssh_id;    /* string identifier in the SSH protocol */
@@ -881,9 +882,13 @@ static inline const unsigned ssh_key_supported_flags(ssh_key *key)
 { return key->vt->supported_flags(key->vt); }
 static inline const unsigned ssh_keyalg_supported_flags(const ssh_keyalg *self)
 { return self->supported_flags(self); }
+static inline const char *ssh_keyalg_alternate_ssh_id(
+    const ssh_keyalg *self, unsigned flags)
+{ return self->alternate_ssh_id(self, flags); }
 
 /* Stub functions shared between multiple key types */
 unsigned nullkey_supported_flags(const ssh_keyalg *self);
+const char *nullkey_alternate_ssh_id(const ssh_keyalg *self, unsigned flags);
 
 /*
  * SSH2 ECDH key exchange vtable

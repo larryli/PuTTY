@@ -844,6 +844,15 @@ static unsigned ssh_rsa_supported_flags(const ssh_keyalg *self)
     return SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512;
 }
 
+const char *ssh_rsa_alternate_ssh_id(const ssh_keyalg *self, unsigned flags)
+{
+    if (flags & SSH_AGENT_RSA_SHA2_512)
+        return ssh_rsa_sha512.ssh_id;
+    if (flags & SSH_AGENT_RSA_SHA2_256)
+        return ssh_rsa_sha256.ssh_id;
+    return self->ssh_id;
+}
+
 static const struct ssh2_rsa_extra
     rsa_extra = { 0 },
     rsa_sha256_extra = { SSH_AGENT_RSA_SHA2_256 },
@@ -869,6 +878,7 @@ const ssh_keyalg ssh_rsa = {
     COMMON_KEYALG_FIELDS,
     .ssh_id = "ssh-rsa",
     .supported_flags = ssh_rsa_supported_flags,
+    .alternate_ssh_id = ssh_rsa_alternate_ssh_id,
     .extra = &rsa_extra,
 };
 
@@ -876,6 +886,7 @@ const ssh_keyalg ssh_rsa_sha256 = {
     COMMON_KEYALG_FIELDS,
     .ssh_id = "rsa-sha2-256",
     .supported_flags = nullkey_supported_flags,
+    .alternate_ssh_id = nullkey_alternate_ssh_id,
     .extra = &rsa_sha256_extra,
 };
 
@@ -883,6 +894,7 @@ const ssh_keyalg ssh_rsa_sha512 = {
     COMMON_KEYALG_FIELDS,
     .ssh_id = "rsa-sha2-512",
     .supported_flags = nullkey_supported_flags,
+    .alternate_ssh_id = nullkey_alternate_ssh_id,
     .extra = &rsa_sha512_extra,
 };
 

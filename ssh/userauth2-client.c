@@ -247,6 +247,31 @@ static PktIn *ssh2_userauth_pop(struct ssh2_userauth_state *s)
     return pq_pop(s->ppl.in_pq);
 }
 
+static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
+                                    unsigned *signflags, const char **algname)
+{
+    *signflags = 0;                    /* default */
+
+    const ssh_keyalg *alg = find_pubkey_alg(*algname);
+    if (!alg)
+        return false;          /* we don't know how to upgrade this */
+
+    unsigned supported_flags = ssh_keyalg_supported_flags(alg);
+
+    if (s->ppl.bpp->ext_info_rsa_sha512_ok &&
+        (supported_flags & SSH_AGENT_RSA_SHA2_512)) {
+        *signflags = SSH_AGENT_RSA_SHA2_512;
+    } else if (s->ppl.bpp->ext_info_rsa_sha256_ok &&
+               (supported_flags & SSH_AGENT_RSA_SHA2_256)) {
+        *signflags = SSH_AGENT_RSA_SHA2_256;
+    } else {
+        return false;
+    }
+
+    *algname = ssh_keyalg_alternate_ssh_id(alg, *signflags);
+    return true;
+}
+
 static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 {
     struct ssh2_userauth_state *s =
@@ -712,18 +737,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                  * Attempt public-key authentication using a key from Pageant.
                  */
                 s->agent_keyalg = s->agent_keys[s->agent_key_index].algorithm;
-                s->signflags = 0;
-                if (ptrlen_eq_string(s->agent_keyalg, "ssh-rsa")) {
-                    /* Try to upgrade ssh-rsa to one of the rsa-sha2-* family,
-                     * if the server has announced support for them. */
-                    if (s->ppl.bpp->ext_info_rsa_sha512_ok) {
-                        s->agent_keyalg = PTRLEN_LITERAL("rsa-sha2-512");
-                        s->signflags = SSH_AGENT_RSA_SHA2_512;
-                    } else if (s->ppl.bpp->ext_info_rsa_sha256_ok) {
-                        s->agent_keyalg = PTRLEN_LITERAL("rsa-sha2-256");
-                        s->signflags = SSH_AGENT_RSA_SHA2_256;
-                    }
-                }
+                char *alg_tmp = mkstr(s->agent_keyalg);
+                const char *newalg = alg_tmp;
+                if (ssh2_userauth_signflags(s, &s->signflags, &newalg))
+                    s->agent_keyalg = ptrlen_from_asciz(newalg);
+                sfree(alg_tmp);
 
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_PUBLICKEY;
 
@@ -845,18 +863,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                  *
                  * First, try to upgrade its algorithm.
                  */
-                if (!strcmp(s->publickey_algorithm, "ssh-rsa")) {
-                    /* Try to upgrade ssh-rsa to one of the rsa-sha2-* family,
-                     * if the server has announced support for them. */
-                    if (s->ppl.bpp->ext_info_rsa_sha512_ok) {
-                        sfree(s->publickey_algorithm);
-                        s->publickey_algorithm = dupstr("rsa-sha2-512");
-                        s->signflags = SSH_AGENT_RSA_SHA2_512;
-                    } else if (s->ppl.bpp->ext_info_rsa_sha256_ok) {
-                        sfree(s->publickey_algorithm);
-                        s->publickey_algorithm = dupstr("rsa-sha2-256");
-                        s->signflags = SSH_AGENT_RSA_SHA2_256;
-                    }
+                const char *newalg = s->publickey_algorithm;
+                if (ssh2_userauth_signflags(s, &s->signflags, &newalg)) {
+                    sfree(s->publickey_algorithm);
+                    s->publickey_algorithm = dupstr(newalg);
                 }
 
                 /*
