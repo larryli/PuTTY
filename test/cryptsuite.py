@@ -2418,7 +2418,7 @@ Private-MAC: 6f5e588e475e55434106ec2c3569695b03f423228b44993a9e97d52ffe7be5a8
                          (True, algorithm, public_blob, comment, None))
         self.assertEqual(ppk_loadpub_s("not a key file"),
                          (False, None, b'', None,
-                          b'not a PuTTY SSH-2 private key'))
+                          b'not a public key or a PuTTY SSH-2 private key'))
 
         k1, c, e = ppk_load_s(input_clear_key, None)
         self.assertEqual((c, e), (comment, None))
@@ -2480,7 +2480,7 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
                          (True, algorithm, public_blob, comment, None))
         self.assertEqual(ppk_loadpub_s("not a key file"),
                          (False, None, b'', None,
-                          b'not a PuTTY SSH-2 private key'))
+                          b'not a public key or a PuTTY SSH-2 private key'))
 
         k1, c, e = ppk_load_s(v2_clear_key, None)
         self.assertEqual((c, e), (comment, None))

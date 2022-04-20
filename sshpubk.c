@@ -1237,7 +1237,7 @@ bool ppk_loadpub_s(BinarySource *src, char **algorithm, BinarySink *bs,
         bool ret = openssh_loadpub(src, algorithm, bs, commentptr, errorstr);
         return ret;
     } else if (type != SSH_KEYTYPE_SSH2) {
-        error = "not a PuTTY SSH-2 private key";
+        error = "not a public key or a PuTTY SSH-2 private key";
         goto error;
     }
 
@@ -1249,7 +1249,7 @@ bool ppk_loadpub_s(BinarySource *src, char **algorithm, BinarySink *bs,
         if (0 == strncmp(header, "PuTTY-User-Key-File-", 20))
             error = "PuTTY key format too new";
         else
-            error = "not a PuTTY SSH-2 private key";
+            error = "not a public key or a PuTTY SSH-2 private key";
         goto error;
     }
     error = "file format error";
