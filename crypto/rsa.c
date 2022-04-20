@@ -522,6 +522,12 @@ static key_components *rsa2_components(ssh_key *key)
     return rsa_components(rsa);
 }
 
+static bool rsa2_has_private(ssh_key *key)
+{
+    RSAKey *rsa = container_of(key, RSAKey, sshk);
+    return rsa->private_exponent != NULL;
+}
+
 static void rsa2_public_blob(ssh_key *key, BinarySink *bs)
 {
     RSAKey *rsa = container_of(key, RSAKey, sshk);
@@ -869,6 +875,7 @@ static const struct ssh2_rsa_extra
     .public_blob = rsa2_public_blob,            \
     .private_blob = rsa2_private_blob,          \
     .openssh_blob = rsa2_openssh_blob,          \
+    .has_private = rsa2_has_private,            \
     .cache_str = rsa2_cache_str,                \
     .components = rsa2_components,              \
     .pubkey_bits = rsa2_pubkey_bits,            \

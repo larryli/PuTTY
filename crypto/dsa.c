@@ -317,6 +317,12 @@ static void dsa_openssh_blob(ssh_key *key, BinarySink *bs)
     put_mp_ssh2(bs, dsa->x);
 }
 
+static bool dsa_has_private(ssh_key *key)
+{
+    struct dsa_key *dsa = container_of(key, struct dsa_key, sshk);
+    return dsa->x != NULL;
+}
+
 static int dsa_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
 {
     ssh_key *sshk;
@@ -495,6 +501,7 @@ const ssh_keyalg ssh_dsa = {
     .public_blob = dsa_public_blob,
     .private_blob = dsa_private_blob,
     .openssh_blob = dsa_openssh_blob,
+    .has_private = dsa_has_private,
     .cache_str = dsa_cache_str,
     .components = dsa_components,
     .pubkey_bits = dsa_pubkey_bits,

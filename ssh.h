@@ -841,6 +841,7 @@ struct ssh_keyalg {
     void (*public_blob)(ssh_key *key, BinarySink *);
     void (*private_blob)(ssh_key *key, BinarySink *);
     void (*openssh_blob) (ssh_key *key, BinarySink *);
+    bool (*has_private) (ssh_key *key);
     char *(*cache_str) (ssh_key *key);
     key_components *(*components) (ssh_key *key);
 
@@ -878,6 +879,8 @@ static inline void ssh_key_private_blob(ssh_key *key, BinarySink *bs)
 { key->vt->private_blob(key, bs); }
 static inline void ssh_key_openssh_blob(ssh_key *key, BinarySink *bs)
 { key->vt->openssh_blob(key, bs); }
+static inline bool ssh_key_has_private(ssh_key *key)
+{ return key->vt->has_private(key); }
 static inline char *ssh_key_cache_str(ssh_key *key)
 { return key->vt->cache_str(key); }
 static inline key_components *ssh_key_components(ssh_key *key)
@@ -901,6 +904,9 @@ static inline const char *ssh_keyalg_alternate_ssh_id(
 /* Stub functions shared between multiple key types */
 unsigned nullkey_supported_flags(const ssh_keyalg *self);
 const char *nullkey_alternate_ssh_id(const ssh_keyalg *self, unsigned flags);
+
+/* Utility functions implemented centrally */
+ssh_key *ssh_key_clone(ssh_key *key);
 
 /*
  * SSH2 ECDH key exchange vtable

@@ -49,6 +49,7 @@ add_sources_from_current_dir(utils
   smemclr.c
   smemeq.c
   spr_get_error_message.c
+  ssh_key_clone.c
   ssh2_pick_fingerprint.c
   sshutils.c
   strbuf.c

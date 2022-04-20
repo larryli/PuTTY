@@ -787,6 +787,12 @@ static void ecdsa_private_blob(ssh_key *key, BinarySink *bs)
     put_mp_ssh2(bs, ek->privateKey);
 }
 
+static bool ecdsa_has_private(ssh_key *key)
+{
+    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
+    return ek->privateKey != NULL;
+}
+
 static void eddsa_private_blob(ssh_key *key, BinarySink *bs)
 {
     struct eddsa_key *ek = container_of(key, struct eddsa_key, sshk);
@@ -794,6 +800,12 @@ static void eddsa_private_blob(ssh_key *key, BinarySink *bs)
     /* EdDSA stores the private key integer little-endian and unsigned */
     assert(ek->privateKey);
     put_mp_le_fixedlen(bs, ek->privateKey, ek->curve->fieldBytes);
+}
+
+static bool eddsa_has_private(ssh_key *key)
+{
+    struct eddsa_key *ek = container_of(key, struct eddsa_key, sshk);
+    return ek->privateKey != NULL;
 }
 
 static ssh_key *ecdsa_new_priv(const ssh_keyalg *alg, ptrlen pub, ptrlen priv)
@@ -1254,6 +1266,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
     .public_blob = eddsa_public_blob,
     .private_blob = eddsa_private_blob,
     .openssh_blob = eddsa_openssh_blob,
+    .has_private = eddsa_has_private,
     .cache_str = eddsa_cache_str,
     .components = eddsa_components,
     .pubkey_bits = ec_shared_pubkey_bits,
@@ -1279,6 +1292,7 @@ const ssh_keyalg ssh_ecdsa_ed448 = {
     .public_blob = eddsa_public_blob,
     .private_blob = eddsa_private_blob,
     .openssh_blob = eddsa_openssh_blob,
+    .has_private = eddsa_has_private,
     .cache_str = eddsa_cache_str,
     .components = eddsa_components,
     .pubkey_bits = ec_shared_pubkey_bits,
@@ -1308,6 +1322,7 @@ const ssh_keyalg ssh_ecdsa_nistp256 = {
     .public_blob = ecdsa_public_blob,
     .private_blob = ecdsa_private_blob,
     .openssh_blob = ecdsa_openssh_blob,
+    .has_private = ecdsa_has_private,
     .cache_str = ecdsa_cache_str,
     .components = ecdsa_components,
     .pubkey_bits = ec_shared_pubkey_bits,
@@ -1337,6 +1352,7 @@ const ssh_keyalg ssh_ecdsa_nistp384 = {
     .public_blob = ecdsa_public_blob,
     .private_blob = ecdsa_private_blob,
     .openssh_blob = ecdsa_openssh_blob,
+    .has_private = ecdsa_has_private,
     .cache_str = ecdsa_cache_str,
     .components = ecdsa_components,
     .pubkey_bits = ec_shared_pubkey_bits,
@@ -1366,6 +1382,7 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
     .public_blob = ecdsa_public_blob,
     .private_blob = ecdsa_private_blob,
     .openssh_blob = ecdsa_openssh_blob,
+    .has_private = ecdsa_has_private,
     .cache_str = ecdsa_cache_str,
     .components = ecdsa_components,
     .pubkey_bits = ec_shared_pubkey_bits,
