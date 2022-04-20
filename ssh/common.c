@@ -607,11 +607,16 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset)
  * lists of protocol identifiers in SSH-2.
  */
 
-void add_to_commasep(strbuf *buf, const char *data)
+void add_to_commasep_pl(strbuf *buf, ptrlen data)
 {
     if (buf->len > 0)
         put_byte(buf, ',');
-    put_data(buf, data, strlen(data));
+    put_datapl(buf, data);
+}
+
+void add_to_commasep(strbuf *buf, const char *data)
+{
+    add_to_commasep_pl(buf, ptrlen_from_asciz(data));
 }
 
 bool get_commasep_word(ptrlen *list, ptrlen *word)

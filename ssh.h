@@ -1732,6 +1732,7 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset);
               alloc_channel_id_general(tree, offsetof(type, localid)))
 
 void add_to_commasep(strbuf *buf, const char *data);
+void add_to_commasep_pl(strbuf *buf, ptrlen data);
 bool get_commasep_word(ptrlen *list, ptrlen *word);
 
 SeatPromptResult verify_ssh_host_key(
