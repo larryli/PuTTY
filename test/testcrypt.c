@@ -806,6 +806,39 @@ strbuf *ssh2_mac_genresult_wrapper(ssh2_mac *m)
     return sb;
 }
 
+ssh_key *ssh_key_base_key_wrapper(ssh_key *key)
+{
+    /* To avoid having to explain the borrowed reference to Python,
+     * just clone the key unconditionally */
+    return ssh_key_clone(ssh_key_base_key(key));
+}
+
+void ssh_key_ca_public_blob_wrapper(ssh_key *key, BinarySink *out)
+{
+    /* Wrap to avoid null-pointer dereference */
+    if (!key->vt->is_certificate)
+        fatal_error("ssh_key_ca_public_blob: needs a certificate");
+    ssh_key_ca_public_blob(key, out);
+}
+
+void ssh_key_cert_id_string_wrapper(ssh_key *key, BinarySink *out)
+{
+    /* Wrap to avoid null-pointer dereference */
+    if (!key->vt->is_certificate)
+        fatal_error("ssh_key_cert_id_string: needs a certificate");
+    ssh_key_cert_id_string(key, out);
+}
+
+static bool ssh_key_check_cert_wrapper(
+    ssh_key *key, bool host, ptrlen principal, uint64_t time,
+    BinarySink *error)
+{
+    /* Wrap to avoid null-pointer dereference */
+    if (!key->vt->is_certificate)
+        fatal_error("ssh_key_cert_id_string: needs a certificate");
+    return ssh_key_check_cert(key, host, principal, time, error);
+}
+
 bool dh_validate_f_wrapper(dh_ctx *dh, mp_int *f)
 {
     return dh_validate_f(dh, f) == NULL;

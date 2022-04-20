@@ -504,6 +504,7 @@ const ssh_keyalg ssh_dsa = {
     .has_private = dsa_has_private,
     .cache_str = dsa_cache_str,
     .components = dsa_components,
+    .base_key = nullkey_base_key,
     .pubkey_bits = dsa_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,

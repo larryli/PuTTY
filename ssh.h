@@ -844,11 +844,20 @@ struct ssh_keyalg {
     bool (*has_private) (ssh_key *key);
     char *(*cache_str) (ssh_key *key);
     key_components *(*components) (ssh_key *key);
+    ssh_key *(*base_key) (ssh_key *key); /* does not confer ownership */
+    /* The following methods can be NULL if !is_certificate */
+    void (*ca_public_blob)(ssh_key *key, BinarySink *);
+    bool (*check_cert)(ssh_key *key, bool host, ptrlen principal,
+                       uint64_t time, BinarySink *error);
+    void (*cert_id_string)(ssh_key *key, BinarySink *);
 
     /* 'Class methods' that don't deal with an ssh_key at all */
     int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
     unsigned (*supported_flags) (const ssh_keyalg *self);
     const char *(*alternate_ssh_id) (const ssh_keyalg *self, unsigned flags);
+    /* The following methods can be NULL if !is_certificate */
+    const ssh_keyalg *(*related_alg)(const ssh_keyalg *self,
+                                     const ssh_keyalg *base);
 
     /* Constant data fields giving information about the key type */
     const char *ssh_id;    /* string identifier in the SSH protocol */
@@ -887,6 +896,16 @@ static inline char *ssh_key_cache_str(ssh_key *key)
 { return key->vt->cache_str(key); }
 static inline key_components *ssh_key_components(ssh_key *key)
 { return key->vt->components(key); }
+static inline ssh_key *ssh_key_base_key(ssh_key *key)
+{ return key->vt->base_key(key); }
+static inline void ssh_key_ca_public_blob(ssh_key *key, BinarySink *bs)
+{ key->vt->ca_public_blob(key, bs); }
+static inline void ssh_key_cert_id_string(ssh_key *key, BinarySink *bs)
+{ key->vt->cert_id_string(key, bs); }
+static inline bool ssh_key_check_cert(
+    ssh_key *key, bool host, ptrlen principal, uint64_t time,
+    BinarySink *error)
+{ return key->vt->check_cert(key, host, principal, time, error); }
 static inline int ssh_key_public_bits(const ssh_keyalg *self, ptrlen blob)
 { return self->pubkey_bits(self, blob); }
 static inline const ssh_keyalg *ssh_key_alg(ssh_key *key)
@@ -902,10 +921,14 @@ static inline const unsigned ssh_keyalg_supported_flags(const ssh_keyalg *self)
 static inline const char *ssh_keyalg_alternate_ssh_id(
     const ssh_keyalg *self, unsigned flags)
 { return self->alternate_ssh_id(self, flags); }
+static inline const ssh_keyalg *ssh_keyalg_related_alg(
+    const ssh_keyalg *self, const ssh_keyalg *base)
+{ return self->related_alg(self, base); }
 
 /* Stub functions shared between multiple key types */
 unsigned nullkey_supported_flags(const ssh_keyalg *self);
 const char *nullkey_alternate_ssh_id(const ssh_keyalg *self, unsigned flags);
+ssh_key *nullkey_base_key(ssh_key *key);
 
 /* Utility functions implemented centrally */
 ssh_key *ssh_key_clone(ssh_key *key);

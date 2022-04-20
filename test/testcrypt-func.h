@@ -302,6 +302,14 @@ FUNC(void, ssh_key_openssh_blob, ARG(val_key, key),
 FUNC(val_string_asciz, ssh_key_cache_str, ARG(val_key, key))
 FUNC(val_keycomponents, ssh_key_components, ARG(val_key, key))
 FUNC(uint, ssh_key_public_bits, ARG(keyalg, self), ARG(val_string_ptrlen, blob))
+FUNC_WRAPPED(val_key, ssh_key_base_key, ARG(val_key, key))
+FUNC_WRAPPED(void, ssh_key_ca_public_blob, ARG(val_key, key),
+             ARG(out_val_string_binarysink, blob))
+FUNC_WRAPPED(void, ssh_key_cert_id_string, ARG(val_key, key),
+             ARG(out_val_string_binarysink, blob))
+FUNC_WRAPPED(boolean, ssh_key_check_cert, ARG(val_key, key),
+             ARG(boolean, host), ARG(val_string_ptrlen, principal),
+             ARG(uint, time), ARG(out_val_string_binarysink, error))
 
 /*
  * Accessors to retrieve the innards of a 'key_components'.

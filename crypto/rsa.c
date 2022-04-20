@@ -878,6 +878,7 @@ static const struct ssh2_rsa_extra
     .has_private = rsa2_has_private,            \
     .cache_str = rsa2_cache_str,                \
     .components = rsa2_components,              \
+    .base_key = nullkey_base_key,               \
     .pubkey_bits = rsa2_pubkey_bits,            \
     .cache_id = "rsa2"
 

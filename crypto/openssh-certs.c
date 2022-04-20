@@ -185,13 +185,21 @@ static bool opensshcert_verify(ssh_key *key, ptrlen sig, ptrlen data);
 static void opensshcert_public_blob(ssh_key *key, BinarySink *bs);
 static void opensshcert_private_blob(ssh_key *key, BinarySink *bs);
 static void opensshcert_openssh_blob(ssh_key *key, BinarySink *bs);
+static void opensshcert_ca_public_blob(ssh_key *key, BinarySink *bs);
+static void opensshcert_cert_id_string(ssh_key *key, BinarySink *bs);
 static bool opensshcert_has_private(ssh_key *key);
 static char *opensshcert_cache_str(ssh_key *key);
 static key_components *opensshcert_components(ssh_key *key);
+static ssh_key *opensshcert_base_key(ssh_key *key);
+static bool opensshcert_check_cert(
+    ssh_key *key, bool host, ptrlen principal, uint64_t time,
+    BinarySink *error);
 static int opensshcert_pubkey_bits(const ssh_keyalg *self, ptrlen blob);
 static unsigned opensshcert_supported_flags(const ssh_keyalg *self);
 static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
                                                 unsigned flags);
+static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
+                                                 const ssh_keyalg *base);
 
 /*
  * Top-level vtables for the certified key formats, defined via a list
@@ -233,9 +241,14 @@ static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
         .has_private = opensshcert_has_private,                         \
         .cache_str = opensshcert_cache_str,                             \
         .components = opensshcert_components,                           \
+        .base_key = opensshcert_base_key,                               \
+        .ca_public_blob = opensshcert_ca_public_blob,                   \
+        .check_cert = opensshcert_check_cert,                           \
+        .cert_id_string = opensshcert_cert_id_string,                   \
         .pubkey_bits = opensshcert_pubkey_bits,                         \
         .supported_flags = opensshcert_supported_flags,                 \
         .alternate_ssh_id = opensshcert_alternate_ssh_id,               \
+        .related_alg = opensshcert_related_alg,                         \
         .ssh_id = ssh_id_prefix "-cert-v01@openssh.com",                \
         .cache_id = NULL,                                               \
         .extra = &opensshcert_##name##_extra,                           \
@@ -419,14 +432,27 @@ static void opensshcert_freekey(ssh_key *key)
     sfree(ck);
 }
 
-static ssh_key *opensshcert_ca_pub_key(opensshcert_key *ck, ptrlen *algname)
+static ssh_key *opensshcert_base_key(ssh_key *key)
+{
+    opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
+    return ck->basekey;
+}
+
+/*
+ * Make a public key object from the CA public blob, potentially
+ * taking into account that the signature might override the algorithm
+ * name
+ */
+static ssh_key *opensshcert_ca_pub_key(
+    opensshcert_key *ck, ptrlen sig, ptrlen *algname)
 {
     ptrlen ca_keyblob = ptrlen_from_strbuf(ck->signature_key);
 
+    ptrlen alg_source = sig.ptr ? sig : ca_keyblob;
     if (algname)
-        *algname = pubkey_blob_to_alg_name(ca_keyblob);
+        *algname = pubkey_blob_to_alg_name(alg_source);
 
-    const ssh_keyalg *ca_alg = pubkey_blob_to_alg(ca_keyblob);
+    const ssh_keyalg *ca_alg = pubkey_blob_to_alg(alg_source);
     if (!ca_alg)
         return NULL;  /* don't even recognise the certifying key type */
 
@@ -492,6 +518,18 @@ static void opensshcert_openssh_blob(ssh_key *key, BinarySink *bs)
     blobtrans_clear(bt);
 
     strbuf_free(baseossh);
+}
+
+static void opensshcert_ca_public_blob(ssh_key *key, BinarySink *bs)
+{
+    opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
+    put_datapl(bs, ptrlen_from_strbuf(ck->signature_key));
+}
+
+static void opensshcert_cert_id_string(ssh_key *key, BinarySink *bs)
+{
+    opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
+    put_datapl(bs, ptrlen_from_strbuf(ck->key_id));
 }
 
 static bool opensshcert_has_private(ssh_key *key)
@@ -588,7 +626,8 @@ static key_components *opensshcert_components(ssh_key *key)
                                   ck->signature_key));
 
     ptrlen ca_algname;
-    ssh_key *ca_key = opensshcert_ca_pub_key(ck, &ca_algname);
+    ssh_key *ca_key = opensshcert_ca_pub_key(ck, make_ptrlen(NULL, 0),
+                                             &ca_algname);
     key_components_add_text_pl(kc, "cert_ca_key_algorithm_id", ca_algname);
 
     if (ca_key) {
@@ -638,10 +677,184 @@ static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
     return self->ssh_id;
 }
 
+static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
+                                                 const ssh_keyalg *base)
+{
+    for (size_t i = 0; i < lenof(opensshcert_all_keyalgs); i++) {
+        const ssh_keyalg *alg_i = opensshcert_all_keyalgs[i];
+        if (base == alg_i->base_alg)
+            return alg_i;
+    }
+
+    return self;
+}
+
 static char *opensshcert_invalid(ssh_key *key, unsigned flags)
 {
     opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
     return ssh_key_invalid(ck->basekey, flags);
+}
+
+static bool opensshcert_check_cert(
+    ssh_key *key, bool host, ptrlen principal, uint64_t time,
+    BinarySink *error)
+{
+    opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
+    bool result = false;
+    ssh_key *ca_key = NULL;
+    strbuf *preimage = strbuf_new();
+    BinarySource src[1];
+
+    ptrlen signature = ptrlen_from_strbuf(ck->signature);
+    /* FIXME: here we should check which signature algorithm is
+     * actually in use, because that might be a reason to reject the
+     * certificate (e.g. ssh-rsa when we wanted rsa-sha2-*) */
+
+    ca_key = opensshcert_ca_pub_key(ck, signature, NULL);
+    if (!ca_key) {
+        put_fmt(error, "Certificate's signing key is invalid");
+        goto out;
+    }
+
+    opensshcert_signature_preimage(ck, BinarySink_UPCAST(preimage));
+
+    if (!ssh_key_verify(ca_key, signature, ptrlen_from_strbuf(preimage))) {
+        put_fmt(error, "Certificate's signature is invalid");
+        goto out;
+    }
+
+    uint32_t expected_type = host ? SSH_CERT_TYPE_HOST : SSH_CERT_TYPE_USER;
+    if (ck->type != expected_type) {
+        put_fmt(error, "Certificate type is ");
+        switch (ck->type) {
+          case SSH_CERT_TYPE_HOST:
+            put_fmt(error, "host");
+            break;
+          case SSH_CERT_TYPE_USER:
+            put_fmt(error, "user");
+            break;
+          default:
+            put_fmt(error, "unknown value %" PRIu32, ck->type);
+            break;
+        }
+        put_fmt(error, "; expected %s", host ? "host" : "user");
+        goto out;
+    }
+
+    /*
+     * Check the time bounds on the certificate.
+     */
+    if (time < ck->valid_after) {
+        put_fmt(error, "Certificate is not valid until ");
+        opensshcert_time_to_iso8601(BinarySink_UPCAST(error), time);
+        goto out;
+    }
+    if (time >= ck->valid_before) {
+        put_fmt(error, "Certificate expired at ");
+        opensshcert_time_to_iso8601(BinarySink_UPCAST(error), time);
+        goto out;
+    }
+
+    /*
+     * Check that this certificate is for the right thing.
+     *
+     * If valid_principals is a zero-length string then this is
+     * specified to be a carte-blanche certificate valid for any
+     * principal (at least, provided you trust the CA that issued it).
+     */
+    if (ck->valid_principals->len != 0) {
+        BinarySource_BARE_INIT_PL(
+            src, ptrlen_from_strbuf(ck->valid_principals));
+
+        while (get_avail(src)) {
+            ptrlen valid_principal = get_string(src);
+            if (get_err(src)) {
+                put_fmt(error, "Certificate's valid principals list is "
+                        "incorrectly formatted");
+                goto out;
+            }
+            if (ptrlen_eq_ptrlen(valid_principal, principal))
+                goto principal_ok;
+        }
+
+        /*
+         * No valid principal matched. Now go through the list a
+         * second time writing the cert contents into the error
+         * message, so that the user can see at a glance what went
+         * wrong.
+         *
+         * (If you've typed the wrong spelling of the host name, you
+         * really need to see "This cert is for 'foo.example.com' and
+         * I was trying to match it against 'foo'", rather than just
+         * "Computer says no".)
+         */
+        put_fmt(error, "Certificate's %s list [",
+                host ? "hostname" : "username");
+        BinarySource_BARE_INIT_PL(
+            src, ptrlen_from_strbuf(ck->valid_principals));
+        const char *sep = "";
+        while (get_avail(src)) {
+            ptrlen valid_principal = get_string(src);
+            put_fmt(error, "%s\"", sep);
+            put_c_string_literal(error, valid_principal);
+            put_fmt(error, "\"");
+            sep = ", ";
+        }
+        put_fmt(error, "] does not contain expected %s \"",
+                host ? "hostname" : "username");
+        put_c_string_literal(error, principal);
+        put_fmt(error, "\"");
+        goto out;
+      principal_ok:;
+    }
+
+    /*
+     * Check for critical options.
+     */
+    {
+        BinarySource_BARE_INIT_PL(
+            src, ptrlen_from_strbuf(ck->critical_options));
+
+        while (get_avail(src)) {
+            ptrlen option = get_string(src);
+            ptrlen data = get_string(src);
+            if (get_err(src)) {
+                put_fmt(error, "Certificate's critical options list is "
+                        "incorrectly formatted");
+                goto out;
+            }
+
+            /*
+             * If we ever do support any options, this will be where
+             * we insert code to recognise and validate them.
+             *
+             * At present, we implement no critical options at all.
+             * (For host certs, as of 2022-04-20, OpenSSH hasn't
+             * defined any. For user certs, the only SSH server using
+             * this is Uppity, which doesn't support key restrictions
+             * in general.)
+             */
+            (void)data; /* no options supported => no use made of the data */
+
+            /*
+             * Report an unrecognised literal.
+             */
+            put_fmt(error, "Certificate specifies an unsupported critical "
+                    "option \"");
+            put_c_string_literal(error, option);
+            put_fmt(error, "\"");
+            goto out;
+        }
+    }
+
+    /* If we get here without failing any check, accept the certificate! */
+    result = true;
+
+  out:
+    if (ca_key)
+        ssh_key_free(ca_key);
+    strbuf_free(preimage);
+    return result;
 }
 
 static bool opensshcert_verify(ssh_key *key, ptrlen sig, ptrlen data)
