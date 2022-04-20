@@ -248,16 +248,21 @@ void ntru_ring_multiply(uint16_t *out, const uint16_t *a, const uint16_t *b,
  * (Maybe more than one if all the stars align in the second case, if
  * the subtraction cancels the leading term as well as the constant
  * term.) So in at most deg A + deg B steps, we must have reached the
- * situation where both polys are constants, and in one more step
- * after that, one of them will be zero. Or rather, that's what
- * happens in the case where A,B are coprime; if not, then one hits
- * zero while the other is still nonzero.
+ * situation where both polys are constants; in one more step after
+ * that, one of them will be zero; and in one step after _that_, the
+ * zero one will reliably be the one we're dividing by x. Or rather,
+ * that's what happens in the case where A,B are coprime; if not, then
+ * one hits zero while the other is still nonzero.
  *
- * Then unwind all the transformations, to find a linear combination
- * of the two original polynomials that yields the nonzero one of the
- * two outputs. (In fact we only need the coefficient of 'in' in that
- * linear combination, but we have to compute both halves, because
- * they keep swapping round during the unwinding.)
+ * In a normal gcd algorithm, you'd track a linear combination of the
+ * two original polynomials that yields each working value, and end up
+ * with a linear combination of the inputs that yields the gcd. In
+ * this algorithm, the 'divide off x' step makes that awkward - but we
+ * can solve that by instead multiplying by the inverse of x in the
+ * ring that we want our answer to be valid in! And since the modulus
+ * polynomial of the ring is x^p-x-1, the inverse of x is easy to
+ * calculate, because it's always just x^{p-1} - 1, which is also very
+ * easy to multiply by.
  */
 unsigned ntru_ring_invert(uint16_t *out, const uint16_t *in,
                           unsigned p, unsigned q)
@@ -268,26 +273,32 @@ unsigned ntru_ring_invert(uint16_t *out, const uint16_t *in,
     const size_t SIZE = p+1;
 
     /* Number of steps of the algorithm is the max possible value of
-     * deg A + deg B + 1, where deg A <= p-1 and deg B = p */
-    const size_t STEPS = 2*p;
+     * deg A + deg B + 2, where deg A <= p-1 and deg B = p */
+    const size_t STEPS = 2*p + 1;
 
     /* Our two working polynomials */
     uint16_t *A = snewn(SIZE, uint16_t);
     uint16_t *B = snewn(SIZE, uint16_t);
 
-    /* History of what we did */
-    uint16_t *multipliers = snewn(STEPS, uint16_t);
-    uint8_t *swaps = snewn(STEPS, uint8_t);
+    /* Coefficient of the input value in each one */
+    uint16_t *Ac = snewn(SIZE, uint16_t);
+    uint16_t *Bc = snewn(SIZE, uint16_t);
 
-    /* Initialise A to the input */
+    /* Initialise A to the input, and Ac correspondingly to 1 */
     memcpy(A, in, p*sizeof(uint16_t));
     A[p] = 0;
+    Ac[0] = 1;
+    for (size_t i = 1; i < SIZE; i++)
+        Ac[i] = 0;
 
-    /* And initialise B to the quotient polynomial of the ring, x^p-x-1 */
+    /* Initialise B to the quotient polynomial of the ring, x^p-x-1
+     * And Bc = 0 */
     B[0] = B[1] = q-1;
     for (size_t i = 2; i < p; i++)
         B[i] = 0;
     B[p] = 1;
+    for (size_t i = 0; i < SIZE; i++)
+        Bc[i] = 0;
 
     /* Run the gcd-finding algorithm. */
     for (size_t i = 0; i < STEPS; i++) {
@@ -318,109 +329,67 @@ unsigned ntru_ring_invert(uint16_t *out, const uint16_t *in,
             A[j] ^= diff;
             B[j] ^= diff;
         }
+        for (size_t j = 0; j < SIZE; j++) {
+            uint16_t diff = (Ac[j] ^ Bc[j]) & swap_mask;
+            Ac[j] ^= diff;
+            Bc[j] ^= diff;
+        }
 
         /*
-         * Add a multiple of B to A to make A's constant term zero. In
-         * one of the two cases, A's constant term is already zero, so
-         * this will do nothing but take the same length of time as
-         * doing something, which is just what we want.
+         * Replace A with a linear combination of both A and B that
+         * has constant term zero, which we do by calculating
          *
-         * Also, shift down by one in the course of doing this.
+         *   (constant term of B) * A - (constant term of A) * B
+         *
+         * In one of the two cases, A's constant term is already zero,
+         * so the coefficient of B will be zero too; hence, this will
+         * do nothing useful (it will merely scale A by some scalar
+         * value), but it will take the same length of time as doing
+         * something, which is just what we want.
          */
-        uint16_t mult = REDUCE((q - A[0]) * INVERT(B[0]));
-        for (size_t j = 1; j < SIZE; j++)
-            A[j-1] = REDUCE(A[j] + mult * B[j]);
-        A[SIZE-1] = 0;
+        uint16_t Amult = B[0], Bmult = q - A[0];
+        for (size_t j = 0; j < SIZE; j++)
+            A[j] = REDUCE(Amult * A[j] + Bmult * B[j]);
+        /* And do the same transformation to Ac */
+        for (size_t j = 0; j < SIZE; j++)
+            Ac[j] = REDUCE(Amult * Ac[j] + Bmult * Bc[j]);
 
         /*
-         * Record what we just did.
+         * Now divide A by x, and compensate by multiplying Ac by
+         * x^{p-1}-1 mod x^p-x-1.
+         *
+         * That multiplication is particularly easy, precisely because
+         * x^{p-1}-1 is the multiplicative inverse of x! Each x^n term
+         * for n>0 just moves down to the x^{n-1} term, and only the
+         * constant term has to be dealt with in an interesting way.
          */
-        swaps[i] = need_swap;
-        multipliers[i] = mult;
+        for (size_t j = 1; j < SIZE; j++)
+            A[j-1] = A[j];
+        A[SIZE-1] = 0;
+        uint16_t Ac0 = Ac[0];
+        for (size_t j = 1; j < p; j++)
+            Ac[j-1] = Ac[j];
+        Ac[p-1] = Ac0;
+        Ac[0] = REDUCE(Ac[0] + q - Ac0);
     }
 
     /*
-     * Now we expect that one of the polynomials is zero, and the
-     * other is zero except for the constant term. If so, then they
-     * are coprime, and we're going to return success. If not, they
-     * have a common factor.
+     * Now we expect that A is 0, and B is a constant. If so, then
+     * they are coprime, and we're going to return success. If not,
+     * they have a common factor.
      */
-    unsigned success = iszero(A[0]) ^ iszero(B[0]);
+    unsigned success = iszero(A[0]) & (1 ^ iszero(B[0]));
     for (size_t j = 1; j < SIZE; j++)
         success &= iszero(A[j]) & iszero(B[j]);
 
     /*
-     * Now unwind to make a linear combination of the two original
-     * polynomials that equals 1 (assuming we're going to return
-     * success).
-     *
-     * We make two polynomials Ac,Bc, with the intention that we'll
-     * preserve the invariant Ac*A + Bc*B = 1 as we rewind through the
-     * steps.
-     *
-     * Initially, we set the coefficient of the zero one of A,B to
-     * zero, and the coefficient of the constant one to be its
-     * inverse.
+     * So we're going to return Bc, but first, scale it by the
+     * multiplicative inverse of the constant we ended up with in
+     * B[0].
      */
-    uint16_t *Ac = snewn(SIZE, uint16_t);
-    uint16_t *Bc = snewn(SIZE, uint16_t);
-    for (size_t i = 1; i < SIZE; i++)
-        Ac[i] = Bc[i] = 0;
-    Ac[0] = INVERT(A[0]);
-    Bc[0] = INVERT(B[0]);
-
-    for (size_t i = STEPS; i-- > 0 ;) {
-        /*
-         * The last thing we did in our step was always to divide A by
-         * x. That is, we currently have 1 as a linear combination of
-         * A and B, and now we need it as a linear combination of A*x
-         * and B.
-         *
-         * We have Ac*A + Bc*B = (Ac+k*B)*A + (Bc-k*A)*B for any k.
-         * So choose k such that Ac+k*B has zero constant term
-         * (possible since B has nonzero constant term), and then we
-         * have 1 = (Ac+k*B)/x * (A*x) + (Bc-k*A) * B.
-         */
-        uint16_t minusk = REDUCE(Ac[0] * INVERT(B[0]));
-        uint16_t k = q - minusk;
-        for (size_t j = 1; j < SIZE; j++)
-            Ac[j-1] = REDUCE(Ac[j] + k * B[j]);
-        Ac[SIZE-1] = 0;
-        for (size_t j = 0; j < SIZE; j++)
-            Bc[j] = REDUCE(Bc[j] + minusk * A[j]);
-
-        /* And unwind the shift of A itself. */
-        memmove(A+1, A, (SIZE-1) * sizeof(*A));
-        A[0] = 0;
-
-        /*
-         * Before that, we added m*B to A. So our new A will be A-m*B.
-         * So we have 1 = Ac*A + Bc*B = Ac*(A-m*B) + (Bc+m*Ac)*B.
-         */
-        uint16_t m = multipliers[i];
-        uint16_t minusm = q - m;
-        for (size_t j = 0; j < SIZE; j++)
-            Bc[j] = REDUCE(Bc[j] + m * Ac[j]);
-        for (size_t j = 0; j < SIZE; j++)
-            A[j] = REDUCE(A[j] + minusm * B[j]);
-
-        /*
-         * And before that, we conditionally swapped A,B.
-         */
-        uint16_t swap_mask = -swaps[i];
-        for (size_t j = 0; j < SIZE; j++) {
-            uint16_t diff;
-            diff = (A[j] ^ B[j]) & swap_mask;
-            A[j] ^= diff;
-            B[j] ^= diff;
-            diff = (Ac[j] ^ Bc[j]) & swap_mask;
-            Ac[j] ^= diff;
-            Bc[j] ^= diff;
-        }
-    }
-
-    /* Done! Our coefficient Ac is the inverse, if one exists. */
-    memcpy(out, Ac, p * sizeof(*out));
+    uint16_t scale = INVERT(B[0]);
+    for (size_t i = 0; i < p; i++)
+        out[i] = REDUCE(scale * Bc[i]);
 
     smemclr(A, SIZE * sizeof(*A));
     sfree(A);
@@ -430,10 +399,6 @@ unsigned ntru_ring_invert(uint16_t *out, const uint16_t *in,
     sfree(Ac);
     smemclr(Bc, SIZE * sizeof(*B));
     sfree(Bc);
-    smemclr(multipliers, STEPS * sizeof(*multipliers));
-    sfree(multipliers);
-    smemclr(swaps, STEPS * sizeof(*swaps));
-    sfree(swaps);
 
     return success;
 }
