@@ -302,22 +302,28 @@ static void ssh2_mkkey(
  * Find a slot in a KEXINIT algorithm list to use for a new algorithm.
  * If the algorithm is already in the list, return a pointer to its
  * entry, otherwise return an entry from the end of the list.
- * This assumes that every time a particular name is passed in, it
- * comes from the same string constant.  If this isn't true, this
- * function may need to be rewritten to use strcmp() instead.
+ *
+ * 'name' is expected to be a ptrlen which it's safe to keep a copy
+ * of.
  */
-static struct kexinit_algorithm *ssh2_kexinit_addalg(struct kexinit_algorithm
-                                                     *list, const char *name)
+static struct kexinit_algorithm *ssh2_kexinit_addalg_pl(
+    struct kexinit_algorithm *list, ptrlen name)
 {
     int i;
 
     for (i = 0; i < MAXKEXLIST; i++)
-        if (list[i].name == NULL || list[i].name == name) {
+        if (list[i].name.ptr == NULL || ptrlen_eq_ptrlen(list[i].name, name)) {
             list[i].name = name;
             return &list[i];
         }
 
     unreachable("Should never run out of space in KEXINIT list");
+}
+
+static struct kexinit_algorithm *ssh2_kexinit_addalg(
+    struct kexinit_algorithm *list, const char *name)
+{
+    return ssh2_kexinit_addalg_pl(list, ptrlen_from_asciz(name));
 }
 
 bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
@@ -606,7 +612,7 @@ static void ssh2_write_kexinit_lists(
 
     for (i = 0; i < NKEXLIST; i++)
         for (j = 0; j < MAXKEXLIST; j++)
-            kexlists[i][j].name = NULL;
+            kexlists[i][j].name = make_ptrlen(NULL, 0);
     /* List key exchange algorithms. */
     warn = false;
     for (i = 0; i < n_preferred_kex; i++) {
@@ -832,8 +838,8 @@ static void ssh2_write_kexinit_lists(
             put_datapl(list, ssc->kex_override[i]);
         } else {
             for (j = 0; j < MAXKEXLIST; j++) {
-                if (kexlists[i][j].name == NULL) break;
-                add_to_commasep(list, kexlists[i][j].name);
+                if (kexlists[i][j].name.ptr == NULL) break;
+                add_to_commasep_pl(list, kexlists[i][j].name);
             }
         }
         if (i == KEXLIST_KEX && first_time) {
@@ -923,8 +929,8 @@ static bool ssh2_scan_kexinits(
 
         selected[i] = NULL;
         for (j = 0; j < MAXKEXLIST; j++) {
-            if (kexlists[i][j].name &&
-                ptrlen_eq_string(found, kexlists[i][j].name)) {
+            if (kexlists[i][j].name.ptr &&
+                ptrlen_eq_ptrlen(found, kexlists[i][j].name)) {
                 selected[i] = &kexlists[i][j];
                 break;
             }

@@ -20,7 +20,7 @@
 
 #define MAXKEXLIST 16
 struct kexinit_algorithm {
-    const char *name;
+    ptrlen name;
     union {
         struct {
             const ssh_kex *kex;
