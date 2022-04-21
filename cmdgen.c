@@ -1280,9 +1280,8 @@ int main(int argc, char **argv)
             } else {
                 assert(ssh2blob);
 
-                BinarySource src[1];
-                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(ssh2blob));
-                ptrlen algname = get_string(src);
+                ptrlen algname = pubkey_blob_to_alg_name(
+                    ptrlen_from_strbuf(ssh2blob));
                 const ssh_keyalg *alg = find_pubkey_alg_len(algname);
                 if (!alg) {
                     fprintf(stderr, "puttygen: cannot extract key components "

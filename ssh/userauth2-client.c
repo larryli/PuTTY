@@ -353,10 +353,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                 /* Also, extract the algorithm string from the start
                  * of the public-key blob. */
-                BinarySource src[1];
-                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(
-                    s->agent_keys[i].blob));
-                s->agent_keys[i].algorithm = get_string(src);
+                s->agent_keys[i].algorithm = pubkey_blob_to_alg_name(
+                    ptrlen_from_strbuf(s->agent_keys[i].blob));
             }
 
             ppl_logevent("Pageant has %"SIZEu" SSH-2 keys", nkeys);

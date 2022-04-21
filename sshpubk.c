@@ -585,6 +585,18 @@ const ssh_keyalg *find_pubkey_alg(const char *name)
     return find_pubkey_alg_len(ptrlen_from_asciz(name));
 }
 
+ptrlen pubkey_blob_to_alg_name(ptrlen blob)
+{
+    BinarySource src[1];
+    BinarySource_BARE_INIT_PL(src, blob);
+    return get_string(src);
+}
+
+const ssh_keyalg *pubkey_blob_to_alg(ptrlen blob)
+{
+    return find_pubkey_alg_len(pubkey_blob_to_alg_name(blob));
+}
+
 struct ppk_cipher {
     const char *name;
     size_t blocklen, keylen, ivlen;

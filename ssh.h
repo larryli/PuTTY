@@ -1331,6 +1331,9 @@ extern const size_t n_keyalgs;
 const ssh_keyalg *find_pubkey_alg(const char *name);
 const ssh_keyalg *find_pubkey_alg_len(ptrlen name);
 
+ptrlen pubkey_blob_to_alg_name(ptrlen blob);
+const ssh_keyalg *pubkey_blob_to_alg(ptrlen blob);
+
 /* Convenient wrappers on the LoadedFile mechanism suitable for key files */
 LoadedFile *lf_load_keyfile(const Filename *filename, const char **errptr);
 LoadedFile *lf_load_keyfile_fp(FILE *fp, const char **errptr);

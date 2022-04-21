@@ -368,10 +368,8 @@ static void keylist_update_callback(
          * overflow past the bit-count tab stop and leave out a tab
          * character. Urgh.
          */
-        BinarySource src[1];
-        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(key->blob));
-        ptrlen algname = get_string(src);
-        const ssh_keyalg *alg = find_pubkey_alg_len(algname);
+        const ssh_keyalg *alg = pubkey_blob_to_alg(
+            ptrlen_from_strbuf(key->blob));
 
         bool include_bit_count = (alg == &ssh_dsa || alg == &ssh_rsa);
 
