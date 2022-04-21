@@ -255,6 +255,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
                 userauth_layer = ssh2_userauth_new(
                     connection_layer, ssh->savedhost, ssh->fullhostname,
                     conf_get_filename(ssh->conf, CONF_keyfile),
+                    conf_get_filename(ssh->conf, CONF_detached_cert),
                     conf_get_bool(ssh->conf, CONF_ssh_show_banner),
                     conf_get_bool(ssh->conf, CONF_tryagent),
                     conf_get_bool(ssh->conf, CONF_ssh_no_trivial_userauth),

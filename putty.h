@@ -1780,6 +1780,7 @@ NORETURN void cleanup_exit(int);
     X(BOOL, NONE, change_username) /* allow username switching in SSH-2 */ \
     X(INT, INT, ssh_cipherlist) \
     X(FILENAME, NONE, keyfile) \
+    X(FILENAME, NONE, detached_cert) \
     /* \
      * Which SSH protocol to use. \
      * For historical reasons, the current legal values for CONF_sshprot \

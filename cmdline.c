@@ -739,6 +739,16 @@ int cmdline_process_param(const char *p, char *value,
         filename_free(fn);
     }
 
+    if (!strcmp(p, "-cert")) {
+        Filename *fn;
+        RETURN(2);
+        UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+        SAVEABLE(0);
+        fn = filename_from_str(value);
+        conf_set_filename(conf, CONF_detached_cert, fn);
+        filename_free(fn);
+    }
+
     if (!strcmp(p, "-4") || !strcmp(p, "-ipv4")) {
         RETURN(1);
         SAVEABLE(1);

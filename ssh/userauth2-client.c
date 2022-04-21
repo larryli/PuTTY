@@ -27,7 +27,7 @@ struct ssh2_userauth_state {
     int crState;
 
     PacketProtocolLayer *transport_layer, *successor_layer;
-    Filename *keyfile;
+    Filename *keyfile, *detached_cert_file;
     bool show_banner, tryagent, notrivialauth, change_username;
     char *hostname, *fullhostname;
     char *default_username;
@@ -67,7 +67,7 @@ struct ssh2_userauth_state {
     char *locally_allocated_username;
     char *password;
     bool got_username;
-    strbuf *publickey_blob;
+    strbuf *publickey_blob, *detached_cert_blob, *cert_pubkey_diagnosed;
     bool privatekey_available, privatekey_encrypted;
     char *publickey_algorithm;
     char *publickey_comment;
@@ -108,6 +108,8 @@ static void ssh2_userauth_agent_query(struct ssh2_userauth_state *, strbuf *);
 static void ssh2_userauth_agent_callback(void *, void *, int);
 static void ssh2_userauth_add_sigblob(
     struct ssh2_userauth_state *s, PktOut *pkt, ptrlen pkblob, ptrlen sigblob);
+static void ssh2_userauth_add_alg_and_publickey(
+    struct ssh2_userauth_state *s, PktOut *pkt, ptrlen alg, ptrlen pkblob);
 static void ssh2_userauth_add_session_id(
     struct ssh2_userauth_state *s, strbuf *sigdata);
 #ifndef NO_GSSAPI
@@ -128,7 +130,8 @@ static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
 PacketProtocolLayer *ssh2_userauth_new(
     PacketProtocolLayer *successor_layer,
     const char *hostname, const char *fullhostname,
-    Filename *keyfile, bool show_banner, bool tryagent, bool notrivialauth,
+    Filename *keyfile, Filename *detached_cert_file,
+    bool show_banner, bool tryagent, bool notrivialauth,
     const char *default_username, bool change_username,
     bool try_ki_auth, bool try_gssapi_auth, bool try_gssapi_kex_auth,
     bool gssapi_fwd, struct ssh_connection_shared_gss_state *shgss)
@@ -141,6 +144,7 @@ PacketProtocolLayer *ssh2_userauth_new(
     s->hostname = dupstr(hostname);
     s->fullhostname = dupstr(fullhostname);
     s->keyfile = filename_copy(keyfile);
+    s->detached_cert_file = filename_copy(detached_cert_file);
     s->show_banner = show_banner;
     s->tryagent = tryagent;
     s->notrivialauth = notrivialauth;
@@ -187,6 +191,7 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     if (s->auth_agent_query)
         agent_cancel_query(s->auth_agent_query);
     filename_free(s->keyfile);
+    filename_free(s->detached_cert_file);
     sfree(s->default_username);
     sfree(s->locally_allocated_username);
     sfree(s->hostname);
@@ -197,6 +202,10 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     sfree(s->publickey_algorithm);
     if (s->publickey_blob)
         strbuf_free(s->publickey_blob);
+    if (s->detached_cert_blob)
+        strbuf_free(s->detached_cert_blob);
+    if (s->cert_pubkey_diagnosed)
+        strbuf_free(s->cert_pubkey_diagnosed);
     strbuf_free(s->last_methods_string);
     if (s->banner_scc)
         stripctrl_free(s->banner_scc);
@@ -329,6 +338,70 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                        key_type_to_str(keytype));
             s->publickey_blob = NULL;
         }
+    }
+
+    /*
+     * If the user provided a detached certificate file, load that.
+     */
+    if (!filename_is_null(s->detached_cert_file)) {
+        char *cert_error = NULL;
+        strbuf *cert_blob = strbuf_new();
+        char *algname = NULL;
+        char *comment = NULL;
+
+        ppl_logevent("Reading certificate file \"%s\"",
+                     filename_to_str(s->detached_cert_file));
+        int keytype = key_type(s->detached_cert_file);
+        if (!(keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
+              keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH)) {
+            cert_error = dupstr(key_type_to_str(keytype));
+            goto cert_load_done;
+        }
+
+        const char *error;
+        bool success = ppk_loadpub_f(
+            s->detached_cert_file, &algname,
+            BinarySink_UPCAST(cert_blob), &comment, &error);
+
+        if (!success) {
+            cert_error = dupstr(error);
+            goto cert_load_done;
+        }
+
+        const ssh_keyalg *certalg = find_pubkey_alg(algname);
+        if (!certalg) {
+            cert_error = dupprintf(
+                "unrecognised certificate type '%s'", algname);
+            goto cert_load_done;
+        }
+
+        if (!certalg->is_certificate) {
+            cert_error = dupprintf(
+                "key type '%s' is not a certificate", certalg->ssh_id);
+            goto cert_load_done;
+        }
+
+        /* OK, store the certificate blob to substitute for the
+         * public blob in all publickey auth packets. */
+        if (s->detached_cert_blob)
+            strbuf_free(s->detached_cert_blob);
+        s->detached_cert_blob = cert_blob;
+        cert_blob = NULL;      /* prevent free */
+
+      cert_load_done:
+        if (cert_error) {
+            ppl_logevent("Unable to use this certificate file (%s)",
+                         cert_error);
+            ppl_printf(
+                "Unable to use certificate file \"%s\" (%s)\r\n",
+                filename_to_str(s->detached_cert_file), cert_error);
+            sfree(cert_error);
+        }
+
+        if (cert_blob)
+            strbuf_free(cert_blob);
+        sfree(algname);
+        sfree(comment);
     }
 
     /*
@@ -755,9 +828,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 put_stringz(s->pktout, "publickey");
                                                     /* method */
                 put_bool(s->pktout, false); /* no signature included */
-                put_stringpl(s->pktout, s->agent_keyalg);
-                put_stringpl(s->pktout, ptrlen_from_strbuf(
-                            s->agent_keys[s->agent_key_index].blob));
+                ssh2_userauth_add_alg_and_publickey(
+                    s, s->pktout, s->agent_keyalg, ptrlen_from_strbuf(
+                        s->agent_keys[s->agent_key_index].blob));
                 pq_push(s->ppl.out_pq, s->pktout);
                 s->type = AUTH_TYPE_PUBLICKEY_OFFER_QUIET;
 
@@ -789,8 +862,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_stringz(s->pktout, "publickey");
                                                         /* method */
                     put_bool(s->pktout, true);  /* signature included */
-                    put_stringpl(s->pktout, s->agent_keyalg);
-                    put_stringpl(s->pktout, ptrlen_from_strbuf(
+                    ssh2_userauth_add_alg_and_publickey(
+                        s, s->pktout, s->agent_keyalg, ptrlen_from_strbuf(
                             s->agent_keys[s->agent_key_index].blob));
 
                     /* Ask agent for signature. */
@@ -880,9 +953,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 put_stringz(s->pktout, "publickey");    /* method */
                 put_bool(s->pktout, false);
                                                 /* no signature included */
-                put_stringz(s->pktout, s->publickey_algorithm);
-                put_string(s->pktout, s->publickey_blob->s,
-                           s->publickey_blob->len);
+                ssh2_userauth_add_alg_and_publickey(
+                    s, s->pktout, ptrlen_from_asciz(s->publickey_algorithm),
+                    ptrlen_from_strbuf(s->publickey_blob));
                 pq_push(s->ppl.out_pq, s->pktout);
                 ppl_logevent("Offered public key");
 
@@ -999,10 +1072,12 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_stringz(s->pktout, s->successor_layer->vt->name);
                     put_stringz(s->pktout, "publickey"); /* method */
                     put_bool(s->pktout, true); /* signature follows */
-                    put_stringz(s->pktout, s->publickey_algorithm);
                     pkblob = strbuf_new();
                     ssh_key_public_blob(key->key, BinarySink_UPCAST(pkblob));
-                    put_string(s->pktout, pkblob->s, pkblob->len);
+                    ssh2_userauth_add_alg_and_publickey(
+                        s, s->pktout,
+                        ptrlen_from_asciz(s->publickey_algorithm),
+                        ptrlen_from_strbuf(pkblob));
 
                     /*
                      * The data to be signed is:
@@ -1771,6 +1846,161 @@ static void ssh2_userauth_agent_callback(void *uav, void *reply, int replylen)
     s->agent_response = make_ptrlen(reply, replylen);
 
     queue_idempotent_callback(&s->ppl.ic_process_queue);
+}
+
+/*
+ * Helper function to add the algorithm and public key strings to a
+ * "publickey" auth packet. Deals with overriding both strings if the
+ * user has provided a detached certificate which matches the public
+ * key in question.
+ */
+static void ssh2_userauth_add_alg_and_publickey(
+    struct ssh2_userauth_state *s, PktOut *pkt, ptrlen alg, ptrlen pkblob)
+{
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+
+    if (s->detached_cert_blob) {
+        ptrlen detached_cert_pl = ptrlen_from_strbuf(s->detached_cert_blob);
+        strbuf *certbase = NULL, *pkbase = NULL;
+        bool done = false;
+        const ssh_keyalg *pkalg = find_pubkey_alg_len(alg);
+        ssh_key *certkey = NULL, *pk = NULL;
+        strbuf *fail_reason = strbuf_new();
+        bool verbose = true;
+
+        /*
+         * Whether or not we send the certificate, we're likely to
+         * generate a log message about it. But we don't want to log
+         * once for the offer and once for the real auth attempt, so
+         * we de-duplicate by remembering the last public key this
+         * function saw. */
+        if (!s->cert_pubkey_diagnosed)
+            s->cert_pubkey_diagnosed = strbuf_new();
+        if (ptrlen_eq_ptrlen(ptrlen_from_strbuf(s->cert_pubkey_diagnosed),
+                             pkblob)) {
+            verbose = false;
+        } else {
+            /* Log this time, but arrange that we don't mention it next time */
+            strbuf_clear(s->cert_pubkey_diagnosed);
+            put_datapl(s->cert_pubkey_diagnosed, pkblob);
+        }
+
+        /*
+         * Check that the public key we're replacing is compatible
+         * with the certificate, in that they should have the same
+         * base public key.
+         */
+
+        const ssh_keyalg *certalg = pubkey_blob_to_alg(detached_cert_pl);
+        assert(certalg); /* we checked this before setting s->detached_blob */
+        assert(certalg->is_certificate); /* and this too */
+
+        certkey = ssh_key_new_pub(certalg, detached_cert_pl);
+        if (!certkey) {
+            put_fmt(fail_reason, "certificate key file is invalid");
+            goto no_match;
+        }
+
+        certbase = strbuf_new();
+        ssh_key_public_blob(ssh_key_base_key(certkey),
+                            BinarySink_UPCAST(certbase));
+        if (ptrlen_eq_ptrlen(pkblob, ptrlen_from_strbuf(certbase)))
+            goto match;                /* yes, a match! */
+
+        /*
+         * If we reach here, the certificate's base key was not
+         * identical to the key we're given. But it might still be
+         * identical to the _base_ key of the key we're given, if we
+         * were using a differently certified version of the same key.
+         * In that situation, the detached cert should still override.
+         */
+        if (!pkalg) {
+            put_fmt(fail_reason, "unable to identify algorithm of base key");
+            goto no_match;
+        }
+
+        pk = ssh_key_new_pub(pkalg, pkblob);
+        if (!pk) {
+            put_fmt(fail_reason, "base public key is invalid");
+            goto no_match;
+        }
+
+        pkbase = strbuf_new();
+        ssh_key_public_blob(ssh_key_base_key(pk), BinarySink_UPCAST(pkbase));
+        if (ptrlen_eq_ptrlen(ptrlen_from_strbuf(pkbase),
+                             ptrlen_from_strbuf(certbase)))
+            goto match;                /* yes, a match on 2nd attempt! */
+
+        /* Give up; we've tried to match these keys up and failed. */
+        put_fmt(fail_reason, "base public key does not match certificate");
+        goto no_match;
+
+      match:
+        /*
+         * The two keys match, so insert the detached certificate into
+         * the output packet in place of the public key we were given.
+         *
+         * However, we need to be a bit careful with the algorithm
+         * name: we might need to upgrade it to one that matches the
+         * original algorithm name. (If we were asked to add an
+         * ssh-rsa key but were given algorithm name "rsa-sha2-512",
+         * then instead of the certificate's algorithm name
+         * ssh-rsa-cert-v01@... we need to write the corresponding
+         * SHA-512 name rsa-sha2-512-cert-v01@... .)
+         */
+        if (verbose) {
+            ppl_logevent("Sending public key with certificate from \"%s\"",
+                         filename_to_str(s->detached_cert_file));
+        }
+        put_stringz(pkt, ssh_keyalg_related_alg(certalg, pkalg)->ssh_id);
+        put_stringpl(pkt, ptrlen_from_strbuf(s->detached_cert_blob));
+        done = true;
+        goto out;
+
+      no_match:
+        /* Log that we didn't send the certificate, if this public key
+         * isn't the same one as last call to this function. (Need to
+         * avoid verbosely logging once for the offer and once for the
+         * real auth attempt.) */
+	if (verbose) {
+            ppl_logevent("Not substituting certificate \"%s\" for public "
+                         "key: %s", filename_to_str(s->detached_cert_file),
+                         fail_reason->s);
+            if (s->publickey_blob) {
+                /* If the user provided a specific key file to use (i.e.
+                 * this wasn't just a key we picked opportunistically out
+                 * of an agent), then they probably _care_ that we didn't
+                 * send the certificate, so we should make a loud error
+                 * message about it as well as just commenting in the
+                 * Event Log. */
+                ppl_printf("Unable to use certificate \"%s\" with public "
+                           "key \"%s\": %s\r\n",
+                           filename_to_str(s->detached_cert_file),
+                           filename_to_str(s->keyfile),
+                           fail_reason->s);
+            }
+        }
+
+      out:
+        /* Whether we did that or not, free our stuff. */
+        if (certbase)
+            strbuf_free(certbase);
+        if (pkbase)
+            strbuf_free(pkbase);
+        if (certkey)
+            ssh_key_free(certkey);
+        if (pk)
+            ssh_key_free(pk);
+        strbuf_free(fail_reason);
+
+        /* And if we did, don't fall through to the alternative below */
+        if (done)
+            return;
+    }
+
+    /* In all other cases, just put in what we were given. */
+    put_stringpl(pkt, alg);
+    put_stringpl(pkt, pkblob);
 }
 
 /*
