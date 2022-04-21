@@ -216,6 +216,8 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
         ssh_key_free(s->hkey);
         s->hkey = NULL;
     }
+    for (size_t i = 0; i < NKEXLIST; i++)
+        sfree(s->kexlists[i].algs);
     if (s->f) mp_free(s->f);
     if (s->p) mp_free(s->p);
     if (s->g) mp_free(s->g);
@@ -307,21 +309,20 @@ static void ssh2_mkkey(
  * of.
  */
 static struct kexinit_algorithm *ssh2_kexinit_addalg_pl(
-    struct kexinit_algorithm *list, ptrlen name)
+    struct kexinit_algorithm_list *list, ptrlen name)
 {
-    int i;
+    for (size_t i = 0; i < list->nalgs; i++)
+        if (ptrlen_eq_ptrlen(list->algs[i].name, name))
+            return &list->algs[i];
 
-    for (i = 0; i < MAXKEXLIST; i++)
-        if (list[i].name.ptr == NULL || ptrlen_eq_ptrlen(list[i].name, name)) {
-            list[i].name = name;
-            return &list[i];
-        }
-
-    unreachable("Should never run out of space in KEXINIT list");
+    sgrowarray(list->algs, list->algsize, list->nalgs);
+    struct kexinit_algorithm *entry = &list->algs[list->nalgs++];
+    entry->name = name;
+    return entry;
 }
 
 static struct kexinit_algorithm *ssh2_kexinit_addalg(
-    struct kexinit_algorithm *list, const char *name)
+    struct kexinit_algorithm_list *list, const char *name)
 {
     return ssh2_kexinit_addalg_pl(list, ptrlen_from_asciz(name));
 }
@@ -489,7 +490,7 @@ PktIn *ssh2_transport_pop(struct ssh2_transport_state *s)
 
 static void ssh2_write_kexinit_lists(
     BinarySink *pktout,
-    struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST],
+    struct kexinit_algorithm_list kexlists[NKEXLIST],
     Conf *conf, const SshServerConfig *ssc, int remote_bugs,
     const char *hk_host, int hk_port, const ssh_keyalg *hk_prev,
     ssh_transient_hostkey_cache *thc,
@@ -611,15 +612,14 @@ static void ssh2_write_kexinit_lists(
         preferred_comp = &ssh_comp_none;
 
     for (i = 0; i < NKEXLIST; i++)
-        for (j = 0; j < MAXKEXLIST; j++)
-            kexlists[i][j].name = make_ptrlen(NULL, 0);
+        kexlists[i].nalgs = 0;
     /* List key exchange algorithms. */
     warn = false;
     for (i = 0; i < n_preferred_kex; i++) {
         const ssh_kexes *k = preferred_kex[i];
         if (!k) warn = true;
         else for (j = 0; j < k->nkexes; j++) {
-                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_KEX],
+                alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_KEX],
                                           k->list[j]->name);
                 alg->u.kex.kex = k->list[j];
                 alg->u.kex.warn = warn;
@@ -634,20 +634,20 @@ static void ssh2_write_kexinit_lists(
         for (i = 0; i < our_nhostkeys; i++) {
             const ssh_keyalg *keyalg = ssh_key_alg(our_hostkeys[i]);
 
-            alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+            alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
                                       keyalg->ssh_id);
             alg->u.hk.hostkey = keyalg;
             alg->u.hk.hkflags = 0;
             alg->u.hk.warn = false;
 
             if (keyalg == &ssh_rsa) {
-                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
                                           "rsa-sha2-256");
                 alg->u.hk.hostkey = keyalg;
                 alg->u.hk.hkflags = SSH_AGENT_RSA_SHA2_256;
                 alg->u.hk.warn = false;
 
-                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
                                           "rsa-sha2-512");
                 alg->u.hk.hostkey = keyalg;
                 alg->u.hk.hkflags = SSH_AGENT_RSA_SHA2_512;
@@ -678,7 +678,7 @@ static void ssh2_write_kexinit_lists(
                 if (conf_get_bool(conf, CONF_ssh_prefer_known_hostkeys) &&
                     have_ssh_host_key(hk_host, hk_port,
                                       ssh2_hostkey_algs[j].alg->cache_id)) {
-                    alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                    alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
                                               ssh2_hostkey_algs[j].alg->ssh_id);
                     alg->u.hk.hostkey = ssh2_hostkey_algs[j].alg;
                     alg->u.hk.warn = warn;
@@ -692,7 +692,7 @@ static void ssh2_write_kexinit_lists(
             for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
                 if (ssh2_hostkey_algs[j].id != preferred_hk[i])
                     continue;
-                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
                                           ssh2_hostkey_algs[j].alg->ssh_id);
                 alg->u.hk.hostkey = ssh2_hostkey_algs[j].alg;
                 alg->u.hk.warn = warn;
@@ -721,7 +721,7 @@ static void ssh2_write_kexinit_lists(
                     continue;
                 if (ssh_transient_hostkey_cache_has(
                         thc, ssh2_hostkey_algs[j].alg)) {
-                    alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                    alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
                                               ssh2_hostkey_algs[j].alg->ssh_id);
                     alg->u.hk.hostkey = ssh2_hostkey_algs[j].alg;
                     alg->u.hk.warn = warn;
@@ -738,19 +738,19 @@ static void ssh2_write_kexinit_lists(
          * reverification.
          */
         assert(hk_prev);
-        alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY], hk_prev->ssh_id);
+        alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY], hk_prev->ssh_id);
         alg->u.hk.hostkey = hk_prev;
         alg->u.hk.warn = false;
     }
     if (can_gssapi_keyex) {
-        alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY], "null");
+        alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY], "null");
         alg->u.hk.hostkey = NULL;
     }
     /* List encryption algorithms (client->server then server->client). */
     for (k = KEXLIST_CSCIPHER; k <= KEXLIST_SCCIPHER; k++) {
         warn = false;
 #ifdef FUZZING
-        alg = ssh2_kexinit_addalg(kexlists[k], "none");
+        alg = ssh2_kexinit_addalg(&kexlists[K], "none");
         alg->u.cipher.cipher = NULL;
         alg->u.cipher.warn = warn;
 #endif /* FUZZING */
@@ -758,7 +758,7 @@ static void ssh2_write_kexinit_lists(
             const ssh2_ciphers *c = preferred_ciphers[i];
             if (!c) warn = true;
             else for (j = 0; j < c->nciphers; j++) {
-                    alg = ssh2_kexinit_addalg(kexlists[k],
+                    alg = ssh2_kexinit_addalg(&kexlists[k],
                                               c->list[j]->ssh2_id);
                     alg->u.cipher.cipher = c->list[j];
                     alg->u.cipher.warn = warn;
@@ -785,7 +785,7 @@ static void ssh2_write_kexinit_lists(
         alg->u.mac.etm = false;
 #endif /* FUZZING */
         for (i = 0; i < nmacs; i++) {
-            alg = ssh2_kexinit_addalg(kexlists[j], maclist[i]->name);
+            alg = ssh2_kexinit_addalg(&kexlists[j], maclist[i]->name);
             alg->u.mac.mac = maclist[i];
             alg->u.mac.etm = false;
         }
@@ -793,7 +793,7 @@ static void ssh2_write_kexinit_lists(
             /* For each MAC, there may also be an ETM version,
              * which we list second. */
             if (maclist[i]->etm_name) {
-                alg = ssh2_kexinit_addalg(kexlists[j], maclist[i]->etm_name);
+                alg = ssh2_kexinit_addalg(&kexlists[j], maclist[i]->etm_name);
                 alg->u.mac.mac = maclist[i];
                 alg->u.mac.etm = true;
             }
@@ -806,22 +806,22 @@ static void ssh2_write_kexinit_lists(
     for (j = KEXLIST_CSCOMP; j <= KEXLIST_SCCOMP; j++) {
         assert(lenof(compressions) > 1);
         /* Prefer non-delayed versions */
-        alg = ssh2_kexinit_addalg(kexlists[j], preferred_comp->name);
+        alg = ssh2_kexinit_addalg(&kexlists[j], preferred_comp->name);
         alg->u.comp.comp = preferred_comp;
         alg->u.comp.delayed = false;
         if (preferred_comp->delayed_name) {
-            alg = ssh2_kexinit_addalg(kexlists[j],
+            alg = ssh2_kexinit_addalg(&kexlists[j],
                                       preferred_comp->delayed_name);
             alg->u.comp.comp = preferred_comp;
             alg->u.comp.delayed = true;
         }
         for (i = 0; i < lenof(compressions); i++) {
             const ssh_compression_alg *c = compressions[i];
-            alg = ssh2_kexinit_addalg(kexlists[j], c->name);
+            alg = ssh2_kexinit_addalg(&kexlists[j], c->name);
             alg->u.comp.comp = c;
             alg->u.comp.delayed = false;
             if (c->delayed_name) {
-                alg = ssh2_kexinit_addalg(kexlists[j], c->delayed_name);
+                alg = ssh2_kexinit_addalg(&kexlists[j], c->delayed_name);
                 alg->u.comp.comp = c;
                 alg->u.comp.delayed = true;
             }
@@ -837,10 +837,8 @@ static void ssh2_write_kexinit_lists(
         if (ssc && ssc->kex_override[i].ptr) {
             put_datapl(list, ssc->kex_override[i]);
         } else {
-            for (j = 0; j < MAXKEXLIST; j++) {
-                if (kexlists[i][j].name.ptr == NULL) break;
-                add_to_commasep_pl(list, kexlists[i][j].name);
-            }
+            for (j = 0; j < kexlists[i].nalgs; j++)
+                add_to_commasep_pl(list, kexlists[i].algs[j].name);
         }
         if (i == KEXLIST_KEX && first_time) {
             if (our_hostkeys)          /* we're the server */
@@ -858,12 +856,12 @@ static void ssh2_write_kexinit_lists(
 
 static bool ssh2_scan_kexinits(
     ptrlen client_kexinit, ptrlen server_kexinit,
-    struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST],
+    struct kexinit_algorithm_list kexlists[NKEXLIST],
     const ssh_kex **kex_alg, const ssh_keyalg **hostkey_alg,
     transport_direction *cs, transport_direction *sc,
     bool *warn_kex, bool *warn_hk, bool *warn_cscipher, bool *warn_sccipher,
     Ssh *ssh, bool *ignore_guess_cs_packet, bool *ignore_guess_sc_packet,
-    int *n_server_hostkeys, int server_hostkeys[MAXKEXLIST], unsigned *hkflags,
+    int *n_server_hostkeys, int *server_hostkeys, unsigned *hkflags,
     bool *can_send_ext_info)
 {
     BinarySource client[1], server[1];
@@ -928,10 +926,9 @@ static bool ssh2_scan_kexinits(
       found_match:
 
         selected[i] = NULL;
-        for (j = 0; j < MAXKEXLIST; j++) {
-            if (kexlists[i][j].name.ptr &&
-                ptrlen_eq_ptrlen(found, kexlists[i][j].name)) {
-                selected[i] = &kexlists[i][j];
+        for (j = 0; j < kexlists[i].nalgs; j++) {
+            if (ptrlen_eq_ptrlen(found, kexlists[i].algs[j].name)) {
+                selected[i] = &kexlists[i].algs[j];
                 break;
             }
         }
@@ -1241,7 +1238,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * selected algorithm identifiers.
      */
     {
-        int nhk, hks[MAXKEXLIST], i, j;
+        int nhk, i, j;
+        int *hks = snewn(s->kexlists[KEXLIST_HOSTKEY].nalgs, int);
 
         if (!ssh2_scan_kexinits(
                 ptrlen_from_strbuf(s->client_kexinit),
@@ -1249,8 +1247,10 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 s->kexlists, &s->kex_alg, &s->hostkey_alg, s->cstrans,
                 s->sctrans, &s->warn_kex, &s->warn_hk, &s->warn_cscipher,
                 &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &nhk, hks,
-                &s->hkflags, &s->can_send_ext_info))
+                &s->hkflags, &s->can_send_ext_info)) {
+            sfree(hks);
             return; /* false means a fatal error function was called */
+        }
 
         /*
          * In addition to deciding which host key we're actually going
@@ -1272,6 +1272,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 s->uncert_hostkeys[s->n_uncert_hostkeys++] = j;
             }
         }
+
+        sfree(hks);
     }
 
     if (s->warn_kex) {

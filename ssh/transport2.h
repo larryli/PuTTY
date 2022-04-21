@@ -18,7 +18,6 @@
 #define DH_MIN_SIZE 1024
 #define DH_MAX_SIZE 8192
 
-#define MAXKEXLIST 16
 struct kexinit_algorithm {
     ptrlen name;
     union {
@@ -44,6 +43,10 @@ struct kexinit_algorithm {
             bool delayed;
         } comp;
     } u;
+};
+struct kexinit_algorithm_list {
+    struct kexinit_algorithm *algs;
+    size_t nalgs, algsize;
 };
 
 #define HOSTKEY_ALGORITHMS(X)                   \
@@ -190,7 +193,7 @@ struct ssh2_transport_state {
     SeatPromptResult spr;
     bool guessok;
     bool ignorepkt;
-    struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST];
+    struct kexinit_algorithm_list kexlists[NKEXLIST];
 #ifndef NO_GSSAPI
     Ssh_gss_buf gss_buf;
     Ssh_gss_buf gss_rcvtok, gss_sndtok;
