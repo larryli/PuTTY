@@ -395,9 +395,9 @@ unsigned ntru_ring_invert(uint16_t *out, const uint16_t *in,
     sfree(A);
     smemclr(B, SIZE * sizeof(*B));
     sfree(B);
-    smemclr(Ac, SIZE * sizeof(*A));
+    smemclr(Ac, SIZE * sizeof(*Ac));
     sfree(Ac);
-    smemclr(Bc, SIZE * sizeof(*B));
+    smemclr(Bc, SIZE * sizeof(*Bc));
     sfree(Bc);
 
     return success;
