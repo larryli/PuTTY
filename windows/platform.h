@@ -716,7 +716,20 @@ char *get_jumplist_registry_entries(void);
 #define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
 
 /* In utils */
-char *registry_get_string(HKEY root, const char *path, const char *leaf);
+HKEY open_regkey_fn(bool create, HKEY base, const char *path, ...);
+#define open_regkey(create, base, ...) \
+    open_regkey_fn(create, base, __VA_ARGS__, (const char *)NULL)
+void close_regkey(HKEY key);
+void del_regkey(HKEY key, const char *name);
+char *enum_regkey(HKEY key, int index);
+bool get_reg_dword(HKEY key, const char *name, DWORD *out);
+bool put_reg_dword(HKEY key, const char *name, DWORD value);
+char *get_reg_sz(HKEY key, const char *name);
+bool put_reg_sz(HKEY key, const char *name, const char *str);
+strbuf *get_reg_multi_sz(HKEY key, const char *name);
+bool put_reg_multi_sz(HKEY key, const char *name, strbuf *str);
+
+char *get_reg_sz_simple(HKEY key, const char *name, const char *leaf);
 
 /* In cliloop.c */
 typedef bool (*cliloop_pre_t)(void *vctx, const HANDLE **extra_handles,

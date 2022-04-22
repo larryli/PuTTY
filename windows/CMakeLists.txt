@@ -26,7 +26,7 @@ add_sources_from_current_dir(utils
   utils/open_for_write_would_lose_data.c
   utils/pgp_fingerprints_msgbox.c
   utils/platform_get_x_display.c
-  utils/registry_get_string.c
+  utils/registry.c
   utils/request_file.c
   utils/screenshot.c
   utils/security.c
