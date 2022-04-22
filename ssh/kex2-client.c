@@ -718,7 +718,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         }
     }
 
-    s->keystr = (s->hkey ? ssh_key_cache_str(s->hkey) : NULL);
+    s->keystr = (s->hkey && !ssh_key_alg(s->hkey)->is_certificate ?
+                 ssh_key_cache_str(s->hkey) : NULL);
 #ifndef NO_GSSAPI
     if (s->gss_kex_used) {
         /*
@@ -851,19 +852,83 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 }
             }
 
-            /*
-             * Authenticate remote host: verify host key. (We've already
-             * checked the signature of the exchange hash.)
-             */
-            {
-                ssh2_userkey uk = { .key = s->hkey, .comment = NULL };
-                char *keydisp = ssh2_pubkey_openssh_str(&uk);
-                char **fingerprints = ssh2_all_fingerprints(s->hkey);
+            ssh2_userkey uk = { .key = s->hkey, .comment = NULL };
+            char **fingerprints = ssh2_all_fingerprints(s->hkey);
 
-                FingerprintType fptype_default =
-                    ssh2_pick_default_fingerprint(fingerprints);
-                ppl_logevent("Host key fingerprint is:");
-                ppl_logevent("%s", fingerprints[fptype_default]);
+            FingerprintType fptype_default =
+                ssh2_pick_default_fingerprint(fingerprints);
+            ppl_logevent("Host key fingerprint is:");
+            ppl_logevent("%s", fingerprints[fptype_default]);
+
+            /*
+             * Authenticate remote host: verify host key, either by
+             * certification or by the local host key cache.
+             *
+             * (We've already checked the signature of the exchange
+             * hash.)
+             */
+            if (ssh_key_alg(s->hkey)->is_certificate) {
+                ssh2_free_all_fingerprints(fingerprints);
+
+                char *base_fp = ssh2_fingerprint(ssh_key_base_key(s->hkey),
+                                                 fptype_default);
+                ppl_logevent("Host key is a certificate, whose base key has "
+                             "fingerprint:");
+                ppl_logevent("%s", base_fp);
+                sfree(base_fp);
+
+                strbuf *id_string = strbuf_new();
+                StripCtrlChars *id_string_scc = stripctrl_new(
+                    BinarySink_UPCAST(id_string), false, L'\0');
+                ssh_key_cert_id_string(
+                    s->hkey, BinarySink_UPCAST(id_string_scc));
+                stripctrl_free(id_string_scc);
+                ppl_logevent("Certificate ID string is \"%s\"", id_string->s);
+                strbuf_free(id_string);
+
+                strbuf *ca_pub = strbuf_new();
+                ssh_key_ca_public_blob(s->hkey, BinarySink_UPCAST(ca_pub));
+                host_ca hca_search = { .ca_public_key = ca_pub };
+                host_ca *hca_found = find234(s->host_cas, &hca_search, NULL);
+
+                char *ca_fp = ssh2_fingerprint_blob(ptrlen_from_strbuf(ca_pub),
+                                                    fptype_default);
+                ppl_logevent("Fingerprint of certification authority:");
+                ppl_logevent("%s", ca_fp);
+                sfree(ca_fp);
+
+                strbuf_free(ca_pub);
+
+                strbuf *error = strbuf_new();
+                bool cert_ok = false;
+
+                if (!hca_found) {
+                    put_fmt(error, "Certification authority is not trusted");
+                } else {
+                    ppl_logevent("Certification authority matches '%s'",
+                                 hca_found->name);
+                    cert_ok = ssh_key_check_cert(
+                        s->hkey,
+                        true, /* host certificate */
+                        ptrlen_from_asciz(s->savedhost),
+                        time(NULL),
+                        BinarySink_UPCAST(error));
+                }
+                if (cert_ok) {
+                    strbuf_free(error);
+                    ppl_logevent("Accepted certificate");
+                } else {
+                    ppl_logevent("Rejected host key certificate: %s",
+                                 error->s);
+                    ssh_sw_abort(s->ppl.ssh,
+                                 "Rejected host key certificate: %s",
+                                 error->s);
+                    *aborted = true;
+                    strbuf_free(error);
+                    return;
+                }
+            } else {
+                char *keydisp = ssh2_pubkey_openssh_str(&uk);
 
                 s->spr = verify_ssh_host_key(
                     ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport,
@@ -872,15 +937,15 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 
                 ssh2_free_all_fingerprints(fingerprints);
                 sfree(keydisp);
-            }
 #ifdef FUZZING
-            s->spr = SPR_OK;
+                s->spr = SPR_OK;
 #endif
-            crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
-            if (spr_is_abort(s->spr)) {
-                *aborted = true;
-                ssh_spr_close(s->ppl.ssh, s->spr, "host key verification");
-                return;
+                crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+                if (spr_is_abort(s->spr)) {
+                    *aborted = true;
+                    ssh_spr_close(s->ppl.ssh, s->spr, "host key verification");
+                    return;
+                }
             }
 
             /*

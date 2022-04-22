@@ -2586,6 +2586,11 @@ void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
 void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo);
 
+void setup_ca_config_box(struct controlbox *b);
+
+/* Platforms provide this to be called from config.c */
+void show_ca_config_box(dlgparam *dlg);
+
 /* Visible outside config.c so that platforms can use it to recognise
  * the proxy type control */
 void proxy_type_handler(union control *ctrl, dlgparam *dlg,

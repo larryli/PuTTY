@@ -4219,3 +4219,84 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
 
     return -1;                         /* dialog still in progress */
 }
+
+struct ca_config_box {
+    GtkWidget *window;
+    struct controlbox *cb;
+    struct Shortcuts scs;
+    dlgparam dp;
+};
+static struct ca_config_box *cacfg;    /* one of these, cross-instance */
+
+static void cacfg_destroy(GtkWidget *widget, gpointer data)
+{
+    cacfg->window = NULL;
+    dlg_cleanup(&cacfg->dp);
+    ctrl_free_box(cacfg->cb);
+    cacfg->cb = NULL;
+}
+void show_ca_config_box(dlgparam *dp)
+{
+    if (!cacfg) {
+        cacfg = snew(struct ca_config_box);
+        memset(cacfg, 0, sizeof(*cacfg));
+    }
+
+    if (cacfg->window) {
+        /* This dialog box is already displayed; re-focus it */
+        gtk_widget_grab_focus(cacfg->window);
+        return;
+    }
+
+    dlg_init(&cacfg->dp);
+    for (size_t i = 0; i < lenof(cacfg->scs.sc); i++) {
+        cacfg->scs.sc[i].action = SHORTCUT_EMPTY;
+    }
+
+    cacfg->cb = ctrl_new_box();
+    setup_ca_config_box(cacfg->cb);
+
+    cacfg->window = our_dialog_new();
+    gtk_window_set_title(GTK_WINDOW(cacfg->window),
+                         "PuTTY trusted host certification authorities");
+    gtk_widget_set_size_request(
+        cacfg->window, string_width(
+            "ecdsa-sha2-nistp256 256 SHA256:hsO5a8MYGzBoa2gW5"
+            "dLV2vl7bTnCPjw64x3kLkz6BY8"), -1);
+
+    /* Set up everything else */
+    for (int i = 0; i < cacfg->cb->nctrlsets; i++) {
+        struct controlset *s = cacfg->cb->ctrlsets[i];
+        GtkWidget *w = layout_ctrls(&cacfg->dp, NULL, &cacfg->scs, s,
+                                    GTK_WINDOW(cacfg->window));
+        gtk_container_set_border_width(GTK_CONTAINER(w), 10);
+        gtk_widget_show(w);
+
+        if (!*s->pathname) {
+            our_dialog_set_action_area(GTK_WINDOW(cacfg->window), w);
+        } else {
+            our_dialog_add_to_content_area(GTK_WINDOW(cacfg->window), w,
+                                           true, true, 0);
+        }
+    }
+
+    cacfg->dp.data = cacfg;
+    cacfg->dp.shortcuts = &cacfg->scs;
+    cacfg->dp.lastfocus = NULL;
+    cacfg->dp.retval = 0;
+    cacfg->dp.window = cacfg->window;
+
+    dlg_refresh(NULL, &cacfg->dp);
+
+    if (dp) {
+        set_transient_window_pos(dp->window, cacfg->window);
+    } else {
+        gtk_window_set_position(GTK_WINDOW(cacfg->window), GTK_WIN_POS_CENTER);
+    }
+    gtk_widget_show(cacfg->window);
+
+    g_signal_connect(G_OBJECT(cacfg->window), "destroy",
+                     G_CALLBACK(cacfg_destroy), NULL);
+    g_signal_connect(G_OBJECT(cacfg->window), "key_press_event",
+                     G_CALLBACK(win_key_press), &cacfg->dp);
+}

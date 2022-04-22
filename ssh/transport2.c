@@ -113,6 +113,7 @@ static const char *const kexlist_descr[NKEXLIST] = {
 };
 
 static int weak_algorithm_compare(void *av, void *bv);
+static int ca_blob_compare(void *av, void *bv);
 
 PacketProtocolLayer *ssh2_transport_new(
     Conf *conf, const char *host, int port, const char *fullhostname,
@@ -134,6 +135,7 @@ PacketProtocolLayer *ssh2_transport_new(
     s->server_greeting = dupstr(server_greeting);
     s->stats = stats;
     s->hostkeyblob = strbuf_new();
+    s->host_cas = newtree234(ca_blob_compare);
 
     pq_in_init(&s->pq_in_higher);
     pq_out_init(&s->pq_out_higher);
@@ -212,6 +214,12 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
     sfree(s->keystr);
     sfree(s->hostkey_str);
     strbuf_free(s->hostkeyblob);
+    {
+        host_ca *hca;
+        while ( (hca = delpos234(s->host_cas, 0)) )
+            host_ca_free(hca);
+        freetree234(s->host_cas);
+    }
     if (s->hkey && !s->hostkeys) {
         ssh_key_free(s->hkey);
         s->hkey = NULL;
@@ -493,7 +501,7 @@ static void ssh2_write_kexinit_lists(
     struct kexinit_algorithm_list kexlists[NKEXLIST],
     Conf *conf, const SshServerConfig *ssc, int remote_bugs,
     const char *hk_host, int hk_port, const ssh_keyalg *hk_prev,
-    ssh_transient_hostkey_cache *thc,
+    ssh_transient_hostkey_cache *thc, tree234 *host_cas,
     ssh_key *const *our_hostkeys, int our_nhostkeys,
     bool first_time, bool can_gssapi_keyex, bool transient_hostkey_mode)
 {
@@ -672,33 +680,98 @@ static void ssh2_write_kexinit_lists(
          * they surely _do_ want to be alerted that a server
          * they're actually connecting to is using it.
          */
-        warn = false;
-        for (i = 0; i < n_preferred_hk; i++) {
-            if (preferred_hk[i] == HK_WARN)
-                warn = true;
-            for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
-                if (ssh2_hostkey_algs[j].id != preferred_hk[i])
-                    continue;
-                if (conf_get_bool(conf, CONF_ssh_prefer_known_hostkeys) &&
-                    have_ssh_host_key(hk_host, hk_port,
-                                      ssh2_hostkey_algs[j].alg->cache_id)) {
+
+        bool accept_certs = false;
+        {
+            host_ca_enum *handle = enum_host_ca_start();
+            if (handle) {
+                strbuf *name = strbuf_new();
+                while (strbuf_clear(name), enum_host_ca_next(handle, name)) {
+                    host_ca *hca = host_ca_load(name->s);
+                    if (!hca)
+                        continue;
+
+                    bool match = false;
+                    for (size_t i = 0, e = hca->n_hostname_wildcards;
+                         i < e; i++) {
+                        if (wc_match(hca->hostname_wildcards[i], hk_host)) {
+                            match = true;
+                            break;
+                        }
+                    }
+
+                    if (match && hca->ca_public_key) {
+                        accept_certs = true;
+                        add234(host_cas, hca);
+                    } else {
+                        host_ca_free(hca);
+                    }
+                }
+                enum_host_ca_finish(handle);
+                strbuf_free(name);
+            }
+        }
+
+        if (accept_certs) {
+            /* Add all the certificate algorithms first, in preference order */
+            warn = false;
+            for (i = 0; i < n_preferred_hk; i++) {
+                if (preferred_hk[i] == HK_WARN)
+                    warn = true;
+                for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
+                    const struct ssh_signkey_with_user_pref_id *a =
+                        &ssh2_hostkey_algs[j];
+                    if (!a->alg->is_certificate)
+                        continue;
+                    if (a->id != preferred_hk[i])
+                        continue;
                     alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
-                                              ssh2_hostkey_algs[j].alg->ssh_id);
-                    alg->u.hk.hostkey = ssh2_hostkey_algs[j].alg;
+                                              a->alg->ssh_id);
+                    alg->u.hk.hostkey = a->alg;
                     alg->u.hk.warn = warn;
                 }
             }
         }
+
+        /* Next, add uncertified algorithms we already know a key for
+         * (unless configured not to do that) */
         warn = false;
         for (i = 0; i < n_preferred_hk; i++) {
             if (preferred_hk[i] == HK_WARN)
                 warn = true;
             for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
-                if (ssh2_hostkey_algs[j].id != preferred_hk[i])
+                const struct ssh_signkey_with_user_pref_id *a =
+                    &ssh2_hostkey_algs[j];
+                if (a->alg->is_certificate || !a->alg->cache_id)
+                    continue;
+                if (a->id != preferred_hk[i])
+                    continue;
+                if (conf_get_bool(conf, CONF_ssh_prefer_known_hostkeys) &&
+                    have_ssh_host_key(hk_host, hk_port,
+                                      a->alg->cache_id)) {
+                    alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
+                                              a->alg->ssh_id);
+                    alg->u.hk.hostkey = a->alg;
+                    alg->u.hk.warn = warn;
+                }
+            }
+        }
+
+        /* And finally, everything else */
+        warn = false;
+        for (i = 0; i < n_preferred_hk; i++) {
+            if (preferred_hk[i] == HK_WARN)
+                warn = true;
+            for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
+                const struct ssh_signkey_with_user_pref_id *a =
+                    &ssh2_hostkey_algs[j];
+                if (a->alg->is_certificate)
+                    continue;
+                if (a->id != preferred_hk[i])
                     continue;
                 alg = ssh2_kexinit_addalg(&kexlists[KEXLIST_HOSTKEY],
-                                          ssh2_hostkey_algs[j].alg->ssh_id);
-                alg->u.hk.hostkey = ssh2_hostkey_algs[j].alg;
+                                          a->alg->ssh_id);
+                alg->u.hk.hostkey = a->alg;
                 alg->u.hk.warn = warn;
             }
         }
@@ -1201,7 +1274,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     ssh2_write_kexinit_lists(
         BinarySink_UPCAST(s->outgoing_kexinit), s->kexlists,
         s->conf, s->ssc, s->ppl.remote_bugs,
-        s->savedhost, s->savedport, s->hostkey_alg, s->thc,
+        s->savedhost, s->savedport, s->hostkey_alg, s->thc, s->host_cas,
         s->hostkeys, s->nhostkeys,
         !s->got_session_id, s->can_gssapi_keyex,
         s->gss_kex_used && !s->need_gss_transient_hostkey);
@@ -1271,6 +1344,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         for (i = 0; i < nhk; i++) {
             j = hks[i];
             if (ssh2_hostkey_algs[j].alg != s->hostkey_alg &&
+                ssh2_hostkey_algs[j].alg->cache_id &&
                 !have_ssh_host_key(s->savedhost, s->savedport,
                                    ssh2_hostkey_algs[j].alg->cache_id)) {
                 s->uncert_hostkeys[s->n_uncert_hostkeys++] = j;
@@ -2152,6 +2226,18 @@ static int weak_algorithm_compare(void *av, void *bv)
 {
     uintptr_t a = (uintptr_t)av, b = (uintptr_t)bv;
     return a < b ? -1 : a > b ? +1 : 0;
+}
+
+static int ca_blob_compare(void *av, void *bv)
+{
+    host_ca *a = (host_ca *)av, *b = (host_ca *)bv;
+    strbuf *apk = a->ca_public_key, *bpk = b->ca_public_key;
+    /* Ordering by public key is arbitrary here, so do whatever is easiest */
+    if (apk->len < bpk->len)
+        return -1;
+    if (apk->len > bpk->len)
+        return +1;
+    return memcmp(apk->u, bpk->u, apk->len);
 }
 
 /*

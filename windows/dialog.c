@@ -1171,3 +1171,41 @@ void old_keyfile_warning(void)
     sfree(msg);
     sfree(title);
 }
+
+static INT_PTR CAConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
+                            void *ctx)
+{
+    PortableDialogStuff *pds = (PortableDialogStuff *)ctx;
+
+    switch (msg) {
+      case WM_INITDIALOG:
+        pds_initdialog_start(pds, hwnd);
+
+        SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
+                    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
+
+        centre_window(hwnd);
+
+        pds_create_controls(pds, 0, IDCX_PANELBASE, 3, 3, 13, "Main");
+        pds_create_controls(pds, 0, IDCX_STDBASE, 3, 3, 235, "");
+        dlg_refresh(NULL, pds->dp);    /* and set up control values */
+
+        pds_initdialog_finish(pds);
+        return 0;
+
+      default:
+        return pds_default_dlgproc(pds, hwnd, msg, wParam, lParam);
+    }
+}
+
+void show_ca_config_box(dlgparam *dp)
+{
+    PortableDialogStuff *pds = pds_new(1);
+
+    setup_ca_config_box(pds->ctrlbox);
+
+    ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_CA_CONFIG), "PuTTYConfigBox",
+                   dp ? dp->hwnd : NULL, CAConfigProc, pds);
+
+    pds_free(pds);
+}

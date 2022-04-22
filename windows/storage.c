@@ -21,6 +21,7 @@
 static const char *const reg_jumplist_key = PUTTY_REG_POS "\\Jumplist";
 static const char *const reg_jumplist_value = "Recent sessions";
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
+static const char *const host_ca_key = PUTTY_REG_POS "\\SshHostCAs";
 
 static bool tried_shgetfolderpath = false;
 static HMODULE shell32_module = NULL;
@@ -369,6 +370,128 @@ void store_host_key(const char *hostname, int port,
     } /* else key does not exist in registry */
 
     strbuf_free(regname);
+}
+
+struct host_ca_enum {
+    HKEY key;
+    int i;
+};
+
+host_ca_enum *enum_host_ca_start(void)
+{
+    host_ca_enum *e;
+    HKEY key;
+
+    if (!(key = open_regkey(false, HKEY_CURRENT_USER, host_ca_key)))
+        return NULL;
+
+    e = snew(host_ca_enum);
+    e->key = key;
+    e->i = 0;
+
+    return e;
+}
+
+bool enum_host_ca_next(host_ca_enum *e, strbuf *sb)
+{
+    char *regbuf = enum_regkey(e->key, e->i);
+    if (!regbuf)
+        return false;
+
+    unescape_registry_key(regbuf, sb);
+    sfree(regbuf);
+    e->i++;
+    return true;
+}
+
+void enum_host_ca_finish(host_ca_enum *e)
+{
+    close_regkey(e->key);
+    sfree(e);
+}
+
+host_ca *host_ca_load(const char *name)
+{
+    strbuf *sb;
+    const char *s;
+
+    sb = strbuf_new();
+    escape_registry_key(name, sb);
+    HKEY rkey = open_regkey(false, HKEY_CURRENT_USER, host_ca_key, sb->s);
+    strbuf_free(sb);
+
+    if (!rkey)
+        return NULL;
+
+    host_ca *hca = snew(host_ca);
+    memset(hca, 0, sizeof(*hca));
+    hca->name = dupstr(name);
+
+    if ((s = get_reg_sz(rkey, "PublicKey")) != NULL)
+        hca->ca_public_key = base64_decode_sb(ptrlen_from_asciz(s));
+
+    if ((sb = get_reg_multi_sz(rkey, "MatchHosts")) != NULL) {
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(sb));
+
+        const char *wc;
+        size_t wcsize = 0;
+        while (wc = get_asciz(src), !get_err(src)) {
+            sgrowarray(hca->hostname_wildcards, wcsize,
+                       hca->n_hostname_wildcards);
+            hca->hostname_wildcards[hca->n_hostname_wildcards++] = dupstr(wc);
+        }
+
+        strbuf_free(sb);
+    }
+
+    close_regkey(rkey);
+    return hca;
+}
+
+char *host_ca_save(host_ca *hca)
+{
+    if (!*hca->name)
+        return dupstr("CA record must have a name");
+
+    strbuf *sb = strbuf_new();
+    escape_registry_key(hca->name, sb);
+    HKEY rkey = open_regkey(true, HKEY_CURRENT_USER, host_ca_key, sb->s);
+    if (!rkey) {
+        char *err = dupprintf("Unable to create registry key\n"
+                              "HKEY_CURRENT_USER\\%s\\%s", host_ca_key, sb->s);
+        strbuf_free(sb);
+        return err;
+    }
+    strbuf_free(sb);
+
+    strbuf *base64_pubkey = base64_encode_sb(
+        ptrlen_from_strbuf(hca->ca_public_key), 0);
+    put_reg_sz(rkey, "PublicKey", base64_pubkey->s);
+    strbuf_free(base64_pubkey);
+
+    strbuf *wcs = strbuf_new();
+    for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
+        put_asciz(wcs, hca->hostname_wildcards[i]);
+    put_reg_multi_sz(rkey, "MatchHosts", wcs);
+    strbuf_free(wcs);
+
+    close_regkey(rkey);
+    return NULL;
+}
+
+char *host_ca_delete(const char *name)
+{
+    HKEY rkey = open_regkey(false, HKEY_CURRENT_USER, host_ca_key);
+    if (!rkey)
+        return NULL;
+
+    strbuf *sb = strbuf_new();
+    escape_registry_key(name, sb);
+    del_regkey(rkey, sb->s);
+    strbuf_free(sb);
+
+    return NULL;
 }
 
 /*

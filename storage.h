@@ -92,6 +92,29 @@ void store_host_key(const char *hostname, int port,
                     const char *keytype, const char *key);
 
 /* ----------------------------------------------------------------------
+ * Functions to access PuTTY's configuration for trusted host
+ * certification authorities. This must be stored separately from the
+ * saved-session data, because the whole point is to avoid having to
+ * configure CAs separately per session.
+ */
+
+struct host_ca {
+    char *name;
+    strbuf *ca_public_key;
+    char **hostname_wildcards;
+    size_t n_hostname_wildcards;
+};
+
+host_ca_enum *enum_host_ca_start(void);
+bool enum_host_ca_next(host_ca_enum *handle, strbuf *out);
+void enum_host_ca_finish(host_ca_enum *handle);
+
+host_ca *host_ca_load(const char *name);
+char *host_ca_save(host_ca *);   /* NULL on success, or dynamic error msg */
+char *host_ca_delete(const char *name); /* likewise */
+void host_ca_free(host_ca *);
+
+/* ----------------------------------------------------------------------
  * Functions to access PuTTY's random number seed file.
  */
 

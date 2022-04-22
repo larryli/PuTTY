@@ -16,6 +16,7 @@
 #define IDD_HK_ABSENT    114
 #define IDD_HK_WRONG     115
 #define IDD_HK_MOREINFO  116
+#define IDD_CA_CONFIG    117
 
 #define IDN_LIST        1001
 #define IDN_COPY        1002

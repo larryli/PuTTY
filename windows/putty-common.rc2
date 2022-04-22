@@ -130,4 +130,13 @@ BEGIN
     DEFPUSHBUTTON "&Close", IDOK, 176, 130, 48, 14
 END
 
+/* Accelerators used: aco */
+IDD_CA_CONFIG DIALOG DISCARDABLE 0, 0, 300, 252
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY trusted host certification authorities"
+FONT 8, "MS Shell Dlg"
+CLASS "PuTTYConfigBox"
+BEGIN
+END
+
 #include "version.rc2"

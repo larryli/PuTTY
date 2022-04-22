@@ -176,6 +176,8 @@ typedef struct dlgparam dlgparam;
 typedef struct settings_w settings_w;
 typedef struct settings_r settings_r;
 typedef struct settings_e settings_e;
+typedef struct host_ca host_ca;
+typedef struct host_ca_enum host_ca_enum;
 
 typedef struct SessionSpecial SessionSpecial;
 
