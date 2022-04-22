@@ -811,7 +811,7 @@ static ssh2_userkey *openssh_pem_read(
 }
 
 static bool openssh_pem_write(
-    const Filename *filename, ssh2_userkey *key, const char *passphrase)
+    const Filename *filename, ssh2_userkey *ukey, const char *passphrase)
 {
     strbuf *pubblob, *privblob, *outblob;
     unsigned char *spareblob;
@@ -825,13 +825,17 @@ static bool openssh_pem_write(
     FILE *fp;
     BinarySource src[1];
 
+    /* OpenSSH's private key files never contain a certificate, so
+     * revert to the underlying base key if necessary */
+    ssh_key *key = ssh_key_base_key(ukey->key);
+
     /*
      * Fetch the key blobs.
      */
     pubblob = strbuf_new();
-    ssh_key_public_blob(key->key, BinarySink_UPCAST(pubblob));
+    ssh_key_public_blob(key, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new_nm();
-    ssh_key_private_blob(key->key, BinarySink_UPCAST(privblob));
+    ssh_key_private_blob(key, BinarySink_UPCAST(privblob));
     spareblob = NULL;
 
     outblob = strbuf_new_nm();
@@ -840,8 +844,8 @@ static bool openssh_pem_write(
      * Encode the OpenSSH key blob, and also decide on the header
      * line.
      */
-    if (ssh_key_alg(key->key) == &ssh_rsa ||
-        ssh_key_alg(key->key) == &ssh_dsa) {
+    if (ssh_key_alg(key) == &ssh_rsa ||
+        ssh_key_alg(key) == &ssh_dsa) {
         strbuf *seq;
 
         /*
@@ -851,7 +855,7 @@ static bool openssh_pem_write(
          * bignums per key type and then construct the actual blob in
          * common code after that.
          */
-        if (ssh_key_alg(key->key) == &ssh_rsa) {
+        if (ssh_key_alg(key) == &ssh_rsa) {
             ptrlen n, e, d, p, q, iqmp, dmp1, dmq1;
             mp_int *bd, *bp, *bq, *bdmp1, *bdmq1;
 
@@ -947,11 +951,11 @@ static bool openssh_pem_write(
         put_ber_id_len(outblob, 16, seq->len, ASN1_CONSTRUCTED);
         put_data(outblob, seq->s, seq->len);
         strbuf_free(seq);
-    } else if (ssh_key_alg(key->key) == &ssh_ecdsa_nistp256 ||
-               ssh_key_alg(key->key) == &ssh_ecdsa_nistp384 ||
-               ssh_key_alg(key->key) == &ssh_ecdsa_nistp521) {
+    } else if (ssh_key_alg(key) == &ssh_ecdsa_nistp256 ||
+               ssh_key_alg(key) == &ssh_ecdsa_nistp384 ||
+               ssh_key_alg(key) == &ssh_ecdsa_nistp521) {
         const unsigned char *oid;
-        struct ecdsa_key *ec = container_of(key->key, struct ecdsa_key, sshk);
+        struct ecdsa_key *ec = container_of(key, struct ecdsa_key, sshk);
         int oidlen;
         int pointlen;
         strbuf *seq, *sub;
@@ -966,7 +970,7 @@ static bool openssh_pem_write(
          *   [1]
          *     BIT STRING (0x00 public key point)
          */
-        oid = ec_alg_oid(ssh_key_alg(key->key), &oidlen);
+        oid = ec_alg_oid(ssh_key_alg(key), &oidlen);
         pointlen = (ec->curve->fieldBits + 7) / 8 * 2;
 
         seq = strbuf_new_nm();
@@ -1499,7 +1503,7 @@ static ssh2_userkey *openssh_new_read(
 }
 
 static bool openssh_new_write(
-    const Filename *filename, ssh2_userkey *key, const char *passphrase)
+    const Filename *filename, ssh2_userkey *ukey, const char *passphrase)
 {
     strbuf *pubblob, *privblob, *cblob;
     int padvalue;
@@ -1509,13 +1513,17 @@ static bool openssh_new_write(
     const int bcrypt_rounds = 16;
     FILE *fp;
 
+    /* OpenSSH's private key files never contain a certificate, so
+     * revert to the underlying base key if necessary */
+    ssh_key *key = ssh_key_base_key(ukey->key);
+
     /*
      * Fetch the key blobs and find out the lengths of things.
      */
     pubblob = strbuf_new();
-    ssh_key_public_blob(key->key, BinarySink_UPCAST(pubblob));
+    ssh_key_public_blob(key, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new_nm();
-    ssh_key_openssh_blob(key->key, BinarySink_UPCAST(privblob));
+    ssh_key_openssh_blob(key, BinarySink_UPCAST(privblob));
 
     /*
      * Construct the cleartext version of the blob.
@@ -1562,11 +1570,11 @@ static bool openssh_new_write(
 
         /* Private key. The main private blob goes inline, with no string
          * wrapper. */
-        put_stringz(cpblob, ssh_key_ssh_id(key->key));
+        put_stringz(cpblob, ssh_key_ssh_id(key));
         put_data(cpblob, privblob->s, privblob->len);
 
         /* Comment. */
-        put_stringz(cpblob, key->comment);
+        put_stringz(cpblob, ukey->comment);
 
         /* Pad out the encrypted section. */
         padvalue = 1;
@@ -1633,11 +1641,12 @@ static bool openssh_auto_write(
      * assume that anything not in that fixed list is newer, and hence
      * will use the new format.
      */
-    if (ssh_key_alg(key->key) == &ssh_dsa ||
-        ssh_key_alg(key->key) == &ssh_rsa ||
-        ssh_key_alg(key->key) == &ssh_ecdsa_nistp256 ||
-        ssh_key_alg(key->key) == &ssh_ecdsa_nistp384 ||
-        ssh_key_alg(key->key) == &ssh_ecdsa_nistp521)
+    const ssh_keyalg *alg = ssh_key_alg(ssh_key_base_key(key->key));
+    if (alg == &ssh_dsa ||
+        alg == &ssh_rsa ||
+        alg == &ssh_ecdsa_nistp256 ||
+        alg == &ssh_ecdsa_nistp384 ||
+        alg == &ssh_ecdsa_nistp521)
         return openssh_pem_write(filename, key, passphrase);
     else
         return openssh_new_write(filename, key, passphrase);
