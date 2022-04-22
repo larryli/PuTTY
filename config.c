@@ -1738,7 +1738,9 @@ void proxy_type_handler(union control *ctrl, dlgparam *dlg,
         ADD(PROXY_SOCKS4, "SOCKS 4");
         ADD(PROXY_HTTP, "HTTP CONNECT");
         if (ssh_proxy_supported) {
-            ADD(PROXY_SSH, "SSH to proxy and use port forwarding");
+            ADD(PROXY_SSH_TCPIP, "SSH to proxy and use port forwarding");
+            ADD(PROXY_SSH_EXEC, "SSH to proxy and execute a command");
+            ADD(PROXY_SSH_SUBSYSTEM, "SSH to proxy and invoke a subsystem");
         }
         if (ctrl->generic.context.i & PROXY_UI_FLAG_LOCAL) {
             ADD(PROXY_CMD, "Local (run a subprogram to connect)");

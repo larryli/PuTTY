@@ -10,6 +10,7 @@
 #include "ssh.h"
 #include "network.h"
 #include "storage.h"
+#include "proxy.h"
 
 const bool ssh_proxy_supported = true;
 
@@ -636,12 +637,47 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
      */
     conf_set_bool(sp->conf, CONF_ssh_simple, true);
 
-    /*
-     * Configure the main channel of this SSH session to be a
-     * direct-tcpip connection to the destination host/port.
-     */
-    conf_set_str(sp->conf, CONF_ssh_nc_host, hostname);
-    conf_set_int(sp->conf, CONF_ssh_nc_port, port);
+    int proxy_type = conf_get_int(clientconf, CONF_proxy_type);
+    switch (proxy_type) {
+      case PROXY_SSH_TCPIP:
+        /*
+         * Configure the main channel of this SSH session to be a
+         * direct-tcpip connection to the destination host/port.
+         */
+        conf_set_str(sp->conf, CONF_ssh_nc_host, hostname);
+        conf_set_int(sp->conf, CONF_ssh_nc_port, port);
+        break;
+
+      case PROXY_SSH_SUBSYSTEM:
+      case PROXY_SSH_EXEC: {
+        Conf *cmd_conf = conf_copy(clientconf);
+
+        /*
+         * Unlike the Telnet and Local proxy types, we don't use the
+         * proxy username and password fields in the formatted
+         * command, because if we use them at all, it's for
+         * authenticating to the proxy SSH server.
+         */
+        conf_set_str(cmd_conf, CONF_proxy_username, "");
+        conf_set_str(cmd_conf, CONF_proxy_password, "");
+
+        char *cmd = format_telnet_command(sp->addr, sp->port, cmd_conf, NULL);
+        conf_free(cmd_conf);
+
+        conf_set_str(sp->conf, CONF_remote_cmd, cmd);
+        sfree(cmd);
+
+        conf_set_bool(sp->conf, CONF_nopty, true);
+
+        if (proxy_type == PROXY_SSH_SUBSYSTEM)
+            conf_set_bool(sp->conf, CONF_ssh_subsys, true);
+
+        break;
+      }
+
+      default:
+        unreachable("bad SSH proxy type");
+    }
 
     sp->logctx = log_init(&sp->logpolicy, sp->conf);
 

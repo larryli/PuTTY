@@ -499,7 +499,9 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         char *proxy_canonical_name;
         Socket *sret;
 
-        if (type == PROXY_SSH &&
+        if ((type == PROXY_SSH_TCPIP ||
+             type == PROXY_SSH_EXEC ||
+             type == PROXY_SSH_SUBSYSTEM) &&
             (sret = sshproxy_new_connection(addr, hostname, port, privport,
                                             oobinline, nodelay, keepalive,
                                             plug, conf, itr)) != NULL)
