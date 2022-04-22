@@ -1290,11 +1290,7 @@ static inline bool is_base64_char(char c)
             c == '+' || c == '/' || c == '=');
 }
 
-extern int base64_decode_atom(const char *atom, unsigned char *out);
 extern int base64_lines(int datalen);
-extern void base64_encode_atom(const unsigned char *data, int n, char *out);
-extern void base64_encode(FILE *fp, const unsigned char *data, int datalen,
-                          int cpl);
 
 /* ppk_load_* can return this as an error */
 extern ssh2_userkey ssh2_wrong_passphrase;

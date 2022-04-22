@@ -2,7 +2,9 @@ add_sources_from_current_dir(utils
   antispoof.c
   backend_socket_log.c
   base64_decode_atom.c
+  base64_decode.c
   base64_encode_atom.c
+  base64_encode.c
   bufchain.c
   buildinfo.c
   burnstr.c

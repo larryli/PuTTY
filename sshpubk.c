@@ -1391,37 +1391,6 @@ int base64_lines(int datalen)
     return (datalen + 47) / 48;
 }
 
-static void base64_encode_s(BinarySink *bs, const unsigned char *data,
-                            int datalen, int cpl)
-{
-    int linelen = 0;
-    char out[4];
-    int n, i;
-
-    while (datalen > 0) {
-        n = (datalen < 3 ? datalen : 3);
-        base64_encode_atom(data, n, out);
-        data += n;
-        datalen -= n;
-        for (i = 0; i < 4; i++) {
-            if (linelen >= cpl) {
-                linelen = 0;
-                put_byte(bs, '\n');
-            }
-            put_byte(bs, out[i]);
-            linelen++;
-        }
-    }
-    put_byte(bs, '\n');
-}
-
-void base64_encode(FILE *fp, const unsigned char *data, int datalen, int cpl)
-{
-    stdio_sink ss;
-    stdio_sink_init(&ss, fp);
-    base64_encode_s(BinarySink_UPCAST(&ss), data, datalen, cpl);
-}
-
 const ppk_save_parameters ppk_save_default_parameters = {
     .fmt_version = 3,
 
@@ -1566,7 +1535,7 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
     put_fmt(out, "Encryption: %s\n", cipherstr);
     put_fmt(out, "Comment: %s\n", key->comment);
     put_fmt(out, "Public-Lines: %d\n", base64_lines(pub_blob->len));
-    base64_encode_s(BinarySink_UPCAST(out), pub_blob->u, pub_blob->len, 64);
+    base64_encode_bs(BinarySink_UPCAST(out), ptrlen_from_strbuf(pub_blob), 64);
     if (params.fmt_version == 3 && ciphertype->keylen != 0) {
         put_fmt(out, "Key-Derivation: %s\n",
                 params.argon2_flavour == Argon2d ? "Argon2d" :
@@ -1582,8 +1551,8 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
         put_fmt(out, "\n");
     }
     put_fmt(out, "Private-Lines: %d\n", base64_lines(priv_encrypted_len));
-    base64_encode_s(BinarySink_UPCAST(out),
-                    priv_blob_encrypted, priv_encrypted_len, 64);
+    base64_encode_bs(BinarySink_UPCAST(out),
+                     make_ptrlen(priv_blob_encrypted, priv_encrypted_len), 64);
     put_fmt(out, "Private-MAC: ");
     for (i = 0; i < macalg->len; i++)
         put_fmt(out, "%02x", priv_mac[i]);

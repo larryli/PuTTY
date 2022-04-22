@@ -108,6 +108,12 @@ bool strendswith(const char *s, const char *t);
 
 void base64_encode_atom(const unsigned char *data, int n, char *out);
 int base64_decode_atom(const char *atom, unsigned char *out);
+void base64_decode_bs(BinarySink *bs, ptrlen data);
+void base64_decode_fp(FILE *fp, ptrlen data);
+strbuf *base64_decode_sb(ptrlen data);
+void base64_encode_bs(BinarySink *bs, ptrlen data, int cpl);
+void base64_encode_fp(FILE *fp, ptrlen data, int cpl);
+strbuf *base64_encode_sb(ptrlen data, int cpl);
 
 struct bufchain_granule;
 struct bufchain_tag {

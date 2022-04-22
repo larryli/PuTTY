@@ -1075,7 +1075,7 @@ static bool openssh_pem_write(
             fprintf(fp, "%02X", iv[i]);
         fprintf(fp, "\n\n");
     }
-    base64_encode(fp, outblob->u, outblob->len, 64);
+    base64_encode_fp(fp, ptrlen_from_strbuf(outblob), 64);
     fputs(footer, fp);
     fclose(fp);
     ret = true;
@@ -1606,7 +1606,7 @@ static bool openssh_new_write(
     if (!fp)
         goto error;
     fputs("-----BEGIN OPENSSH PRIVATE KEY-----\n", fp);
-    base64_encode(fp, cblob->u, cblob->len, 64);
+    base64_encode_fp(fp, ptrlen_from_strbuf(cblob), 64);
     fputs("-----END OPENSSH PRIVATE KEY-----\n", fp);
     fclose(fp);
     ret = true;
@@ -2308,7 +2308,7 @@ static bool sshcom_write(
         }
         fprintf(fp, "%s\"\n", c);
     }
-    base64_encode(fp, outblob->u, outblob->len, 70);
+    base64_encode_fp(fp, ptrlen_from_strbuf(outblob), 70);
     fputs("---- END SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);
     fclose(fp);
     ret = true;
