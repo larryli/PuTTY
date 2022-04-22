@@ -1708,6 +1708,58 @@ static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
+void proxy_type_handler(union control *ctrl, dlgparam *dlg,
+                        void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    if (event == EVENT_REFRESH) {
+        /*
+         * We must fetch the previously configured value from the Conf
+         * before we start modifying the drop-down list, otherwise the
+         * spurious SELCHANGE we trigger in the process will overwrite
+         * the value we wanted to keep.
+         */
+        int proxy_type = conf_get_int(conf, CONF_proxy_type);
+
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+
+        int index_to_select = 0, current_index = 0;
+
+#define ADD(id, title) do {                                     \
+            dlg_listbox_addwithid(ctrl, dlg, title, id);        \
+            if (id == proxy_type)                               \
+                index_to_select = current_index;                \
+            current_index++;                                    \
+        } while (0)
+
+        ADD(PROXY_NONE, "None");
+        ADD(PROXY_SOCKS5, "SOCKS 5");
+        ADD(PROXY_SOCKS4, "SOCKS 4");
+        ADD(PROXY_HTTP, "HTTP CONNECT");
+        if (ssh_proxy_supported) {
+            ADD(PROXY_SSH, "SSH to proxy and use port forwarding");
+        }
+        if (ctrl->generic.context.i & PROXY_UI_FLAG_LOCAL) {
+            ADD(PROXY_CMD, "Local (run a subprogram to connect)");
+        }
+        ADD(PROXY_TELNET, "'Telnet' (send an ad-hoc command)");
+
+#undef ADD
+
+        dlg_listbox_select(ctrl, dlg, index_to_select);
+
+        dlg_update_done(ctrl, dlg);
+    } else if (event == EVENT_SELCHANGE) {
+        int i = dlg_listbox_index(ctrl, dlg);
+        if (i < 0)
+            i = AUTO;
+        else
+            i = dlg_listbox_getid(ctrl, dlg, i);
+        conf_set_int(conf, CONF_proxy_type, i);
+    }
+}
+
 void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo)
 {
@@ -2522,26 +2574,8 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       "Options controlling proxy usage");
 
         s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
-        c = ctrl_radiobuttons(s, "Proxy type:", 't', 3,
-                              HELPCTX(proxy_type),
-                              conf_radiobutton_handler,
-                              I(CONF_proxy_type),
-                              "None", I(PROXY_NONE),
-                              "SOCKS 4", I(PROXY_SOCKS4),
-                              "SOCKS 5", I(PROXY_SOCKS5),
-                              "HTTP", I(PROXY_HTTP),
-                              "Telnet", I(PROXY_TELNET),
-                              NULL);
-        if (ssh_proxy_supported) {
-            /* Add an extra radio button to the above list. */
-            c->radio.nbuttons++;
-            c->radio.buttons =
-                sresize(c->radio.buttons, c->radio.nbuttons, char *);
-            c->radio.buttons[c->radio.nbuttons-1] = dupstr("SSH");
-            c->radio.buttondata =
-                sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
-            c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_SSH);
-        }
+        c = ctrl_droplist(s, "Proxy type:", 't', 70,
+                          HELPCTX(proxy_type), proxy_type_handler, I(0));
         ctrl_columns(s, 2, 80, 20);
         c = ctrl_editbox(s, "Proxy hostname", 'y', 100,
                          HELPCTX(proxy_main),
@@ -2579,7 +2613,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                          conf_editbox_handler,
                          I(CONF_proxy_password), I(1));
         c->editbox.password = true;
-        ctrl_editbox(s, "Telnet command", 'm', 100,
+        ctrl_editbox(s, "Command to send to proxy (for some types)", 'm', 100,
                      HELPCTX(proxy_command),
                      conf_editbox_handler,
                      I(CONF_proxy_telnet_command), I(1));
