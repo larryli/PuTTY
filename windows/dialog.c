@@ -27,21 +27,190 @@
 #define ICON_BIG        1
 #endif
 
+typedef struct PortableDialogStuff {
+    /*
+     * These are the various bits of data required to handle a dialog
+     * box that's been built up from the cross-platform dialog.c
+     * system.
+     */
+
+    /* The 'controlbox' that was returned from the portable setup function */
+    struct controlbox *ctrlbox;
+
+    /* The dlgparam that's passed to all the runtime dlg_* functions.
+     * Declared as an array of 1 so it's convenient to pass it as a pointer. */
+    struct dlgparam dp[1];
+
+    /*
+     * Collections of instantiated controls. There can be more than
+     * one of these, because sometimes you want to destroy and
+     * recreate a subset of them - e.g. when switching panes in the
+     * main PuTTY config box, you delete and recreate _most_ of the
+     * controls, but not the OK and Cancel buttons at the bottom.
+     */
+    size_t nctrltrees;
+    struct winctrls *ctrltrees;
+
+    /*
+     * Flag indicating whether the dialog box has been initialised.
+     * Used to suppresss spurious firing of message handlers during
+     * setup.
+     */
+    bool initialised;
+} PortableDialogStuff;
+
 /*
- * These are the various bits of data required to handle the
- * portable-dialog stuff in the config box. Having them at file
- * scope in here isn't too bad a place to put them; if we were ever
- * to need more than one config box per process we could always
- * shift them to a per-config-box structure stored in GWL_USERDATA.
+ * Initialise a PortableDialogStuff, before launching the dialog box.
  */
-static struct controlbox *ctrlbox;
+static PortableDialogStuff *pds_new(size_t nctrltrees)
+{
+    PortableDialogStuff *pds = snew(PortableDialogStuff);
+    memset(pds, 0, sizeof(*pds));
+
+    pds->ctrlbox = ctrl_new_box();
+
+    dp_init(pds->dp);
+
+    pds->nctrltrees = nctrltrees;
+    pds->ctrltrees = snewn(pds->nctrltrees, struct winctrls);
+    for (size_t i = 0; i < pds->nctrltrees; i++) {
+        winctrl_init(&pds->ctrltrees[i]);
+        dp_add_tree(pds->dp, &pds->ctrltrees[i]);
+    }
+
+    pds->dp->errtitle = dupprintf("%s Error", appname);
+
+    pds->initialised = false;
+
+    return pds;
+}
+
+static void pds_free(PortableDialogStuff *pds)
+{
+    ctrl_free_box(pds->ctrlbox);
+
+    dp_cleanup(pds->dp);
+
+    for (size_t i = 0; i < pds->nctrltrees; i++)
+        winctrl_cleanup(&pds->ctrltrees[i]);
+    sfree(pds->ctrltrees);
+
+    sfree(pds);
+}
+
+static INT_PTR pds_default_dlgproc(PortableDialogStuff *pds, HWND hwnd,
+                                   UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+      case WM_LBUTTONUP:
+        /*
+         * Button release should trigger WM_OK if there was a
+         * previous double click on the host CA list.
+         */
+        ReleaseCapture();
+        if (pds->dp->ended)
+            ShinyEndDialog(hwnd, pds->dp->endresult ? 1 : 0);
+        break;
+      case WM_COMMAND:
+      case WM_DRAWITEM:
+      default: {                       /* also handle drag list msg here */
+        /*
+         * Only process WM_COMMAND once the dialog is fully formed.
+         */
+        int ret;
+        if (pds->initialised) {
+            ret = winctrl_handle_command(pds->dp, msg, wParam, lParam);
+            if (pds->dp->ended && GetCapture() != hwnd)
+                ShinyEndDialog(hwnd, pds->dp->endresult ? 1 : 0);
+        } else
+            ret = 0;
+        return ret;
+      }
+      case WM_HELP:
+        if (!winctrl_context_help(pds->dp,
+                                  hwnd, ((LPHELPINFO)lParam)->iCtrlId))
+            MessageBeep(0);
+        break;
+      case WM_CLOSE:
+        quit_help(hwnd);
+        ShinyEndDialog(hwnd, 0);
+        return 0;
+
+        /* Grrr Explorer will maximize Dialogs! */
+      case WM_SIZE:
+        if (wParam == SIZE_MAXIMIZED)
+            force_normal(hwnd);
+        return 0;
+
+    }
+    return 0;
+}
+
+static void pds_initdialog_start(PortableDialogStuff *pds, HWND hwnd)
+{
+    pds->dp->hwnd = hwnd;
+
+    if (pds->dp->wintitle)     /* apply override title, if provided */
+        SetWindowText(hwnd, pds->dp->wintitle);
+
+    /* The portable dialog system generally includes the ability to
+     * handle context help for particular controls. Enable the
+     * relevant window styles if we have a help file available. */
+    if (has_help()) {
+        LONG_PTR style = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, style | WS_EX_CONTEXTHELP);
+    } else {
+        /* If not, and if the dialog template provided a top-level
+         * Help button, delete it */
+        HWND item = GetDlgItem(hwnd, IDC_HELPBTN);
+        if (item)
+            DestroyWindow(item);
+    }
+}
+
 /*
- * ctrls_base holds the OK and Cancel buttons: the controls which
- * are present in all dialog panels. ctrls_panel holds the ones
- * which change from panel to panel.
+ * Create the panelfuls of controls in the configuration box.
  */
-static struct winctrls ctrls_base, ctrls_panel;
-static struct dlgparam dp;
+static void pds_create_controls(
+    PortableDialogStuff *pds, size_t which_tree, int base_id,
+    int left, int right, int top, char *path)
+{
+    struct ctlpos cp;
+
+    ctlposinit(&cp, pds->dp->hwnd, left, right, top);
+
+    for (int index = -1; (index = ctrl_find_path(
+                              pds->ctrlbox, path, index)) >= 0 ;) {
+        struct controlset *s = pds->ctrlbox->ctrlsets[index];
+        winctrl_layout(pds->dp, &pds->ctrltrees[which_tree], &cp, s, &base_id);
+    }
+}
+
+static void pds_initdialog_finish(PortableDialogStuff *pds)
+{
+    /*
+     * Set focus into the first available control in ctrltree #0,
+     * which the caller was expected to set up to be the one
+     * containing the dialog controls likely to be used first.
+     */
+    struct winctrl *c;
+    for (int i = 0; (c = winctrl_findbyindex(&pds->ctrltrees[0], i)) != NULL;
+         i++) {
+        if (c->ctrl) {
+            dlg_set_focus(c->ctrl, pds->dp);
+            break;
+        }
+    }
+
+    /*
+     * Now we've finished creating our initial set of controls,
+     * it's safe to actually show the window without risking setup
+     * flicker.
+     */
+    ShowWindow(pds->dp->hwnd, SW_SHOWNORMAL);
+
+    pds->initialised = true;
+}
 
 #define LOGEVENT_INITIAL_MAX 128
 #define LOGEVENT_CIRCULAR_MAX 128
@@ -304,40 +473,13 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
     return newitem;
 }
 
-/*
- * Create the panelfuls of controls in the configuration box.
- */
-static void create_controls(HWND hwnd, char *path)
-{
-    struct ctlpos cp;
-    int index;
-    int base_id;
-    struct winctrls *wc;
-
-    if (!path[0]) {
-        /*
-         * Here we must create the basic standard controls.
-         */
-        ctlposinit(&cp, hwnd, 3, 3, 235);
-        wc = &ctrls_base;
-        base_id = IDCX_STDBASE;
-    } else {
-        /*
-         * Otherwise, we're creating the controls for a particular
-         * panel.
-         */
-        ctlposinit(&cp, hwnd, 100, 3, 13);
-        wc = &ctrls_panel;
-        base_id = IDCX_PANELBASE;
-    }
-
-    for (index=-1; (index = ctrl_find_path(ctrlbox, path, index)) >= 0 ;) {
-        struct controlset *s = ctrlbox->ctrlsets[index];
-        winctrl_layout(&dp, wc, &cp, s, &base_id);
-    }
-}
-
 const char *dialog_box_demo_screenshot_filename = NULL;
+
+/* ctrltrees indices for the main dialog box */
+enum {
+    TREE_PANEL, /* things we swap out every time treeview selects a new pane */
+    TREE_BASE, /* fixed things at the bottom like OK and Cancel buttons */
+};
 
 /*
  * This function is the configuration box.
@@ -347,26 +489,17 @@ const char *dialog_box_demo_screenshot_filename = NULL;
 static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                                   LPARAM lParam, void *ctx)
 {
+    PortableDialogStuff *pds = (PortableDialogStuff *)ctx;
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     HWND treeview;
     struct treeview_faff tvfaff;
-    int ret;
 
     switch (msg) {
       case WM_INITDIALOG:
-        dp.hwnd = hwnd;
-        create_controls(hwnd, "");     /* Open and Cancel buttons etc */
-        SetWindowText(hwnd, dp.wintitle);
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
-        if (has_help())
-            SetWindowLongPtr(hwnd, GWL_EXSTYLE,
-                             GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
-                             WS_EX_CONTEXTHELP);
-        else {
-            HWND item = GetDlgItem(hwnd, IDC_HELPBTN);
-            if (item)
-                DestroyWindow(item);
-        }
+        pds_initdialog_start(pds, hwnd);
+
+        pds_create_controls(pds, TREE_BASE, IDCX_STDBASE, 3, 3, 235, "");
+
         SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
                     (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
 
@@ -423,8 +556,8 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
             char *path = NULL;
             char *firstpath = NULL;
 
-            for (i = 0; i < ctrlbox->nctrlsets; i++) {
-                struct controlset *s = ctrlbox->ctrlsets[i];
+            for (i = 0; i < pds->ctrlbox->nctrlsets; i++) {
+                struct controlset *s = pds->ctrlbox->ctrlsets[i];
                 HTREEITEM item;
                 int j;
                 char *c;
@@ -473,43 +606,17 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
              * match the initial treeview selection.
              */
             assert(firstpath);   /* config.c must have given us _something_ */
-            create_controls(hwnd, firstpath);
-            dlg_refresh(NULL, &dp);    /* and set up control values */
+            pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
+                                100, 3, 13, firstpath);
+            dlg_refresh(NULL, pds->dp);    /* and set up control values */
         }
-
-        /*
-         * Set focus into the first available control.
-         */
-        {
-            int i;
-            struct winctrl *c;
-
-            for (i = 0; (c = winctrl_findbyindex(&ctrls_panel, i)) != NULL;
-                 i++) {
-                if (c->ctrl) {
-                    dlg_set_focus(c->ctrl, &dp);
-                    break;
-                }
-            }
-        }
-
-        /*
-         * Now we've finished creating our initial set of controls,
-         * it's safe to actually show the window without risking setup
-         * flicker.
-         */
-        ShowWindow(hwnd, SW_SHOWNORMAL);
-
-        /*
-         * Set the flag that activates a couple of the other message
-         * handlers below, which were disabled until now to avoid
-         * spurious firing during the above setup procedure.
-         */
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 
         if (dialog_box_demo_screenshot_filename)
             SetTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID, TICKSPERSEC, NULL);
+
+        pds_initdialog_finish(pds);
         return 0;
+
       case WM_TIMER:
         if (dialog_box_demo_screenshot_filename &&
             (UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
@@ -522,15 +629,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
             ShinyEndDialog(hwnd, 0);
         }
         return 0;
-      case WM_LBUTTONUP:
-        /*
-         * Button release should trigger WM_OK if there was a
-         * previous double click on the session list.
-         */
-        ReleaseCapture();
-        if (dp.ended)
-            ShinyEndDialog(hwnd, dp.endresult ? 1 : 0);
-        break;
+
       case WM_NOTIFY:
         if (LOWORD(wParam) == IDCX_TREEVIEW &&
             ((LPNMHDR) lParam)->code == TVN_SELCHANGED) {
@@ -545,7 +644,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
             TVITEM item;
             char buffer[64];
 
-            if (GetWindowLongPtr(hwnd, GWLP_USERDATA) != 1)
+            if (!pds->initialised)
                 return 0;
 
             i = TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
@@ -563,60 +662,34 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                 HWND item;
                 struct winctrl *c;
 
-                while ((c = winctrl_findbyindex(&ctrls_panel, 0)) != NULL) {
+                while ((c = winctrl_findbyindex(
+                            &pds->ctrltrees[TREE_PANEL], 0)) != NULL) {
                     for (k = 0; k < c->num_ids; k++) {
                         item = GetDlgItem(hwnd, c->base_id + k);
                         if (item)
                             DestroyWindow(item);
                     }
-                    winctrl_rem_shortcuts(&dp, c);
-                    winctrl_remove(&ctrls_panel, c);
+                    winctrl_rem_shortcuts(pds->dp, c);
+                    winctrl_remove(&pds->ctrltrees[TREE_PANEL], c);
                     sfree(c->data);
                     sfree(c);
                 }
             }
-            create_controls(hwnd, (char *)item.lParam);
+            pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
+                                100, 3, 13, (char *)item.lParam);
 
-            dlg_refresh(NULL, &dp);    /* set up control values */
+            dlg_refresh(NULL, pds->dp);    /* set up control values */
 
             SendMessage (hwnd, WM_SETREDRAW, true, 0);
             InvalidateRect (hwnd, NULL, true);
 
             SetFocus(((LPNMHDR) lParam)->hwndFrom);     /* ensure focus stays */
-            return 0;
         }
-        break;
-      case WM_COMMAND:
-      case WM_DRAWITEM:
-      default:                         /* also handle drag list msg here */
-        /*
-         * Only process WM_COMMAND once the dialog is fully formed.
-         */
-        if (GetWindowLongPtr(hwnd, GWLP_USERDATA) == 1) {
-            ret = winctrl_handle_command(&dp, msg, wParam, lParam);
-            if (dp.ended && GetCapture() != hwnd)
-                ShinyEndDialog(hwnd, dp.endresult ? 1 : 0);
-        } else
-            ret = 0;
-        return ret;
-      case WM_HELP:
-        if (!winctrl_context_help(&dp, hwnd,
-                                 ((LPHELPINFO)lParam)->iCtrlId))
-            MessageBeep(0);
-        break;
-      case WM_CLOSE:
-        quit_help(hwnd);
-        ShinyEndDialog(hwnd, 0);
         return 0;
 
-        /* Grrr Explorer will maximize Dialogs! */
-      case WM_SIZE:
-        if (wParam == SIZE_MAXIMIZED)
-            force_normal(hwnd);
-        return 0;
-
+      default:
+        return pds_default_dlgproc(pds, hwnd, msg, wParam, lParam);
     }
-    return 0;
 }
 
 void modal_about_box(HWND hwnd)
@@ -652,28 +725,22 @@ void defuse_showwindow(void)
 bool do_config(Conf *conf)
 {
     bool ret;
+    PortableDialogStuff *pds = pds_new(2);
 
-    ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, false, 0, 0);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), false, 0);
-    dp_init(&dp);
-    winctrl_init(&ctrls_base);
-    winctrl_init(&ctrls_panel);
-    dp_add_tree(&dp, &ctrls_base);
-    dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s Configuration", appname);
-    dp.errtitle = dupprintf("%s Error", appname);
-    dp.data = conf;
-    dlg_auto_set_fixed_pitch_flag(&dp);
-    dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
+    setup_config_box(pds->ctrlbox, false, 0, 0);
+    win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(), false, 0);
+
+    pds->dp->wintitle = dupprintf("%s Configuration", appname);
+    pds->dp->data = conf;
+
+    dlg_auto_set_fixed_pitch_flag(pds->dp);
+
+    pds->dp->shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
 
     ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
-                         NULL, GenericMainDlgProc, NULL);
+                         NULL, GenericMainDlgProc, pds);
 
-    ctrl_free_box(ctrlbox);
-    winctrl_cleanup(&ctrls_panel);
-    winctrl_cleanup(&ctrls_base);
-    dp_cleanup(&dp);
+    pds_free(pds);
 
     return ret;
 }
@@ -683,31 +750,26 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     Conf *backup_conf;
     bool ret;
     int protocol;
+    PortableDialogStuff *pds = pds_new(2);
 
     backup_conf = conf_copy(conf);
 
-    ctrlbox = ctrl_new_box();
     protocol = conf_get_int(conf, CONF_protocol);
-    setup_config_box(ctrlbox, true, protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), true, protocol);
-    dp_init(&dp);
-    winctrl_init(&ctrls_base);
-    winctrl_init(&ctrls_panel);
-    dp_add_tree(&dp, &ctrls_base);
-    dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s Reconfiguration", appname);
-    dp.errtitle = dupprintf("%s Error", appname);
-    dp.data = conf;
-    dlg_auto_set_fixed_pitch_flag(&dp);
-    dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
+    setup_config_box(pds->ctrlbox, true, protocol, protcfginfo);
+    win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(),
+                         true, protocol);
+
+    pds->dp->wintitle = dupprintf("%s Reconfiguration", appname);
+    pds->dp->data = conf;
+
+    dlg_auto_set_fixed_pitch_flag(pds->dp);
+
+    pds->dp->shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
 
     ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
-                         NULL, GenericMainDlgProc, NULL);
+                         NULL, GenericMainDlgProc, pds);
 
-    ctrl_free_box(ctrlbox);
-    winctrl_cleanup(&ctrls_base);
-    winctrl_cleanup(&ctrls_panel);
-    dp_cleanup(&dp);
+    pds_free(pds);
 
     if (!ret)
         conf_copy_into(conf, backup_conf);
