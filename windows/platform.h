@@ -115,6 +115,8 @@ int ShinyDialogBox(HINSTANCE hinst, LPCTSTR tmpl, const char *winclass,
                    HWND hwndparent, ShinyDlgProc proc, void *ctx);
 void ShinyEndDialog(HWND hwnd, int ret);
 
+void centre_window(HWND hwnd);
+
 #ifndef __WINE__
 /* Up-to-date Windows headers warn that the unprefixed versions of
  * these names are deprecated. */

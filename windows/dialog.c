@@ -348,7 +348,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                                   LPARAM lParam, void *ctx)
 {
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
-    HWND hw, treeview;
+    HWND treeview;
     struct treeview_faff tvfaff;
     int ret;
 
@@ -369,19 +369,8 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
         }
         SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
                     (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
-        /*
-         * Centre the window.
-         */
-        {                              /* centre the window */
-            RECT rs, rd;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        centre_window(hwnd);
 
         /*
          * Create the tree view.
