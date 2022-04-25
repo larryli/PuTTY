@@ -30,6 +30,7 @@ add_sources_from_current_dir(utils
   utils/request_file.c
   utils/screenshot.c
   utils/security.c
+  utils/shinydialogbox.c
   utils/split_into_argv.c
   utils/version.c
   utils/win_strerror.c

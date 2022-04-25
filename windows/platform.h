@@ -109,9 +109,11 @@ static inline uintmax_t strtoumax(const char *nptr, char **endptr, int base)
 { return _strtoui64(nptr, endptr, base); }
 #endif
 
-#define BOXFLAGS DLGWINDOWEXTRA
-#define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
-#define DF_END 0x0001
+typedef INT_PTR (*ShinyDlgProc)(HWND hwnd, UINT msg, WPARAM wParam,
+                                LPARAM lParam, void *ctx);
+int ShinyDialogBox(HINSTANCE hinst, LPCTSTR tmpl, const char *winclass,
+                   HWND hwndparent, ShinyDlgProc proc, void *ctx);
+void ShinyEndDialog(HWND hwnd, int ret);
 
 #ifndef __WINE__
 /* Up-to-date Windows headers warn that the unprefixed versions of

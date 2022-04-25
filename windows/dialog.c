@@ -255,57 +255,6 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-static int SaneDialogBox(HINSTANCE hinst,
-                         LPCTSTR tmpl,
-                         HWND hwndparent,
-                         DLGPROC lpDialogFunc)
-{
-    WNDCLASS wc;
-    HWND hwnd;
-    MSG msg;
-    int flags;
-    int ret;
-    int gm;
-
-    wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
-    wc.lpfnWndProc = DefDlgProc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = DLGWINDOWEXTRA + 2*sizeof(LONG_PTR);
-    wc.hInstance = hinst;
-    wc.hIcon = NULL;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH) (COLOR_BACKGROUND +1);
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = "PuTTYConfigBox";
-    RegisterClass(&wc);
-
-    hwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
-
-    SetWindowLongPtr(hwnd, BOXFLAGS, 0); /* flags */
-    SetWindowLongPtr(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
-
-    while ((gm=GetMessage(&msg, NULL, 0, 0)) > 0) {
-        flags=GetWindowLongPtr(hwnd, BOXFLAGS);
-        if (!(flags & DF_END) && !IsDialogMessage(hwnd, &msg))
-            DispatchMessage(&msg);
-        if (flags & DF_END)
-            break;
-    }
-
-    if (gm == 0)
-        PostQuitMessage(msg.wParam); /* We got a WM_QUIT, pass it on */
-
-    ret=GetWindowLongPtr(hwnd, BOXRESULT);
-    DestroyWindow(hwnd);
-    return ret;
-}
-
-static void SaneEndDialog(HWND hwnd, int ret)
-{
-    SetWindowLongPtr(hwnd, BOXRESULT, ret);
-    SetWindowLongPtr(hwnd, BOXFLAGS, DF_END);
-}
-
 /*
  * Null dialog procedure.
  */
@@ -395,8 +344,8 @@ const char *dialog_box_demo_screenshot_filename = NULL;
  * (Being a dialog procedure, in general it returns 0 if the default
  * dialog processing should be performed, and 1 if it should not.)
  */
-static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
-                                           WPARAM wParam, LPARAM lParam)
+static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
+                                  LPARAM lParam, void *ctx)
 {
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     HWND hw, treeview;
@@ -581,7 +530,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
             if (err)
                 MessageBox(hwnd, err, "Demo screenshot failure",
                            MB_OK | MB_ICONERROR);
-            SaneEndDialog(hwnd, 0);
+            ShinyEndDialog(hwnd, 0);
         }
         return 0;
       case WM_LBUTTONUP:
@@ -591,7 +540,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
          */
         ReleaseCapture();
         if (dp.ended)
-            SaneEndDialog(hwnd, dp.endresult ? 1 : 0);
+            ShinyEndDialog(hwnd, dp.endresult ? 1 : 0);
         break;
       case WM_NOTIFY:
         if (LOWORD(wParam) == IDCX_TREEVIEW &&
@@ -657,7 +606,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
         if (GetWindowLongPtr(hwnd, GWLP_USERDATA) == 1) {
             ret = winctrl_handle_command(&dp, msg, wParam, lParam);
             if (dp.ended && GetCapture() != hwnd)
-                SaneEndDialog(hwnd, dp.endresult ? 1 : 0);
+                ShinyEndDialog(hwnd, dp.endresult ? 1 : 0);
         } else
             ret = 0;
         return ret;
@@ -668,7 +617,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
         break;
       case WM_CLOSE:
         quit_help(hwnd);
-        SaneEndDialog(hwnd, 0);
+        ShinyEndDialog(hwnd, 0);
         return 0;
 
         /* Grrr Explorer will maximize Dialogs! */
@@ -729,9 +678,8 @@ bool do_config(Conf *conf)
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
 
-    ret =
-        SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
-                  GenericMainDlgProc);
+    ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
+                         NULL, GenericMainDlgProc, NULL);
 
     ctrl_free_box(ctrlbox);
     winctrl_cleanup(&ctrls_panel);
@@ -764,8 +712,8 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
 
-    ret = SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
-                  GenericMainDlgProc);
+    ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
+                         NULL, GenericMainDlgProc, NULL);
 
     ctrl_free_box(ctrlbox);
     winctrl_cleanup(&ctrls_base);
