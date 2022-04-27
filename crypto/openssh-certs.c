@@ -66,6 +66,22 @@ typedef struct opensshcert_extra {
      * string itself.
      */
     blob_fmt pub_fmt, base_ossh_fmt, cert_ossh_fmt;
+
+    /*
+     * The RSA-SHA2 algorithm names have their SSH id set to names
+     * like "rsa-sha2-512-cert-...", which is what will be received in
+     * the KEXINIT algorithm list if a host key in one of those
+     * algorithms is presented. But the _key_ type id that will appear
+     * in the public key blob is "ssh-rsa-cert-...". So we need a
+     * separate field to indicate the key type id we expect to see in
+     * certified public keys, and also the one we want to put back
+     * into the artificial public blob we make to pass to the
+     * constructor for the underlying key.
+     *
+     * (In rsa.c this is managed much more simply, because everything
+     * sharing the same vtable wants the same key type id.)
+     */
+    const char *cert_key_ssh_id, *base_key_ssh_id;
 } opensshcert_extra;
 
 /*
@@ -206,18 +222,18 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
  * macro so I can also make an array of them all.
  */
 
-#define KEYALG_LIST(X)                                          \
-    X(ssh_dsa, "ssh-dss", dsa)                                  \
-    X(ssh_rsa, "ssh-rsa", rsa)                                  \
-    X(ssh_rsa_sha256, "rsa-sha2-256", rsa)                      \
-    X(ssh_rsa_sha512, "rsa-sha2-512", rsa)                      \
-    X(ssh_ecdsa_ed25519, "ssh-ed25519", eddsa)                  \
-    X(ssh_ecdsa_nistp256, "ecdsa-sha2-nistp256", ecdsa)         \
-    X(ssh_ecdsa_nistp384, "ecdsa-sha2-nistp384", ecdsa)         \
-    X(ssh_ecdsa_nistp521, "ecdsa-sha2-nistp521", ecdsa)         \
+#define KEYALG_LIST(X)                                                  \
+    X(ssh_dsa, "ssh-dss", "ssh-dss", dsa)                               \
+    X(ssh_rsa, "ssh-rsa", "ssh-rsa", rsa)                               \
+    X(ssh_rsa_sha256, "rsa-sha2-256", "ssh-rsa", rsa)                   \
+    X(ssh_rsa_sha512, "rsa-sha2-512", "ssh-rsa", rsa)                   \
+    X(ssh_ecdsa_ed25519, "ssh-ed25519", "ssh-ed25519", eddsa)           \
+    X(ssh_ecdsa_nistp256, "ecdsa-sha2-nistp256","ecdsa-sha2-nistp256", ecdsa) \
+    X(ssh_ecdsa_nistp384, "ecdsa-sha2-nistp384","ecdsa-sha2-nistp384", ecdsa) \
+    X(ssh_ecdsa_nistp521, "ecdsa-sha2-nistp521","ecdsa-sha2-nistp521", ecdsa) \
     /* end of list */
 
-#define KEYALG_DEF(name, ssh_id_prefix, fmt_prefix)    \
+#define KEYALG_DEF(name, ssh_alg_id_prefix, ssh_key_id_prefix, fmt_prefix) \
     const struct opensshcert_extra opensshcert_##name##_extra = {       \
         .pub_fmt = { .fmt = fmt_prefix ## _pub_fmt,                     \
                      .len = lenof(fmt_prefix ## _pub_fmt) },            \
@@ -225,6 +241,8 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
                            .len = lenof(fmt_prefix ## _base_ossh_fmt) }, \
         .cert_ossh_fmt = { .fmt = fmt_prefix ## _cert_ossh_fmt,         \
                            .len = lenof(fmt_prefix ## _cert_ossh_fmt) }, \
+        .cert_key_ssh_id = ssh_key_id_prefix "-cert-v01@openssh.com",   \
+        .base_key_ssh_id = ssh_key_id_prefix,                           \
     };                                                                  \
                                                                         \
     const ssh_keyalg opensshcert_##name = {                             \
@@ -249,7 +267,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
         .supported_flags = opensshcert_supported_flags,                 \
         .alternate_ssh_id = opensshcert_alternate_ssh_id,               \
         .related_alg = opensshcert_related_alg,                         \
-        .ssh_id = ssh_id_prefix "-cert-v01@openssh.com",                \
+        .ssh_id = ssh_alg_id_prefix "-cert-v01@openssh.com",            \
         .cache_id = NULL,                                               \
         .extra = &opensshcert_##name##_extra,                           \
         .is_certificate = true,                                         \
@@ -258,7 +276,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
 KEYALG_LIST(KEYALG_DEF)
 #undef KEYALG_DEF
 
-#define KEYALG_LIST_ENTRY(name, ssh_id_prefix, fmt_prefix) &opensshcert_##name,
+#define KEYALG_LIST_ENTRY(name, algid, keyid, fmt) &opensshcert_##name,
 static const ssh_keyalg *const opensshcert_all_keyalgs[] = {
     KEYALG_LIST(KEYALG_LIST_ENTRY)
 };
@@ -273,7 +291,7 @@ static opensshcert_key *opensshcert_new_shared(
     BinarySource_BARE_INIT_PL(src, blob);
 
     /* Check the initial key-type string */
-    if (!ptrlen_eq_string(get_string(src), self->ssh_id))
+    if (!ptrlen_eq_string(get_string(src), extra->cert_key_ssh_id))
         return NULL;
 
     opensshcert_key *ck = snew(opensshcert_key);
@@ -283,7 +301,7 @@ static opensshcert_key *opensshcert_new_shared(
     ck->nonce = strbuf_dup(get_string(src));
     strbuf *basepub = strbuf_new();
     {
-        put_stringz(basepub, self->base_alg->ssh_id);
+        put_stringz(basepub, extra->base_key_ssh_id);
 
         /* Make the base public key blob out of the public key
          * material in the certificate. This invocation of the
@@ -461,7 +479,8 @@ static ssh_key *opensshcert_ca_pub_key(
 
 static void opensshcert_signature_preimage(opensshcert_key *ck, BinarySink *bs)
 {
-    put_stringz(bs, ck->sshk.vt->ssh_id);
+    const opensshcert_extra *extra = ck->sshk.vt->extra;
+    put_stringz(bs, extra->cert_key_ssh_id);
     put_stringpl(bs, ptrlen_from_strbuf(ck->nonce));
 
     strbuf *basepub = strbuf_new();
