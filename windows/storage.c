@@ -294,29 +294,26 @@ int check_stored_host_key(const char *hostname, int port,
              * doesn't appear anyway in RSA keys) separated by a
              * comma. All hex digits are lowercase in both formats.
              */
-            char *p = otherstr;
-            char *q = oldstyle;
+            strbuf *new = strbuf_new();
+            const char *q = oldstyle;
             int i, j;
 
             for (i = 0; i < 2; i++) {
                 int ndigits, nwords;
-                *p++ = '0';
-                *p++ = 'x';
+                put_datapl(new, PTRLEN_LITERAL("0x"));
                 ndigits = strcspn(q, "/");      /* find / or end of string */
                 nwords = ndigits / 4;
                 /* now trim ndigits to remove leading zeros */
                 while (q[(ndigits - 1) ^ 3] == '0' && ndigits > 1)
                     ndigits--;
                 /* now move digits over to new string */
-                for (j = 0; j < ndigits; j++)
-                    p[ndigits - 1 - j] = q[j ^ 3];
-                p += ndigits;
+                for (j = ndigits; j-- > 0 ;)
+                    put_byte(new, q[j ^ 3]);
                 q += nwords * 4;
                 if (*q) {
-                    q++;               /* eat the slash */
-                    *p++ = ',';        /* add a comma */
+                    q++;                 /* eat the slash */
+                    put_byte(new, ',');  /* add a comma */
                 }
-                *p = '\0';             /* terminate the string */
             }
 
             /*
@@ -324,8 +321,9 @@ int check_stored_host_key(const char *hostname, int port,
              * format. If not, we'll assume something odd went
              * wrong, and hyper-cautiously do nothing.
              */
-            if (!strcmp(otherstr, key))
-                put_reg_sz(rkey, regname->s, otherstr);
+            if (!strcmp(new->s, key))
+                put_reg_sz(rkey, regname->s, new->s);
+            strbuf_free(new);
         }
 
         sfree(oldstyle);
