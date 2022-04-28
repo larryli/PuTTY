@@ -931,6 +931,11 @@ static void ssh2_write_kexinit_lists(
     put_stringz(pktout, "");
 }
 
+struct server_hostkeys {
+    int *indices;
+    size_t n, size;
+};
+
 static bool ssh2_scan_kexinits(
     ptrlen client_kexinit, ptrlen server_kexinit,
     struct kexinit_algorithm_list kexlists[NKEXLIST],
@@ -938,7 +943,7 @@ static bool ssh2_scan_kexinits(
     transport_direction *cs, transport_direction *sc,
     bool *warn_kex, bool *warn_hk, bool *warn_cscipher, bool *warn_sccipher,
     Ssh *ssh, bool *ignore_guess_cs_packet, bool *ignore_guess_sc_packet,
-    int *n_server_hostkeys, int *server_hostkeys, unsigned *hkflags,
+    struct server_hostkeys *server_hostkeys, unsigned *hkflags,
     bool *can_send_ext_info)
 {
     BinarySource client[1], server[1];
@@ -1160,13 +1165,13 @@ static bool ssh2_scan_kexinits(
          * one or not. We return these as a list of indices into the
          * constant ssh2_hostkey_algs[] array.
          */
-        *n_server_hostkeys = 0;
-
         ptrlen list = slists[KEXLIST_HOSTKEY];
         for (ptrlen word; get_commasep_word(&list, &word) ;) {
             for (i = 0; i < lenof(ssh2_hostkey_algs); i++)
                 if (ptrlen_eq_string(word, ssh2_hostkey_algs[i].alg->ssh_id)) {
-                    server_hostkeys[(*n_server_hostkeys)++] = i;
+                    sgrowarray(server_hostkeys->indices, server_hostkeys->size,
+                               server_hostkeys->n);
+                    server_hostkeys->indices[server_hostkeys->n++] = i;
                     break;
                 }
         }
@@ -1315,17 +1320,16 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * selected algorithm identifiers.
      */
     {
-        int nhk, i, j;
-        int *hks = snewn(s->kexlists[KEXLIST_HOSTKEY].nalgs, int);
+        struct server_hostkeys hks = { NULL, 0, 0 };
 
         if (!ssh2_scan_kexinits(
                 ptrlen_from_strbuf(s->client_kexinit),
                 ptrlen_from_strbuf(s->server_kexinit),
                 s->kexlists, &s->kex_alg, &s->hostkey_alg, s->cstrans,
                 s->sctrans, &s->warn_kex, &s->warn_hk, &s->warn_cscipher,
-                &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &nhk, hks,
+                &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &hks,
                 &s->hkflags, &s->can_send_ext_info)) {
-            sfree(hks);
+            sfree(hks.indices);
             return; /* false means a fatal error function was called */
         }
 
@@ -1341,8 +1345,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
          */
         s->n_uncert_hostkeys = 0;
 
-        for (i = 0; i < nhk; i++) {
-            j = hks[i];
+        for (int i = 0; i < hks.n; i++) {
+            int j = hks.indices[i];
             if (ssh2_hostkey_algs[j].alg != s->hostkey_alg &&
                 ssh2_hostkey_algs[j].alg->cache_id &&
                 !have_ssh_host_key(s->savedhost, s->savedport,
@@ -1351,7 +1355,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
             }
         }
 
-        sfree(hks);
+        sfree(hks.indices);
     }
 
     if (s->warn_kex) {
