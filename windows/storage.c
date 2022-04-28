@@ -321,9 +321,12 @@ int check_stored_host_key(const char *hostname, int port,
              * format. If not, we'll assume something odd went
              * wrong, and hyper-cautiously do nothing.
              */
-            if (!strcmp(new->s, key))
+            if (!strcmp(new->s, key)) {
                 put_reg_sz(rkey, regname->s, new->s);
-            strbuf_free(new);
+                otherstr = strbuf_to_str(new);
+            } else {
+                strbuf_free(new);
+            }
         }
 
         sfree(oldstyle);
