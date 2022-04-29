@@ -255,8 +255,15 @@ static size_t sshproxy_output(Seat *seat, SeatOutputType type,
                               const void *data, size_t len)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
-    bufchain_add(&sp->ssh_to_socket, data, len);
-    try_send_ssh_to_socket(sp);
+    switch (type) {
+      case SEAT_OUTPUT_STDOUT:
+        bufchain_add(&sp->ssh_to_socket, data, len);
+        try_send_ssh_to_socket(sp);
+        break;
+      case SEAT_OUTPUT_STDERR:
+        log_proxy_stderr(sp->plug, &sp->psb, data, len);
+        break;
+    }
     return bufchain_size(&sp->ssh_to_socket);
 }
 
