@@ -103,7 +103,7 @@ typedef enum SuperFamily {
 
 struct SockAddr {
     int refcount;
-    char *error;
+    const char *error;
     SuperFamily superfamily;
 #ifndef NO_IPV6
     struct addrinfo *ais;              /* Addresses IPv6 style. */
