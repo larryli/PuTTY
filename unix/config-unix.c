@@ -39,7 +39,7 @@ void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
         s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
-            if (c->generic.type == CTRL_RADIO &&
+            if (c->generic.type == CTRL_LISTBOX &&
                 c->generic.handler == proxy_type_handler) {
                 c->generic.context.i |= PROXY_UI_FLAG_LOCAL;
                 break;
