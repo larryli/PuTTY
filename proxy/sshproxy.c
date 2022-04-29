@@ -643,6 +643,12 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     conf_set_str(sp->conf, CONF_ssh_nc_host, hostname);
     conf_set_int(sp->conf, CONF_ssh_nc_port, port);
 
+    /*
+     * Do the usual normalisation of things in the Conf like a "user@"
+     * prefix on the hostname field.
+     */
+    prepare_session(sp->conf);
+
     sp->logctx = log_init(&sp->logpolicy, sp->conf);
 
     char *error, *realhost;
