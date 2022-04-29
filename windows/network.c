@@ -223,7 +223,6 @@ DECL_WINDOWS_FUNCTION(static, int, getnameinfo,
                       (const struct sockaddr FAR * sa, socklen_t salen,
                        char FAR * host, DWORD hostlen, char FAR * serv,
                        DWORD servlen, int flags));
-DECL_WINDOWS_FUNCTION(static, char *, gai_strerror, (int ecode));
 DECL_WINDOWS_FUNCTION(static, int, WSAAddressToStringA,
                       (LPSOCKADDR, DWORD, LPWSAPROTOCOL_INFO,
                        LPSTR, LPDWORD));
@@ -280,7 +279,6 @@ void sk_init(void)
         /* This function would fail its type-check if we did one,
          * because the VS header file provides an inline definition
          * which is __cdecl instead of WINAPI. */
-        GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gai_strerror);
     } else {
         /* Fall back to wship6.dll for Windows 2000 */
         wship6_module = load_system32_dll("wship6.dll");
@@ -289,7 +287,6 @@ void sk_init(void)
             GET_WINDOWS_FUNCTION(wship6_module, freeaddrinfo);
             /* See comment above about type check */
             GET_WINDOWS_FUNCTION_NO_TYPECHECK(wship6_module, getnameinfo);
-            GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gai_strerror);
         } else {
         }
     }
@@ -517,10 +514,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
             ret->error = (err == WSAENETDOWN ? "Network is down" :
                           err == WSAHOST_NOT_FOUND ? "Host does not exist" :
                           err == WSATRY_AGAIN ? "Host not found" :
-#ifndef NO_IPV6
-                          p_getaddrinfo&&p_gai_strerror ? p_gai_strerror(err) :
-#endif
-                          "gethostbyname: unknown error");
+                          win_strerror(err));
         } else {
             ret->error = NULL;
 
