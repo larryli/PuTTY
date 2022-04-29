@@ -1943,14 +1943,14 @@ it must always be explicitly configured.
 
 \S{config-proxy-type} Setting the proxy type
 
-The \q{Proxy type} radio buttons allow you to configure what type of
+The \q{Proxy type} drop-down allows you to configure what type of
 proxy you want PuTTY to use for its network connections. The default
 setting is \q{None}; in this mode no proxy is used for any
 connection.
 
-\b Selecting \I{HTTP proxy}\q{HTTP} allows you to proxy your connections
-through a web server supporting the HTTP \cw{CONNECT} command, as documented
-in \W{http://www.ietf.org/rfc/rfc2817.txt}{RFC 2817}.
+\b Selecting \I{HTTP proxy}\q{HTTP CONNECT} allows you to proxy your
+connections through a web server supporting the HTTP \cw{CONNECT} command,
+as documented in \W{http://www.ietf.org/rfc/rfc2817.txt}{RFC 2817}.
 
 \b Selecting \q{SOCKS 4} or \q{SOCKS 5} allows you to proxy your
 connections through a \i{SOCKS server}.
@@ -1962,10 +1962,9 @@ through to an external host. Selecting \I{Telnet proxy}\q{Telnet}
 allows you to tell PuTTY to use this type of proxy, with the precise           
 command specified as described in \k{config-proxy-command}.
 
-\b Selecting \q{SSH} causes PuTTY to make a secondary SSH connection
-to the proxy host (sometimes called a \q{\i{jump host}} in this
-context), and then open a port-forwarding channel to the
-final destination host. 
+\b There are several ways to use a SSH server as a proxy. All of
+these cause PuTTY to make a secondary SSH connection to the proxy host
+(sometimes called a \q{\i{jump host}} in this context).
 
 \lcont{
 The \q{Proxy hostname} field will be interpreted as the name of a
@@ -1973,6 +1972,20 @@ PuTTY saved session if one exists, or a hostname if not. This
 allows multi-hop jump paths, if the referenced saved session is
 itself configured to use an SSH proxy; and it allows combining SSH
 and non-SSH proxying.
+
+\b \q{SSH to proxy and use port forwarding} causes PuTTY to use the
+secondary SSH connection to open a port-forwarding channel to the
+final destination host (similar to OpenSSH's \cw{-J} option).
+
+\b \q{SSH to proxy and execute a command} causes PuTTY to run an
+arbitrary remote command on the proxy SSH server and use that
+command's standard input and output streams to run the primary
+connection over. The remote command line is specified as described in
+\k{config-proxy-command}.
+
+\b \q{SSH to proxy and invoke a subsystem} is similar but causes PuTTY
+to start an SSH \q{\i{subsystem}} rather than an ordinary command line.
+This might be useful with a specially set up SSH proxy server.
 }
 
 \b Selecting \I{Local proxy}\q{Local} allows you to specify an arbitrary
@@ -2116,15 +2129,20 @@ Telnet/Local proxy command (see \k{config-proxy-command}). If you do
 so, and don't also specify the actual username and/or password in the
 configuration, PuTTY will interactively prompt for them.
 
-\S{config-proxy-command} Specifying the Telnet or Local proxy command
+\S{config-proxy-command} Specifying the Telnet, SSH, or Local proxy command
 
 If you are using the \i{Telnet proxy} type, the usual command required
 by the firewall's Telnet server is \c{connect}, followed by a host
 name and a port number. If your proxy needs a different command,
-you can enter an alternative here.
+you can enter an alternative in the \q{Command to send to proxy} box.
 
 If you are using the \i{Local proxy} type, the local command to run
 is specified here.
+
+If you are using the \q{SSH to proxy and execute a command} type, the
+command to run on the SSH proxy server is specified here. Similarly, if
+you are using \q{SSH to proxy and invoke a subsystem}, the subsystem
+name is constructed as specified here.
 
 In this string, you can use \c{\\n} to represent a new-line, \c{\\r}
 to represent a carriage return, \c{\\t} to represent a tab
@@ -2133,13 +2151,15 @@ other character. \c{\\\\} is used to encode the \c{\\} character
 itself.
 
 Also, the special strings \c{%host} and \c{%port} will be replaced
-by the host name and port number you want to connect to. The strings
-\c{%user} and \c{%pass} will be replaced by the proxy username and
-password (which, if not specified in the configuration, will be
-prompted for). The strings \c{%proxyhost} and \c{%proxyport}
+by the host name and port number you want to connect to. For Telnet
+and Local proxy types, the strings \c{%user} and \c{%pass} will be
+replaced by the proxy username and password (which, if not specified
+in the configuration, will be prompted for) \dash this does not happen
+with SSH proxy types (because the proxy username/password are used
+for SSH authentication). The strings \c{%proxyhost} and \c{%proxyport}
 will be replaced by the host details specified on the \e{Proxy} panel,
-if any (this is most likely to be useful for the Local proxy type).
-To get a literal \c{%} sign, enter \c{%%}.
+if any (this is most likely to be useful for proxy types using a
+local or remote command). To get a literal \c{%} sign, enter \c{%%}.
 
 If a Telnet proxy server prompts for a username and password
 before commands can be sent, you can use a command such as:
