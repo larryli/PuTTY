@@ -452,118 +452,95 @@ const char *winsock_error_string(int error)
     return win_strerror(error);
 }
 
+static inline const char *namelookup_strerror(DWORD err)
+{
+    /* PuTTY has traditionally translated a few of the likely error
+     * messages into more concise strings than the standard Windows ones */
+    return (err == WSAENETDOWN ? "Network is down" :
+            err == WSAHOST_NOT_FOUND ? "Host does not exist" :
+            err == WSATRY_AGAIN ? "Host not found" :
+            win_strerror(err));
+}
+
 SockAddr *sk_namelookup(const char *host, char **canonicalname,
                         int address_family)
 {
-    SockAddr *ret = snew(SockAddr);
-    unsigned long a;
-    char realhost[8192];
-    int hint_family;
+    *canonicalname = NULL;
 
-    /* Default to IPv4. */
-    hint_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
-#ifndef NO_IPV6
-                   address_family == ADDRTYPE_IPV6 ? AF_INET6 :
-#endif
-                   AF_UNSPEC);
+    SockAddr *addr = snew(SockAddr);
+    memset(addr, 0, sizeof(SockAddr));
+    addr->superfamily = UNRESOLVED;
+    addr->refcount = 1;
 
-    /* Clear the structure and default to IPv4. */
-    memset(ret, 0, sizeof(SockAddr));
 #ifndef NO_IPV6
-    ret->ais = NULL;
-#endif
-    ret->addresses = NULL;
-    ret->superfamily = UNRESOLVED;
-    ret->refcount = 1;
-    *realhost = '\0';
+    /*
+     * Use getaddrinfo, as long as it's available. This should handle
+     * both IPv4 and IPv6 address literals, and hostnames, in one
+     * unified API.
+     */
+    if (p_getaddrinfo) {
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+                           address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+                           AF_UNSPEC);
+        hints.ai_flags = AI_CANONNAME;
+        hints.ai_socktype = SOCK_STREAM;
 
-    if ((a = p_inet_addr(host)) == (unsigned long) INADDR_NONE) {
-        struct hostent *h = NULL;
-        int err = 0;
-#ifndef NO_IPV6
-        /*
-         * Use getaddrinfo when it's available
-         */
-        if (p_getaddrinfo) {
-            struct addrinfo hints;
-            memset(&hints, 0, sizeof(hints));
-            hints.ai_family = hint_family;
-            hints.ai_flags = AI_CANONNAME;
-            {
-                /* strip [] on IPv6 address literals */
-                char *trimmed_host = host_strduptrim(host);
-                err = p_getaddrinfo(trimmed_host, NULL, &hints, &ret->ais);
-                sfree(trimmed_host);
-            }
-            if (err == 0)
-                ret->superfamily = IP;
-        } else
-#endif
-        {
-            /*
-             * Otherwise use the IPv4-only gethostbyname...
-             * (NOTE: we don't use gethostbyname as a fallback!)
-             */
-            if ( (h = p_gethostbyname(host)) )
-                ret->superfamily = IP;
+        /* strip [] on IPv6 address literals */
+        char *trimmed_host = host_strduptrim(host);
+        int err = p_getaddrinfo(trimmed_host, NULL, &hints, &addr->ais);
+        sfree(trimmed_host);
+
+        if (addr->ais) {
+            addr->superfamily = IP;
+            if (addr->ais->ai_canonname)
+                *canonicalname = dupstr(addr->ais->ai_canonname);
             else
-                err = p_WSAGetLastError();
-        }
-
-        if (ret->superfamily != IP) {
-            ret->error = (err == WSAENETDOWN ? "Network is down" :
-                          err == WSAHOST_NOT_FOUND ? "Host does not exist" :
-                          err == WSATRY_AGAIN ? "Host not found" :
-                          win_strerror(err));
+                *canonicalname = dupstr(host);
         } else {
-            ret->error = NULL;
-
-#ifndef NO_IPV6
-            /* If we got an address info use that... */
-            if (ret->ais) {
-                /* Are we in IPv4 fallback mode? */
-                /* We put the IPv4 address into the a variable so we can further-on use the IPv4 code... */
-                if (ret->ais->ai_family == AF_INET)
-                    memcpy(&a,
-                           (char *) &((SOCKADDR_IN *) ret->ais->
-                                      ai_addr)->sin_addr, sizeof(a));
-
-                if (ret->ais->ai_canonname)
-                    strncpy(realhost, ret->ais->ai_canonname, lenof(realhost));
-                else
-                    strncpy(realhost, host, lenof(realhost));
-            }
-            /* We used the IPv4-only gethostbyname()... */
-            else
-#endif
-            {
-                int n;
-                for (n = 0; h->h_addr_list[n]; n++);
-                ret->addresses = snewn(n, unsigned long);
-                ret->naddresses = n;
-                for (n = 0; n < ret->naddresses; n++) {
-                    memcpy(&a, h->h_addr_list[n], sizeof(a));
-                    ret->addresses[n] = p_ntohl(a);
-                }
-                memcpy(&a, h->h_addr, sizeof(a));
-                /* This way we are always sure the h->h_name is valid :) */
-                strncpy(realhost, h->h_name, sizeof(realhost));
-            }
+            addr->error = namelookup_strerror(err);
         }
-    } else {
-        /*
-         * This must be a numeric IPv4 address because it caused a
-         * success return from inet_addr.
-         */
-        ret->addresses = snewn(1, unsigned long);
-        ret->naddresses = 1;
-        ret->addresses[0] = p_ntohl(a);
-        ret->superfamily = IP;
-        strncpy(realhost, host, sizeof(realhost));
+        return addr;
     }
-    realhost[lenof(realhost)-1] = '\0';
-    *canonicalname = dupstr(realhost);
-    return ret;
+#endif
+
+    /*
+     * Failing that (if IPv6 support was not compiled in, or if
+     * getaddrinfo turned out to be unavailable at run time), try the
+     * old-fashioned approach, which is to start by manually checking
+     * for an IPv4 literal and then use gethostbyname.
+     */
+    unsigned long a = p_inet_addr(host);
+    if (a != (unsigned long) INADDR_NONE) {
+        addr->addresses = snew(unsigned long);
+        addr->naddresses = 1;
+        addr->addresses[0] = p_ntohl(a);
+        addr->superfamily = IP;
+        *canonicalname = dupstr(host);
+        return addr;
+    }
+
+    struct hostent *h = p_gethostbyname(host);
+    if (h) {
+        addr->superfamily = IP;
+
+        size_t n;
+        for (n = 0; h->h_addr_list[n]; n++);
+        addr->addresses = snewn(n, unsigned long);
+        addr->naddresses = n;
+        for (n = 0; n < addr->naddresses; n++) {
+            uint32_t a;
+            memcpy(&a, h->h_addr_list[n], sizeof(a));
+            addr->addresses[n] = p_ntohl(a);
+        }
+
+        *canonicalname = dupstr(h->h_name);
+    } else {
+        DWORD err = p_WSAGetLastError();
+        addr->error = namelookup_strerror(err);
+    }
+    return addr;
 }
 
 static SockAddr *sk_special_addr(SuperFamily superfamily, const char *name)
