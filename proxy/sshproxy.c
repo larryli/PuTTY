@@ -686,6 +686,12 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
         unreachable("bad SSH proxy type");
     }
 
+    /*
+     * Do the usual normalisation of things in the Conf like a "user@"
+     * prefix on the hostname field.
+     */
+    prepare_session(sp->conf);
+
     sp->logctx = log_init(&sp->logpolicy, sp->conf);
 
     char *error, *realhost;
