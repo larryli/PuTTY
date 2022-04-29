@@ -212,7 +212,6 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
     sfree(s->client_greeting);
     sfree(s->server_greeting);
     sfree(s->keystr);
-    sfree(s->hostkey_str);
     strbuf_free(s->hostkeyblob);
     {
         host_ca *hca;

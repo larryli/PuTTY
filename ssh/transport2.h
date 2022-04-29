@@ -140,7 +140,6 @@ struct ssh2_transport_state {
 
     const ssh_kex *kex_alg;
     const ssh_keyalg *hostkey_alg;
-    char *hostkey_str; /* string representation, for easy checking in rekeys */
     unsigned char session_id[MAX_HASH_LEN];
     int session_id_len;
     int dh_min_size, dh_max_size;
@@ -188,7 +187,8 @@ struct ssh2_transport_state {
     int kex_init_value, kex_reply_value;
     transport_direction in, out, *cstrans, *sctrans;
     ptrlen hostkeydata, sigdata;
-    strbuf *hostkeyblob;
+    strbuf *hostkeyblob; /* used in server to construct host key to
+                          * send to client; in client to check in rekeys */
     char *keystr;
     ssh_key *hkey;                     /* actual host key */
     unsigned hkflags;                  /* signing flags, used in server */

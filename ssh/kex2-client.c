@@ -952,8 +952,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * Save this host key, to check against the one presented in
              * subsequent rekeys.
              */
-            s->hostkey_str = s->keystr;
-            s->keystr = NULL;
+            strbuf_clear(s->hostkeyblob);
+            ssh_key_public_blob(s->hkey, BinarySink_UPCAST(s->hostkeyblob));
         } else if (s->cross_certifying) {
             assert(s->hkey);
             assert(ssh_key_alg(s->hkey) == s->cross_certifying);
@@ -969,8 +969,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * Don't forget to store the new key as the one we'll be
              * re-checking in future normal rekeys.
              */
-            s->hostkey_str = s->keystr;
-            s->keystr = NULL;
+            strbuf_clear(s->hostkeyblob);
+            ssh_key_public_blob(s->hkey, BinarySink_UPCAST(s->hostkeyblob));
         } else {
             /*
              * In a rekey, we never present an interactive host key
@@ -978,8 +978,12 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * enforce that the key we're seeing this time is identical to
              * the one we saw before.
              */
-            assert(s->keystr);         /* filled in by prior key exchange */
-            if (strcmp(s->hostkey_str, s->keystr)) {
+            strbuf *thisblob = strbuf_new();
+            ssh_key_public_blob(s->hkey, BinarySink_UPCAST(thisblob));
+            bool match = ptrlen_eq_ptrlen(ptrlen_from_strbuf(thisblob),
+                                          ptrlen_from_strbuf(s->hostkeyblob));
+            strbuf_free(thisblob);
+            if (!match) {
 #ifndef FUZZING
                 ssh_sw_abort(s->ppl.ssh,
                              "Host key was different in repeat key exchange");
