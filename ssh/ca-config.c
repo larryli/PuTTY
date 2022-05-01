@@ -189,6 +189,11 @@ static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
 {
     struct ca_state *st = (struct ca_state *)ctrl->context.p;
     if (event == EVENT_ACTION) {
+        if (!count234(st->host_wcs)) {
+            dlg_error_msg(dp, "No hostnames configured for this key");
+            return;
+        }
+
         strbuf *pubkey;
         {
             const char *error;
