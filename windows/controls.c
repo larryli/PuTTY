@@ -1663,12 +1663,15 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             sfree(escaped);
             break;
           case CTRL_FILESELECT:
-            num_ids = 3;
-            escaped = shortcut_escape(ctrl->label,
-                                      ctrl->fileselect.shortcut);
+            escaped = shortcut_escape(ctrl->label, ctrl->fileselect.shortcut);
             shortcuts[nshortcuts++] = ctrl->fileselect.shortcut;
-            editbutton(&pos, escaped, base_id, base_id+1,
-                       "Browse...", base_id+2);
+            num_ids = 3;
+            if (!ctrl->fileselect.just_button) {
+                editbutton(&pos, escaped, base_id, base_id+1,
+                           "Browse...", base_id+2);
+            } else {
+                button(&pos, escaped, base_id+2, false);
+            }
             sfree(escaped);
             break;
           case CTRL_FONTSELECT:
@@ -1980,15 +1983,27 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             of.lpstrCustomFilter = NULL;
             of.nFilterIndex = 1;
             of.lpstrFile = filename;
-            GetDlgItemText(dp->hwnd, c->base_id+1, filename, lenof(filename));
-            filename[lenof(filename)-1] = '\0';
+            if (!ctrl->fileselect.just_button) {
+                GetDlgItemText(dp->hwnd, c->base_id+1,
+                               filename, lenof(filename));
+                filename[lenof(filename)-1] = '\0';
+            } else {
+                *filename = '\0';
+            }
             of.nMaxFile = lenof(filename);
             of.lpstrFileTitle = NULL;
             of.lpstrTitle = ctrl->fileselect.title;
             of.Flags = 0;
             if (request_file(NULL, &of, false, ctrl->fileselect.for_writing)) {
-                SetDlgItemText(dp->hwnd, c->base_id + 1, filename);
-                ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                if (!ctrl->fileselect.just_button) {
+                    SetDlgItemText(dp->hwnd, c->base_id + 1, filename);
+                    ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                } else {
+                    assert(!c->data);
+                    c->data = filename;
+                    ctrl->handler(ctrl, dp, dp->data, EVENT_ACTION);
+                    c->data = NULL;
+                }
             }
         }
         break;
@@ -2330,7 +2345,10 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
         break;
       case CTRL_FILESELECT:
         escaped = shortcut_escape(text, ctrl->fileselect.shortcut);
-        id = c->base_id;
+        if (ctrl->fileselect.just_button)
+            id = c->base_id + 2;       /* the button */
+        else
+            id = c->base_id;           /* the label */
         break;
       case CTRL_FONTSELECT:
         escaped = shortcut_escape(text, ctrl->fontselect.shortcut);
@@ -2348,7 +2366,9 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->type == CTRL_FILESELECT);
+    assert(c);
+    assert(c->ctrl->type == CTRL_FILESELECT);
+    assert(!c->ctrl->fileselect.just_button);
     SetDlgItemText(dp->hwnd, c->base_id+1, fn->path);
 }
 
@@ -2357,11 +2377,16 @@ Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     char *tmp;
     Filename *ret;
-    assert(c && c->ctrl->type == CTRL_FILESELECT);
-    tmp = GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
-    ret = filename_from_str(tmp);
-    sfree(tmp);
-    return ret;
+    assert(c);
+    assert(c->ctrl->type == CTRL_FILESELECT);
+    if (!c->ctrl->fileselect.just_button) {
+        tmp = GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
+        ret = filename_from_str(tmp);
+        sfree(tmp);
+        return ret;
+    } else {
+        return filename_from_str(c->data);
+    }
 }
 
 void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)

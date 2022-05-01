@@ -74,6 +74,7 @@ struct uctrl {
     guint entrysig;
     guint textsig;
     int nclicks;
+    const char *textvalue;    /* temporary, for button-only file selectors */
 };
 
 struct dlgparam {
@@ -869,8 +870,10 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
         shortcut_highlight(uc->label, ctrl->editbox.shortcut);
         break;
       case CTRL_FILESELECT:
-        gtk_label_set_text(GTK_LABEL(uc->label), text);
-        shortcut_highlight(uc->label, ctrl->fileselect.shortcut);
+        if (uc->label) {
+            gtk_label_set_text(GTK_LABEL(uc->label), text);
+            shortcut_highlight(uc->label, ctrl->fileselect.shortcut);
+        }
         break;
       case CTRL_FONTSELECT:
         gtk_label_set_text(GTK_LABEL(uc->label), text);
@@ -901,8 +904,12 @@ Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->type == CTRL_FILESELECT);
-    assert(uc->entry != NULL);
-    return filename_from_str(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
+    if (!uc->entry) {
+        assert(uc->textvalue);
+        return filename_from_str(uc->textvalue);
+    } else {
+        return filename_from_str(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
+    }
 }
 
 void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
@@ -1562,15 +1569,27 @@ static void droplist_selchange(GtkComboBox *combo, gpointer data)
 
 #endif /* !GTK_CHECK_VERSION(2,4,0) */
 
+static void filechoose_emit_value(struct dlgparam *dp, struct uctrl *uc,
+                                  const char *name)
+{
+    if (uc->entry) {
+        gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+    } else {
+        uc->textvalue = name;
+        uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
+        uc->textvalue = NULL;
+    }
+}
+
 #ifdef USE_GTK_FILE_CHOOSER_DIALOG
 static void filechoose_response(GtkDialog *dialog, gint response,
                                 gpointer data)
 {
-    /* struct dlgparam *dp = (struct dlgparam *)data; */
+    struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = g_object_get_data(G_OBJECT(dialog), "user-data");
     if (response == GTK_RESPONSE_ACCEPT) {
         gchar *name = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+        filechoose_emit_value(dp, uc, name);
         g_free(name);
     }
     gtk_widget_destroy(GTK_WIDGET(dialog));
@@ -1578,12 +1597,12 @@ static void filechoose_response(GtkDialog *dialog, gint response,
 #else
 static void filesel_ok(GtkButton *button, gpointer data)
 {
-    /* struct dlgparam *dp = (struct dlgparam *)data; */
+    struct dlgparam *dp = (struct dlgparam *)data;
     gpointer filesel = g_object_get_data(G_OBJECT(button), "user-data");
     struct uctrl *uc = g_object_get_data(G_OBJECT(filesel), "user-data");
     const char *name = gtk_file_selection_get_filename
         (GTK_FILE_SELECTION(filesel));
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+    filechoose_emit_value(dp, uc, name);
 }
 #endif
 
@@ -2104,56 +2123,65 @@ GtkWidget *layout_ctrls(
           case CTRL_FILESELECT:
           case CTRL_FONTSELECT: {
             GtkWidget *ww;
-            const char *browsebtn =
-                (ctrl->type == CTRL_FILESELECT ?
-                 "Browse..." : "Change...");
 
-            gint percentages[] = { 75, 25 };
-            w = columns_new(4);
-            columns_set_cols(COLUMNS(w), 2, percentages);
+            if (!ctrl->fileselect.just_button) {
+                const char *browsebtn =
+                    (ctrl->type == CTRL_FILESELECT ?
+                     "Browse..." : "Change...");
 
-            if (ctrl->label) {
-              ww = gtk_label_new(ctrl->label);
-              columns_add(COLUMNS(w), ww, 0, 2);
-              columns_force_left_align(COLUMNS(w), ww);
-              gtk_widget_show(ww);
-              shortcut_add(scs, ww,
-                           (ctrl->type == CTRL_FILESELECT ?
-                            ctrl->fileselect.shortcut :
-                            ctrl->fontselect.shortcut),
-                           SHORTCUT_UCTRL, uc);
-              uc->label = ww;
-            }
+                gint percentages[] = { 75, 25 };
+                w = columns_new(4);
+                columns_set_cols(COLUMNS(w), 2, percentages);
 
-            uc->entry = ww = gtk_entry_new();
+                if (ctrl->label) {
+                    ww = gtk_label_new(ctrl->label);
+                    columns_add(COLUMNS(w), ww, 0, 2);
+                    columns_force_left_align(COLUMNS(w), ww);
+                    gtk_widget_show(ww);
+                    shortcut_add(scs, ww,
+                                 (ctrl->type == CTRL_FILESELECT ?
+                                  ctrl->fileselect.shortcut :
+                                  ctrl->fontselect.shortcut),
+                                 SHORTCUT_UCTRL, uc);
+                    uc->label = ww;
+                }
+
+                uc->entry = ww = gtk_entry_new();
 #if !GTK_CHECK_VERSION(3,0,0)
-            {
-              GtkRequisition req;
-              gtk_widget_size_request(ww, &req);
-              gtk_widget_set_size_request(ww, 10, req.height);
-            }
+                {
+                    GtkRequisition req;
+                    gtk_widget_size_request(ww, &req);
+                    gtk_widget_set_size_request(ww, 10, req.height);
+                }
 #else
-            gtk_entry_set_width_chars(GTK_ENTRY(ww), 1);
+                gtk_entry_set_width_chars(GTK_ENTRY(ww), 1);
 #endif
-            columns_add(COLUMNS(w), ww, 0, 1);
-            gtk_widget_show(ww);
+                columns_add(COLUMNS(w), ww, 0, 1);
+                gtk_widget_show(ww);
 
-            uc->button = ww = gtk_button_new_with_label(browsebtn);
-            columns_add(COLUMNS(w), ww, 1, 1);
-            gtk_widget_show(ww);
+                uc->button = ww = gtk_button_new_with_label(browsebtn);
+                columns_add(COLUMNS(w), ww, 1, 1);
+                gtk_widget_show(ww);
 
-            columns_force_same_height(COLUMNS(w), uc->entry, uc->button);
+                columns_force_same_height(COLUMNS(w), uc->entry, uc->button);
 
-            g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
-                             G_CALLBACK(editbox_key), dp);
-            uc->entrysig =
-                g_signal_connect(G_OBJECT(uc->entry), "changed",
-                                 G_CALLBACK(editbox_changed), dp);
-            g_signal_connect(G_OBJECT(uc->entry), "focus_in_event",
-                             G_CALLBACK(widget_focus), dp);
+                g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
+                                 G_CALLBACK(editbox_key), dp);
+                uc->entrysig =
+                    g_signal_connect(G_OBJECT(uc->entry), "changed",
+                                     G_CALLBACK(editbox_changed), dp);
+                g_signal_connect(G_OBJECT(uc->entry), "focus_in_event",
+                                 G_CALLBACK(widget_focus), dp);
+            } else {
+                uc->button = w = gtk_button_new_with_label(ctrl->label);
+                shortcut_add(scs, gtk_bin_get_child(GTK_BIN(w)),
+                             ctrl->fileselect.shortcut, SHORTCUT_UCTRL, uc);
+                gtk_widget_show(w);
+
+            }
             g_signal_connect(G_OBJECT(uc->button), "focus_in_event",
                              G_CALLBACK(widget_focus), dp);
-            g_signal_connect(G_OBJECT(ww), "clicked",
+            g_signal_connect(G_OBJECT(uc->button), "clicked",
                              G_CALLBACK(filefont_clicked), dp);
             break;
           }
@@ -2669,7 +2697,8 @@ gint win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 /* File/font selectors have their buttons pressed (ooer),
                  * and focus transferred to the edit box. */
                 g_signal_emit_by_name(G_OBJECT(sc->uc->button), "clicked");
-                gtk_widget_grab_focus(sc->uc->entry);
+                if (sc->uc->entry)
+                    gtk_widget_grab_focus(sc->uc->entry);
                 break;
               case CTRL_RADIO:
                 /*

@@ -369,6 +369,37 @@ struct dlgcontrol {
              * This value _is_ expected to require freeing.
              */
             char *title;
+            /*
+             * Reduce the file selector to just a single browse
+             * button.
+             *
+             * Normally, a file selector is used to set a config
+             * option that consists of a file name, so that that file
+             * will be read or written at run time. In that situation,
+             * it makes sense to have an edit box showing the
+             * currently selected file name, and a button to change it
+             * interactively.
+             *
+             * But occasionally a file selector is used to load a file
+             * _during_ configuration. For example, host CA public
+             * keys are entered directly into the configuration as
+             * strings, not stored by reference to a filename; but if
+             * you have one in a file, you want to be able to load it
+             * during the lifetime of the CA config box rather than
+             * awkwardly copy-pasting it. So in that case you just
+             * want a 'pop up a file chooser' button, and when that
+             * delivers a file name, you'll deal with it there and
+             * then and write some other thing (like the file's
+             * contents) into a nearby edit box.
+             *
+             * If you set this flag, then you may not call
+             * dlg_filesel_set on the file selector at all, because it
+             * doesn't store a filename. And you can only call
+             * dlg_filesel_get on it in the handler for EVENT_ACTION,
+             * which is what will be sent to you when the user has
+             * used it to choose a filename.
+             */
+            bool just_button;
         } fileselect;
         struct { /* for CTRL_COLUMNS */
             /* In this variant, `label' MUST be NULL. */
