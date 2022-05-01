@@ -114,6 +114,7 @@ strbuf *base64_decode_sb(ptrlen data);
 void base64_encode_bs(BinarySink *bs, ptrlen data, int cpl);
 void base64_encode_fp(FILE *fp, ptrlen data, int cpl);
 strbuf *base64_encode_sb(ptrlen data, int cpl);
+bool base64_valid(ptrlen data);
 
 struct bufchain_granule;
 struct bufchain_tag {

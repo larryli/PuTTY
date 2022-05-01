@@ -5,6 +5,7 @@ add_sources_from_current_dir(utils
   base64_decode.c
   base64_encode_atom.c
   base64_encode.c
+  base64_valid.c
   bufchain.c
   buildinfo.c
   burnstr.c
