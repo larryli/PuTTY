@@ -532,8 +532,9 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             pgp_fingerprints();
             exit(1);
 
-        } else if (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||
-                   !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca")) {
+        } else if (has_ca_config_box &&
+                   (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||
+                    !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca"))) {
             show_ca_config_box_synchronously();
             exit(0);
 

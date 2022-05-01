@@ -2589,6 +2589,7 @@ void setup_ca_config_box(struct controlbox *b);
 
 /* Platforms provide this to be called from config.c */
 void show_ca_config_box(dlgparam *dlg);
+extern const bool has_ca_config_box; /* false if, e.g., we're PuTTYtel */
 
 /* Visible outside config.c so that platforms can use it to recognise
  * the proxy type control */

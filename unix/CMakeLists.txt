@@ -134,6 +134,7 @@ if(GTK_FOUND)
     pterm.c
     main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pty.c)
   be_list(pterm pterm)
@@ -148,6 +149,7 @@ if(GTK_FOUND)
       main-gtk-application.c
       ${CMAKE_SOURCE_DIR}/stubs/nocmdline.c
       ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+      ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
       ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
       pty.c)
     be_list(ptermapp pterm)
@@ -184,6 +186,7 @@ if(GTK_FOUND)
     putty.c
     main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/stubs/nogss.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
     ${CMAKE_SOURCE_DIR}/stubs/norand.c
     ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c)
