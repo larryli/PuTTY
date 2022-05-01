@@ -346,7 +346,7 @@ void setup_ca_config_box(struct controlbox *b)
     ctrl_columns(s, 5, 20, 20, 20, 20, 20);
     c = ctrl_pushbutton(s, "Done", 'o', HELPCTX(no_help),
                         ca_ok_handler, P(st));
-    c->button.isdefault = true;
+    c->button.iscancel = true;
     c->column = 4;
 
     /* Load/save box, as similar as possible to the main saved sessions one */
