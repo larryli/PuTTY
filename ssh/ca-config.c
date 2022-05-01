@@ -164,15 +164,47 @@ static void ca_load_handler(dlgcontrol *ctrl, dlgparam *dp,
     }
 }
 
+static strbuf *decode_pubkey(ptrlen data, const char **error)
+{
+    /*
+     * See if we have a plain base64-encoded public key blob.
+     */
+    if (base64_valid(data))
+        return base64_decode_sb(data);
+
+    /*
+     * Otherwise, try to decode as if it was a public key _file_.
+     */
+    BinarySource src[1];
+    BinarySource_BARE_INIT_PL(src, data);
+    strbuf *blob = strbuf_new();
+    if (ppk_loadpub_s(src, NULL, BinarySink_UPCAST(blob), NULL, error))
+        return blob;
+
+    return NULL;
+}
+
 static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
                             void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->context.p;
     if (event == EVENT_ACTION) {
+        strbuf *pubkey;
+        {
+            const char *error;
+            pubkey = decode_pubkey(ptrlen_from_asciz(st->pubkey), &error);
+            if (!pubkey) {
+                char *msg = dupprintf("CA public key invalid: %s", error);
+                dlg_error_msg(dp, msg);
+                sfree(msg);
+                return;
+            }
+        }
+
         host_ca *hca = snew(host_ca);
         memset(hca, 0, sizeof(*hca));
         hca->name = dupstr(st->name);
-        hca->ca_public_key = base64_decode_sb(ptrlen_from_asciz(st->pubkey));
+        hca->ca_public_key = pubkey;
         hca->n_hostname_wildcards = count234(st->host_wcs);
         hca->hostname_wildcards = snewn(hca->n_hostname_wildcards, char *);
         for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
