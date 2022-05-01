@@ -7,6 +7,7 @@
 #include "dialog.h"
 #include "storage.h"
 #include "tree234.h"
+#include "ssh.h"
 
 const bool has_ca_config_box = true;
 
@@ -216,8 +217,8 @@ static void ca_delete_handler(dlgcontrol *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_pubkey_handler(dlgcontrol *ctrl, dlgparam *dp,
-                            void *data, int event)
+static void ca_pubkey_edit_handler(dlgcontrol *ctrl, dlgparam *dp,
+                                   void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->context.p;
     if (event == EVENT_REFRESH) {
@@ -225,6 +226,33 @@ static void ca_pubkey_handler(dlgcontrol *ctrl, dlgparam *dp,
     } else if (event == EVENT_VALCHANGE) {
         sfree(st->pubkey);
         st->pubkey = dlg_editbox_get(ctrl, dp);
+    }
+}
+
+static void ca_pubkey_file_handler(dlgcontrol *ctrl, dlgparam *dp,
+                                   void *data, int event)
+{
+    struct ca_state *st = (struct ca_state *)ctrl->context.p;
+    if (event == EVENT_ACTION) {
+        Filename *filename = dlg_filesel_get(ctrl, dp);
+        strbuf *keyblob = strbuf_new();
+        const char *load_error;
+        bool ok = ppk_loadpub_f(filename, NULL, BinarySink_UPCAST(keyblob),
+                                NULL, &load_error);
+        if (!ok) {
+            char *message = dupprintf(
+                "Unable to load public key from '%s': %s",
+                filename_to_str(filename), load_error);
+            dlg_error_msg(dp, message);
+            sfree(message);
+        } else {
+            sfree(st->pubkey);
+            st->pubkey = strbuf_to_str(
+                base64_encode_sb(ptrlen_from_strbuf(keyblob), 0));
+            dlg_refresh(st->ca_pubkey_edit, dp);
+        }
+        filename_free(filename);
+        strbuf_free(keyblob);
     }
 }
 
@@ -351,9 +379,17 @@ void setup_ca_config_box(struct controlbox *b)
 
     /* Box containing the details of a specific CA record */
     s = ctrl_getset(b, "Main", "details", "Details of a host CA record");
+    ctrl_columns(s, 2, 75, 25);
     c = ctrl_editbox(s, "Public key of certification authority", 'k', 100,
-                     HELPCTX(no_help), ca_pubkey_handler, P(st), P(NULL));
+                     HELPCTX(no_help), ca_pubkey_edit_handler, P(st), P(NULL));
+    c->column = 0;
     st->ca_pubkey_edit = c;
+    c = ctrl_filesel(s, "Read from file", NO_SHORTCUT, NULL, false,
+                     "Select public key file of certification authority",
+                     HELPCTX(no_help), ca_pubkey_file_handler, P(st));
+    c->fileselect.just_button = true;
+    c->column = 1;
+    ctrl_columns(s, 1, 100);
     c = ctrl_listbox(s, "Hostname patterns this key is trusted to certify",
                      NO_SHORTCUT, HELPCTX(no_help), ca_wclist_handler, P(st));
     c->listbox.height = 3;
