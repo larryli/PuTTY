@@ -204,11 +204,11 @@ void *ctrl_alloc(struct controlbox *b, size_t size)
     return ctrl_alloc_with_free(b, size, ctrl_default_free);
 }
 
-static union control *ctrl_new(struct controlset *s, int type,
-                               intorptr helpctx, handler_fn handler,
-                               intorptr context)
+static dlgcontrol *ctrl_new(struct controlset *s, int type,
+                            intorptr helpctx, handler_fn handler,
+                            intorptr context)
 {
-    union control *c = snew(union control);
+    dlgcontrol *c = snew(dlgcontrol);
     sgrowarray(s->ctrls, s->ctrlsize, s->ncontrols);
     s->ctrls[s->ncontrols++] = c;
     /*
@@ -226,9 +226,9 @@ static union control *ctrl_new(struct controlset *s, int type,
 }
 
 /* `ncolumns' is followed by that many percentages, as integers. */
-union control *ctrl_columns(struct controlset *s, int ncolumns, ...)
+dlgcontrol *ctrl_columns(struct controlset *s, int ncolumns, ...)
 {
-    union control *c = ctrl_new(s, CTRL_COLUMNS, P(NULL), NULL, P(NULL));
+    dlgcontrol *c = ctrl_new(s, CTRL_COLUMNS, P(NULL), NULL, P(NULL));
     assert(s->ncolumns == 1 || ncolumns == 1);
     c->columns.ncols = ncolumns;
     s->ncolumns = ncolumns;
@@ -246,12 +246,12 @@ union control *ctrl_columns(struct controlset *s, int ncolumns, ...)
     return c;
 }
 
-union control *ctrl_editbox(struct controlset *s, const char *label,
-                            char shortcut, int percentage,
-                            intorptr helpctx, handler_fn handler,
-                            intorptr context, intorptr context2)
+dlgcontrol *ctrl_editbox(struct controlset *s, const char *label,
+                         char shortcut, int percentage,
+                         intorptr helpctx, handler_fn handler,
+                         intorptr context, intorptr context2)
 {
-    union control *c = ctrl_new(s, CTRL_EDITBOX, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_EDITBOX, helpctx, handler, context);
     c->editbox.label = label ? dupstr(label) : NULL;
     c->editbox.shortcut = shortcut;
     c->editbox.percentwidth = percentage;
@@ -261,12 +261,12 @@ union control *ctrl_editbox(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_combobox(struct controlset *s, const char *label,
-                             char shortcut, int percentage,
-                             intorptr helpctx, handler_fn handler,
-                             intorptr context, intorptr context2)
+dlgcontrol *ctrl_combobox(struct controlset *s, const char *label,
+                          char shortcut, int percentage,
+                          intorptr helpctx, handler_fn handler,
+                          intorptr context, intorptr context2)
 {
-    union control *c = ctrl_new(s, CTRL_EDITBOX, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_EDITBOX, helpctx, handler, context);
     c->editbox.label = label ? dupstr(label) : NULL;
     c->editbox.shortcut = shortcut;
     c->editbox.percentwidth = percentage;
@@ -282,13 +282,13 @@ union control *ctrl_combobox(struct controlset *s, const char *label,
  * title is expected to be followed by a shortcut _iff_ `shortcut'
  * is NO_SHORTCUT.
  */
-union control *ctrl_radiobuttons(struct controlset *s, const char *label,
-                                 char shortcut, int ncolumns, intorptr helpctx,
-                                 handler_fn handler, intorptr context, ...)
+dlgcontrol *ctrl_radiobuttons(struct controlset *s, const char *label,
+                              char shortcut, int ncolumns, intorptr helpctx,
+                              handler_fn handler, intorptr context, ...)
 {
     va_list ap;
     int i;
-    union control *c = ctrl_new(s, CTRL_RADIO, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_RADIO, helpctx, handler, context);
     c->radio.label = label ? dupstr(label) : NULL;
     c->radio.shortcut = shortcut;
     c->radio.ncolumns = ncolumns;
@@ -328,11 +328,11 @@ union control *ctrl_radiobuttons(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_pushbutton(struct controlset *s, const char *label,
-                               char shortcut, intorptr helpctx,
-                               handler_fn handler, intorptr context)
+dlgcontrol *ctrl_pushbutton(struct controlset *s, const char *label,
+                            char shortcut, intorptr helpctx,
+                            handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_BUTTON, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_BUTTON, helpctx, handler, context);
     c->button.label = label ? dupstr(label) : NULL;
     c->button.shortcut = shortcut;
     c->button.isdefault = false;
@@ -340,11 +340,11 @@ union control *ctrl_pushbutton(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_listbox(struct controlset *s, const char *label,
-                            char shortcut, intorptr helpctx,
-                            handler_fn handler, intorptr context)
+dlgcontrol *ctrl_listbox(struct controlset *s, const char *label,
+                         char shortcut, intorptr helpctx,
+                         handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
     c->listbox.label = label ? dupstr(label) : NULL;
     c->listbox.shortcut = shortcut;
     c->listbox.height = 5;             /* *shrug* a plausible default */
@@ -357,11 +357,11 @@ union control *ctrl_listbox(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_droplist(struct controlset *s, const char *label,
-                             char shortcut, int percentage, intorptr helpctx,
-                             handler_fn handler, intorptr context)
+dlgcontrol *ctrl_droplist(struct controlset *s, const char *label,
+                          char shortcut, int percentage, intorptr helpctx,
+                          handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
     c->listbox.label = label ? dupstr(label) : NULL;
     c->listbox.shortcut = shortcut;
     c->listbox.height = 0;             /* means it's a drop-down list */
@@ -374,11 +374,11 @@ union control *ctrl_droplist(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_draglist(struct controlset *s, const char *label,
-                             char shortcut, intorptr helpctx,
-                             handler_fn handler, intorptr context)
+dlgcontrol *ctrl_draglist(struct controlset *s, const char *label,
+                          char shortcut, intorptr helpctx,
+                          handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
     c->listbox.label = label ? dupstr(label) : NULL;
     c->listbox.shortcut = shortcut;
     c->listbox.height = 5;             /* *shrug* a plausible default */
@@ -391,12 +391,12 @@ union control *ctrl_draglist(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_filesel(struct controlset *s, const char *label,
-                            char shortcut, const char *filter, bool write,
-                            const char *title, intorptr helpctx,
-                            handler_fn handler, intorptr context)
+dlgcontrol *ctrl_filesel(struct controlset *s, const char *label,
+                         char shortcut, const char *filter, bool write,
+                         const char *title, intorptr helpctx,
+                         handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_FILESELECT, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_FILESELECT, helpctx, handler, context);
     c->fileselect.label = label ? dupstr(label) : NULL;
     c->fileselect.shortcut = shortcut;
     c->fileselect.filter = filter;
@@ -405,42 +405,42 @@ union control *ctrl_filesel(struct controlset *s, const char *label,
     return c;
 }
 
-union control *ctrl_fontsel(struct controlset *s, const char *label,
-                            char shortcut, intorptr helpctx,
-                            handler_fn handler, intorptr context)
+dlgcontrol *ctrl_fontsel(struct controlset *s, const char *label,
+                         char shortcut, intorptr helpctx,
+                         handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_FONTSELECT, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_FONTSELECT, helpctx, handler, context);
     c->fontselect.label = label ? dupstr(label) : NULL;
     c->fontselect.shortcut = shortcut;
     return c;
 }
 
-union control *ctrl_tabdelay(struct controlset *s, union control *ctrl)
+dlgcontrol *ctrl_tabdelay(struct controlset *s, dlgcontrol *ctrl)
 {
-    union control *c = ctrl_new(s, CTRL_TABDELAY, P(NULL), NULL, P(NULL));
+    dlgcontrol *c = ctrl_new(s, CTRL_TABDELAY, P(NULL), NULL, P(NULL));
     c->tabdelay.ctrl = ctrl;
     return c;
 }
 
-union control *ctrl_text(struct controlset *s, const char *text,
-                         intorptr helpctx)
+dlgcontrol *ctrl_text(struct controlset *s, const char *text,
+                      intorptr helpctx)
 {
-    union control *c = ctrl_new(s, CTRL_TEXT, helpctx, NULL, P(NULL));
+    dlgcontrol *c = ctrl_new(s, CTRL_TEXT, helpctx, NULL, P(NULL));
     c->text.label = dupstr(text);
     return c;
 }
 
-union control *ctrl_checkbox(struct controlset *s, const char *label,
-                             char shortcut, intorptr helpctx,
-                             handler_fn handler, intorptr context)
+dlgcontrol *ctrl_checkbox(struct controlset *s, const char *label,
+                          char shortcut, intorptr helpctx,
+                          handler_fn handler, intorptr context)
 {
-    union control *c = ctrl_new(s, CTRL_CHECKBOX, helpctx, handler, context);
+    dlgcontrol *c = ctrl_new(s, CTRL_CHECKBOX, helpctx, handler, context);
     c->checkbox.label = label ? dupstr(label) : NULL;
     c->checkbox.shortcut = shortcut;
     return c;
 }
 
-void ctrl_free(union control *ctrl)
+void ctrl_free(dlgcontrol *ctrl)
 {
     int i;
 

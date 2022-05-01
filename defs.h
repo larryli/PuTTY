@@ -172,6 +172,7 @@ typedef struct NTRUKeyPair NTRUKeyPair;
 typedef struct NTRUEncodeSchedule NTRUEncodeSchedule;
 
 typedef struct dlgparam dlgparam;
+typedef union control dlgcontrol;
 
 typedef struct settings_w settings_w;
 typedef struct settings_r settings_r;

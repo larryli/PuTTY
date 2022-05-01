@@ -13,7 +13,7 @@
 void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
 {
     struct controlset *s;
-    union control *c;
+    dlgcontrol *c;
 
     /*
      * The Conf structure contains two Unix-specific elements which

@@ -51,7 +51,7 @@ struct Shortcuts {
 struct selparam;
 
 struct uctrl {
-    union control *ctrl;
+    dlgcontrol *ctrl;
     GtkWidget *toplevel;
     GtkWidget **buttons; int nbuttons; /* for radio buttons */
     GtkWidget *entry;         /* for editbox, filesel, fontsel */
@@ -88,7 +88,7 @@ struct dlgparam {
     int flags;
     struct Shortcuts *shortcuts;
     GtkWidget *window, *cancelbutton;
-    union control *currfocus, *lastfocus;
+    dlgcontrol *currfocus, *lastfocus;
 #if !GTK_CHECK_VERSION(2,0,0)
     GtkWidget *currtreeitem, **treeitems;
     int ntreeitems;
@@ -166,7 +166,7 @@ static int uctrl_cmp_byctrl(void *av, void *bv)
 
 static int uctrl_cmp_byctrl_find(void *av, void *bv)
 {
-    union control *a = (union control *)av;
+    dlgcontrol *a = (dlgcontrol *)av;
     struct uctrl *b = (struct uctrl *)bv;
     if (a < b->ctrl)
         return -1;
@@ -236,7 +236,7 @@ static void dlg_add_uctrl(struct dlgparam *dp, struct uctrl *uc)
     add234(dp->bywidget, uc);
 }
 
-static struct uctrl *dlg_find_byctrl(struct dlgparam *dp, union control *ctrl)
+static struct uctrl *dlg_find_byctrl(struct dlgparam *dp, dlgcontrol *ctrl)
 {
     if (!dp->byctrl)
         return NULL;
@@ -257,7 +257,7 @@ static struct uctrl *dlg_find_bywidget(struct dlgparam *dp, GtkWidget *w)
     return ret;
 }
 
-union control *dlg_last_focused(union control *ctrl, dlgparam *dp)
+dlgcontrol *dlg_last_focused(dlgcontrol *ctrl, dlgparam *dp)
 {
     if (dp->currfocus != ctrl)
         return dp->currfocus;
@@ -265,7 +265,7 @@ union control *dlg_last_focused(union control *ctrl, dlgparam *dp)
         return dp->lastfocus;
 }
 
-void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int which)
+void dlg_radiobutton_set(dlgcontrol *ctrl, dlgparam *dp, int which)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_RADIO);
@@ -273,7 +273,7 @@ void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int which)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(uc->buttons[which]), true);
 }
 
-int dlg_radiobutton_get(union control *ctrl, dlgparam *dp)
+int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     int i;
@@ -286,21 +286,21 @@ int dlg_radiobutton_get(union control *ctrl, dlgparam *dp)
     return 0;                          /* got to return something */
 }
 
-void dlg_checkbox_set(union control *ctrl, dlgparam *dp, bool checked)
+void dlg_checkbox_set(dlgcontrol *ctrl, dlgparam *dp, bool checked)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_CHECKBOX);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(uc->toplevel), checked);
 }
 
-bool dlg_checkbox_get(union control *ctrl, dlgparam *dp)
+bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_CHECKBOX);
     return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(uc->toplevel));
 }
 
-void dlg_editbox_set(union control *ctrl, dlgparam *dp, char const *text)
+void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     GtkWidget *entry;
@@ -338,7 +338,7 @@ void dlg_editbox_set(union control *ctrl, dlgparam *dp, char const *text)
     sfree(tmpstring);
 }
 
-char *dlg_editbox_get(union control *ctrl, dlgparam *dp)
+char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_EDITBOX);
@@ -367,7 +367,7 @@ static void container_remove_and_destroy(GtkWidget *w, gpointer data)
 #endif
 
 /* The `listbox' functions can also apply to combo boxes. */
-void dlg_listbox_clear(union control *ctrl, dlgparam *dp)
+void dlg_listbox_clear(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -395,7 +395,7 @@ void dlg_listbox_clear(union control *ctrl, dlgparam *dp)
     unreachable("bad control type in listbox_clear");
 }
 
-void dlg_listbox_del(union control *ctrl, dlgparam *dp, int index)
+void dlg_listbox_del(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -429,7 +429,7 @@ void dlg_listbox_del(union control *ctrl, dlgparam *dp, int index)
     unreachable("bad control type in listbox_del");
 }
 
-void dlg_listbox_add(union control *ctrl, dlgparam *dp, char const *text)
+void dlg_listbox_add(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     dlg_listbox_addwithid(ctrl, dp, text, 0);
 }
@@ -441,7 +441,7 @@ void dlg_listbox_add(union control *ctrl, dlgparam *dp, char const *text)
  * strings in any listbox then you MUST not assign them different
  * IDs and expect to get meaningful results back.
  */
-void dlg_listbox_addwithid(union control *ctrl, dlgparam *dp,
+void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
                            char const *text, int id)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
@@ -589,7 +589,7 @@ void dlg_listbox_addwithid(union control *ctrl, dlgparam *dp,
     dp->flags &= ~FLAG_UPDATING_COMBO_LIST;
 }
 
-int dlg_listbox_getid(union control *ctrl, dlgparam *dp, int index)
+int dlg_listbox_getid(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -628,7 +628,7 @@ int dlg_listbox_getid(union control *ctrl, dlgparam *dp, int index)
 }
 
 /* dlg_listbox_index returns <0 if no single element is selected. */
-int dlg_listbox_index(union control *ctrl, dlgparam *dp)
+int dlg_listbox_index(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -712,7 +712,7 @@ int dlg_listbox_index(union control *ctrl, dlgparam *dp)
     return -1;                         /* placate dataflow analysis */
 }
 
-bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
+bool dlg_listbox_issel(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -769,7 +769,7 @@ bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
     return false;                      /* placate dataflow analysis */
 }
 
-void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index)
+void dlg_listbox_select(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -837,7 +837,7 @@ void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index)
     unreachable("bad control type in listbox_select");
 }
 
-void dlg_text_set(union control *ctrl, dlgparam *dp, char const *text)
+void dlg_text_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -847,7 +847,7 @@ void dlg_text_set(union control *ctrl, dlgparam *dp, char const *text)
     gtk_label_set_text(GTK_LABEL(uc->text), text);
 }
 
-void dlg_label_change(union control *ctrl, dlgparam *dp, char const *text)
+void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -885,7 +885,7 @@ void dlg_label_change(union control *ctrl, dlgparam *dp, char const *text)
     }
 }
 
-void dlg_filesel_set(union control *ctrl, dlgparam *dp, Filename *fn)
+void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     /* We must copy fn->path before passing it to gtk_entry_set_text.
@@ -897,7 +897,7 @@ void dlg_filesel_set(union control *ctrl, dlgparam *dp, Filename *fn)
     sfree(duppath);
 }
 
-Filename *dlg_filesel_get(union control *ctrl, dlgparam *dp)
+Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_FILESELECT);
@@ -905,7 +905,7 @@ Filename *dlg_filesel_get(union control *ctrl, dlgparam *dp)
     return filename_from_str(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
 }
 
-void dlg_fontsel_set(union control *ctrl, dlgparam *dp, FontSpec *fs)
+void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     /* We must copy fs->name before passing it to gtk_entry_set_text.
@@ -917,7 +917,7 @@ void dlg_fontsel_set(union control *ctrl, dlgparam *dp, FontSpec *fs)
     sfree(dupname);
 }
 
-FontSpec *dlg_fontsel_get(union control *ctrl, dlgparam *dp)
+FontSpec *dlg_fontsel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_FONTSELECT);
@@ -930,7 +930,7 @@ FontSpec *dlg_fontsel_get(union control *ctrl, dlgparam *dp)
  * cause the front end (if possible) to delay updating the screen
  * until it's all complete, thus avoiding flicker.
  */
-void dlg_update_start(union control *ctrl, dlgparam *dp)
+void dlg_update_start(dlgcontrol *ctrl, dlgparam *dp)
 {
     /*
      * Apparently we can't do this at all in GTK. GtkCList supports
@@ -938,7 +938,7 @@ void dlg_update_start(union control *ctrl, dlgparam *dp)
      */
 }
 
-void dlg_update_done(union control *ctrl, dlgparam *dp)
+void dlg_update_done(dlgcontrol *ctrl, dlgparam *dp)
 {
     /*
      * Apparently we can't do this at all in GTK. GtkCList supports
@@ -946,7 +946,7 @@ void dlg_update_done(union control *ctrl, dlgparam *dp)
      */
 }
 
-void dlg_set_focus(union control *ctrl, dlgparam *dp)
+void dlg_set_focus(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -1077,7 +1077,7 @@ void dlg_end(dlgparam *dp, int value)
     gtk_widget_destroy(dp->window);
 }
 
-void dlg_refresh(union control *ctrl, dlgparam *dp)
+void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc;
 
@@ -1096,7 +1096,7 @@ void dlg_refresh(union control *ctrl, dlgparam *dp)
     }
 }
 
-void dlg_coloursel_start(union control *ctrl, dlgparam *dp, int r, int g, int b)
+void dlg_coloursel_start(dlgcontrol *ctrl, dlgparam *dp, int r, int g, int b)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -1181,7 +1181,7 @@ void dlg_coloursel_start(union control *ctrl, dlgparam *dp, int r, int g, int b)
     gtk_widget_show(coloursel);
 }
 
-bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
+bool dlg_coloursel_results(dlgcontrol *ctrl, dlgparam *dp,
                            int *r, int *g, int *b)
 {
     if (dp->coloursel_result.ok) {
@@ -1202,7 +1202,7 @@ static gboolean widget_focus(GtkWidget *widget, GdkEventFocus *event,
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, widget);
-    union control *focus;
+    dlgcontrol *focus;
 
     if (uc && uc->ctrl)
         focus = uc->ctrl;
@@ -1877,7 +1877,7 @@ GtkWidget *layout_ctrls(
      * and add them to the Columns.
      */
     for (i = 0; i < s->ncontrols; i++) {
-        union control *ctrl = s->ctrls[i];
+        dlgcontrol *ctrl = s->ctrls[i];
         struct uctrl *uc;
         bool left = false;
         GtkWidget *w = NULL;
@@ -2576,7 +2576,7 @@ static void treeitem_sel(GtkItem *item, gpointer data)
 }
 #endif
 
-bool dlg_is_visible(union control *ctrl, dlgparam *dp)
+bool dlg_is_visible(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     /*
@@ -3283,7 +3283,7 @@ static void dlgparam_destroy(GtkWidget *widget, gpointer data)
     sfree(dp);
 }
 
-static void messagebox_handler(union control *ctrl, dlgparam *dp,
+static void messagebox_handler(dlgcontrol *ctrl, dlgparam *dp,
                                void *data, int event)
 {
     if (event == EVENT_ACTION)
@@ -3312,7 +3312,7 @@ static GtkWidget *create_message_box_general(
 {
     GtkWidget *window, *w0, *w1;
     struct controlset *s0, *s1;
-    union control *c, *textctrl;
+    dlgcontrol *c, *textctrl;
     struct dlgparam *dp;
     struct Shortcuts scs;
     int i, index, ncols, min_type;
@@ -3888,7 +3888,7 @@ struct eventlog_stuff {
     struct controlbox *eventbox;
     struct Shortcuts scs;
     struct dlgparam dp;
-    union control *listctrl;
+    dlgcontrol *listctrl;
     char **events_initial;
     char **events_circular;
     int ninitial, ncircular, circular_first;
@@ -3905,13 +3905,13 @@ static void eventlog_destroy(GtkWidget *widget, gpointer data)
     dlg_cleanup(&es->dp);
     ctrl_free_box(es->eventbox);
 }
-static void eventlog_ok_handler(union control *ctrl, dlgparam *dp,
+static void eventlog_ok_handler(dlgcontrol *ctrl, dlgparam *dp,
                                 void *data, int event)
 {
     if (event == EVENT_ACTION)
         dlg_end(dp, 0);
 }
-static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
+static void eventlog_list_handler(dlgcontrol *ctrl, dlgparam *dp,
                                   void *data, int event)
 {
     eventlog_stuff *es = (eventlog_stuff *)data;
@@ -4004,7 +4004,7 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
     GtkWidget *window, *w0, *w1;
     GtkWidget *parent = GTK_WIDGET(parentwin);
     struct controlset *s0, *s1;
-    union control *c;
+    dlgcontrol *c;
     int index;
     char *title;
 

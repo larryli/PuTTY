@@ -2570,17 +2570,16 @@ void cmdline_error(const char *, ...) PRINTF_LIKE(1, 2);
  * Exports from config.c.
  */
 struct controlbox;
-union control;
-void conf_radiobutton_handler(union control *ctrl, dlgparam *dlg,
+void conf_radiobutton_handler(dlgcontrol *ctrl, dlgparam *dlg,
                               void *data, int event);
 #define CHECKBOX_INVERT (1<<30)
-void conf_checkbox_handler(union control *ctrl, dlgparam *dlg,
+void conf_checkbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                            void *data, int event);
-void conf_editbox_handler(union control *ctrl, dlgparam *dlg,
+void conf_editbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event);
-void conf_filesel_handler(union control *ctrl, dlgparam *dlg,
+void conf_filesel_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event);
-void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
+void conf_fontsel_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event);
 
 void setup_config_box(struct controlbox *b, bool midsession,
@@ -2593,7 +2592,7 @@ void show_ca_config_box(dlgparam *dlg);
 
 /* Visible outside config.c so that platforms can use it to recognise
  * the proxy type control */
-void proxy_type_handler(union control *ctrl, dlgparam *dlg,
+void proxy_type_handler(dlgcontrol *ctrl, dlgparam *dlg,
                         void *data, int event);
 /* And then they'll set this flag in its generic.context.i */
 #define PROXY_UI_FLAG_LOCAL 1 /* has a local proxy */

@@ -413,7 +413,7 @@ struct dlgparam {
     char *wintitle;                    /* title of actual window */
     char *errtitle;                    /* title of error sub-messageboxes */
     void *data;                        /* data to pass in refresh events */
-    union control *focused, *lastfocused; /* which ctrl has focus now/before */
+    dlgcontrol *focused, *lastfocused; /* which ctrl has focus now/before */
     bool shortcuts[128];               /* track which shortcuts in use */
     bool coloursel_wanted;             /* has an event handler asked for
                                         * a colour selector? */
@@ -490,11 +490,11 @@ void dlg_set_fixed_pitch_flag(dlgparam *dlg, bool flag);
 #define MAX_SHORTCUTS_PER_CTRL 16
 
 /*
- * This structure is what's stored for each `union control' in the
+ * This structure is what's stored for each `dlgcontrol' in the
  * portable-dialog interface.
  */
 struct winctrl {
-    union control *ctrl;
+    dlgcontrol *ctrl;
     /*
      * The control may have several components at the Windows
      * level, with different dialog IDs. To avoid needing N
@@ -525,7 +525,7 @@ struct winctrl {
 };
 /*
  * And this structure holds a set of the above, in two separate
- * tree234s so that it can find an item by `union control' or by
+ * tree234s so that it can find an item by `dlgcontrol' or by
  * dialog ID.
  */
 struct winctrls {
@@ -538,7 +538,7 @@ void winctrl_init(struct winctrls *);
 void winctrl_cleanup(struct winctrls *);
 void winctrl_add(struct winctrls *, struct winctrl *);
 void winctrl_remove(struct winctrls *, struct winctrl *);
-struct winctrl *winctrl_findbyctrl(struct winctrls *, union control *);
+struct winctrl *winctrl_findbyctrl(struct winctrls *, dlgcontrol *);
 struct winctrl *winctrl_findbyid(struct winctrls *, int);
 struct winctrl *winctrl_findbyindex(struct winctrls *, int);
 void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,

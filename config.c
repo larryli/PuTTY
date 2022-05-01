@@ -16,7 +16,7 @@
 #define HOST_BOX_TITLE "Host Name (or IP address)"
 #define PORT_BOX_TITLE "Port"
 
-void conf_radiobutton_handler(union control *ctrl, dlgparam *dlg,
+void conf_radiobutton_handler(dlgcontrol *ctrl, dlgparam *dlg,
                               void *data, int event)
 {
     int button;
@@ -44,7 +44,7 @@ void conf_radiobutton_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void conf_radiobutton_bool_handler(union control *ctrl, dlgparam *dlg,
+void conf_radiobutton_bool_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     int button;
@@ -72,7 +72,7 @@ void conf_radiobutton_bool_handler(union control *ctrl, dlgparam *dlg,
 }
 
 #define CHECKBOX_INVERT (1<<30)
-void conf_checkbox_handler(union control *ctrl, dlgparam *dlg,
+void conf_checkbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                            void *data, int event)
 {
     int key;
@@ -104,7 +104,7 @@ void conf_checkbox_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void conf_editbox_handler(union control *ctrl, dlgparam *dlg,
+void conf_editbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     /*
@@ -153,7 +153,7 @@ void conf_editbox_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void conf_filesel_handler(union control *ctrl, dlgparam *dlg,
+void conf_filesel_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     int key = ctrl->fileselect.context.i;
@@ -169,7 +169,7 @@ void conf_filesel_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
+void conf_fontsel_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     int key = ctrl->fontselect.context.i;
@@ -185,7 +185,7 @@ void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void config_host_handler(union control *ctrl, dlgparam *dlg,
+static void config_host_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                 void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -217,7 +217,7 @@ static void config_host_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void config_port_handler(union control *ctrl, dlgparam *dlg,
+static void config_port_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                 void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -258,7 +258,7 @@ static void config_port_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct hostport {
-    union control *host, *port, *protradio, *protlist;
+    dlgcontrol *host, *port, *protradio, *protlist;
     bool mid_refresh;
 };
 
@@ -269,7 +269,7 @@ struct hostport {
  * and refreshes both host and port boxes when switching to/from the
  * serial backend.
  */
-static void config_protocols_handler(union control *ctrl, dlgparam *dlg,
+static void config_protocols_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                      void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -422,7 +422,7 @@ static void config_protocols_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void loggingbuttons_handler(union control *ctrl, dlgparam *dlg,
+static void loggingbuttons_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     int button;
@@ -451,7 +451,7 @@ static void loggingbuttons_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void numeric_keypad_handler(union control *ctrl, dlgparam *dlg,
+static void numeric_keypad_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     int button;
@@ -482,7 +482,7 @@ static void numeric_keypad_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void cipherlist_handler(union control *ctrl, dlgparam *dlg,
+static void cipherlist_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -528,7 +528,7 @@ static void cipherlist_handler(union control *ctrl, dlgparam *dlg,
 }
 
 #ifndef NO_GSSAPI
-static void gsslist_handler(union control *ctrl, dlgparam *dlg,
+static void gsslist_handler(dlgcontrol *ctrl, dlgparam *dlg,
                             void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -555,7 +555,7 @@ static void gsslist_handler(union control *ctrl, dlgparam *dlg,
 }
 #endif
 
-static void kexlist_handler(union control *ctrl, dlgparam *dlg,
+static void kexlist_handler(dlgcontrol *ctrl, dlgparam *dlg,
                             void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -601,7 +601,7 @@ static void kexlist_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void hklist_handler(union control *ctrl, dlgparam *dlg,
+static void hklist_handler(dlgcontrol *ctrl, dlgparam *dlg,
                             void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -645,7 +645,7 @@ static void hklist_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void printerbox_handler(union control *ctrl, dlgparam *dlg,
+static void printerbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -681,7 +681,7 @@ static void printerbox_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void codepage_handler(union control *ctrl, dlgparam *dlg,
+static void codepage_handler(dlgcontrol *ctrl, dlgparam *dlg,
                              void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -705,7 +705,7 @@ static void codepage_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void sshbug_handler(union control *ctrl, dlgparam *dlg,
+static void sshbug_handler(dlgcontrol *ctrl, dlgparam *dlg,
                            void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -738,7 +738,7 @@ static void sshbug_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void sshbug_handler_manual_only(union control *ctrl, dlgparam *dlg,
+static void sshbug_handler_manual_only(dlgcontrol *ctrl, dlgparam *dlg,
                                        void *data, int event)
 {
     /*
@@ -770,8 +770,8 @@ static void sshbug_handler_manual_only(union control *ctrl, dlgparam *dlg,
 }
 
 struct sessionsaver_data {
-    union control *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
-    union control *okbutton, *cancelbutton;
+    dlgcontrol *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
+    dlgcontrol *okbutton, *cancelbutton;
     struct sesslist sesslist;
     bool midsession;
     char *savedsession;     /* the current contents of ssd->editbox */
@@ -813,7 +813,7 @@ static bool load_selected_session(
     return true;
 }
 
-static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
+static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                  void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -951,10 +951,10 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct charclass_data {
-    union control *listbox, *editbox, *button;
+    dlgcontrol *listbox, *editbox, *button;
 };
 
-static void charclass_handler(union control *ctrl, dlgparam *dlg,
+static void charclass_handler(dlgcontrol *ctrl, dlgparam *dlg,
                               void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -992,7 +992,7 @@ static void charclass_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct colour_data {
-    union control *listbox, *redit, *gedit, *bedit, *button;
+    dlgcontrol *listbox, *redit, *gedit, *bedit, *button;
 };
 
 /* Array of the user-visible colour names defined in the list macro in
@@ -1003,7 +1003,7 @@ static const char *const colours[] = {
     #undef CONF_COLOUR_NAME_DECL
 };
 
-static void colour_handler(union control *ctrl, dlgparam *dlg,
+static void colour_handler(dlgcontrol *ctrl, dlgparam *dlg,
                             void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1109,10 +1109,10 @@ static void colour_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct ttymodes_data {
-    union control *valradio, *valbox, *setbutton, *listbox;
+    dlgcontrol *valradio, *valbox, *setbutton, *listbox;
 };
 
-static void ttymodes_handler(union control *ctrl, dlgparam *dlg,
+static void ttymodes_handler(dlgcontrol *ctrl, dlgparam *dlg,
                              void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1194,10 +1194,10 @@ static void ttymodes_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct environ_data {
-    union control *varbox, *valbox, *addbutton, *rembutton, *listbox;
+    dlgcontrol *varbox, *valbox, *addbutton, *rembutton, *listbox;
 };
 
-static void environ_handler(union control *ctrl, dlgparam *dlg,
+static void environ_handler(dlgcontrol *ctrl, dlgparam *dlg,
                             void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1266,14 +1266,14 @@ static void environ_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct portfwd_data {
-    union control *addbutton, *rembutton, *listbox;
-    union control *sourcebox, *destbox, *direction;
+    dlgcontrol *addbutton, *rembutton, *listbox;
+    dlgcontrol *sourcebox, *destbox, *direction;
 #ifndef NO_IPV6
-    union control *addressfamily;
+    dlgcontrol *addressfamily;
 #endif
 };
 
-static void portfwd_handler(union control *ctrl, dlgparam *dlg,
+static void portfwd_handler(dlgcontrol *ctrl, dlgparam *dlg,
                             void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1434,10 +1434,10 @@ static void portfwd_handler(union control *ctrl, dlgparam *dlg,
 }
 
 struct manual_hostkey_data {
-    union control *addbutton, *rembutton, *listbox, *keybox;
+    dlgcontrol *addbutton, *rembutton, *listbox, *keybox;
 };
 
-static void manual_hostkey_handler(union control *ctrl, dlgparam *dlg,
+static void manual_hostkey_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1500,7 +1500,7 @@ static void manual_hostkey_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void clipboard_selector_handler(union control *ctrl, dlgparam *dlg,
+static void clipboard_selector_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                        void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1601,7 +1601,7 @@ static void clipboard_control(struct controlset *s, const char *label,
 #endif
 }
 
-static void serial_parity_handler(union control *ctrl, dlgparam *dlg,
+static void serial_parity_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                   void *data, int event)
 {
     static const struct {
@@ -1656,7 +1656,7 @@ static void serial_parity_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
+static void serial_flow_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                 void *data, int event)
 {
     static const struct {
@@ -1709,7 +1709,7 @@ static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void proxy_type_handler(union control *ctrl, dlgparam *dlg,
+void proxy_type_handler(dlgcontrol *ctrl, dlgparam *dlg,
                         void *data, int event)
 {
     Conf *conf = (Conf *)data;
@@ -1763,7 +1763,7 @@ void proxy_type_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void host_ca_button_handler(union control *ctrl, dlgparam *dp,
+static void host_ca_button_handler(dlgcontrol *ctrl, dlgparam *dp,
                                    void *data, int event)
 {
     if (event == EVENT_ACTION)
@@ -1782,7 +1782,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
     struct environ_data *ed;
     struct portfwd_data *pfd;
     struct manual_hostkey_data *mh;
-    union control *c;
+    dlgcontrol *c;
     bool resize_forbidden = false;
     char *str;
 
@@ -3318,11 +3318,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
 }
 
 struct ca_state {
-    union control *ca_name_edit;
-    union control *ca_reclist;
-    union control *ca_pubkey_edit;
-    union control *ca_wclist;
-    union control *ca_wc_edit;
+    dlgcontrol *ca_name_edit;
+    dlgcontrol *ca_reclist;
+    dlgcontrol *ca_pubkey_edit;
+    dlgcontrol *ca_wclist;
+    dlgcontrol *ca_wc_edit;
     char *name, *pubkey, *wc;
     tree234 *ca_names;                 /* stores plain 'char *' */
     tree234 *host_wcs;                 /* stores plain 'char *' */
@@ -3416,14 +3416,14 @@ static void ca_load_selected_record(struct ca_state *st, dlgparam *dp)
     dlg_refresh(st->ca_wclist, dp);
 }
 
-static void ca_ok_handler(union control *ctrl, dlgparam *dp,
+static void ca_ok_handler(dlgcontrol *ctrl, dlgparam *dp,
                           void *data, int event)
 {
     if (event == EVENT_ACTION)
         dlg_end(dp, 0);
 }
 
-static void ca_name_handler(union control *ctrl, dlgparam *dp,
+static void ca_name_handler(dlgcontrol *ctrl, dlgparam *dp,
                             void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3444,7 +3444,7 @@ static void ca_name_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_reclist_handler(union control *ctrl, dlgparam *dp,
+static void ca_reclist_handler(dlgcontrol *ctrl, dlgparam *dp,
                                void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3461,7 +3461,7 @@ static void ca_reclist_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_load_handler(union control *ctrl, dlgparam *dp,
+static void ca_load_handler(dlgcontrol *ctrl, dlgparam *dp,
                             void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3470,7 +3470,7 @@ static void ca_load_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_save_handler(union control *ctrl, dlgparam *dp,
+static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
                             void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3496,7 +3496,7 @@ static void ca_save_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_delete_handler(union control *ctrl, dlgparam *dp,
+static void ca_delete_handler(dlgcontrol *ctrl, dlgparam *dp,
                               void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3523,7 +3523,7 @@ static void ca_delete_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_pubkey_handler(union control *ctrl, dlgparam *dp,
+static void ca_pubkey_handler(dlgcontrol *ctrl, dlgparam *dp,
                             void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3535,7 +3535,7 @@ static void ca_pubkey_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_wclist_handler(union control *ctrl, dlgparam *dp,
+static void ca_wclist_handler(dlgcontrol *ctrl, dlgparam *dp,
                               void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3549,7 +3549,7 @@ static void ca_wclist_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_wc_edit_handler(union control *ctrl, dlgparam *dp,
+static void ca_wc_edit_handler(dlgcontrol *ctrl, dlgparam *dp,
                                void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3561,7 +3561,7 @@ static void ca_wc_edit_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_wc_add_handler(union control *ctrl, dlgparam *dp,
+static void ca_wc_add_handler(dlgcontrol *ctrl, dlgparam *dp,
                               void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3582,7 +3582,7 @@ static void ca_wc_add_handler(union control *ctrl, dlgparam *dp,
     }
 }
 
-static void ca_wc_rem_handler(union control *ctrl, dlgparam *dp,
+static void ca_wc_rem_handler(dlgcontrol *ctrl, dlgparam *dp,
                               void *data, int event)
 {
     struct ca_state *st = (struct ca_state *)ctrl->generic.context.p;
@@ -3608,7 +3608,7 @@ static void ca_wc_rem_handler(union control *ctrl, dlgparam *dp,
 void setup_ca_config_box(struct controlbox *b)
 {
     struct controlset *s;
-    union control *c;
+    dlgcontrol *c;
 
     /* Internal state for manipulating the host CA system */
     struct ca_state *st = (struct ca_state *)ctrl_alloc_with_free(

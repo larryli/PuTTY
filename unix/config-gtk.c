@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, dlgparam *dlg,
+static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     if (event == EVENT_ACTION) {
@@ -21,7 +21,7 @@ static void about_handler(union control *ctrl, dlgparam *dlg,
 void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
 {
     struct controlset *s, *s2;
-    union control *c;
+    dlgcontrol *c;
     int i;
 
     if (!midsession) {
@@ -59,7 +59,7 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
             if (i < s->ncontrols-2) {
                 c = s->ctrls[s->ncontrols-1];
                 memmove(s->ctrls+i+2, s->ctrls+i+1,
-                        (s->ncontrols-i-2)*sizeof(union control *));
+                        (s->ncontrols-i-2)*sizeof(dlgcontrol *));
                 s->ctrls[i+1] = c;
             }
             break;

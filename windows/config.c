@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, dlgparam *dlg,
+static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -20,7 +20,7 @@ static void about_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void help_handler(union control *ctrl, dlgparam *dlg,
+static void help_handler(dlgcontrol *ctrl, dlgparam *dlg,
                          void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -30,7 +30,7 @@ static void help_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-static void variable_pitch_handler(union control *ctrl, dlgparam *dlg,
+static void variable_pitch_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     if (event == EVENT_REFRESH) {
@@ -46,7 +46,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     const struct BackendVtable *backvt;
     bool resize_forbidden = false;
     struct controlset *s;
-    union control *c;
+    dlgcontrol *c;
     char *str;
 
     if (!midsession) {
@@ -91,7 +91,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                 if (i < s->ncontrols-2) {
                     c = s->ctrls[s->ncontrols-1];
                     memmove(s->ctrls+i+2, s->ctrls+i+1,
-                            (s->ncontrols-i-2)*sizeof(union control *));
+                            (s->ncontrols-i-2)*sizeof(dlgcontrol *));
                     s->ctrls[i+1] = c;
                 }
                 break;
@@ -296,7 +296,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
      * up...
      */
     c = s->ctrls[s->ncontrols-1];      /* this should be the new control */
-    memmove(s->ctrls+1, s->ctrls, (s->ncontrols-1)*sizeof(union control *));
+    memmove(s->ctrls+1, s->ctrls, (s->ncontrols-1)*sizeof(dlgcontrol *));
     s->ctrls[0] = c;
 
     /*
