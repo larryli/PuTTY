@@ -13,7 +13,7 @@
 static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
-    HWND *hwndp = (HWND *)ctrl->generic.context.p;
+    HWND *hwndp = (HWND *)ctrl->context.p;
 
     if (event == EVENT_ACTION) {
         modal_about_box(*hwndp);
@@ -23,7 +23,7 @@ static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
 static void help_handler(dlgcontrol *ctrl, dlgparam *dlg,
                          void *data, int event)
 {
-    HWND *hwndp = (HWND *)ctrl->generic.context.p;
+    HWND *hwndp = (HWND *)ctrl->context.p;
 
     if (event == EVENT_ACTION) {
         show_help(*hwndp);
@@ -56,11 +56,11 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
         s = ctrl_getset(b, "", "", "");
         c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
                             about_handler, P(hwndp));
-        c->generic.column = 0;
+        c->column = 0;
         if (has_help) {
             c = ctrl_pushbutton(s, "Help", 'h', HELPCTX(no_help),
                                 help_handler, P(hwndp));
-            c->generic.column = 1;
+            c->column = 1;
         }
     }
 
@@ -82,8 +82,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
         int i;
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
-            if (c->generic.type == CTRL_CHECKBOX &&
-                c->generic.context.i == CONF_scrollbar) {
+            if (c->type == CTRL_CHECKBOX &&
+                c->context.i == CONF_scrollbar) {
                 /*
                  * Control i is the scrollbar checkbox.
                  * Control s->ncontrols-1 is the scrollbar-in-FS one.
@@ -134,9 +134,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
         int i;
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
-            if (c->generic.type == CTRL_RADIO &&
-                c->generic.context.i == CONF_beep) {
-                assert(c->generic.handler == conf_radiobutton_handler);
+            if (c->type == CTRL_RADIO &&
+                c->context.i == CONF_beep) {
+                assert(c->handler == conf_radiobutton_handler);
                 c->radio.nbuttons += 2;
                 c->radio.buttons =
                     sresize(c->radio.buttons, c->radio.nbuttons, char *);
@@ -233,9 +233,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
         int i;
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
-            if (c->generic.type == CTRL_RADIO &&
-                c->generic.context.i == CONF_vtmode) {
-                assert(c->generic.handler == conf_radiobutton_handler);
+            if (c->type == CTRL_RADIO &&
+                c->context.i == CONF_vtmode) {
+                assert(c->handler == conf_radiobutton_handler);
                 c->radio.nbuttons += 3;
                 c->radio.buttons =
                     sresize(c->radio.buttons, c->radio.nbuttons, char *);
@@ -362,9 +362,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
         s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
-            if (c->generic.type == CTRL_LISTBOX &&
-                c->generic.handler == proxy_type_handler) {
-                c->generic.context.i |= PROXY_UI_FLAG_LOCAL;
+            if (c->type == CTRL_LISTBOX &&
+                c->handler == proxy_type_handler) {
+                c->context.i |= PROXY_UI_FLAG_LOCAL;
                 break;
             }
         }

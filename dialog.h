@@ -104,317 +104,292 @@ enum {
 typedef void (*handler_fn)(dlgcontrol *ctrl, dlgparam *dp,
                            void *data, int event);
 
-#define STANDARD_PREFIX \
-        int type; \
-        char *label; \
-        bool tabdelay; \
-        int column; \
-        handler_fn handler; \
-        intorptr context; \
-        intorptr helpctx; \
-        dlgcontrol *align_next_to
-
-union control {
+struct dlgcontrol {
     /*
-     * The first possibility in this union is the generic header
-     * shared by all the structures, which we are therefore allowed
-     * to access through any one of them.
+     * Generic fields shared by all the control types.
      */
-    struct {
-        int type;
-        /*
-         * Every control except CTRL_COLUMNS has _some_ sort of
-         * label. By putting it in the `generic' union as well as
-         * everywhere else, we avoid having to have an irritating
-         * switch statement when we go through and deallocate all
-         * the memory in a config-box structure.
-         *
-         * Yes, this does mean that any non-NULL value in this
-         * field is expected to be dynamically allocated and
-         * freeable.
-         *
-         * For CTRL_COLUMNS, this field MUST be NULL.
-         */
-        char *label;
-        /*
-         * If `tabdelay' is non-zero, it indicates that this
-         * particular control should not yet appear in the tab
-         * order. A subsequent CTRL_TABDELAY entry will place it.
-         */
-        bool tabdelay;
-        /*
-         * Indicate which column(s) this control occupies. This can
-         * be unpacked into starting column and column span by the
-         * COLUMN macros above.
-         */
-        int column;
-        /*
-         * Most controls need to provide a function which gets
-         * called when that control's setting is changed, or when
-         * the control's setting needs initialising.
-         *
-         * The `data' parameter points to the writable data being
-         * modified as a result of the configuration activity; for
-         * example, the PuTTY `Conf' structure, although not
-         * necessarily.
-         *
-         * The `dlg' parameter is passed back to the platform-
-         * specific routines to read and write the actual control
-         * state.
-         */
-        handler_fn handler;
-        /*
-         * Almost all of the above functions will find it useful to
-         * be able to store a piece of `void *' or `int' data.
-         */
-        intorptr context;
-        /*
-         * For any control, we also allow the storage of a piece of
-         * data for use by context-sensitive help. For example, on
-         * Windows you can click the magic question mark and then
-         * click a control, and help for that control should spring
-         * up. Hence, here is a slot in which to store per-control
-         * data that a particular platform-specific driver can use
-         * to ensure it brings up the right piece of help text.
-         */
-        intorptr helpctx;
-        /*
-         * Setting this to non-NULL coerces two controls to have their
-         * y-coordinates adjusted so that they can sit alongside each
-         * other and look nicely aligned, even if they're different
-         * heights.
-         *
-         * Set this field on the _second_ control of the pair (in
-         * terms of order in the data structure), so that when it's
-         * instantiated, the first one is already there to be referred
-         * to.
-         */
-        dlgcontrol *align_next_to;
-    } generic;
-    struct {
-        STANDARD_PREFIX;
-        dlgcontrol *ctrl;
-    } tabdelay;
-    struct {
-        STANDARD_PREFIX;
-    } text;
-    struct {
-        STANDARD_PREFIX;
-        char shortcut;                 /* keyboard shortcut */
-        /*
-         * Percentage of the dialog-box width used by the edit box.
-         * If this is set to 100, the label is on its own line;
-         * otherwise the label is on the same line as the box
-         * itself.
-         */
-        int percentwidth;
-        bool password;               /* details of input are hidden */
-        /*
-         * A special case of the edit box is the combo box, which
-         * has a drop-down list built in. (Note that a _non_-
-         * editable drop-down list is done as a special case of a
-         * list box.)
-         *
-         * Don't try setting has_list and password on the same
-         * control; front ends are not required to support that
-         * combination.
-         */
-        bool has_list;
-        /*
-         * Edit boxes tend to need two items of context, so here's
-         * a spare.
-         */
-        intorptr context2;
-    } editbox;
-    struct {
-        STANDARD_PREFIX;
-        /*
-         * `shortcut' here is a single keyboard shortcut which is
-         * expected to select the whole group of radio buttons. It
-         * can be NO_SHORTCUT if required, and there is also a way
-         * to place individual shortcuts on each button; see below.
-         */
-        char shortcut;
-        /*
-         * There are separate fields for `ncolumns' and `nbuttons'
-         * for several reasons.
-         *
-         * Firstly, we sometimes want the last of a set of buttons
-         * to have a longer label than the rest; we achieve this by
-         * setting `ncolumns' higher than `nbuttons', and the
-         * layout code is expected to understand that the final
-         * button should be given all the remaining space on the
-         * line. This sounds like a ludicrously specific special
-         * case (if we're doing this sort of thing, why not have
-         * the general ability to have a particular button span
-         * more than one column whether it's the last one or not?)
-         * but actually it's reasonably common for the sort of
-         * three-way control you get a lot of in PuTTY: `yes'
-         * versus `no' versus `some more complex way to decide'.
-         *
-         * Secondly, setting `nbuttons' higher than `ncolumns' lets
-         * us have more than one line of radio buttons for a single
-         * setting. A very important special case of this is
-         * setting `ncolumns' to 1, so that each button is on its
-         * own line.
-         */
-        int ncolumns;
-        int nbuttons;
-        /*
-         * This points to a dynamically allocated array of `char *'
-         * pointers, each of which points to a dynamically
-         * allocated string.
-         */
-        char **buttons;                /* `nbuttons' button labels */
-        /*
-         * This points to a dynamically allocated array of `char'
-         * giving the individual keyboard shortcuts for each radio
-         * button. The array may be NULL if none are required.
-         */
-        char *shortcuts;               /* `nbuttons' shortcuts; may be NULL */
-        /*
-         * This points to a dynamically allocated array of
-         * intorptr, giving helpful data for each button.
-         */
-        intorptr *buttondata;          /* `nbuttons' entries; may be NULL */
-    } radio;
-    struct {
-        STANDARD_PREFIX;
-        char shortcut;
-    } checkbox;
-    struct {
-        STANDARD_PREFIX;
-        char shortcut;
-        /*
-         * At least Windows has the concept of a `default push
-         * button', which gets implicitly pressed when you hit
-         * Return even if it doesn't have the input focus.
-         */
-        bool isdefault;
-        /*
-         * Also, the reverse of this: a default cancel-type button,
-         * which is implicitly pressed when you hit Escape.
-         */
-        bool iscancel;
-    } button;
-    struct {
-        STANDARD_PREFIX;
-        char shortcut;                 /* keyboard shortcut */
-        /*
-         * Height of the list box, in approximate number of lines.
-         * If this is zero, the list is a drop-down list.
-         */
-        int height;                    /* height in lines */
-        /*
-         * If this is set, the list elements can be reordered by
-         * the user (by drag-and-drop or by Up and Down buttons,
-         * whatever the per-platform implementation feels
-         * comfortable with). This is not guaranteed to work on a
-         * drop-down list, so don't try it!
-         */
-        bool draglist;
-        /*
-         * If this is non-zero, the list can have more than one
-         * element selected at a time. This is not guaranteed to
-         * work on a drop-down list, so don't try it!
-         *
-         * Different non-zero values request slightly different
-         * types of multi-selection (this may well be meaningful
-         * only in GTK, so everyone else can ignore it if they
-         * want). 1 means the list box expects to have individual
-         * items selected, whereas 2 means it expects the user to
-         * want to select a large contiguous range at a time.
-         */
-        int multisel;
-        /*
-         * Percentage of the dialog-box width used by the list box.
-         * If this is set to 100, the label is on its own line;
-         * otherwise the label is on the same line as the box
-         * itself. Setting this to anything other than 100 is not
-         * guaranteed to work on a _non_-drop-down list, so don't
-         * try it!
-         */
-        int percentwidth;
-        /*
-         * Some list boxes contain strings that contain tab
-         * characters. If `ncols' is greater than 0, then
-         * `percentages' is expected to be non-zero and to contain
-         * the respective widths of `ncols' columns, which together
-         * will exactly fit the width of the list box. Otherwise
-         * `percentages' must be NULL.
-         *
-         * There should never be more than one column in a
-         * drop-down list (one with height==0), because front ends
-         * may have to implement it as a special case of an
-         * editable combo box.
-         */
-        int ncols;                     /* number of columns */
-        int *percentages;              /* % width of each column */
-        /*
-         * Flag which can be set to false to suppress the horizontal
-         * scroll bar if a list box entry goes off the right-hand
-         * side.
-         */
-        bool hscroll;
-    } listbox;
-    struct {
-        STANDARD_PREFIX;
-        char shortcut;
-        /*
-         * `filter' dictates what type of files will be selected by
-         * default; for example, when selecting private key files
-         * the file selector would do well to only show .PPK files
-         * (on those systems where this is the chosen extension).
-         *
-         * The precise contents of `filter' are platform-defined,
-         * unfortunately. The special value NULL means `all files'
-         * and is always a valid fallback.
-         *
-         * Unlike almost all strings in this structure, this value
-         * is NOT expected to require freeing (although of course
-         * you can always use ctrl_alloc if you do need to create
-         * one on the fly). This is because the likely mode of use
-         * is to define string constants in a platform-specific
-         * header file, and directly reference those. Or worse, a
-         * particular platform might choose to cast integers into
-         * this pointer type...
-         */
-        char const *filter;
-        /*
-         * Some systems like to know whether a file selector is
-         * choosing a file to read or one to write (and possibly
-         * create).
-         */
-        bool for_writing;
-        /*
-         * On at least some platforms, the file selector is a
-         * separate dialog box, and contains a user-settable title.
-         *
-         * This value _is_ expected to require freeing.
-         */
-        char *title;
-    } fileselect;
-    struct {
-        /* In this variant, `label' MUST be NULL. */
-        STANDARD_PREFIX;
-        int ncols;                     /* number of columns */
-        int *percentages;              /* % width of each column */
-        /*
-         * Every time this control type appears, exactly one of
-         * `ncols' and the previous number of columns MUST be one.
-         * Attempting to allow a seamless transition from a four-
-         * to a five-column layout, for example, would be way more
-         * trouble than it was worth. If you must lay things out
-         * like that, define eight unevenly sized columns and use
-         * column-spanning a lot. But better still, just don't.
-         *
-         * `percentages' may be NULL if ncols==1, to save space.
-         */
-    } columns;
-    struct {
-        STANDARD_PREFIX;
-        char shortcut;
-    } fontselect;
+    int type;
+    /*
+     * Every control except CTRL_COLUMNS has _some_ sort of label. By
+     * putting it in the `generic' union as well as everywhere else,
+     * we avoid having to have an irritating switch statement when we
+     * go through and deallocate all the memory in a config-box
+     * structure.
+     *
+     * Yes, this does mean that any non-NULL value in this field is
+     * expected to be dynamically allocated and freeable.
+     *
+     * For CTRL_COLUMNS, this field MUST be NULL.
+     */
+    char *label;
+    /*
+     * If `delay_taborder' is true, it indicates that this particular
+     * control should not yet appear in the tab order. A subsequent
+     * CTRL_TABDELAY entry will place it.
+     */
+    bool delay_taborder;
+    /*
+     * Indicate which column(s) this control occupies. This can be
+     * unpacked into starting column and column span by the COLUMN
+     * macros above.
+     */
+    int column;
+    /*
+     * Most controls need to provide a function which gets called when
+     * that control's setting is changed, or when the control's
+     * setting needs initialising.
+     *
+     * The `data' parameter points to the writable data being modified
+     * as a result of the configuration activity; for example, the
+     * PuTTY `Conf' structure, although not necessarily.
+     *
+     * The `dlg' parameter is passed back to the platform- specific
+     * routines to read and write the actual control state.
+     */
+    handler_fn handler;
+    /*
+     * Almost all of the above functions will find it useful to be
+     * able to store one or two pieces of `void *' or `int' data.
+     */
+    intorptr context, context2;
+    /*
+     * For any control, we also allow the storage of a piece of data
+     * for use by context-sensitive help. For example, on Windows you
+     * can click the magic question mark and then click a control, and
+     * help for that control should spring up. Hence, here is a slot
+     * in which to store per-control data that a particular
+     * platform-specific driver can use to ensure it brings up the
+     * right piece of help text.
+     */
+    intorptr helpctx;
+    /*
+     * Setting this to non-NULL coerces two controls to have their
+     * y-coordinates adjusted so that they can sit alongside each
+     * other and look nicely aligned, even if they're different
+     * heights.
+     *
+     * Set this field on the _second_ control of the pair (in terms of
+     * order in the data structure), so that when it's instantiated,
+     * the first one is already there to be referred to.
+     */
+    dlgcontrol *align_next_to;
+
+    /*
+     * Union of further fields specific to each control type.
+     */
+    union {
+        struct { /* for CTRL_TABDELAY */
+            dlgcontrol *ctrl;
+        } tabdelay;
+        struct { /* for CTRL_EDITBOX */
+            char shortcut;                 /* keyboard shortcut */
+            /*
+             * Percentage of the dialog-box width used by the edit
+             * box. If this is set to 100, the label is on its own
+             * line; otherwise the label is on the same line as the
+             * box itself.
+             */
+            int percentwidth;
+            bool password;               /* details of input are hidden */
+            /*
+             * A special case of the edit box is the combo box, which
+             * has a drop-down list built in. (Note that a _non_-
+             * editable drop-down list is done as a special case of a
+             * list box.)
+             *
+             * Don't try setting has_list and password on the same
+             * control; front ends are not required to support that
+             * combination.
+             */
+            bool has_list;
+        } editbox;
+        struct { /* for CTRL_RADIO */
+            /*
+             * `shortcut' here is a single keyboard shortcut which is
+             * expected to select the whole group of radio buttons. It
+             * can be NO_SHORTCUT if required, and there is also a way
+             * to place individual shortcuts on each button; see
+             * below.
+             */
+            char shortcut;
+            /*
+             * There are separate fields for `ncolumns' and `nbuttons'
+             * for several reasons.
+             *
+             * Firstly, we sometimes want the last of a set of buttons
+             * to have a longer label than the rest; we achieve this
+             * by setting `ncolumns' higher than `nbuttons', and the
+             * layout code is expected to understand that the final
+             * button should be given all the remaining space on the
+             * line. This sounds like a ludicrously specific special
+             * case (if we're doing this sort of thing, why not have
+             * the general ability to have a particular button span
+             * more than one column whether it's the last one or not?)
+             * but actually it's reasonably common for the sort of
+             * three-way control you get a lot of in PuTTY: `yes'
+             * versus `no' versus `some more complex way to decide'.
+             *
+             * Secondly, setting `nbuttons' higher than `ncolumns'
+             * lets us have more than one line of radio buttons for a
+             * single setting. A very important special case of this
+             * is setting `ncolumns' to 1, so that each button is on
+             * its own line.
+             */
+            int ncolumns;
+            int nbuttons;
+            /*
+             * This points to a dynamically allocated array of `char *'
+             * pointers, each of which points to a dynamically
+             * allocated string.
+             */
+            char **buttons;            /* `nbuttons' button labels */
+            /*
+             * This points to a dynamically allocated array of `char'
+             * giving the individual keyboard shortcuts for each radio
+             * button. The array may be NULL if none are required.
+             */
+            char *shortcuts;   /* `nbuttons' shortcuts; may be NULL */
+            /*
+             * This points to a dynamically allocated array of
+             * intorptr, giving helpful data for each button.
+             */
+            intorptr *buttondata; /* `nbuttons' entries; may be NULL */
+        } radio;
+        struct { /* for CTRL_CHECKBOX */
+            char shortcut;
+        } checkbox;
+        struct { /* for CTRL_BUTTON */
+            char shortcut;
+            /*
+             * At least Windows has the concept of a `default push
+             * button', which gets implicitly pressed when you hit
+             * Return even if it doesn't have the input focus.
+             */
+            bool isdefault;
+            /*
+             * Also, the reverse of this: a default cancel-type
+             * button, which is implicitly pressed when you hit
+             * Escape.
+             */
+            bool iscancel;
+        } button;
+        struct { /* for CTRL_LISTBOX */
+            char shortcut;                 /* keyboard shortcut */
+            /*
+             * Height of the list box, in approximate number of lines.
+             * If this is zero, the list is a drop-down list.
+             */
+            int height;                    /* height in lines */
+            /*
+             * If this is set, the list elements can be reordered by
+             * the user (by drag-and-drop or by Up and Down buttons,
+             * whatever the per-platform implementation feels
+             * comfortable with). This is not guaranteed to work on a
+             * drop-down list, so don't try it!
+             */
+            bool draglist;
+            /*
+             * If this is non-zero, the list can have more than one
+             * element selected at a time. This is not guaranteed to
+             * work on a drop-down list, so don't try it!
+             *
+             * Different non-zero values request slightly different
+             * types of multi-selection (this may well be meaningful
+             * only in GTK, so everyone else can ignore it if they
+             * want). 1 means the list box expects to have individual
+             * items selected, whereas 2 means it expects the user to
+             * want to select a large contiguous range at a time.
+             */
+            int multisel;
+            /*
+             * Percentage of the dialog-box width used by the list
+             * box. If this is set to 100, the label is on its own
+             * line; otherwise the label is on the same line as the
+             * box itself. Setting this to anything other than 100 is
+             * not guaranteed to work on a _non_-drop-down list, so
+             * don't try it!
+             */
+            int percentwidth;
+            /*
+             * Some list boxes contain strings that contain tab
+             * characters. If `ncols' is greater than 0, then
+             * `percentages' is expected to be non-zero and to contain
+             * the respective widths of `ncols' columns, which
+             * together will exactly fit the width of the list box.
+             * Otherwise `percentages' must be NULL.
+             *
+             * There should never be more than one column in a
+             * drop-down list (one with height==0), because front ends
+             * may have to implement it as a special case of an
+             * editable combo box.
+             */
+            int ncols;                     /* number of columns */
+            int *percentages;              /* % width of each column */
+            /*
+             * Flag which can be set to false to suppress the
+             * horizontal scroll bar if a list box entry goes off the
+             * right-hand side.
+             */
+            bool hscroll;
+        } listbox;
+        struct { /* for CTRL_FILESELECT */
+            char shortcut;
+            /*
+             * `filter' dictates what type of files will be selected
+             * by default; for example, when selecting private key
+             * files the file selector would do well to only show .PPK
+             * files (on those systems where this is the chosen
+             * extension).
+             *
+             * The precise contents of `filter' are platform-defined,
+             * unfortunately. The special value NULL means `all files'
+             * and is always a valid fallback.
+             *
+             * Unlike almost all strings in this structure, this value
+             * is NOT expected to require freeing (although of course
+             * you can always use ctrl_alloc if you do need to create
+             * one on the fly). This is because the likely mode of use
+             * is to define string constants in a platform-specific
+             * header file, and directly reference those. Or worse, a
+             * particular platform might choose to cast integers into
+             * this pointer type...
+             */
+            char const *filter;
+            /*
+             * Some systems like to know whether a file selector is
+             * choosing a file to read or one to write (and possibly
+             * create).
+             */
+            bool for_writing;
+            /*
+             * On at least some platforms, the file selector is a
+             * separate dialog box, and contains a user-settable
+             * title.
+             *
+             * This value _is_ expected to require freeing.
+             */
+            char *title;
+        } fileselect;
+        struct { /* for CTRL_COLUMNS */
+            /* In this variant, `label' MUST be NULL. */
+            int ncols;                     /* number of columns */
+            int *percentages;              /* % width of each column */
+            /*
+             * Every time this control type appears, exactly one of
+             * `ncols' and the previous number of columns MUST be one.
+             * Attempting to allow a seamless transition from a four-
+             * to a five-column layout, for example, would be way more
+             * trouble than it was worth. If you must lay things out
+             * like that, define eight unevenly sized columns and use
+             * column-spanning a lot. But better still, just don't.
+             *
+             * `percentages' may be NULL if ncols==1, to save space.
+             */
+        } columns;
+        struct { /* for CTRL_FONTSELECT */
+            char shortcut;
+        } fontselect;
+    };
 };
 
 #undef STANDARD_PREFIX

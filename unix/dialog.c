@@ -268,7 +268,7 @@ dlgcontrol *dlg_last_focused(dlgcontrol *ctrl, dlgparam *dp)
 void dlg_radiobutton_set(dlgcontrol *ctrl, dlgparam *dp, int which)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    assert(uc->ctrl->generic.type == CTRL_RADIO);
+    assert(uc->ctrl->type == CTRL_RADIO);
     assert(uc->buttons != NULL);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(uc->buttons[which]), true);
 }
@@ -278,7 +278,7 @@ int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp)
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     int i;
 
-    assert(uc->ctrl->generic.type == CTRL_RADIO);
+    assert(uc->ctrl->type == CTRL_RADIO);
     assert(uc->buttons != NULL);
     for (i = 0; i < uc->nbuttons; i++)
         if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(uc->buttons[i])))
@@ -289,14 +289,14 @@ int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp)
 void dlg_checkbox_set(dlgcontrol *ctrl, dlgparam *dp, bool checked)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    assert(uc->ctrl->generic.type == CTRL_CHECKBOX);
+    assert(uc->ctrl->type == CTRL_CHECKBOX);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(uc->toplevel), checked);
 }
 
 bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    assert(uc->ctrl->generic.type == CTRL_CHECKBOX);
+    assert(uc->ctrl->type == CTRL_CHECKBOX);
     return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(uc->toplevel));
 }
 
@@ -305,7 +305,7 @@ void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     GtkWidget *entry;
     char *tmpstring;
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX);
 
 #if GTK_CHECK_VERSION(2,4,0)
     if (uc->combo)
@@ -341,7 +341,7 @@ void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX);
 
 #if GTK_CHECK_VERSION(2,4,0)
     if (uc->combo) {
@@ -371,8 +371,8 @@ void dlg_listbox_clear(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu) {
@@ -399,8 +399,8 @@ void dlg_listbox_del(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu) {
@@ -446,8 +446,8 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
     /*
      * This routine is long and complicated in both GTK 1 and 2,
@@ -569,7 +569,7 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
          * Now go through text and divide it into columns at the tabs,
          * as necessary.
          */
-        cols = (uc->ctrl->generic.type == CTRL_LISTBOX ? ctrl->listbox.ncols : 1);
+        cols = (uc->ctrl->type == CTRL_LISTBOX ? ctrl->listbox.ncols : 1);
         cols = cols ? cols : 1;
         for (i = 0; i < cols; i++) {
             int collen = strcspn(text, "\t");
@@ -593,8 +593,8 @@ int dlg_listbox_getid(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu || uc->list) {
@@ -632,8 +632,8 @@ int dlg_listbox_index(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu || uc->list) {
@@ -716,16 +716,16 @@ bool dlg_listbox_issel(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu || uc->list) {
         GList *children;
         GtkWidget *item, *activeitem;
 
-        assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-               uc->ctrl->generic.type == CTRL_LISTBOX);
+        assert(uc->ctrl->type == CTRL_EDITBOX ||
+               uc->ctrl->type == CTRL_LISTBOX);
         assert(uc->menu != NULL || uc->list != NULL);
 
         children = gtk_container_children(GTK_CONTAINER(uc->menu ? uc->menu :
@@ -773,8 +773,8 @@ void dlg_listbox_select(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_EDITBOX ||
-           uc->ctrl->generic.type == CTRL_LISTBOX);
+    assert(uc->ctrl->type == CTRL_EDITBOX ||
+           uc->ctrl->type == CTRL_LISTBOX);
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->optmenu) {
@@ -841,7 +841,7 @@ void dlg_text_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    assert(uc->ctrl->generic.type == CTRL_TEXT);
+    assert(uc->ctrl->type == CTRL_TEXT);
     assert(uc->text != NULL);
 
     gtk_label_set_text(GTK_LABEL(uc->text), text);
@@ -851,7 +851,7 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    switch (uc->ctrl->generic.type) {
+    switch (uc->ctrl->type) {
       case CTRL_BUTTON:
         gtk_label_set_text(GTK_LABEL(uc->toplevel), text);
         shortcut_highlight(uc->toplevel, ctrl->button.shortcut);
@@ -891,7 +891,7 @@ void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn)
     /* We must copy fn->path before passing it to gtk_entry_set_text.
      * See comment in dlg_editbox_set() for the reasons. */
     char *duppath = dupstr(fn->path);
-    assert(uc->ctrl->generic.type == CTRL_FILESELECT);
+    assert(uc->ctrl->type == CTRL_FILESELECT);
     assert(uc->entry != NULL);
     gtk_entry_set_text(GTK_ENTRY(uc->entry), duppath);
     sfree(duppath);
@@ -900,7 +900,7 @@ void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn)
 Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    assert(uc->ctrl->generic.type == CTRL_FILESELECT);
+    assert(uc->ctrl->type == CTRL_FILESELECT);
     assert(uc->entry != NULL);
     return filename_from_str(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
 }
@@ -911,7 +911,7 @@ void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
     /* We must copy fs->name before passing it to gtk_entry_set_text.
      * See comment in dlg_editbox_set() for the reasons. */
     char *dupname = dupstr(fs->name);
-    assert(uc->ctrl->generic.type == CTRL_FONTSELECT);
+    assert(uc->ctrl->type == CTRL_FONTSELECT);
     assert(uc->entry != NULL);
     gtk_entry_set_text(GTK_ENTRY(uc->entry), dupname);
     sfree(dupname);
@@ -920,7 +920,7 @@ void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
 FontSpec *dlg_fontsel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    assert(uc->ctrl->generic.type == CTRL_FONTSELECT);
+    assert(uc->ctrl->type == CTRL_FONTSELECT);
     assert(uc->entry != NULL);
     return fontspec_new(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
 }
@@ -950,7 +950,7 @@ void dlg_set_focus(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
-    switch (ctrl->generic.type) {
+    switch (ctrl->type) {
       case CTRL_CHECKBOX:
       case CTRL_BUTTON:
         /* Check boxes and buttons get the focus _and_ get toggled. */
@@ -1082,15 +1082,15 @@ void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp)
     struct uctrl *uc;
 
     if (ctrl) {
-        if (ctrl->generic.handler != NULL)
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_REFRESH);
+        if (ctrl->handler != NULL)
+            ctrl->handler(ctrl, dp, dp->data, EVENT_REFRESH);
     } else {
         int i;
 
         for (i = 0; (uc = index234(dp->byctrl, i)) != NULL; i++) {
             assert(uc->ctrl != NULL);
-            if (uc->ctrl->generic.handler != NULL)
-                uc->ctrl->generic.handler(uc->ctrl, dp,
+            if (uc->ctrl->handler != NULL)
+                uc->ctrl->handler(uc->ctrl, dp,
                                           dp->data, EVENT_REFRESH);
         }
     }
@@ -1221,14 +1221,14 @@ static void button_clicked(GtkButton *button, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(button));
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
 }
 
 static void button_toggled(GtkToggleButton *tb, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(tb));
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
 }
 
 static gboolean editbox_key(GtkWidget *widget, GdkEventKey *event,
@@ -1259,7 +1259,7 @@ static void editbox_changed(GtkEditable *ed, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     if (!(dp->flags & FLAG_UPDATING_COMBO_LIST)) {
         struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(ed));
-        uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
+        uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
     }
 }
 
@@ -1268,7 +1268,7 @@ static gboolean editbox_lostfocus(GtkWidget *ed, GdkEventFocus *event,
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(ed));
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_REFRESH);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_REFRESH);
     return false;
 }
 
@@ -1404,7 +1404,7 @@ static gboolean listitem_button_release(GtkWidget *item, GdkEventButton *event,
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
     if (uc->nclicks>1) {
-        uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
+        uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
         return true;
     }
     return false;
@@ -1415,7 +1415,7 @@ static void list_selchange(GtkList *list, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(list));
     if (!uc) return;
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
 }
 
 static void draglist_move(struct dlgparam *dp, struct uctrl *uc, int direction)
@@ -1440,7 +1440,7 @@ static void draglist_move(struct dlgparam *dp, struct uctrl *uc, int direction)
     children = g_list_append(children, child);
     gtk_list_insert_items(GTK_LIST(uc->list), children, index + direction);
     gtk_list_select_item(GTK_LIST(uc->list), index + direction);
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_VALCHANGE);
 }
 
 static void draglist_up(GtkButton *button, gpointer data)
@@ -1469,7 +1469,7 @@ static void listbox_doubleclick(GtkTreeView *treeview, GtkTreePath *path,
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(treeview));
     if (uc)
-        uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
+        uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_ACTION);
 }
 
 static void listbox_selchange(GtkTreeSelection *treeselection,
@@ -1479,7 +1479,7 @@ static void listbox_selchange(GtkTreeSelection *treeselection,
     GtkTreeView *tree = gtk_tree_selection_get_tree_view(treeselection);
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(tree));
     if (uc)
-        uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+        uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
 }
 
 struct draglist_valchange_ctx {
@@ -1492,7 +1492,7 @@ static gboolean draglist_valchange(gpointer data)
     struct draglist_valchange_ctx *ctx =
         (struct draglist_valchange_ctx *)data;
 
-    ctx->uc->ctrl->generic.handler(ctx->uc->ctrl, ctx->dp,
+    ctx->uc->ctrl->handler(ctx->uc->ctrl, ctx->dp,
                                    ctx->dp->data, EVENT_VALCHANGE);
 
     sfree(ctx);
@@ -1547,7 +1547,7 @@ static void menuitem_activate(GtkMenuItem *item, gpointer data)
     GtkWidget *menushell = GTK_WIDGET(item)->parent;
     gpointer optmenu = g_object_get_data(G_OBJECT(menushell), "user-data");
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(optmenu));
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
 }
 
 #else
@@ -1557,7 +1557,7 @@ static void droplist_selchange(GtkComboBox *combo, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(combo));
     if (uc)
-        uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
+        uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_SELCHANGE);
 }
 
 #endif /* !GTK_CHECK_VERSION(2,4,0) */
@@ -1631,7 +1631,7 @@ static void colourchoose_response(GtkDialog *dialog,
         dp->coloursel_result.ok = false;
     }
 
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
 
     gtk_widget_destroy(GTK_WIDGET(dialog));
 }
@@ -1668,7 +1668,7 @@ static void coloursel_ok(GtkButton *button, gpointer data)
     }
 #endif
     dp->coloursel_result.ok = true;
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
 }
 
 static void coloursel_cancel(GtkButton *button, gpointer data)
@@ -1677,7 +1677,7 @@ static void coloursel_cancel(GtkButton *button, gpointer data)
     gpointer coloursel = g_object_get_data(G_OBJECT(button), "user-data");
     struct uctrl *uc = g_object_get_data(G_OBJECT(coloursel), "user-data");
     dp->coloursel_result.ok = false;
-    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
+    uc->ctrl->handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
 }
 
 #endif /* end of coloursel response handlers */
@@ -1687,7 +1687,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(button));
 
-    if (uc->ctrl->generic.type == CTRL_FILESELECT) {
+    if (uc->ctrl->type == CTRL_FILESELECT) {
 #ifdef USE_GTK_FILE_CHOOSER_DIALOG
         GtkWidget *filechoose = gtk_file_chooser_dialog_new
             (uc->ctrl->fileselect.title, GTK_WINDOW(dp->window),
@@ -1723,7 +1723,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
 #endif
     }
 
-    if (uc->ctrl->generic.type == CTRL_FONTSELECT) {
+    if (uc->ctrl->type == CTRL_FONTSELECT) {
         const gchar *fontname = gtk_entry_get_text(GTK_ENTRY(uc->entry));
 
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -1822,7 +1822,7 @@ static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
     struct uctrl *uc = dlg_find_bywidget(dp, widget);
 
     gtk_widget_set_size_request(uc->text, alloc->width, -1);
-    gtk_label_set_text(GTK_LABEL(uc->text), uc->ctrl->generic.label);
+    gtk_label_set_text(GTK_LABEL(uc->text), uc->ctrl->label);
     g_signal_handler_disconnect(G_OBJECT(uc->text), uc->textsig);
 }
 #endif
@@ -1882,7 +1882,7 @@ GtkWidget *layout_ctrls(
         bool left = false;
         GtkWidget *w = NULL;
 
-        switch (ctrl->generic.type) {
+        switch (ctrl->type) {
           case CTRL_COLUMNS: {
             static const int simplecols[1] = { 100 };
             columns_set_cols(cols, ctrl->columns.ncols,
@@ -1916,9 +1916,9 @@ GtkWidget *layout_ctrls(
         uc->label = NULL;
         uc->nclicks = 0;
 
-        switch (ctrl->generic.type) {
+        switch (ctrl->type) {
           case CTRL_BUTTON:
-            w = gtk_button_new_with_label(ctrl->generic.label);
+            w = gtk_button_new_with_label(ctrl->label);
             if (win) {
                 gtk_widget_set_can_default(w, true);
                 if (ctrl->button.isdefault)
@@ -1934,7 +1934,7 @@ GtkWidget *layout_ctrls(
                          ctrl->button.shortcut, SHORTCUT_UCTRL, uc);
             break;
           case CTRL_CHECKBOX:
-            w = gtk_check_button_new_with_label(ctrl->generic.label);
+            w = gtk_check_button_new_with_label(ctrl->label);
             g_signal_connect(G_OBJECT(w), "toggled",
                              G_CALLBACK(button_toggled), dp);
             g_signal_connect(G_OBJECT(w), "focus_in_event",
@@ -1952,8 +1952,8 @@ GtkWidget *layout_ctrls(
             GSList *group;
 
             w = columns_new(0);
-            if (ctrl->generic.label) {
-              GtkWidget *label = gtk_label_new(ctrl->generic.label);
+            if (ctrl->label) {
+              GtkWidget *label = gtk_label_new(ctrl->label);
               columns_add(COLUMNS(w), label, 0, 1);
               columns_force_left_align(COLUMNS(w), label);
               gtk_widget_show(label);
@@ -2069,10 +2069,10 @@ GtkWidget *layout_ctrls(
                 gtk_entry_set_width_chars(GTK_ENTRY(w), 1);
 #endif
 
-            if (ctrl->generic.label) {
+            if (ctrl->label) {
               GtkWidget *label, *container;
 
-              label = gtk_label_new(ctrl->generic.label);
+              label = gtk_label_new(ctrl->label);
 
               shortcut_add(scs, label, ctrl->editbox.shortcut,
                            SHORTCUT_FOCUS, uc->entry);
@@ -2105,20 +2105,20 @@ GtkWidget *layout_ctrls(
           case CTRL_FONTSELECT: {
             GtkWidget *ww;
             const char *browsebtn =
-                (ctrl->generic.type == CTRL_FILESELECT ?
+                (ctrl->type == CTRL_FILESELECT ?
                  "Browse..." : "Change...");
 
             gint percentages[] = { 75, 25 };
             w = columns_new(4);
             columns_set_cols(COLUMNS(w), 2, percentages);
 
-            if (ctrl->generic.label) {
-              ww = gtk_label_new(ctrl->generic.label);
+            if (ctrl->label) {
+              ww = gtk_label_new(ctrl->label);
               columns_add(COLUMNS(w), ww, 0, 2);
               columns_force_left_align(COLUMNS(w), ww);
               gtk_widget_show(ww);
               shortcut_add(scs, ww,
-                           (ctrl->generic.type == CTRL_FILESELECT ?
+                           (ctrl->type == CTRL_FILESELECT ?
                             ctrl->fileselect.shortcut :
                             ctrl->fontselect.shortcut),
                            SHORTCUT_UCTRL, uc);
@@ -2404,10 +2404,10 @@ GtkWidget *layout_ctrls(
 #endif
             }
 
-            if (ctrl->generic.label) {
+            if (ctrl->label) {
                 GtkWidget *label, *container;
 
-                label = gtk_label_new(ctrl->generic.label);
+                label = gtk_label_new(ctrl->label);
 #if GTK_CHECK_VERSION(3,0,0)
                 gtk_label_set_width_chars(GTK_LABEL(label), 3);
 #endif
@@ -2477,7 +2477,7 @@ GtkWidget *layout_ctrls(
              * wrapping labels behave sensibly. So now we can just do
              * the obvious thing.
              */
-            uc->text = w = gtk_label_new(uc->ctrl->generic.label);
+            uc->text = w = gtk_label_new(uc->ctrl->label);
 #endif
             align_label_left(GTK_LABEL(w));
             gtk_label_set_line_wrap(GTK_LABEL(w), true);
@@ -2487,11 +2487,11 @@ GtkWidget *layout_ctrls(
         assert(w != NULL);
 
         columns_add(cols, w,
-                    COLUMN_START(ctrl->generic.column),
-                    COLUMN_SPAN(ctrl->generic.column));
+                    COLUMN_START(ctrl->column),
+                    COLUMN_SPAN(ctrl->column));
         if (left)
             columns_force_left_align(cols, w);
-        if (ctrl->generic.align_next_to) {
+        if (ctrl->align_next_to) {
             /*
              * Implement align_next_to by simply forcing the two
              * controls to have the same height of size allocation. At
@@ -2502,7 +2502,7 @@ GtkWidget *layout_ctrls(
              * reasonably well.
              */
             struct uctrl *uc2 = dlg_find_byctrl(
-                dp, ctrl->generic.align_next_to);
+                dp, ctrl->align_next_to);
             assert(uc2);
             columns_force_same_height(cols, w, uc2->toplevel);
 
@@ -2657,7 +2657,7 @@ gint win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
              * Precisely what this is depends on the type of
              * control.
              */
-            switch (sc->uc->ctrl->generic.type) {
+            switch (sc->uc->ctrl->type) {
               case CTRL_CHECKBOX:
               case CTRL_BUTTON:
                 /* Check boxes and buttons get the focus _and_ get toggled. */
@@ -3243,9 +3243,9 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 
         if (*s->pathname) {
             for (j = 0; j < s->ncontrols; j++)
-                if (s->ctrls[j]->generic.type != CTRL_TABDELAY &&
-                    s->ctrls[j]->generic.type != CTRL_COLUMNS &&
-                    s->ctrls[j]->generic.type != CTRL_TEXT) {
+                if (s->ctrls[j]->type != CTRL_TABDELAY &&
+                    s->ctrls[j]->type != CTRL_COLUMNS &&
+                    s->ctrls[j]->type != CTRL_TEXT) {
                     dlg_set_focus(s->ctrls[j], dp);
                     dp->lastfocus = s->ctrls[j];
                     done = true;
@@ -3287,7 +3287,7 @@ static void messagebox_handler(dlgcontrol *ctrl, dlgparam *dp,
                                void *data, int event)
 {
     if (event == EVENT_ACTION)
-        dlg_end(dp, ctrl->generic.context.i);
+        dlg_end(dp, ctrl->context.i);
 }
 
 static const struct message_box_button button_array_yn[] = {
@@ -3355,7 +3355,7 @@ static GtkWidget *create_message_box_general(
         c = ctrl_pushbutton(s0, button->title, button->shortcut,
                             HELPCTX(no_help), messagebox_handler,
                             I(button->value));
-        c->generic.column = index++;
+        c->column = index++;
         if (button->type > 0)
             c->button.isdefault = true;
 
@@ -4025,7 +4025,7 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
     ctrl_columns(s0, 3, 33, 34, 33);
     c = ctrl_pushbutton(s0, "Close", 'c', HELPCTX(no_help),
                         eventlog_ok_handler, P(NULL));
-    c->button.column = 1;
+    c->column = 1;
     c->button.isdefault = true;
 
     s1 = ctrl_getset(es->eventbox, "x", "", "");

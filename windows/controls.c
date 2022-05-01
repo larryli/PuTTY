@@ -1415,7 +1415,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
          * CTRL_COLUMNS and doesn't require any control creation at
          * all.
          */
-        if (ctrl->generic.type == CTRL_COLUMNS) {
+        if (ctrl->type == CTRL_COLUMNS) {
             assert((ctrl->columns.ncols == 1) ^ (ncols == 1));
 
             if (ncols == 1) {
@@ -1455,10 +1455,10 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             }
 
             continue;
-        } else if (ctrl->generic.type == CTRL_TABDELAY) {
+        } else if (ctrl->type == CTRL_TABDELAY) {
             int i;
 
-            assert(!ctrl->generic.tabdelay);
+            assert(!ctrl->delay_taborder);
             ctrl = ctrl->tabdelay.ctrl;
 
             for (i = 0; i < ntabdelays; i++)
@@ -1478,8 +1478,8 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
              */
             int col;
 
-            colstart = COLUMN_START(ctrl->generic.column);
-            colspan = COLUMN_SPAN(ctrl->generic.column);
+            colstart = COLUMN_START(ctrl->column);
+            colspan = COLUMN_SPAN(ctrl->column);
 
             pos = columns[colstart];   /* structure copy */
             pos.width = columns[colstart+colspan-1].width +
@@ -1494,7 +1494,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
              * tabdelay list, and unset pos.hwnd to inhibit actual
              * control creation.
              */
-            if (ctrl->generic.tabdelay) {
+            if (ctrl->delay_taborder) {
                 assert(ntabdelays < lenof(tabdelays));
                 tabdelays[ntabdelays] = pos;   /* structure copy */
                 tabdelayed[ntabdelays] = ctrl;
@@ -1522,13 +1522,13 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
          * Now we're ready to actually create the control, by
          * switching on its type.
          */
-        switch (ctrl->generic.type) {
+        switch (ctrl->type) {
           case CTRL_TEXT: {
             char *wrapped, *escaped;
             int lines;
             num_ids = 1;
             wrapped = staticwrap(&pos, cp->hwnd,
-                                 ctrl->generic.label, &lines);
+                                 ctrl->label, &lines);
             escaped = shortcut_escape(wrapped, NO_SHORTCUT);
             statictext(&pos, escaped, lines, base_id);
             sfree(escaped);
@@ -1537,7 +1537,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
           }
           case CTRL_EDITBOX:
             num_ids = 2;               /* static, edit */
-            escaped = shortcut_escape(ctrl->editbox.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->editbox.shortcut);
             shortcuts[nshortcuts++] = ctrl->editbox.shortcut;
             if (ctrl->editbox.percentwidth == 100) {
@@ -1564,7 +1564,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             struct radio *buttons;
             int i;
 
-            escaped = shortcut_escape(ctrl->radio.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->radio.shortcut);
             shortcuts[nshortcuts++] = ctrl->radio.shortcut;
 
@@ -1596,14 +1596,14 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
           }
           case CTRL_CHECKBOX:
             num_ids = 1;
-            escaped = shortcut_escape(ctrl->checkbox.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->checkbox.shortcut);
             shortcuts[nshortcuts++] = ctrl->checkbox.shortcut;
             checkbox(&pos, escaped, base_id);
             sfree(escaped);
             break;
           case CTRL_BUTTON:
-            escaped = shortcut_escape(ctrl->button.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->button.shortcut);
             shortcuts[nshortcuts++] = ctrl->button.shortcut;
             if (ctrl->button.iscancel)
@@ -1614,7 +1614,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             break;
           case CTRL_LISTBOX:
             num_ids = 2;
-            escaped = shortcut_escape(ctrl->listbox.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->listbox.shortcut);
             shortcuts[nshortcuts++] = ctrl->listbox.shortcut;
             if (ctrl->listbox.draglist) {
@@ -1664,7 +1664,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             break;
           case CTRL_FILESELECT:
             num_ids = 3;
-            escaped = shortcut_escape(ctrl->fileselect.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->fileselect.shortcut);
             shortcuts[nshortcuts++] = ctrl->fileselect.shortcut;
             editbutton(&pos, escaped, base_id, base_id+1,
@@ -1673,7 +1673,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             break;
           case CTRL_FONTSELECT:
             num_ids = 3;
-            escaped = shortcut_escape(ctrl->fontselect.label,
+            escaped = shortcut_escape(ctrl->label,
                                       ctrl->fontselect.shortcut);
             shortcuts[nshortcuts++] = ctrl->fontselect.shortcut;
             statictext(&pos, escaped, 1, base_id);
@@ -1708,7 +1708,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             if (actual_base_id == base_id)
                 base_id += num_ids;
 
-            if (ctrl->generic.align_next_to) {
+            if (ctrl->align_next_to) {
                 /*
                  * Implement align_next_to by looking at the y extents
                  * of the two controls now that both are created, and
@@ -1716,7 +1716,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                  * centred on a common horizontal line.
                  */
                 struct winctrl *c2 = winctrl_findbyctrl(
-                    wc, ctrl->generic.align_next_to);
+                    wc, ctrl->align_next_to);
                 HWND win1 = GetDlgItem(pos.hwnd, c->align_id);
                 HWND win2 = GetDlgItem(pos.hwnd, c2->align_id);
                 RECT rect1, rect2;
@@ -1839,7 +1839,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
     ctrl = c->ctrl;
     id = LOWORD(wParam) - c->base_id;
 
-    if (!ctrl || !ctrl->generic.handler)
+    if (!ctrl || !ctrl->handler)
         return false;                  /* nothing we can do here */
 
     /*
@@ -1855,7 +1855,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
     /*
      * Now switch on the control type and the message.
      */
-    switch (ctrl->generic.type) {
+    switch (ctrl->type) {
       case CTRL_EDITBOX:
         if (msg == WM_COMMAND && !ctrl->editbox.has_list &&
             (HIWORD(wParam) == EN_SETFOCUS || HIWORD(wParam) == EN_KILLFOCUS))
@@ -1866,7 +1866,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
 
         if (msg == WM_COMMAND && !ctrl->editbox.has_list &&
             HIWORD(wParam) == EN_CHANGE)
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+            ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
         if (msg == WM_COMMAND &&
             ctrl->editbox.has_list) {
             if (HIWORD(wParam) == CBN_SELCHANGE) {
@@ -1882,11 +1882,11 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
                                    index, (LPARAM)text);
                 SetDlgItemText(dp->hwnd, c->base_id+1, text);
                 sfree(text);
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
             } else if (HIWORD(wParam) == CBN_EDITCHANGE) {
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
             } else if (HIWORD(wParam) == CBN_KILLFOCUS) {
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_REFRESH);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_REFRESH);
             }
 
         }
@@ -1906,7 +1906,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             (HIWORD(wParam) == BN_CLICKED ||
              HIWORD(wParam) == BN_DOUBLECLICKED) &&
             IsDlgButtonChecked(dp->hwnd, LOWORD(wParam))) {
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+            ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
         }
         break;
       case CTRL_CHECKBOX:
@@ -1916,7 +1916,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
         if (msg == WM_COMMAND &&
             (HIWORD(wParam) == BN_CLICKED ||
              HIWORD(wParam) == BN_DOUBLECLICKED)) {
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+            ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
         }
         break;
       case CTRL_BUTTON:
@@ -1926,7 +1926,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
         if (msg == WM_COMMAND &&
             (HIWORD(wParam) == BN_CLICKED ||
              HIWORD(wParam) == BN_DOUBLECLICKED)) {
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_ACTION);
+            ctrl->handler(ctrl, dp, dp->data, EVENT_ACTION);
         }
         break;
       case CTRL_LISTBOX:
@@ -1944,14 +1944,14 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             pret = handle_prefslist(c->data, NULL, 0, (msg != WM_COMMAND),
                                     dp->hwnd, wParam, lParam);
             if (pret & 2)
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
             ret = pret & 1;
         } else {
             if (msg == WM_COMMAND && HIWORD(wParam) == LBN_DBLCLK) {
                 SetCapture(dp->hwnd);
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_ACTION);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_ACTION);
             } else if (msg == WM_COMMAND && HIWORD(wParam) == LBN_SELCHANGE) {
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_SELCHANGE);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_SELCHANGE);
             }
         }
         break;
@@ -1963,7 +1963,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             (HIWORD(wParam) == BN_SETFOCUS || HIWORD(wParam) == BN_KILLFOCUS))
             winctrl_set_focus(ctrl, dp, HIWORD(wParam) == BN_SETFOCUS);
         if (msg == WM_COMMAND && id == 1 && HIWORD(wParam) == EN_CHANGE)
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+            ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
         if (id == 2 &&
             (msg == WM_COMMAND &&
              (HIWORD(wParam) == BN_CLICKED ||
@@ -1988,7 +1988,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             of.Flags = 0;
             if (request_file(NULL, &of, false, ctrl->fileselect.for_writing)) {
                 SetDlgItemText(dp->hwnd, c->base_id + 1, filename);
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
             }
         }
         break;
@@ -2033,7 +2033,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
                 dlg_fontsel_set(ctrl, dp, fs);
                 fontspec_free(fs);
 
-                ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
+                ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
             }
         }
         break;
@@ -2064,7 +2064,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             dp->coloursel_result.ok = true;
         } else
             dp->coloursel_result.ok = false;
-        ctrl->generic.handler(ctrl, dp, dp->data, EVENT_CALLBACK);
+        ctrl->handler(ctrl, dp, dp->data, EVENT_CALLBACK);
     }
 
     return ret;
@@ -2095,10 +2095,10 @@ bool winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
      * This is the Windows front end, so we're allowed to assume
      * `helpctx.p' is a context string.
      */
-    if (!c->ctrl || !c->ctrl->generic.helpctx.p)
+    if (!c->ctrl || !c->ctrl->helpctx.p)
         return false;            /* no help available for this ctrl */
 
-    launch_help(hwnd, c->ctrl->generic.helpctx.p);
+    launch_help(hwnd, c->ctrl->helpctx.p);
     return true;
 }
 
@@ -2133,7 +2133,7 @@ bool dlg_is_visible(dlgcontrol *ctrl, dlgparam *dp)
 void dlg_radiobutton_set(dlgcontrol *ctrl, dlgparam *dp, int whichbutton)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_RADIO);
+    assert(c && c->ctrl->type == CTRL_RADIO);
     CheckRadioButton(dp->hwnd,
                      c->base_id + 1,
                      c->base_id + c->ctrl->radio.nbuttons,
@@ -2144,7 +2144,7 @@ int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int i;
-    assert(c && c->ctrl->generic.type == CTRL_RADIO);
+    assert(c && c->ctrl->type == CTRL_RADIO);
     for (i = 0; i < c->ctrl->radio.nbuttons; i++)
         if (IsDlgButtonChecked(dp->hwnd, c->base_id + 1 + i))
             return i;
@@ -2154,28 +2154,28 @@ int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp)
 void dlg_checkbox_set(dlgcontrol *ctrl, dlgparam *dp, bool checked)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_CHECKBOX);
+    assert(c && c->ctrl->type == CTRL_CHECKBOX);
     CheckDlgButton(dp->hwnd, c->base_id, checked);
 }
 
 bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_CHECKBOX);
+    assert(c && c->ctrl->type == CTRL_CHECKBOX);
     return 0 != IsDlgButtonChecked(dp->hwnd, c->base_id);
 }
 
 void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_EDITBOX);
+    assert(c && c->ctrl->type == CTRL_EDITBOX);
     SetDlgItemText(dp->hwnd, c->base_id+1, text);
 }
 
 char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_EDITBOX);
+    assert(c && c->ctrl->type == CTRL_EDITBOX);
     return GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
 }
 
@@ -2185,10 +2185,10 @@ void dlg_listbox_clear(dlgcontrol *ctrl, dlgparam *dp)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg;
     assert(c &&
-           (c->ctrl->generic.type == CTRL_LISTBOX ||
-            (c->ctrl->generic.type == CTRL_EDITBOX &&
+           (c->ctrl->type == CTRL_LISTBOX ||
+            (c->ctrl->type == CTRL_EDITBOX &&
              c->ctrl->editbox.has_list)));
-    msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
+    msg = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
            LB_RESETCONTENT : CB_RESETCONTENT);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, 0);
 }
@@ -2198,10 +2198,10 @@ void dlg_listbox_del(dlgcontrol *ctrl, dlgparam *dp, int index)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg;
     assert(c &&
-           (c->ctrl->generic.type == CTRL_LISTBOX ||
-            (c->ctrl->generic.type == CTRL_EDITBOX &&
+           (c->ctrl->type == CTRL_LISTBOX ||
+            (c->ctrl->type == CTRL_EDITBOX &&
              c->ctrl->editbox.has_list)));
-    msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
+    msg = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
            LB_DELETESTRING : CB_DELETESTRING);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, index, 0);
 }
@@ -2211,10 +2211,10 @@ void dlg_listbox_add(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg;
     assert(c &&
-           (c->ctrl->generic.type == CTRL_LISTBOX ||
-            (c->ctrl->generic.type == CTRL_EDITBOX &&
+           (c->ctrl->type == CTRL_LISTBOX ||
+            (c->ctrl->type == CTRL_EDITBOX &&
              c->ctrl->editbox.has_list)));
-    msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
+    msg = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
            LB_ADDSTRING : CB_ADDSTRING);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)text);
 }
@@ -2232,12 +2232,12 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg, msg2, index;
     assert(c &&
-           (c->ctrl->generic.type == CTRL_LISTBOX ||
-            (c->ctrl->generic.type == CTRL_EDITBOX &&
+           (c->ctrl->type == CTRL_LISTBOX ||
+            (c->ctrl->type == CTRL_EDITBOX &&
              c->ctrl->editbox.has_list)));
-    msg = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
+    msg = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
            LB_ADDSTRING : CB_ADDSTRING);
-    msg2 = (c->ctrl->generic.type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
+    msg2 = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
            LB_SETITEMDATA : CB_SETITEMDATA);
     index = SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)text);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg2, index, (LPARAM)id);
@@ -2247,7 +2247,7 @@ int dlg_listbox_getid(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg;
-    assert(c && c->ctrl->generic.type == CTRL_LISTBOX);
+    assert(c && c->ctrl->type == CTRL_LISTBOX);
     msg = (c->ctrl->listbox.height != 0 ? LB_GETITEMDATA : CB_GETITEMDATA);
     return
         SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, index, 0);
@@ -2258,7 +2258,7 @@ int dlg_listbox_index(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg, ret;
-    assert(c && c->ctrl->generic.type == CTRL_LISTBOX);
+    assert(c && c->ctrl->type == CTRL_LISTBOX);
     if (c->ctrl->listbox.multisel) {
         assert(c->ctrl->listbox.height != 0); /* not combo box */
         ret = SendDlgItemMessage(dp->hwnd, c->base_id+1, LB_GETSELCOUNT, 0, 0);
@@ -2276,7 +2276,7 @@ int dlg_listbox_index(dlgcontrol *ctrl, dlgparam *dp)
 bool dlg_listbox_issel(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_LISTBOX &&
+    assert(c && c->ctrl->type == CTRL_LISTBOX &&
            c->ctrl->listbox.multisel &&
            c->ctrl->listbox.height != 0);
     return
@@ -2287,7 +2287,7 @@ void dlg_listbox_select(dlgcontrol *ctrl, dlgparam *dp, int index)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int msg;
-    assert(c && c->ctrl->generic.type == CTRL_LISTBOX &&
+    assert(c && c->ctrl->type == CTRL_LISTBOX &&
            !c->ctrl->listbox.multisel);
     msg = (c->ctrl->listbox.height != 0 ? LB_SETCURSEL : CB_SETCURSEL);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, index, 0);
@@ -2296,7 +2296,7 @@ void dlg_listbox_select(dlgcontrol *ctrl, dlgparam *dp, int index)
 void dlg_text_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_TEXT);
+    assert(c && c->ctrl->type == CTRL_TEXT);
     SetDlgItemText(dp->hwnd, c->base_id, text);
 }
 
@@ -2307,7 +2307,7 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     int id = -1;
 
     assert(c);
-    switch (c->ctrl->generic.type) {
+    switch (c->ctrl->type) {
       case CTRL_EDITBOX:
         escaped = shortcut_escape(text, c->ctrl->editbox.shortcut);
         id = c->base_id;
@@ -2348,7 +2348,7 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_FILESELECT);
+    assert(c && c->ctrl->type == CTRL_FILESELECT);
     SetDlgItemText(dp->hwnd, c->base_id+1, fn->path);
 }
 
@@ -2357,7 +2357,7 @@ Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     char *tmp;
     Filename *ret;
-    assert(c && c->ctrl->generic.type == CTRL_FILESELECT);
+    assert(c && c->ctrl->type == CTRL_FILESELECT);
     tmp = GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
     ret = filename_from_str(tmp);
     sfree(tmp);
@@ -2368,7 +2368,7 @@ void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
 {
     char *buf, *boldstr;
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_FONTSELECT);
+    assert(c && c->ctrl->type == CTRL_FONTSELECT);
 
     fontspec_free((FontSpec *)c->data);
     c->data = fontspec_copy(fs);
@@ -2389,7 +2389,7 @@ void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
 FontSpec *dlg_fontsel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    assert(c && c->ctrl->generic.type == CTRL_FONTSELECT);
+    assert(c && c->ctrl->type == CTRL_FONTSELECT);
     return fontspec_copy((FontSpec *)c->data);
 }
 
@@ -2401,7 +2401,7 @@ FontSpec *dlg_fontsel_get(dlgcontrol *ctrl, dlgparam *dp)
 void dlg_update_start(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    if (c && c->ctrl->generic.type == CTRL_LISTBOX) {
+    if (c && c->ctrl->type == CTRL_LISTBOX) {
         SendDlgItemMessage(dp->hwnd, c->base_id+1, WM_SETREDRAW, false, 0);
     }
 }
@@ -2409,7 +2409,7 @@ void dlg_update_start(dlgcontrol *ctrl, dlgparam *dp)
 void dlg_update_done(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    if (c && c->ctrl->generic.type == CTRL_LISTBOX) {
+    if (c && c->ctrl->type == CTRL_LISTBOX) {
         HWND hw = GetDlgItem(dp->hwnd, c->base_id+1);
         SendMessage(hw, WM_SETREDRAW, true, 0);
         InvalidateRect(hw, NULL, true);
@@ -2423,7 +2423,7 @@ void dlg_set_focus(dlgcontrol *ctrl, dlgparam *dp)
     HWND ctl;
     if (!c)
         return;
-    switch (ctrl->generic.type) {
+    switch (ctrl->type) {
       case CTRL_EDITBOX: id = c->base_id + 1; break;
       case CTRL_RADIO:
         for (id = c->base_id + ctrl->radio.nbuttons; id > 1; id--)
@@ -2487,8 +2487,8 @@ void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp)
             for (i = 0;
                  (c = winctrl_findbyindex(dp->controltrees[j], i)) != NULL;
                  i++) {
-                if (c->ctrl && c->ctrl->generic.handler != NULL)
-                    c->ctrl->generic.handler(c->ctrl, dp,
+                if (c->ctrl && c->ctrl->handler != NULL)
+                    c->ctrl->handler(c->ctrl, dp,
                                              dp->data, EVENT_REFRESH);
             }
         }
@@ -2496,8 +2496,8 @@ void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp)
         /*
          * Send EVENT_REFRESH to a specific control.
          */
-        if (ctrl->generic.handler != NULL)
-            ctrl->generic.handler(ctrl, dp, dp->data, EVENT_REFRESH);
+        if (ctrl->handler != NULL)
+            ctrl->handler(ctrl, dp, dp->data, EVENT_REFRESH);
     }
 }
 

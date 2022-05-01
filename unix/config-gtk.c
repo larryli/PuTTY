@@ -14,7 +14,7 @@ static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     if (event == EVENT_ACTION) {
-        about_box(ctrl->generic.context.p);
+        about_box(ctrl->context.p);
     }
 }
 
@@ -31,7 +31,7 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
         s = ctrl_getset(b, "", "", "");
         c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
                             about_handler, P(win));
-        c->generic.column = 0;
+        c->column = 0;
     }
 
     /*
@@ -50,8 +50,8 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      */
     for (i = 0; i < s->ncontrols; i++) {
         c = s->ctrls[i];
-        if (c->generic.type == CTRL_CHECKBOX &&
-            c->generic.context.i == CONF_scrollbar) {
+        if (c->type == CTRL_CHECKBOX &&
+            c->context.i == CONF_scrollbar) {
             /*
              * Control i is the scrollbar checkbox.
              * Control s->ncontrols-1 is the scrollbar-on-left one.
