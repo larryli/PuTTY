@@ -245,6 +245,7 @@ GtkWidget *create_message_box(
     bool selectable, const struct message_box_buttons *buttons,
     post_dialog_fn_t after, void *afterctx);
 #endif
+void show_ca_config_box_synchronously(void);
 
 /* window.c needs this special function in utils */
 int keysym_to_unicode(int keysym);

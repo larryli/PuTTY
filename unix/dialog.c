@@ -4224,6 +4224,7 @@ struct ca_config_box {
     GtkWidget *window;
     struct controlbox *cb;
     struct Shortcuts scs;
+    bool quit_main;
     dlgparam dp;
 };
 static struct ca_config_box *cacfg;    /* one of these, cross-instance */
@@ -4234,8 +4235,10 @@ static void cacfg_destroy(GtkWidget *widget, gpointer data)
     dlg_cleanup(&cacfg->dp);
     ctrl_free_box(cacfg->cb);
     cacfg->cb = NULL;
+    if (cacfg->quit_main)
+        gtk_main_quit();
 }
-void show_ca_config_box(dlgparam *dp)
+static void make_ca_config_box(GtkWidget *spawning_window)
 {
     if (!cacfg) {
         cacfg = snew(struct ca_config_box);
@@ -4288,8 +4291,8 @@ void show_ca_config_box(dlgparam *dp)
 
     dlg_refresh(NULL, &cacfg->dp);
 
-    if (dp) {
-        set_transient_window_pos(dp->window, cacfg->window);
+    if (spawning_window) {
+        set_transient_window_pos(spawning_window, cacfg->window);
     } else {
         gtk_window_set_position(GTK_WINDOW(cacfg->window), GTK_WIN_POS_CENTER);
     }
@@ -4299,4 +4302,16 @@ void show_ca_config_box(dlgparam *dp)
                      G_CALLBACK(cacfg_destroy), NULL);
     g_signal_connect(G_OBJECT(cacfg->window), "key_press_event",
                      G_CALLBACK(win_key_press), &cacfg->dp);
+}
+
+void show_ca_config_box(dlgparam *dp)
+{
+    make_ca_config_box(dp ? dp->window : NULL);
+}
+
+void show_ca_config_box_synchronously(void)
+{
+    make_ca_config_box(NULL);
+    cacfg->quit_main = true;
+    gtk_main();
 }
