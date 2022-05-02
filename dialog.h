@@ -163,14 +163,20 @@ struct dlgcontrol {
      */
     intorptr helpctx;
     /*
-     * Setting this to non-NULL coerces two controls to have their
-     * y-coordinates adjusted so that they can sit alongside each
-     * other and look nicely aligned, even if they're different
+     * Setting this to non-NULL coerces two or more controls to have
+     * their y-coordinates adjusted so that they can sit alongside
+     * each other and look nicely aligned, even if they're different
      * heights.
      *
-     * Set this field on the _second_ control of the pair (in terms of
-     * order in the data structure), so that when it's instantiated,
-     * the first one is already there to be referred to.
+     * Set this field on later controls (in terms of order in the data
+     * structure), pointing back to earlier ones, so that when each
+     * control is instantiated, the referred-to one is already there
+     * to be referred to.
+     *
+     * Don't expect this to change the position of the _first_
+     * control. Currently, the layout is done one control at a time,
+     * so that once the first control has been placed, the second one
+     * can't cause the first one to be retrospectively moved.
      */
     dlgcontrol *align_next_to;
 
@@ -667,3 +673,9 @@ int ctrl_path_elements(const char *path);
 /* Return the number of matching path elements at the starts of p1 and p2,
  * or INT_MAX if the paths are identical. */
 int ctrl_path_compare(const char *p1, const char *p2);
+
+/*
+ * Normalise the align_next_to fields in a controlset so that they
+ * form a backwards linked list.
+ */
+void ctrlset_normalise_aligns(struct controlset *s);

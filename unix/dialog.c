@@ -2109,8 +2109,7 @@ GtkWidget *layout_ctrls(
                 columns_add(COLUMNS(container), label, 0, 1);
                 columns_force_left_align(COLUMNS(container), label);
                 columns_add(COLUMNS(container), w, 1, 1);
-                columns_force_same_height(COLUMNS(container),
-                                          label, w);
+                columns_align_next_to(COLUMNS(container), label, w);
               }
               gtk_widget_show(label);
               gtk_widget_show(w);
@@ -2163,7 +2162,7 @@ GtkWidget *layout_ctrls(
                 columns_add(COLUMNS(w), ww, 1, 1);
                 gtk_widget_show(ww);
 
-                columns_force_same_height(COLUMNS(w), uc->entry, uc->button);
+                columns_align_next_to(COLUMNS(w), uc->entry, uc->button);
 
                 g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
                                  G_CALLBACK(editbox_key), dp);
@@ -2456,8 +2455,7 @@ GtkWidget *layout_ctrls(
                     columns_add(COLUMNS(container), label, 0, 1);
                     columns_force_left_align(COLUMNS(container), label);
                     columns_add(COLUMNS(container), w, 1, 1);
-                    columns_force_same_height(COLUMNS(container),
-                                              label, w);
+                    columns_align_next_to(COLUMNS(container), label, w);
                 }
                 gtk_widget_show(label);
                 gtk_widget_show(w);
@@ -2520,19 +2518,10 @@ GtkWidget *layout_ctrls(
         if (left)
             columns_force_left_align(cols, w);
         if (ctrl->align_next_to) {
-            /*
-             * Implement align_next_to by simply forcing the two
-             * controls to have the same height of size allocation. At
-             * least for the controls we're currently doing this with,
-             * the GTK layout system will automatically vertically
-             * centre each control within its allocation, which will
-             * get the two controls aligned alongside each other
-             * reasonably well.
-             */
             struct uctrl *uc2 = dlg_find_byctrl(
                 dp, ctrl->align_next_to);
             assert(uc2);
-            columns_force_same_height(cols, w, uc2->toplevel);
+            columns_align_next_to(cols, w, uc2->toplevel);
 
 #if GTK_CHECK_VERSION(3, 10, 0)
             /* Slightly nicer to align baselines than just vertically

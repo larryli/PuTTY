@@ -14,6 +14,7 @@ add_sources_from_current_dir(utils
   conf_dest.c
   conf_launchable.c
   ctrlparse.c
+  ctrlset_normalise.c
   debug.c
   decode_utf8.c
   decode_utf8_to_wchar.c

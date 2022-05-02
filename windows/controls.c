@@ -1367,6 +1367,8 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 
     base_id = *id;
 
+    ctrlset_normalise_aligns(s);
+
     /* Start a containing box, if we have a boxname. */
     if (s->boxname && *s->boxname) {
         struct winctrl *c = snew(struct winctrl);
@@ -1718,21 +1720,36 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                  * moving one or the other downwards so that they're
                  * centred on a common horizontal line.
                  */
-                struct winctrl *c2 = winctrl_findbyctrl(
-                    wc, ctrl->align_next_to);
-                HWND win1 = GetDlgItem(pos.hwnd, c->align_id);
-                HWND win2 = GetDlgItem(pos.hwnd, c2->align_id);
-                RECT rect1, rect2;
-                if (win1 && win2 &&
-                    GetWindowRect(win1, &rect1) &&
-                    GetWindowRect(win2, &rect2)) {
-                    LONG top = (rect1.top < rect2.top ? rect1.top : rect2.top);
-                    LONG bottom = (rect1.bottom > rect2.bottom ?
-                                   rect1.bottom : rect2.bottom);
-                    move_windows(pos.hwnd, c->base_id, c->num_ids,
-                                 (top + bottom - rect1.top - rect1.bottom)/2);
-                    move_windows(pos.hwnd, c2->base_id, c2->num_ids,
-                                 (top + bottom - rect2.top - rect2.bottom)/2);
+                LONG mid2 = 0;
+                for (dlgcontrol *thisctrl = ctrl; thisctrl;
+                     thisctrl = thisctrl->align_next_to) {
+                    struct winctrl *thisc = winctrl_findbyctrl(wc, thisctrl);
+                    assert(thisc);
+
+                    HWND win = GetDlgItem(pos.hwnd, thisc->align_id);
+                    assert(win);
+
+                    RECT rect;
+                    if (!GetWindowRect(win, &rect))
+                        continue;
+                    if (mid2 < rect.top + rect.bottom)
+                        mid2 = rect.top + rect.bottom;
+                }
+
+                for (dlgcontrol *thisctrl = ctrl; thisctrl;
+                     thisctrl = thisctrl->align_next_to) {
+                    struct winctrl *thisc = winctrl_findbyctrl(wc, thisctrl);
+                    assert(thisc);
+
+                    HWND win = GetDlgItem(pos.hwnd, thisc->align_id);
+                    assert(win);
+
+                    RECT rect;
+                    if (!GetWindowRect(win, &rect))
+                        continue;
+
+                    LONG dy = (mid2 - (rect.top + rect.bottom)) / 2;
+                    move_windows(pos.hwnd, c->base_id, c->num_ids, dy);
                 }
             }
         } else {

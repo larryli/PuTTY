@@ -43,11 +43,17 @@ struct ColumnsChild_tag {
     GtkWidget *widget;
     gint colstart, colspan;
     bool force_left;                  /* for recalcitrant GtkLabels */
-    ColumnsChild *same_height_as;
     /* Otherwise, this entry represents a change in the column setup. */
     gint ncols;
     gint *percentages;
     gint x, y, w, h;           /* used during an individual size computation */
+
+    /* Circularly linked list of children that are vertically aligned
+     * with each other. */
+    ColumnsChild *valign_next, *valign_prev;
+
+    /* Temporary space used within some methods */
+    bool visited;
 };
 
 GType columns_get_type(void);
@@ -57,7 +63,7 @@ void columns_add(Columns *cols, GtkWidget *child,
                  gint colstart, gint colspan);
 void columns_taborder_last(Columns *cols, GtkWidget *child);
 void columns_force_left_align(Columns *cols, GtkWidget *child);
-void columns_force_same_height(Columns *cols, GtkWidget *ch1, GtkWidget *ch2);
+void columns_align_next_to(Columns *cols, GtkWidget *ch1, GtkWidget *ch2);
 void columns_vexpand(Columns *cols, GtkWidget *child);
 
 #ifdef __cplusplus
