@@ -30,12 +30,29 @@ class PuTTYMpintPrettyPrinter(gdb.printing.PrettyPrinter):
                 return "mp_int(NULL)".format(address)
             return "mp_int(invalid @ {:#x})".format(address)
 
+class PuTTYPtrlenPrettyPrinter(gdb.printing.PrettyPrinter):
+    "Pretty-print strings in PuTTY's ptrlen type."
+    name = "ptrlen"
+
+    def __init__(self, val):
+        super(PuTTYPtrlenPrettyPrinter, self).__init__(self.name)
+        self.val = val
+
+    def to_string(self):
+        length = int(self.val["len"])
+        char_array_ptr_type = gdb.lookup_type(
+            "char").const().array(length).pointer()
+        line = self.val["ptr"].cast(char_array_ptr_type).dereference()
+        return repr(bytes(int(line[i]) for i in range(length))).lstrip('b')
+
 class PuTTYPrinterSelector(gdb.printing.PrettyPrinter):
     def __init__(self):
         super(PuTTYPrinterSelector, self).__init__("PuTTY")
     def __call__(self, val):
         if str(val.type) == "mp_int *":
             return PuTTYMpintPrettyPrinter(val)
+        if str(val.type) == "ptrlen":
+            return PuTTYPtrlenPrettyPrinter(val)
         return None
 
 gdb.printing.register_pretty_printer(None, PuTTYPrinterSelector())
