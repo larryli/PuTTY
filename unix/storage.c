@@ -643,8 +643,7 @@ host_ca *host_ca_load(const char *name)
     if (!fp)
         return NULL;
 
-    host_ca *hca = snew(host_ca);
-    memset(hca, 0, sizeof(*hca));
+    host_ca *hca = host_ca_new();
     hca->name = dupstr(name);
 
     size_t wcsize = 0;

@@ -112,6 +112,8 @@ void enum_host_ca_finish(host_ca_enum *handle);
 host_ca *host_ca_load(const char *name);
 char *host_ca_save(host_ca *);   /* NULL on success, or dynamic error msg */
 char *host_ca_delete(const char *name); /* likewise */
+
+host_ca *host_ca_new(void);  /* initialises to default settings */
 void host_ca_free(host_ca *);
 
 /* ----------------------------------------------------------------------

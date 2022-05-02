@@ -2,6 +2,13 @@
 #include "misc.h"
 #include "storage.h"
 
+host_ca *host_ca_new(void)
+{
+    host_ca *hca = snew(host_ca);
+    memset(hca, 0, sizeof(*hca));
+    return hca;
+}
+
 void host_ca_free(host_ca *hca)
 {
     sfree(hca->name);

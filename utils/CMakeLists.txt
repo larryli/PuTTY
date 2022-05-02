@@ -26,7 +26,7 @@ add_sources_from_current_dir(utils
   encode_utf8.c
   encode_wide_string_as_utf8.c
   fgetline.c
-  host_ca_free.c
+  host_ca_new_free.c
   host_strchr.c
   host_strchr_internal.c
   host_strcspn.c
