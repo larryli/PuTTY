@@ -75,7 +75,7 @@ static void ca_refresh_name_list(struct ca_state *st)
 static void set_from_hca(struct ca_state *st, host_ca *hca)
 {
     sfree(st->name);
-    st->name = dupstr(hca->name);
+    st->name = dupstr(hca->name ? hca->name : "");
 
     sfree(st->pubkey);
     if (hca->ca_public_key)
@@ -405,6 +405,7 @@ void setup_ca_config_box(struct controlbox *b)
     memset(st, 0, sizeof(*st));
     st->ca_names = newtree234(ca_name_compare);
     st->host_wcs = newtree234(ca_name_compare);
+    st->wc = dupstr("");
     ca_refresh_name_list(st);
 
     /* Initialise the settings to a default blank host_ca */
