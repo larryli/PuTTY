@@ -2089,19 +2089,20 @@ GtkWidget *layout_ctrls(
 #endif
 
             if (ctrl->label) {
-              GtkWidget *label, *container;
+              GtkWidget *label;
 
               label = gtk_label_new(ctrl->label);
 
               shortcut_add(scs, label, ctrl->editbox.shortcut,
                            SHORTCUT_FOCUS, uc->entry);
 
-              container = columns_new(4);
               if (ctrl->editbox.percentwidth == 100) {
-                columns_add(COLUMNS(container), label, 0, 1);
-                columns_force_left_align(COLUMNS(container), label);
-                columns_add(COLUMNS(container), w, 0, 1);
+                columns_add(cols, label,
+                            COLUMN_START(ctrl->column),
+                            COLUMN_SPAN(ctrl->column));
+                columns_force_left_align(cols, label);
               } else {
+                GtkWidget *container = columns_new(4);
                 gint percentages[2];
                 percentages[1] = ctrl->editbox.percentwidth;
                 percentages[0] = 100 - ctrl->editbox.percentwidth;
@@ -2110,11 +2111,11 @@ GtkWidget *layout_ctrls(
                 columns_force_left_align(COLUMNS(container), label);
                 columns_add(COLUMNS(container), w, 1, 1);
                 columns_align_next_to(COLUMNS(container), label, w);
+                gtk_widget_show(w);
+                w = container;
               }
-              gtk_widget_show(label);
-              gtk_widget_show(w);
 
-              w = container;
+              gtk_widget_show(label);
               uc->label = label;
             }
             break;
