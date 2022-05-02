@@ -452,6 +452,7 @@ void setup_ca_config_box(struct controlbox *b)
 
     /* Box containing the details of a specific CA record */
     s = ctrl_getset(b, "Main", "details", "Details of a host CA record");
+
     ctrl_columns(s, 2, 75, 25);
     c = ctrl_editbox(s, "Public key of certification authority", 'k', 100,
                      HELPCTX(no_help), ca_pubkey_edit_handler, P(st), P(NULL));
@@ -463,10 +464,12 @@ void setup_ca_config_box(struct controlbox *b)
     c->fileselect.just_button = true;
     c->column = 1;
     ctrl_columns(s, 1, 100);
+
     c = ctrl_listbox(s, "Hostname patterns this key is trusted to certify",
                      NO_SHORTCUT, HELPCTX(no_help), ca_wclist_handler, P(st));
     c->listbox.height = 3;
     st->ca_wclist = c;
+
     ctrl_columns(s, 3, 70, 15, 15);
     c = ctrl_editbox(s, "Hostname pattern to add", 'h', 100,
                      HELPCTX(no_help), ca_wc_edit_handler, P(st), P(NULL));
