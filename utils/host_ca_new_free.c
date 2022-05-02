@@ -6,6 +6,9 @@ host_ca *host_ca_new(void)
 {
     host_ca *hca = snew(host_ca);
     memset(hca, 0, sizeof(*hca));
+    hca->opts.permit_rsa_sha1 = false;
+    hca->opts.permit_rsa_sha256 = true;
+    hca->opts.permit_rsa_sha512 = true;
     return hca;
 }
 

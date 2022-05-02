@@ -209,7 +209,7 @@ static key_components *opensshcert_components(ssh_key *key);
 static ssh_key *opensshcert_base_key(ssh_key *key);
 static bool opensshcert_check_cert(
     ssh_key *key, bool host, ptrlen principal, uint64_t time,
-    BinarySink *error);
+    const ca_options *opts, BinarySink *error);
 static int opensshcert_pubkey_bits(const ssh_keyalg *self, ptrlen blob);
 static unsigned opensshcert_supported_flags(const ssh_keyalg *self);
 static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
@@ -716,7 +716,7 @@ static char *opensshcert_invalid(ssh_key *key, unsigned flags)
 
 static bool opensshcert_check_cert(
     ssh_key *key, bool host, ptrlen principal, uint64_t time,
-    BinarySink *error)
+    const ca_options *opts, BinarySink *error)
 {
     opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
     bool result = false;
@@ -725,13 +725,22 @@ static bool opensshcert_check_cert(
     BinarySource src[1];
 
     ptrlen signature = ptrlen_from_strbuf(ck->signature);
-    /* FIXME: here we should check which signature algorithm is
-     * actually in use, because that might be a reason to reject the
-     * certificate (e.g. ssh-rsa when we wanted rsa-sha2-*) */
 
     ca_key = opensshcert_ca_pub_key(ck, signature, NULL);
     if (!ca_key) {
         put_fmt(error, "Certificate's signing key is invalid");
+        goto out;
+    }
+
+    /* Check which signature algorithm is actually in use, because
+     * that might be a reason to reject the certificate (e.g. ssh-rsa
+     * when we wanted rsa-sha2-*). */
+    const ssh_keyalg *sig_alg = ssh_key_alg(ca_key);
+    if ((sig_alg == &ssh_rsa && !opts->permit_rsa_sha1) ||
+        (sig_alg == &ssh_rsa_sha256 && !opts->permit_rsa_sha256) ||
+        (sig_alg == &ssh_rsa_sha512 && !opts->permit_rsa_sha512)) {
+        put_fmt(error, "Certificate signature uses '%s' signature type "
+                "(forbidden by user configuration)", sig_alg->ssh_id);
         goto out;
     }
 

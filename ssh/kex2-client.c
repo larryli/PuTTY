@@ -912,6 +912,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                         true, /* host certificate */
                         ptrlen_from_asciz(s->savedhost),
                         time(NULL),
+                        &hca_found->opts,
                         BinarySink_UPCAST(error));
                 }
                 if (cert_ok) {

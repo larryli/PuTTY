@@ -2560,7 +2560,7 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
 
     def testOpenSSHCert(self):
         def per_base_keytype_tests(alg, run_validation_tests=False,
-                                   ca_signflags=None):
+                                   run_ca_rsa_tests=False, ca_signflags=None):
             cert_pub = sign_cert_via_testcrypt(
                 make_signature_preimage(
                     key_to_certify = base_key.public_blob(),
@@ -2600,8 +2600,35 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
             self.assertEqual(certified_key.verify(base_sig, test_string), True)
 
             # Check a successful certificate verification
-            result, err = certified_key.check_cert(False, b'username', 1000)
+            result, err = certified_key.check_cert(
+                False, b'username', 1000, '')
             self.assertEqual(result, True)
+
+            # If the key type is RSA, check that the validator rejects
+            # wrong kinds of CA signature
+            if run_ca_rsa_tests:
+                forbid_all = ",".join(["permit_rsa_sha1=false",
+                                       "permit_rsa_sha256=false,"
+                                       "permit_rsa_sha512=false"])
+                result, err = certified_key.check_cert(
+                    False, b'username', 1000, forbid_all)
+                self.assertEqual(result, False)
+
+                algname = ("rsa-sha2-512" if ca_signflags == 4 else
+                           "rsa-sha2-256" if ca_signflags == 2 else
+                           "ssh-rsa")
+                self.assertEqual(err, (
+                    "Certificate signature uses '{}' signature type "
+                    "(forbidden by user configuration)".format(algname)
+                    .encode("ASCII")))
+
+                permitflag = ("permit_rsa_sha512" if ca_signflags == 4 else
+                              "permit_rsa_sha256" if ca_signflags == 2 else
+                              "permit_rsa_sha1")
+                result, err = certified_key.check_cert(
+                    False, b'username', 1000, "{},{}=true".format(
+                        forbid_all, permitflag))
+                self.assertEqual(result, True)
 
             # That's the end of the tests we need to repeat for all
             # the key types. Now we move on to detailed tests of the
@@ -2612,16 +2639,19 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
 
             # Check cert verification at the other end of the valid
             # time range
-            result, err = certified_key.check_cert(False, b'username', 1999)
+            result, err = certified_key.check_cert(
+                False, b'username', 1999, '')
             self.assertEqual(result, True)
 
             # Oops, wrong certificate type
-            result, err = certified_key.check_cert(True, b'username', 1000)
+            result, err = certified_key.check_cert(
+                True, b'username', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate type is user; expected host')
 
             # Oops, wrong username
-            result, err = certified_key.check_cert(False, b'someoneelse', 1000)
+            result, err = certified_key.check_cert(
+                False, b'someoneelse', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate\'s username list ["username"] '
                              b'does not contain expected username "someoneelse"')
@@ -2629,10 +2659,12 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
             # Oops, time is wrong. (But we can't check the full error
             # message including the translated start/end times, because
             # those vary with LC_TIME.)
-            result, err = certified_key.check_cert(False, b'someoneelse', 999)
+            result, err = certified_key.check_cert(
+                False, b'someoneelse', 999, '')
             self.assertEqual(result, False)
             self.assertEqual(err[:30], b'Certificate is not valid until')
-            result, err = certified_key.check_cert(False, b'someoneelse', 2000)
+            result, err = certified_key.check_cert(
+                False, b'someoneelse', 2000, '')
             self.assertEqual(result, False)
             self.assertEqual(err[:22], b'Certificate expired at')
 
@@ -2642,7 +2674,8 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
             bytelist[username_position] ^= 1
             miscertified_key = ssh_key_new_priv(alg + '-cert', bytes(bytelist),
                                                 base_key.private_blob())
-            result, err = miscertified_key.check_cert(False, b'username', 1000)
+            result, err = miscertified_key.check_cert(
+                False, b'username', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b"Certificate's signature is invalid")
 
@@ -2659,7 +2692,8 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
                     critical_options = {b'unknown-option': b'yikes!'}), ca_key)
             certified_key = ssh_key_new_priv(alg + '-cert', cert_pub,
                                                base_key.private_blob())
-            result, err = certified_key.check_cert(False, b'username', 1000)
+            result, err = certified_key.check_cert(
+                False, b'username', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate specifies an unsupported '
                              b'critical option "unknown-option"')
@@ -2677,7 +2711,8 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
                     extensions = {b'unknown-ext': b'whatever, dude'}), ca_key)
             certified_key = ssh_key_new_priv(alg + '-cert', cert_pub,
                                                base_key.private_blob())
-            result, err = certified_key.check_cert(False, b'username', 1000)
+            result, err = certified_key.check_cert(
+                False, b'username', 1000, '')
             self.assertEqual(result, True)
 
             # Now try a host certificate. We don't need to do _all_ the
@@ -2703,19 +2738,19 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
 
             # Check certificate type
             result, err = certified_key.check_cert(
-                True, b'hostname.example.com', 1000)
+                True, b'hostname.example.com', 1000, '')
             self.assertEqual(result, True)
             result, err = certified_key.check_cert(
-                False, b'hostname.example.com', 1000)
+                False, b'hostname.example.com', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate type is host; expected user')
 
             # Check the second hostname and an unknown one
             result, err = certified_key.check_cert(
-                True, b'hostname2.example.com', 1000)
+                True, b'hostname2.example.com', 1000, '')
             self.assertEqual(result, True)
             result, err = certified_key.check_cert(
-                True, b'hostname3.example.com', 1000)
+                True, b'hostname3.example.com', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate\'s hostname list ['
                              b'"hostname.example.com", "hostname2.example.com"] '
@@ -2738,12 +2773,12 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
             certified_key = ssh_key_new_priv(alg + '-cert', cert_pub,
                                              base_key.private_blob())
             result, err = certified_key.check_cert(
-                False, b'username', 1000)
+                False, b'username', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate type is unknown value 12345; '
                              b'expected user')
             result, err = certified_key.check_cert(
-                True, b'hostname.example.com', 1000)
+                True, b'hostname.example.com', 1000, '')
             self.assertEqual(result, False)
             self.assertEqual(err, b'Certificate type is unknown value 12345; '
                              b'expected host')
@@ -2771,9 +2806,9 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         # Now switch to an RSA certifying key, and test different RSA
         # signature subtypes being used to sign the certificate
         ca_key = ssh_key_new_priv('rsa', b64('AAAAB3NzaC1yc2EAAAADAQABAAAAgQCKHiavhtnAZQLUPtYlzlQmVTHSKq2ChCKZP0cLNtN2YSS0/f4D1hi8W04Qh/JuSXZAdUThTAVjxDmxpiOMNwa/2WDXMuqip47dzZSQxtSdvTfeL9TVC/M1NaOzy8bqFx6pzi37zPATETT4PP1Zt/Pd23ZJYhwjxSyTlqj7529v0w=='), b64('AAAAgCwTZyEIlaCyG28EBm7WI0CAW3/IIsrNxATHjrJjcqQKaB5iF5e90PL66DSaTaEoTFZRlgOXsPiffBHXBO0P+lTyZ2jlq2J2zgeofRH3Yong4BT4xDtqBKtxixgC1MAHmrOnRXjAcDUiLxIGgU0YKSv0uAlgARsUwDsk0GEvK+jBAAAAQQDMi7liRBQ4/Z6a4wDL/rVnIJ9x+2h2UPK9J8U7f97x/THIBtfkbf9O7nDP6onValuSr86tMR24DJZsEXaGPwjDAAAAQQCs3J3D3jNVwwk16oySRSjA5x3tKCEITYMluyXX06cvFew8ldgRCYl1sh8RYAfbBKXhnJD77qIxtVNaF1yl/guxAAAAQFTRdKRUF2wLu/K/Rr34trwKrV6aW0GWyHlLuWvF7FUB85aDmtqYI2BSk92mVCKHBNw2T3cJMabN9JOznjtADiM='))
-        per_base_keytype_tests('rsa')
-        per_base_keytype_tests('rsa', ca_signflags=2)
-        per_base_keytype_tests('rsa', ca_signflags=4)
+        per_base_keytype_tests('rsa', run_ca_rsa_tests=True)
+        per_base_keytype_tests('rsa', run_ca_rsa_tests=True, ca_signflags=2)
+        per_base_keytype_tests('rsa', run_ca_rsa_tests=True, ca_signflags=4)
 
 class standard_test_vectors(MyTestBase):
     def testAES(self):

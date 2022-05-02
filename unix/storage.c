@@ -666,6 +666,12 @@ host_ca *host_ca_load(const char *name)
                        hca->n_hostname_wildcards);
             hca->hostname_wildcards[hca->n_hostname_wildcards++] =
                 dupstr(value);
+        } else if (!strcmp(line, "PermitRSASHA1")) {
+            hca->opts.permit_rsa_sha1 = atoi(value);
+        } else if (!strcmp(line, "PermitRSASHA256")) {
+            hca->opts.permit_rsa_sha256 = atoi(value);
+        } else if (!strcmp(line, "PermitRSASHA512")) {
+            hca->opts.permit_rsa_sha512 = atoi(value);
         }
 
         sfree(line);
@@ -690,6 +696,10 @@ char *host_ca_save(host_ca *hca)
 
     for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
         fprintf(fp, "MatchHosts=%s\n", hca->hostname_wildcards[i]);
+
+    fprintf(fp, "PermitRSASHA1=%d\n", (int)hca->opts.permit_rsa_sha1);
+    fprintf(fp, "PermitRSASHA256=%d\n", (int)hca->opts.permit_rsa_sha256);
+    fprintf(fp, "PermitRSASHA512=%d\n", (int)hca->opts.permit_rsa_sha512);
 
     bool bad = ferror(fp);
     if (fclose(fp) < 0)

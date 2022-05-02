@@ -830,13 +830,37 @@ void ssh_key_cert_id_string_wrapper(ssh_key *key, BinarySink *out)
 }
 
 static bool ssh_key_check_cert_wrapper(
-    ssh_key *key, bool host, ptrlen principal, uint64_t time,
+    ssh_key *key, bool host, ptrlen principal, uint64_t time, ptrlen optstr,
     BinarySink *error)
 {
     /* Wrap to avoid null-pointer dereference */
     if (!key->vt->is_certificate)
         fatal_error("ssh_key_cert_id_string: needs a certificate");
-    return ssh_key_check_cert(key, host, principal, time, error);
+
+    ca_options opts;
+    opts.permit_rsa_sha1 = true;
+    opts.permit_rsa_sha256 = true;
+    opts.permit_rsa_sha512 = true;
+
+    while (optstr.len) {
+        ptrlen word = ptrlen_get_word(&optstr, ",");
+        ptrlen key = word, value = PTRLEN_LITERAL("");
+        const char *comma = memchr(word.ptr, '=', word.len);
+        if (comma) {
+            key.len = comma - (const char *)word.ptr;
+            value.ptr = comma + 1;
+            value.len = word.len - key.len - 1;
+        }
+
+        if (ptrlen_eq_string(key, "permit_rsa_sha1"))
+            opts.permit_rsa_sha1 = ptrlen_eq_string(value, "true");
+        if (ptrlen_eq_string(key, "permit_rsa_sha256"))
+            opts.permit_rsa_sha256 = ptrlen_eq_string(value, "true");
+        if (ptrlen_eq_string(key, "permit_rsa_sha512"))
+            opts.permit_rsa_sha512 = ptrlen_eq_string(value, "true");
+    }
+
+    return ssh_key_check_cert(key, host, principal, time, &opts, error);
 }
 
 bool dh_validate_f_wrapper(dh_ctx *dh, mp_int *f)

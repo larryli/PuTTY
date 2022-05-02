@@ -427,6 +427,8 @@ host_ca *host_ca_load(const char *name)
     host_ca *hca = host_ca_new();
     hca->name = dupstr(name);
 
+    DWORD val;
+
     if ((s = get_reg_sz(rkey, "PublicKey")) != NULL)
         hca->ca_public_key = base64_decode_sb(ptrlen_from_asciz(s));
 
@@ -444,6 +446,13 @@ host_ca *host_ca_load(const char *name)
 
         strbuf_free(sb);
     }
+
+    if (get_reg_dword(rkey, "PermitRSASHA1", &val))
+        hca->opts.permit_rsa_sha1 = val;
+    if (get_reg_dword(rkey, "PermitRSASHA256", &val))
+        hca->opts.permit_rsa_sha256 = val;
+    if (get_reg_dword(rkey, "PermitRSASHA512", &val))
+        hca->opts.permit_rsa_sha512 = val;
 
     close_regkey(rkey);
     return hca;
@@ -475,6 +484,10 @@ char *host_ca_save(host_ca *hca)
         put_asciz(wcs, hca->hostname_wildcards[i]);
     put_reg_multi_sz(rkey, "MatchHosts", wcs);
     strbuf_free(wcs);
+
+    put_reg_dword(rkey, "PermitRSASHA1", hca->opts.permit_rsa_sha1);
+    put_reg_dword(rkey, "PermitRSASHA256", hca->opts.permit_rsa_sha256);
+    put_reg_dword(rkey, "PermitRSASHA512", hca->opts.permit_rsa_sha512);
 
     close_regkey(rkey);
     return NULL;

@@ -11,15 +11,19 @@
 
 const bool has_ca_config_box = true;
 
+#define NRSATYPES 3
+
 struct ca_state {
     dlgcontrol *ca_name_edit;
     dlgcontrol *ca_reclist;
     dlgcontrol *ca_pubkey_edit;
     dlgcontrol *ca_wclist;
     dlgcontrol *ca_wc_edit;
+    dlgcontrol *rsa_type_checkboxes[NRSATYPES];
     char *name, *pubkey, *wc;
     tree234 *ca_names;                 /* stores plain 'char *' */
     tree234 *host_wcs;                 /* stores plain 'char *' */
+    ca_options opts;
 };
 
 static int ca_name_compare(void *av, void *bv)
@@ -68,6 +72,29 @@ static void ca_refresh_name_list(struct ca_state *st)
     }
 }
 
+static void set_from_hca(struct ca_state *st, host_ca *hca)
+{
+    sfree(st->name);
+    st->name = dupstr(hca->name);
+
+    sfree(st->pubkey);
+    if (hca->ca_public_key)
+        st->pubkey = strbuf_to_str(
+            base64_encode_sb(ptrlen_from_strbuf(hca->ca_public_key), 0));
+    else
+        st->pubkey = dupstr("");
+
+    clear_string_tree(st->host_wcs);
+    for (size_t i = 0; i < hca->n_hostname_wildcards; i++) {
+        char *name = dupstr(hca->hostname_wildcards[i]);
+        char *added = add234(st->host_wcs, name);
+        if (added != name)
+            sfree(name);               /* de-duplicate, just in case */
+    }
+
+    st->opts = hca->opts;              /* structure copy */
+}
+
 static void ca_load_selected_record(struct ca_state *st, dlgparam *dp)
 {
     int i = dlg_listbox_index(st->ca_reclist, dp);
@@ -88,26 +115,14 @@ static void ca_load_selected_record(struct ca_state *st, dlgparam *dp)
         return;
     }
 
-    sfree(st->name);
-    st->name = dupstr(hca->name);
-
-    sfree(st->pubkey);
-    st->pubkey = strbuf_to_str(
-        base64_encode_sb(ptrlen_from_strbuf(hca->ca_public_key), 0));
-
-    clear_string_tree(st->host_wcs);
-    for (size_t i = 0; i < hca->n_hostname_wildcards; i++) {
-        char *name = dupstr(hca->hostname_wildcards[i]);
-        char *added = add234(st->host_wcs, name);
-        if (added != name)
-            sfree(name);               /* de-duplicate, just in case */
-    }
-
+    set_from_hca(st, hca);
     host_ca_free(hca);
 
     dlg_refresh(st->ca_name_edit, dp);
     dlg_refresh(st->ca_pubkey_edit, dp);
     dlg_refresh(st->ca_wclist, dp);
+    for (size_t i = 0; i < NRSATYPES; i++)
+        dlg_refresh(st->rsa_type_checkboxes[i], dp);
 }
 
 static void ca_ok_handler(dlgcontrol *ctrl, dlgparam *dp,
@@ -214,6 +229,8 @@ static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
         hca->hostname_wildcards = snewn(hca->n_hostname_wildcards, char *);
         for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
             hca->hostname_wildcards[i] = dupstr(index234(st->host_wcs, i));
+        hca->opts = st->opts;          /* structure copy */
+
         char *error = host_ca_save(hca);
         host_ca_free(hca);
 
@@ -363,6 +380,20 @@ static void ca_wc_rem_handler(dlgcontrol *ctrl, dlgparam *dp,
     }
 }
 
+static void ca_rsa_type_handler(dlgcontrol *ctrl, dlgparam *dp,
+                                void *data, int event)
+{
+    struct ca_state *st = (struct ca_state *)ctrl->context.p;
+    size_t offset = ctrl->context2.i;
+    bool *option = (bool *)((char *)&st->opts + offset);
+
+    if (event == EVENT_REFRESH) {
+        dlg_checkbox_set(ctrl, dp, *option);
+    } else if (event == EVENT_VALCHANGE) {
+        *option = dlg_checkbox_get(ctrl, dp);
+    }
+}
+
 void setup_ca_config_box(struct controlbox *b)
 {
     struct controlset *s;
@@ -372,11 +403,16 @@ void setup_ca_config_box(struct controlbox *b)
     struct ca_state *st = (struct ca_state *)ctrl_alloc_with_free(
         b, sizeof(struct ca_state), ca_state_free);
     memset(st, 0, sizeof(*st));
-    st->name = dupstr("");
-    st->pubkey = dupstr("");
     st->ca_names = newtree234(ca_name_compare);
     st->host_wcs = newtree234(ca_name_compare);
     ca_refresh_name_list(st);
+
+    /* Initialise the settings to a default blank host_ca */
+    {
+        host_ca *hca = host_ca_new();
+        set_from_hca(st, hca);
+        host_ca_free(hca);
+    }
 
     /* Action area, with the Done button in it */
     s = ctrl_getset(b, "", "", "");
@@ -442,4 +478,25 @@ void setup_ca_config_box(struct controlbox *b)
     c = ctrl_pushbutton(s, "Remove", NO_SHORTCUT, HELPCTX(no_help),
                         ca_wc_rem_handler, P(st));
     c->column = 2;
+    ctrl_columns(s, 1, 100);
+
+    ctrl_columns(s, 4, 44, 18, 18, 18);
+    c = ctrl_text(s, "Signature types (RSA keys only):", HELPCTX(no_help));
+    c->column = 0;
+    c = ctrl_checkbox(s, "SHA-1", NO_SHORTCUT, HELPCTX(no_help),
+                      ca_rsa_type_handler, P(st));
+    c->column = 1;
+    c->context2 = I(offsetof(ca_options, permit_rsa_sha1));
+    st->rsa_type_checkboxes[0] = c;
+    c = ctrl_checkbox(s, "SHA-256", NO_SHORTCUT, HELPCTX(no_help),
+                      ca_rsa_type_handler, P(st));
+    c->column = 2;
+    c->context2 = I(offsetof(ca_options, permit_rsa_sha256));
+    st->rsa_type_checkboxes[1] = c;
+    c = ctrl_checkbox(s, "SHA-512", NO_SHORTCUT, HELPCTX(no_help),
+                      ca_rsa_type_handler, P(st));
+    c->column = 3;
+    c->context2 = I(offsetof(ca_options, permit_rsa_sha512));
+    st->rsa_type_checkboxes[2] = c;
+    ctrl_columns(s, 1, 100);
 }

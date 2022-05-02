@@ -309,7 +309,8 @@ FUNC_WRAPPED(void, ssh_key_cert_id_string, ARG(val_key, key),
              ARG(out_val_string_binarysink, blob))
 FUNC_WRAPPED(boolean, ssh_key_check_cert, ARG(val_key, key),
              ARG(boolean, host), ARG(val_string_ptrlen, principal),
-             ARG(uint, time), ARG(out_val_string_binarysink, error))
+             ARG(uint, time), ARG(val_string_ptrlen, options),
+             ARG(out_val_string_binarysink, error))
 
 /*
  * Accessors to retrieve the innards of a 'key_components'.

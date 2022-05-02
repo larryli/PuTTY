@@ -177,6 +177,7 @@ typedef struct dlgcontrol dlgcontrol;
 typedef struct settings_w settings_w;
 typedef struct settings_r settings_r;
 typedef struct settings_e settings_e;
+typedef struct ca_options ca_options;
 typedef struct host_ca host_ca;
 typedef struct host_ca_enum host_ca_enum;
 
@@ -246,5 +247,15 @@ struct unicode_data;
 #define STR(x) STR_INNER(x)
 #define CAT_INNER(x,y) x ## y
 #define CAT(x,y) CAT_INNER(x,y)
+
+/*
+ * Structure shared between ssh.h and storage.h, giving strictness
+ * options relating to checking of an OpenSSH certificate. It's a bit
+ * cheaty to put something so specific in here, but more painful to
+ * put it in putty.h.
+ */
+struct ca_options {
+    bool permit_rsa_sha1, permit_rsa_sha256, permit_rsa_sha512;
+};
 
 #endif /* PUTTY_DEFS_H */

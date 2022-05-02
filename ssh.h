@@ -848,7 +848,8 @@ struct ssh_keyalg {
     /* The following methods can be NULL if !is_certificate */
     void (*ca_public_blob)(ssh_key *key, BinarySink *);
     bool (*check_cert)(ssh_key *key, bool host, ptrlen principal,
-                       uint64_t time, BinarySink *error);
+                       uint64_t time, const ca_options *opts,
+                       BinarySink *error);
     void (*cert_id_string)(ssh_key *key, BinarySink *);
 
     /* 'Class methods' that don't deal with an ssh_key at all */
@@ -904,8 +905,8 @@ static inline void ssh_key_cert_id_string(ssh_key *key, BinarySink *bs)
 { key->vt->cert_id_string(key, bs); }
 static inline bool ssh_key_check_cert(
     ssh_key *key, bool host, ptrlen principal, uint64_t time,
-    BinarySink *error)
-{ return key->vt->check_cert(key, host, principal, time, error); }
+    const ca_options *opts, BinarySink *error)
+{ return key->vt->check_cert(key, host, principal, time, opts, error); }
 static inline int ssh_key_public_bits(const ssh_keyalg *self, ptrlen blob)
 { return self->pubkey_bits(self, blob); }
 static inline const ssh_keyalg *ssh_key_alg(ssh_key *key)

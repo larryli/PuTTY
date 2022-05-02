@@ -6,6 +6,8 @@
 #ifndef PUTTY_STORAGE_H
 #define PUTTY_STORAGE_H
 
+#include "defs.h"
+
 /* ----------------------------------------------------------------------
  * Functions to save and restore PuTTY sessions. Note that this is
  * only the low-level code to do the reading and writing. The
@@ -103,6 +105,7 @@ struct host_ca {
     strbuf *ca_public_key;
     char **hostname_wildcards;
     size_t n_hostname_wildcards;
+    ca_options opts;
 };
 
 host_ca_enum *enum_host_ca_start(void);
