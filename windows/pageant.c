@@ -1504,8 +1504,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
              * If we see `-c', then the rest of the command line
              * should be treated as a command to be spawned.
              */
-            if (amo.index < amo.argc-1)
-                command = argstart[amo.index + 1];
+            if (amo.index < amo.argc)
+                command = argstart[amo.index];
             else
                 command = "";
             break;
