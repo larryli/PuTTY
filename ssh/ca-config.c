@@ -17,6 +17,7 @@ struct ca_state {
     dlgcontrol *ca_name_edit;
     dlgcontrol *ca_reclist;
     dlgcontrol *ca_pubkey_edit;
+    dlgcontrol *ca_pubkey_info;
     dlgcontrol *ca_wclist;
     dlgcontrol *ca_wc_edit;
     dlgcontrol *rsa_type_checkboxes[NRSATYPES];
@@ -24,6 +25,7 @@ struct ca_state {
     tree234 *ca_names;                 /* stores plain 'char *' */
     tree234 *host_wcs;                 /* stores plain 'char *' */
     ca_options opts;
+    strbuf *ca_pubkey_blob;
 };
 
 static int ca_name_compare(void *av, void *bv)
@@ -95,6 +97,78 @@ static void set_from_hca(struct ca_state *st, host_ca *hca)
     st->opts = hca->opts;              /* structure copy */
 }
 
+static void ca_refresh_pubkey_info(struct ca_state *st, dlgparam *dp)
+{
+    char *text = NULL;
+    ssh_key *key = NULL;
+    strbuf *blob = strbuf_new();
+
+    ptrlen data = ptrlen_from_asciz(st->pubkey);
+
+    if (st->ca_pubkey_blob)
+        strbuf_free(st->ca_pubkey_blob);
+    st->ca_pubkey_blob = NULL;
+
+    if (!data.len) {
+        text = dupstr(" ");
+        goto out;
+    }
+
+    /*
+     * See if we have a plain base64-encoded public key blob.
+     */
+    if (base64_valid(data)) {
+        base64_decode_bs(BinarySink_UPCAST(blob), data);
+    } else {
+        /*
+         * Otherwise, try to decode as if it was a public key _file_.
+         */
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, data);
+        const char *error;
+        if (!ppk_loadpub_s(src, NULL, BinarySink_UPCAST(blob), NULL, &error)) {
+            text = dupprintf("Cannot decode key: %s", error);
+            goto out;
+        }
+    }
+
+    ptrlen alg_name = pubkey_blob_to_alg_name(ptrlen_from_strbuf(blob));
+    if (!alg_name.len) {
+        text = dupstr("Invalid key (no key type)");
+        goto out;
+    }
+
+    const ssh_keyalg *alg = find_pubkey_alg_len(alg_name);
+    if (!alg) {
+        text = dupprintf("Unrecognised key type '%.*s'",
+                         PTRLEN_PRINTF(alg_name));
+        goto out;
+    }
+    if (alg->is_certificate) {
+        text = dupprintf("CA key may not be a certificate (type is '%.*s')",
+                         PTRLEN_PRINTF(alg_name));
+        goto out;
+    }
+
+    key = ssh_key_new_pub(alg, ptrlen_from_strbuf(blob));
+    if (!key) {
+        text = dupprintf("Invalid '%.*s' key data", PTRLEN_PRINTF(alg_name));
+        goto out;
+    }
+
+    text = ssh2_fingerprint(key, SSH_FPTYPE_DEFAULT);
+    st->ca_pubkey_blob = blob;
+    blob = NULL; /* prevent free */
+
+  out:
+    dlg_text_set(st->ca_pubkey_info, dp, text);
+    if (key)
+        ssh_key_free(key);
+    sfree(text);
+    if (blob)
+        strbuf_free(blob);
+}
+
 static void ca_load_selected_record(struct ca_state *st, dlgparam *dp)
 {
     int i = dlg_listbox_index(st->ca_reclist, dp);
@@ -123,6 +197,7 @@ static void ca_load_selected_record(struct ca_state *st, dlgparam *dp)
     dlg_refresh(st->ca_wclist, dp);
     for (size_t i = 0; i < NRSATYPES; i++)
         dlg_refresh(st->rsa_type_checkboxes[i], dp);
+    ca_refresh_pubkey_info(st, dp);
 }
 
 static void ca_ok_handler(dlgcontrol *ctrl, dlgparam *dp,
@@ -179,26 +254,6 @@ static void ca_load_handler(dlgcontrol *ctrl, dlgparam *dp,
     }
 }
 
-static strbuf *decode_pubkey(ptrlen data, const char **error)
-{
-    /*
-     * See if we have a plain base64-encoded public key blob.
-     */
-    if (base64_valid(data))
-        return base64_decode_sb(data);
-
-    /*
-     * Otherwise, try to decode as if it was a public key _file_.
-     */
-    BinarySource src[1];
-    BinarySource_BARE_INIT_PL(src, data);
-    strbuf *blob = strbuf_new();
-    if (ppk_loadpub_s(src, NULL, BinarySink_UPCAST(blob), NULL, error))
-        return blob;
-
-    return NULL;
-}
-
 static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
                             void *data, int event)
 {
@@ -209,22 +264,16 @@ static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
             return;
         }
 
-        strbuf *pubkey;
-        {
-            const char *error;
-            pubkey = decode_pubkey(ptrlen_from_asciz(st->pubkey), &error);
-            if (!pubkey) {
-                char *msg = dupprintf("CA public key invalid: %s", error);
-                dlg_error_msg(dp, msg);
-                sfree(msg);
-                return;
-            }
+        if (!st->ca_pubkey_blob) {
+            dlg_error_msg(dp, "No valid CA public key entered");
+            return;
         }
 
         host_ca *hca = snew(host_ca);
         memset(hca, 0, sizeof(*hca));
         hca->name = dupstr(st->name);
-        hca->ca_public_key = pubkey;
+        hca->ca_public_key = strbuf_dup(ptrlen_from_strbuf(
+                                            st->ca_pubkey_blob));
         hca->n_hostname_wildcards = count234(st->host_wcs);
         hca->hostname_wildcards = snewn(hca->n_hostname_wildcards, char *);
         for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
@@ -280,6 +329,7 @@ static void ca_pubkey_edit_handler(dlgcontrol *ctrl, dlgparam *dp,
     } else if (event == EVENT_VALCHANGE) {
         sfree(st->pubkey);
         st->pubkey = dlg_editbox_get(ctrl, dp);
+        ca_refresh_pubkey_info(st, dp);
     }
 }
 
@@ -451,8 +501,7 @@ void setup_ca_config_box(struct controlbox *b)
                         ca_delete_handler, P(st));
     c->column = 1;
 
-    /* Box containing the details of a specific CA record */
-    s = ctrl_getset(b, "Main", "details", "Details of a host CA record");
+    s = ctrl_getset(b, "Main", "pubkey", "Public key for this CA record");
 
     ctrl_columns(s, 2, 75, 25);
     c = ctrl_editbox(s, "Public key of certification authority", 'k', 100,
@@ -466,6 +515,10 @@ void setup_ca_config_box(struct controlbox *b)
     c->align_next_to = st->ca_pubkey_edit;
     c->column = 1;
     ctrl_columns(s, 1, 100);
+    st->ca_pubkey_info = c = ctrl_text(s, " ", HELPCTX(no_help));
+    c->text.wrap = false;
+
+    s = ctrl_getset(b, "Main", "options", "What this CA is trusted to do");
 
     c = ctrl_listbox(s, "Hostname patterns this key is trusted to certify",
                      NO_SHORTCUT, HELPCTX(no_help), ca_wclist_handler, P(st));

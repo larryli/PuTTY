@@ -1186,8 +1186,8 @@ static INT_PTR CAConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
 
         centre_window(hwnd);
 
-        pds_create_controls(pds, 0, IDCX_PANELBASE, 3, 3, 13, "Main");
-        pds_create_controls(pds, 0, IDCX_STDBASE, 3, 3, 235, "");
+        pds_create_controls(pds, 0, IDCX_PANELBASE, 3, 3, 3, "Main");
+        pds_create_controls(pds, 0, IDCX_STDBASE, 3, 3, 243, "");
         dlg_refresh(NULL, pds->dp);    /* and set up control values */
 
         pds_initdialog_finish(pds);
