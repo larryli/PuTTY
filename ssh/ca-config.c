@@ -463,6 +463,7 @@ void setup_ca_config_box(struct controlbox *b)
                      "Select public key file of certification authority",
                      HELPCTX(no_help), ca_pubkey_file_handler, P(st));
     c->fileselect.just_button = true;
+    c->align_next_to = st->ca_pubkey_edit;
     c->column = 1;
     ctrl_columns(s, 1, 100);
 
@@ -478,28 +479,34 @@ void setup_ca_config_box(struct controlbox *b)
     st->ca_wc_edit = c;
     c = ctrl_pushbutton(s, "Add", NO_SHORTCUT, HELPCTX(no_help),
                         ca_wc_add_handler, P(st));
+    c->align_next_to = st->ca_wc_edit;
     c->column = 1;
     c = ctrl_pushbutton(s, "Remove", NO_SHORTCUT, HELPCTX(no_help),
                         ca_wc_rem_handler, P(st));
+    c->align_next_to = st->ca_wc_edit;
     c->column = 2;
     ctrl_columns(s, 1, 100);
 
     ctrl_columns(s, 4, 44, 18, 18, 18);
     c = ctrl_text(s, "Signature types (RSA keys only):", HELPCTX(no_help));
     c->column = 0;
+    dlgcontrol *sigtypelabel = c;
     c = ctrl_checkbox(s, "SHA-1", NO_SHORTCUT, HELPCTX(no_help),
                       ca_rsa_type_handler, P(st));
     c->column = 1;
+    c->align_next_to = sigtypelabel;
     c->context2 = I(offsetof(ca_options, permit_rsa_sha1));
     st->rsa_type_checkboxes[0] = c;
     c = ctrl_checkbox(s, "SHA-256", NO_SHORTCUT, HELPCTX(no_help),
                       ca_rsa_type_handler, P(st));
     c->column = 2;
+    c->align_next_to = sigtypelabel;
     c->context2 = I(offsetof(ca_options, permit_rsa_sha256));
     st->rsa_type_checkboxes[1] = c;
     c = ctrl_checkbox(s, "SHA-512", NO_SHORTCUT, HELPCTX(no_help),
                       ca_rsa_type_handler, P(st));
     c->column = 3;
+    c->align_next_to = sigtypelabel;
     c->context2 = I(offsetof(ca_options, permit_rsa_sha512));
     st->rsa_type_checkboxes[2] = c;
     ctrl_columns(s, 1, 100);
