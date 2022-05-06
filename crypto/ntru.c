@@ -906,32 +906,36 @@ const uint16_t *ntru_pubkey(NTRUKeyPair *keypair) { return keypair->h; }
  * private key, a plaintext, and the 'rho' fake-plaintext value used
  * for deliberately returning a duff but non-revealing session hash if
  * things go wrong.
+ *
+ * -1 is represented as 2 in the output array. So if you want these
+ * numbers mod 3, then they come out already in the right form.
+ * Otherwise, use ntru_expand.
  */
 void ntru_gen_short(uint16_t *v, unsigned p, unsigned w)
 {
     /*
      * Get enough random data to generate a polynomial all of whose p
      * terms are in {0,+1,-1}, and exactly w of them are nonzero.
+     * We'll do this by making up a completely random sequence of
+     * {+1,-1} and then setting a random subset of them to 0.
      *
-     * We're going to need w * random bits to choose the nonzero
-     * values, and then (doing it the simplest way) log2(p!) bits to
-     * shuffle them, plus say 128 bits to ensure any fluctuations in
-     * uniformity are negligible.
+     * So we'll need p random bits to choose the nonzero values, and
+     * then (doing it the simplest way) log2(p!) bits to shuffle them,
+     * plus say 128 bits to ensure any fluctuations in uniformity are
+     * negligible.
      *
      * log2(p!) is a pain to calculate, so we'll bound it above by
      * p*log2(p), which we bound in turn by p*16.
      */
-    size_t randbitpos = 16 * p + w + 128;
+    size_t randbitpos = 17 * p + 128;
     mp_int *randdata = mp_resize(mp_random_bits(randbitpos), randbitpos + 32);
 
     /*
-     * Initial value before shuffling: w randomly chosen values in
-     * {1,q-1}, plus zeroes to pad to length p.
+     * Initial value before zeroing out some terms: p randomly chosen
+     * values in {1,2}.
      */
-    for (size_t i = 0; i < w; i++)
+    for (size_t i = 0; i < p; i++)
         v[i] = 1 + mp_get_bit(randdata, --randbitpos);
-    for (size_t i = w; i < p; i++)
-        v[i] = 0;
 
     /*
      * Hereafter we're going to extract random bits by multiplication,
@@ -940,13 +944,14 @@ void ntru_gen_short(uint16_t *v, unsigned p, unsigned w)
     mp_reduce_mod_2to(randdata, randbitpos);
 
     /*
-     * Shuffle.
+     * Zero out some terms, leaving a randomly selected w of them
+     * nonzero.
      */
+    uint32_t nonzeros_left = w;
     mp_int *x = mp_new(64);
-    for (size_t i = p-1; i > 0; i--) {
+    for (size_t i = p; i-- > 0 ;) {
         /*
-         * Decide which element to swap with v[i], potentially
-         * including i itself.
+         * Pick a random number out of the number of terms remaning.
          */
         mp_mul_integer_into(randdata, randdata, i+1);
         mp_rshift_fixed_into(x, randdata, randbitpos);
@@ -954,17 +959,12 @@ void ntru_gen_short(uint16_t *v, unsigned p, unsigned w)
         size_t j = mp_get_integer(x);
 
         /*
-         * Swap it, which involves a constant-time selection loop over
-         * the whole eligible part of the array. This makes the
-         * shuffling quadratic-time overall. I'd be interested in a
-         * nicer algorithm, but this will do for now.
+         * If that's less than nonzeros_left, then we're leaving this
+         * number nonzero. Otherwise we're zeroing it out.
          */
-        for (size_t k = 0; k <= i; k++) {
-            uint16_t mask = -iszero(k ^ j);
-            uint16_t diff = mask & (v[k] ^ v[i]);
-            v[k] ^= diff;
-            v[i] ^= diff;
-        }
+        uint32_t keep = (uint32_t)(j - nonzeros_left) >> 31;
+        v[i] &= -keep;            /* clear this field if keep == 0 */
+        nonzeros_left -= keep;    /* decrement counter if keep == 1 */
     }
 
     mp_free(x);
