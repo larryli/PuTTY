@@ -726,9 +726,38 @@ static bool opensshcert_check_cert(
 
     ptrlen signature = ptrlen_from_strbuf(ck->signature);
 
-    ca_key = opensshcert_ca_pub_key(ck, signature, NULL);
+    /*
+     * The OpenSSH certificate spec is one-layer only: it explicitly
+     * forbids using a certified key in turn as the CA.
+     *
+     * If it did not, then we'd also have to recursively verify
+     * everything up the CA chain until we reached the ultimate root,
+     * and then make sure _that_ was something we trusted. (Not to
+     * mention that there'd probably be an additional SSH_CERT_TYPE_CA
+     * or some such, and certificate options saying what kinds of
+     * certificate a CA was trusted to sign for, and ...)
+     */
+    ca_key = opensshcert_ca_pub_key(ck, make_ptrlen(NULL, 0), NULL);
     if (!ca_key) {
         put_fmt(error, "Certificate's signing key is invalid");
+        goto out;
+    }
+    if (ssh_key_alg(ca_key)->is_certificate) {
+        put_fmt(error, "Certificate is signed with a certified key "
+                "(forbidden by OpenSSH certificate specification)");
+        goto out;
+    }
+
+    /*
+     * Now re-instantiate the key in a way that matches the signature
+     * (i.e. so that if the key is an RSA one we get the right subtype
+     * of RSA).
+     */
+    ssh_key_free(ca_key);
+    ca_key = opensshcert_ca_pub_key(ck, signature, NULL);
+    if (!ca_key) {
+        put_fmt(error, "Certificate's signing key does not match "
+                "signature type");
         goto out;
     }
 

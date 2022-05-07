@@ -2715,6 +2715,43 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
                 False, b'username', 1000, '')
             self.assertEqual(result, True)
 
+            # Make a certificate on the CA key, and re-sign the main
+            # key using that, to ensure that two-level certs are rejected
+            ca_self_certificate = sign_cert_via_testcrypt(
+                make_signature_preimage(
+                    key_to_certify = ca_key.public_blob(),
+                    ca_key = ca_key,
+                    certtype = CertType.user,
+                    keyid = b'id',
+                    serial = 111,
+                    principals = [b"doesn't matter"],
+                    valid_after = 1000,
+                    valid_before = 2000), ca_key, signflags=ca_signflags)
+            import base64
+            print(base64.b64encode(ca_self_certificate))
+            self_signed_ca_key = ssh_key_new_pub(
+                alg + '-cert', ca_self_certificate)
+            print(self_signed_ca_key)
+            cert_pub = sign_cert_via_testcrypt(
+                make_signature_preimage(
+                    key_to_certify = base_key.public_blob(),
+                    ca_key = self_signed_ca_key,
+                    certtype = CertType.user,
+                    keyid = b'id',
+                    serial = 111,
+                    principals = [b'username'],
+                    valid_after = 1000,
+                    valid_before = 2000), ca_key, signflags=ca_signflags)
+            print(base64.b64encode(cert_pub))
+            certified_key = ssh_key_new_priv(alg + '-cert', cert_pub,
+                                             base_key.private_blob())
+            result, err = certified_key.check_cert(
+                False, b'username', 1500, '')
+            self.assertEqual(result, False)
+            self.assertEqual(
+                err, b'Certificate is signed with a certified key '
+                b'(forbidden by OpenSSH certificate specification)')
+
             # Now try a host certificate. We don't need to do _all_ the
             # checks over again, but at least make sure that setting
             # CertType.host leads to the certificate validating with
