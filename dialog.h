@@ -426,6 +426,14 @@ struct dlgcontrol {
         struct { /* for CTRL_FONTSELECT */
             char shortcut;
         } fontselect;
+        struct { /* for CTRL_TEXT */
+            /*
+             * If this is true (the default), the text will wrap on to
+             * multiple lines. If false, it will stay on the same
+             * line, with a horizontal scrollbar if necessary.
+             */
+            bool wrap;
+        } text;
     };
 };
 

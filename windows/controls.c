@@ -165,7 +165,7 @@ void endbox(struct ctlpos *cp)
 /*
  * A static line, followed by a full-width edit box.
  */
-void editboxfw(struct ctlpos *cp, bool password, char *text,
+void editboxfw(struct ctlpos *cp, bool password, bool readonly, char *text,
                int staticid, int editid)
 {
     RECT r;
@@ -183,7 +183,8 @@ void editboxfw(struct ctlpos *cp, bool password, char *text,
     r.bottom = EDITHEIGHT;
     doctl(cp, r, "EDIT",
           WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL |
-          (password ? ES_PASSWORD : 0),
+          (password ? ES_PASSWORD : 0) |
+          (readonly ? ES_READONLY : 0),
           WS_EX_CLIENTEDGE, "", editid);
     cp->ypos += EDITHEIGHT + GAPBETWEEN;
 }
@@ -1525,18 +1526,23 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
          * switching on its type.
          */
         switch (ctrl->type) {
-          case CTRL_TEXT: {
-            char *wrapped, *escaped;
-            int lines;
-            num_ids = 1;
-            wrapped = staticwrap(&pos, cp->hwnd,
-                                 ctrl->label, &lines);
-            escaped = shortcut_escape(wrapped, NO_SHORTCUT);
-            statictext(&pos, escaped, lines, base_id);
-            sfree(escaped);
-            sfree(wrapped);
+          case CTRL_TEXT:
+            if (ctrl->text.wrap) {
+                char *wrapped, *escaped;
+                int lines;
+                num_ids = 1;
+                wrapped = staticwrap(&pos, cp->hwnd,
+                                     ctrl->label, &lines);
+                escaped = shortcut_escape(wrapped, NO_SHORTCUT);
+                statictext(&pos, escaped, lines, base_id);
+                sfree(escaped);
+                sfree(wrapped);
+            } else {
+                editboxfw(&pos, false, true, NULL, 0, base_id);
+                SetDlgItemText(pos.hwnd, base_id, ctrl->label);
+                MakeDlgItemBorderless(pos.hwnd, base_id);
+            }
             break;
-          }
           case CTRL_EDITBOX:
             num_ids = 2;               /* static, edit */
             escaped = shortcut_escape(ctrl->label,
@@ -1547,7 +1553,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                     combobox(&pos, escaped,
                              base_id, base_id+1);
                 else
-                    editboxfw(&pos, ctrl->editbox.password, escaped,
+                    editboxfw(&pos, ctrl->editbox.password, false, escaped,
                               base_id, base_id+1);
             } else {
                 if (ctrl->editbox.has_list) {

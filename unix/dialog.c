@@ -2509,7 +2509,17 @@ GtkWidget *layout_ctrls(
             gtk_label_set_selectable(GTK_LABEL(w), true);
             gtk_widget_set_can_focus(w, false);
             align_label_left(GTK_LABEL(w));
-            gtk_label_set_line_wrap(GTK_LABEL(w), true);
+            gtk_label_set_line_wrap(GTK_LABEL(w), ctrl->text.wrap);
+            if (!ctrl->text.wrap) {
+                gtk_widget_show(uc->text);
+                w = gtk_scrolled_window_new(NULL, NULL);
+                gtk_container_set_border_width(GTK_CONTAINER(w), 0);
+                gtk_container_add(GTK_CONTAINER(w), uc->text);
+                gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w),
+                                               GTK_POLICY_AUTOMATIC,
+                                               GTK_POLICY_NEVER);
+                gtk_widget_set_can_focus(w, false);
+            }
             break;
         }
 

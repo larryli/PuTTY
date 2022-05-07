@@ -427,6 +427,7 @@ dlgcontrol *ctrl_text(struct controlset *s, const char *text,
 {
     dlgcontrol *c = ctrl_new(s, CTRL_TEXT, helpctx, NULL, P(NULL));
     c->label = dupstr(text);
+    c->text.wrap = true;
     return c;
 }
 

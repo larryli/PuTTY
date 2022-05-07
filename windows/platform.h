@@ -437,7 +437,7 @@ HWND doctl(struct ctlpos *cp, RECT r,
 void bartitle(struct ctlpos *cp, char *name, int id);
 void beginbox(struct ctlpos *cp, char *name, int idbox);
 void endbox(struct ctlpos *cp);
-void editboxfw(struct ctlpos *cp, bool password, char *text,
+void editboxfw(struct ctlpos *cp, bool password, bool readonly, char *text,
                int staticid, int editid);
 void radioline(struct ctlpos *cp, char *text, int id, int nacross, ...);
 void bareradioline(struct ctlpos *cp, int nacross, ...);
