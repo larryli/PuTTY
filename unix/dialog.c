@@ -2506,6 +2506,8 @@ GtkWidget *layout_ctrls(
              */
             uc->text = w = gtk_label_new(uc->ctrl->label);
 #endif
+            gtk_label_set_selectable(GTK_LABEL(w), true);
+            gtk_widget_set_can_focus(w, false);
             align_label_left(GTK_LABEL(w));
             gtk_label_set_line_wrap(GTK_LABEL(w), true);
             break;
