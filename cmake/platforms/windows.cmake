@@ -51,13 +51,26 @@ check_symbol_exists(GetNamedPipeClientProcessId "windows.h"
   HAVE_GETNAMEDPIPECLIENTPROCESSID)
 check_symbol_exists(CreatePseudoConsole "windows.h" HAVE_CONPTY)
 
-check_include_files("windows.h;dwmapi.h" HAVE_DWMAPI_H)
-
 check_c_source_compiles("
 #include <windows.h>
 GCP_RESULTSW gcpw;
 int main(void) { return 0; }
 " HAVE_GCP_RESULTSW)
+
+function(dwmapi_test_wrapper)
+  set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} dwmapi.lib)
+  check_c_source_compiles("
+#include <windows.h>
+#include <dwmapi.h>
+volatile HWND hwnd;
+int main(void) {
+  RECT r;
+  DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &r, sizeof(r));
+}
+" HAVE_DWMAPI_H)
+  set(HAVE_DWMAPI_H ${HAVE_DWMAPI_H} PARENT_SCOPE)
+endfunction()
+dwmapi_test_wrapper()
 
 set(NO_SECURITY ${PUTTY_NO_SECURITY})
 
