@@ -41,7 +41,7 @@ typedef struct _tagpropertykey {
 typedef PROPVARIANT *REFPROPVARIANT;
 #endif
 /* MinGW doesn't define this yet: */
-#ifndef _PROPVARIANTINIT_DEFINED_
+#if !defined _PROPVARIANTINIT_DEFINED_ && !defined _PROPVARIANT_INIT_DEFINED_
 #define _PROPVARIANTINIT_DEFINED_
 #define PropVariantInit(pvar) memset((pvar),0,sizeof(PROPVARIANT))
 #endif

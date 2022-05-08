@@ -306,9 +306,9 @@ Socket *sk_newlistener_unix(const char *socketpath, Plug *plug);
  * here they are.
  */
 DECL_WINDOWS_FUNCTION(extern, int, WSAAsyncSelect,
-                      (SOCKET, HWND, u_int, long));
+                      (SOCKET, HWND, u_int, LONG));
 DECL_WINDOWS_FUNCTION(extern, int, WSAEventSelect,
-                      (SOCKET, WSAEVENT, long));
+                      (SOCKET, WSAEVENT, LONG));
 DECL_WINDOWS_FUNCTION(extern, int, WSAGetLastError, (void));
 DECL_WINDOWS_FUNCTION(extern, int, WSAEnumNetworkEvents,
                       (SOCKET, WSAEVENT, LPWSANETWORKEVENTS));

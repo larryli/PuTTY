@@ -9,6 +9,7 @@
 #include <time.h>
 #include <limits.h>
 #include <assert.h>
+#include <wchar.h>
 
 #define COMPILE_MULTIMON_STUBS
 

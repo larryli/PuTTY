@@ -180,16 +180,16 @@ static int cmpforsearch(void *av, void *bv)
 DECL_WINDOWS_FUNCTION(static, int, WSAStartup, (WORD, LPWSADATA));
 DECL_WINDOWS_FUNCTION(static, int, WSACleanup, (void));
 DECL_WINDOWS_FUNCTION(static, int, closesocket, (SOCKET));
-DECL_WINDOWS_FUNCTION(static, u_long, ntohl, (u_long));
-DECL_WINDOWS_FUNCTION(static, u_long, htonl, (u_long));
-DECL_WINDOWS_FUNCTION(static, u_short, htons, (u_short));
-DECL_WINDOWS_FUNCTION(static, u_short, ntohs, (u_short));
+DECL_WINDOWS_FUNCTION(static, ULONG, ntohl, (ULONG));
+DECL_WINDOWS_FUNCTION(static, ULONG, htonl, (ULONG));
+DECL_WINDOWS_FUNCTION(static, USHORT, htons, (USHORT));
+DECL_WINDOWS_FUNCTION(static, USHORT, ntohs, (USHORT));
 DECL_WINDOWS_FUNCTION(static, int, gethostname, (char *, int));
 DECL_WINDOWS_FUNCTION(static, struct hostent FAR *, gethostbyname,
                       (const char FAR *));
 DECL_WINDOWS_FUNCTION(static, struct servent FAR *, getservbyname,
                       (const char FAR *, const char FAR *));
-DECL_WINDOWS_FUNCTION(static, unsigned long, inet_addr, (const char FAR *));
+DECL_WINDOWS_FUNCTION(static, ULONG, inet_addr, (const char FAR *));
 DECL_WINDOWS_FUNCTION(static, char FAR *, inet_ntoa, (struct in_addr));
 DECL_WINDOWS_FUNCTION(static, const char FAR *, inet_ntop,
                       (int, void FAR *, char *, size_t));
@@ -204,7 +204,7 @@ DECL_WINDOWS_FUNCTION(static, int, listen, (SOCKET, int));
 DECL_WINDOWS_FUNCTION(static, int, send, (SOCKET, const char FAR *, int, int));
 DECL_WINDOWS_FUNCTION(static, int, shutdown, (SOCKET, int));
 DECL_WINDOWS_FUNCTION(static, int, ioctlsocket,
-                      (SOCKET, long, u_long FAR *));
+                      (SOCKET, LONG, ULONG FAR *));
 DECL_WINDOWS_FUNCTION(static, SOCKET, accept,
                       (SOCKET, struct sockaddr FAR *, int FAR *));
 DECL_WINDOWS_FUNCTION(static, int, getpeername,
@@ -305,10 +305,12 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock_module, WSAStartup);
     GET_WINDOWS_FUNCTION(winsock_module, WSACleanup);
     GET_WINDOWS_FUNCTION(winsock_module, closesocket);
-    GET_WINDOWS_FUNCTION(winsock_module, ntohl);
-    GET_WINDOWS_FUNCTION(winsock_module, htonl);
-    GET_WINDOWS_FUNCTION(winsock_module, htons);
-    GET_WINDOWS_FUNCTION(winsock_module, ntohs);
+    /* Winelib maps ntohl and friends to things like
+     * __wine_ulong_swap, which fail these type checks hopelessly */
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, ntohl);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, htonl);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, htons);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, ntohs);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gethostname);
     GET_WINDOWS_FUNCTION(winsock_module, gethostbyname);
     GET_WINDOWS_FUNCTION(winsock_module, getservbyname);
