@@ -180,7 +180,11 @@ const wchar_t *get_app_user_model_id(void)
 static void demo_terminal_screenshot(void *ctx, unsigned long now)
 {
     HWND hwnd = (HWND)ctx;
-    save_screenshot(hwnd, terminal_demo_screenshot_filename);
+    char *err = save_screenshot(hwnd, terminal_demo_screenshot_filename);
+    if (err) {
+        MessageBox(hwnd, err, "Demo screenshot failure", MB_OK | MB_ICONERROR);
+        sfree(err);
+    }
     cleanup_exit(0);
 }
 

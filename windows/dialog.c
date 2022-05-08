@@ -621,11 +621,13 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
         if (dialog_box_demo_screenshot_filename &&
             (UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
             KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
-            const char *err = save_screenshot(
+            char *err = save_screenshot(
                 hwnd, dialog_box_demo_screenshot_filename);
-            if (err)
+            if (err) {
                 MessageBox(hwnd, err, "Demo screenshot failure",
                            MB_OK | MB_ICONERROR);
+                sfree(err);
+            }
             ShinyEndDialog(hwnd, 0);
         }
         return 0;

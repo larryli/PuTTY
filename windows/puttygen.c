@@ -1592,10 +1592,12 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_TIMER:
         if ((UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
             KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
-            const char *err = save_screenshot(hwnd, demo_screenshot_filename);
-            if (err)
+            char *err = save_screenshot(hwnd, demo_screenshot_filename);
+            if (err) {
                 MessageBox(hwnd, err, "Demo screenshot failure",
                            MB_OK | MB_ICONERROR);
+                sfree(err);
+            }
             EndDialog(hwnd, 0);
         }
         return 0;
