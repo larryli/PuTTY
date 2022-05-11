@@ -3822,6 +3822,19 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 }
                 break;
               case '\007': {            /* BEL: Bell */
+                if (term->termstate == SEEN_OSC ||
+                    term->termstate == SEEN_OSC_W) {
+                    /*
+                     * In an OSC context, BEL is one of the ways to terminate
+                     * the whole sequence. We process it as such even if we
+                     * haven't got into the final OSC_STRING state yet, so that
+                     * OSC sequences without a string will be handled cleanly.
+                     */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                }
+
                 struct beeptime *newbeep;
                 unsigned long ticks;
 
@@ -3907,7 +3920,11 @@ static void term_out(Terminal *term, bool called_from_term_data)
               case '\033':            /* ESC: Escape */
                 if (term->vt52_mode)
                     term->termstate = VT52_ESC;
-                else {
+                else if (term->termstate == SEEN_OSC ||
+                         term->termstate == SEEN_OSC_W) {
+                    /* Be prepared to terminate an OSC early */
+                    term->termstate = OSC_MAYBE_ST;
+                } else {
                     compatibility(ANSIMIN);
                     term->termstate = SEEN_ESC;
                     term->esc_query = 0;
@@ -5156,6 +5173,17 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     else
                         term->esc_args[term->esc_nargs-1] = UINT_MAX;
                     break;
+                  case 0x9C:
+                    /* Terminate even though we aren't in OSC_STRING yet */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                  case 0xC2:
+                    if (in_utf(term)) {
+                        /* Or be prepared for the UTF-8 version of that */
+                        term->termstate = OSC_MAYBE_ST_UTF8;
+                    }
+                    break;
                   default:
                     /*
                      * _Most_ other characters here terminate the
@@ -5324,6 +5352,17 @@ static void term_out(Terminal *term, bool called_from_term_data)
                         term->esc_args[0] = 10 * term->esc_args[0] + c - '0';
                     else
                         term->esc_args[0] = UINT_MAX;
+                    break;
+                  case 0x9C:
+                    /* Terminate even though we aren't in OSC_STRING yet */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                  case 0xC2:
+                    if (in_utf(term)) {
+                        /* Or be prepared for the UTF-8 version of that */
+                        term->termstate = OSC_MAYBE_ST_UTF8;
+                    }
                     break;
                   default:
                     term->termstate = OSC_STRING;
