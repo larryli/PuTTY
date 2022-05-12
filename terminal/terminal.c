@@ -1220,12 +1220,6 @@ static void term_timer(void *ctx, unsigned long now)
 
     if (term->window_update_pending)
         term_update_callback(term);
-
-    if (term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY &&
-        now == term->win_resize_timeout) {
-        term->win_resize_pending = WIN_RESIZE_NO;
-        queue_toplevel_callback(term_out_cb, term);
-    }
 }
 
 static void term_update_callback(void *ctx)
@@ -1426,8 +1420,6 @@ void term_update(Terminal *term)
         term->win_resize_pending = WIN_RESIZE_AWAIT_REPLY;
         win_request_resize(term->win, term->win_resize_pending_w,
                            term->win_resize_pending_h);
-        term->win_resize_timeout = schedule_timer(
-            WIN_RESIZE_TIMEOUT, term_timer, term);
     }
     if (term->win_zorder_pending) {
         win_set_zorder(term->win, term->win_zorder_top);
@@ -2151,14 +2143,6 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     int sblen;
     int save_alt_which = term->alt_which;
 
-    /* If we were holding buffered terminal data because we were
-     * waiting for confirmation of a resize, queue a callback to start
-     * processing it again. */
-    if (term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY) {
-        term->win_resize_pending = WIN_RESIZE_NO;
-        queue_toplevel_callback(term_out_cb, term);
-    }
-
     if (newrows == term->rows && newcols == term->cols &&
         newsavelines == term->savelines)
         return;                        /* nothing to do */
@@ -2334,6 +2318,13 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     term_schedule_update(term);
     if (term->backend)
         backend_size(term->backend, term->cols, term->rows);
+}
+
+void term_resize_request_completed(Terminal *term)
+{
+    assert(term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY);
+    term->win_resize_pending = WIN_RESIZE_NO;
+    queue_toplevel_callback(term_out_cb, term);
 }
 
 /*

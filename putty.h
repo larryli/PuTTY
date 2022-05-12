@@ -1636,6 +1636,17 @@ struct TermWinVtable {
 
     void (*refresh)(TermWin *);
 
+    /* request_resize asks the front end if the terminal can please be
+     * resized to (w,h) in characters. The front end MAY call
+     * term_size() in response to tell the terminal its new size
+     * (which MAY be the requested size, or some other size if the
+     * requested one can't be achieved). The front end MAY also not
+     * call term_size() at all. But the front end MUST reply to this
+     * request by calling term_resize_request_completed(), after the
+     * responding resize event has taken place (if any).
+     *
+     * The calls to term_size and term_resize_request_completed may be
+     * synchronous callbacks from within the call to request_resize(). */
     void (*request_resize)(TermWin *, int w, int h);
 
     void (*set_title)(TermWin *, const char *title, int codepage);
@@ -2133,6 +2144,7 @@ FontSpec *platform_default_fontspec(const char *name);
 Terminal *term_init(Conf *, struct unicode_data *, TermWin *);
 void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
+void term_resize_request_completed(Terminal *);
 void term_paint(Terminal *, int, int, int, int, bool);
 void term_scroll(Terminal *, int, int);
 void term_scroll_to_selection(Terminal *, int);
