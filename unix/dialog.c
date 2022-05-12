@@ -2506,8 +2506,10 @@ GtkWidget *layout_ctrls(
              */
             uc->text = w = gtk_label_new(uc->ctrl->label);
 #endif
+#if GTK_CHECK_VERSION(2,0,0)
             gtk_label_set_selectable(GTK_LABEL(w), true);
             gtk_widget_set_can_focus(w, false);
+#endif
             align_label_left(GTK_LABEL(w));
             gtk_label_set_line_wrap(GTK_LABEL(w), ctrl->text.wrap);
             if (!ctrl->text.wrap) {
@@ -2518,7 +2520,9 @@ GtkWidget *layout_ctrls(
                 gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w),
                                                GTK_POLICY_AUTOMATIC,
                                                GTK_POLICY_NEVER);
+#if GTK_CHECK_VERSION(2,0,0)
                 gtk_widget_set_can_focus(w, false);
+#endif
             }
             break;
         }
