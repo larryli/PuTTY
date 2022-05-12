@@ -3822,6 +3822,19 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 }
                 break;
               case '\007': {            /* BEL: Bell */
+                if (term->termstate == SEEN_OSC ||
+                    term->termstate == SEEN_OSC_W) {
+                    /*
+                     * In an OSC context, BEL is one of the ways to terminate
+                     * the whole sequence. We process it as such even if we
+                     * haven't got into the final OSC_STRING state yet, so that
+                     * OSC sequences without a string will be handled cleanly.
+                     */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                }
+
                 struct beeptime *newbeep;
                 unsigned long ticks;
 
