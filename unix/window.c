@@ -1278,7 +1278,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - Ctrl->: increase font size\n");
 #endif
-            change_font_size(inst, +1);
+            if (!inst->win_resize_pending)
+                change_font_size(inst, +1);
             return true;
         }
         if (event->keyval == GDK_KEY_less &&
@@ -1286,7 +1287,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - Ctrl-<: increase font size\n");
 #endif
-            change_font_size(inst, -1);
+            if (!inst->win_resize_pending)
+                change_font_size(inst, -1);
             return true;
         }
 
@@ -2513,10 +2515,9 @@ static void gtkwin_timer(void *vctx, unsigned long now)
     }
 }
 
-static void gtkwin_request_resize(TermWin *tw, int w, int h)
+static void request_resize_internal(GtkFrontend *inst, bool from_terminal,
+                                    int w, int h)
 {
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-
 #if GTK_CHECK_VERSION(2,0,0)
     /*
      * Initial check: don't even try to resize a window if it's in one
@@ -2648,9 +2649,15 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
 #endif
 
     inst->win_resize_pending = true;
-    inst->term_resize_notification_required = true;
+    inst->term_resize_notification_required = from_terminal;
     inst->win_resize_timeout = schedule_timer(
         WIN_RESIZE_TIMEOUT, gtkwin_timer, inst);
+}
+
+static void gtkwin_request_resize(TermWin *tw, int w, int h)
+{
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    request_resize_internal(inst, true, w, h);
 }
 
 #if GTK_CHECK_VERSION(3,0,0)
@@ -4834,9 +4841,9 @@ static void after_change_settings_dialog(void *vctx, int retval)
             conf_get_int(newconf, CONF_window_border) ||
             need_size) {
             set_geom_hints(inst);
-            win_request_resize(&inst->termwin,
-                               conf_get_int(newconf, CONF_width),
-                               conf_get_int(newconf, CONF_height));
+            request_resize_internal(inst, false,
+                                    conf_get_int(newconf, CONF_width),
+                                    conf_get_int(newconf, CONF_height));
         } else {
             /*
              * The above will have caused a call to term_size() for
@@ -4909,8 +4916,8 @@ static void change_font_size(GtkFrontend *inst, int increment)
     }
 
     set_geom_hints(inst);
-    win_request_resize(&inst->termwin, conf_get_int(inst->conf, CONF_width),
-                       conf_get_int(inst->conf, CONF_height));
+    request_resize_internal(inst, false, conf_get_int(inst->conf, CONF_width),
+                            conf_get_int(inst->conf, CONF_height));
     term_invalidate(inst->term);
     gtk_widget_queue_draw(inst->area);
 
