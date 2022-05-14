@@ -4506,7 +4506,7 @@ void set_geom_hints(GtkFrontend *inst)
      * So instead, I simply avoid setting geometry hints at all on any
      * GDK backend other than X11, and hopefully that's a workaround.
      */
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,0,0) && !defined NOT_X_WINDOWS
     if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
         return;
 #endif
