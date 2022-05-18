@@ -8,6 +8,10 @@ the source directory:
   cmake .
   cmake --build .
 
+Then, to install in the simplest way on Linux or Mac:
+
+  cmake --build . --target install
+
 Documentation (in various formats including Windows Help and Unix
 `man' pages) is built from the Halibut (`.but') files in the `doc'
 subdirectory using `doc/Makefile'. If you aren't using one of our
