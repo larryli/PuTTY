@@ -65,8 +65,14 @@ Filename *platform_default_filename(const char *name)
 
 SeatPromptResult filexfer_get_userpass_input(Seat *seat, prompts_t *p)
 {
+    /* The file transfer tools don't support Restart Session, so we
+     * can just have a single static cmdline_get_passwd_input_state
+     * that's never reset */
+    static cmdline_get_passwd_input_state cmdline_state =
+        CMDLINE_GET_PASSWD_INPUT_STATE_INIT;
+
     SeatPromptResult spr;
-    spr = cmdline_get_passwd_input(p);
+    spr = cmdline_get_passwd_input(p, &cmdline_state, false);
     if (spr.kind == SPRK_INCOMPLETE)
         spr = console_get_userpass_input(p);
     return spr;

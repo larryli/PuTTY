@@ -130,6 +130,8 @@ static int kbd_codepage;
 static Ldisc *ldisc;
 static Backend *backend;
 
+static cmdline_get_passwd_input_state cmdline_get_passwd_state;
+
 static struct unicode_data ucsdata;
 static bool session_closed;
 static bool reconfiguring = false;
@@ -370,6 +372,8 @@ static void start_backend(void)
     const struct BackendVtable *vt;
     char *error, *realhost;
     int i;
+
+    cmdline_get_passwd_state = cmdline_get_passwd_input_state_new;
 
     vt = backend_vt_from_conf(conf);
 
@@ -5909,7 +5913,7 @@ static bool win_seat_eof(Seat *seat)
 static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     SeatPromptResult spr;
-    spr = cmdline_get_passwd_input(p);
+    spr = cmdline_get_passwd_input(p, &cmdline_get_passwd_state, true);
     if (spr.kind == SPRK_INCOMPLETE)
         spr = term_get_userpass_input(term, p);
     return spr;
