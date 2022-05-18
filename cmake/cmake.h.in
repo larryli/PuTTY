@@ -28,6 +28,7 @@
 #cmakedefine01 HAVE_POSIX_OPENPT
 #cmakedefine01 HAVE_PTSNAME
 #cmakedefine01 HAVE_SETRESUID
+#cmakedefine01 HAVE_SETRESGID
 #cmakedefine01 HAVE_STRSIGNAL
 #cmakedefine01 HAVE_UPDWTMPX
 #cmakedefine01 HAVE_FSTATAT
