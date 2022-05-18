@@ -16,6 +16,7 @@
 #cmakedefine01 HAVE_DWMAPI_H
 
 #cmakedefine NOT_X_WINDOWS
+#cmakedefine OMIT_UTMP
 
 #cmakedefine01 HAVE_ASM_HWCAP_H
 #cmakedefine01 HAVE_SYS_AUXV_H

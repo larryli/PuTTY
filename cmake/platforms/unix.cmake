@@ -19,6 +19,7 @@ check_include_file(sys/sysctl.h HAVE_SYS_SYSCTL_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(glob.h HAVE_GLOB_H)
 check_include_file(utmp.h HAVE_UTMP_H)
+check_include_file(utmpx.h HAVE_UTMPX_H)
 
 check_symbol_exists(futimes "sys/time.h" HAVE_FUTIMES)
 check_symbol_exists(getaddrinfo "sys/types.h;sys/socket.h;netdb.h"
@@ -54,6 +55,12 @@ if(HAVE_GETADDRINFO AND PUTTY_IPV6)
   set(NO_IPV6 OFF)
 else()
   set(NO_IPV6 ON)
+endif()
+
+if(HAVE_UTMPX_H)
+  set(OMIT_UTMP OFF)
+else()
+  set(OMIT_UTMP ON)
 endif()
 
 include(cmake/gtk.cmake)
