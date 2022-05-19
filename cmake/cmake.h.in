@@ -17,6 +17,7 @@
 #cmakedefine01 HAVE_DWMAPI_H
 
 #cmakedefine NOT_X_WINDOWS
+#cmakedefine OMIT_UTMP
 
 #cmakedefine01 HAVE_ASM_HWCAP_H
 #cmakedefine01 HAVE_SYS_AUXV_H
@@ -29,6 +30,7 @@
 #cmakedefine01 HAVE_POSIX_OPENPT
 #cmakedefine01 HAVE_PTSNAME
 #cmakedefine01 HAVE_SETRESUID
+#cmakedefine01 HAVE_SETRESGID
 #cmakedefine01 HAVE_STRSIGNAL
 #cmakedefine01 HAVE_UPDWTMPX
 #cmakedefine01 HAVE_FSTATAT

@@ -10,6 +10,7 @@ add_sources_from_current_dir(utils
   buildinfo.c
   burnstr.c
   chomp.c
+  cmdline_get_passwd_input_state_new.c
   conf.c
   conf_dest.c
   conf_launchable.c

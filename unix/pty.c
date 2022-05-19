@@ -227,6 +227,8 @@ static void setup_utmp(char *ttyname, char *location)
     endutxent();
 
 #if HAVE_UPDWTMPX
+    /* Reportedly, AIX 5.1 has <utmpx.h> and pututxline(), but no
+     * updwtmpx(). */
     updwtmpx(WTMPX_FILE, &utmp_entry);
 #endif
 

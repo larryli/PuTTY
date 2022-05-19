@@ -2540,10 +2540,15 @@ void printer_finish_job(printer_job *);
  * zero out password arguments in the hope of not having them show up
  * avoidably in Unix 'ps'.
  */
+struct cmdline_get_passwd_input_state { bool tried; };
+#define CMDLINE_GET_PASSWD_INPUT_STATE_INIT { .tried = false }
+extern const cmdline_get_passwd_input_state cmdline_get_passwd_input_state_new;
+
 int cmdline_process_param(const char *, char *, int, Conf *);
 void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
-SeatPromptResult cmdline_get_passwd_input(prompts_t *p);
+SeatPromptResult cmdline_get_passwd_input(
+    prompts_t *p, cmdline_get_passwd_input_state *state, bool restartable);
 bool cmdline_host_ok(Conf *);
 bool cmdline_verbose(void);
 bool cmdline_loaded_session(void);

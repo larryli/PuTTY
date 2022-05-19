@@ -81,10 +81,9 @@ void cmdline_cleanup(void)
  * -1 return means that we aren't capable of processing the prompt and
  * someone else should do it.
  */
-SeatPromptResult cmdline_get_passwd_input(prompts_t *p)
+SeatPromptResult cmdline_get_passwd_input(
+    prompts_t *p, cmdline_get_passwd_input_state *state, bool restartable)
 {
-    static bool tried_once = false;
-
     /*
      * We only handle prompts which don't echo (which we assume to be
      * passwords), and (currently) we only cope with a password prompt
@@ -98,23 +97,32 @@ SeatPromptResult cmdline_get_passwd_input(prompts_t *p)
      * If we've tried once, return utter failure (no more passwords left
      * to try).
      */
-    if (tried_once)
+    if (state->tried)
         return SPR_SW_ABORT("Configured password was not accepted");
 
     /*
      * If we never had a password available in the first place, we
      * can't do anything in any case. (But we delay this test until
-     * after tried_once, so that after we free cmdline_password below,
-     * we'll still remember that we _used_ to have one.)
+     * after trying once, so that even if we free cmdline_password
+     * below, we'll still remember that we _used_ to have one.)
      */
     if (!cmdline_password)
         return SPR_INCOMPLETE;
 
     prompt_set_result(p->prompts[0], cmdline_password);
-    smemclr(cmdline_password, strlen(cmdline_password));
-    sfree(cmdline_password);
-    cmdline_password = NULL;
-    tried_once = true;
+    state->tried = true;
+
+    if (!restartable) {
+        /*
+         * If there's no possibility of needing to do this again after
+         * a 'Restart Session' event, then wipe our copy of the
+         * password out of memory.
+         */
+        smemclr(cmdline_password, strlen(cmdline_password));
+        sfree(cmdline_password);
+        cmdline_password = NULL;
+    }
+
     return SPR_OK;
 }
 

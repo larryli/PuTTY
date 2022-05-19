@@ -8,6 +8,20 @@ the source directory:
   cmake .
   cmake --build .
 
+Then, to install in the simplest way on Linux or Mac:
+
+  cmake --build . --target install
+
+On Unix, pterm would like to be setuid or setgid, as appropriate, to
+permit it to write records of user logins to /var/run/utmp and
+/var/log/wtmp. (Of course it will not use this privilege for
+anything else, and in particular it will drop all privileges before
+starting up complex subsystems like GTK.) The cmake install step
+doesn't attempt to add these privileges, so if you want user login
+recording to work, you should manually ch{own,grp} and chmod the
+pterm binary yourself after installation. If you don't do this,
+pterm will still work, but not update the user login databases.
+
 Documentation (in various formats including Windows Help and Unix
 `man' pages) is built from the Halibut (`.but') files in the `doc'
 subdirectory using `doc/Makefile'. If you aren't using one of our

@@ -15,7 +15,8 @@
  * handling, then there is no such option, so that function always
  * returns failure.
  */
-SeatPromptResult cmdline_get_passwd_input(prompts_t *p)
+SeatPromptResult cmdline_get_passwd_input(
+    prompts_t *p, cmdline_get_passwd_input_state *state, bool restartable)
 {
     return SPR_INCOMPLETE;
 }

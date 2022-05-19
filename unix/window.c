@@ -160,6 +160,7 @@ struct GtkFrontend {
     Ldisc *ldisc;
     Backend *backend;
     Terminal *term;
+    cmdline_get_passwd_input_state cmdline_get_passwd_state;
     LogContext *logctx;
     bool exited;
     struct unicode_data ucsdata;
@@ -361,7 +362,7 @@ static SeatPromptResult gtk_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     SeatPromptResult spr;
-    spr = cmdline_get_passwd_input(p);
+    spr = cmdline_get_passwd_input(p, &inst->cmdline_get_passwd_state, true);
     if (spr.kind == SPRK_INCOMPLETE)
         spr = term_get_userpass_input(inst->term, p);
     return spr;
@@ -4551,7 +4552,7 @@ void set_geom_hints(GtkFrontend *inst)
      * So instead, I simply avoid setting geometry hints at all on any
      * GDK backend other than X11, and hopefully that's a workaround.
      */
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,0,0) && !defined NOT_X_WINDOWS
     if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
         return;
 #endif
@@ -5149,6 +5150,8 @@ static void start_backend(GtkFrontend *inst)
 {
     const struct BackendVtable *vt;
     char *error, *realhost;
+
+    inst->cmdline_get_passwd_state = cmdline_get_passwd_input_state_new;
 
     vt = select_backend(inst->conf);
 
