@@ -2074,7 +2074,7 @@ static bool is_alt_pressed(void)
 
 static bool resizing;
 
-static void win_seat_notify_remote_exit(Seat *seat)
+static void exit_callback(void *vctx)
 {
     int exitcode, close_on_exit;
 
@@ -2099,6 +2099,11 @@ static void win_seat_notify_remote_exit(Seat *seat)
             }
         }
     }
+}
+
+static void win_seat_notify_remote_exit(Seat *seat)
+{
+    queue_toplevel_callback(exit_callback, NULL);
 }
 
 void timer_change_notify(unsigned long next)
