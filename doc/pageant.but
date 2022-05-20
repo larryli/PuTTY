@@ -170,7 +170,7 @@ by the command, like this:
 
 \c C:\PuTTY\pageant.exe d:\main.ppk -c C:\PuTTY\putty.exe
 
-\S{pageant-cmdline-openssh} Integrating with Windows OpenSSH
+\S{pageant-cmdline-openssh} Integrating with \i{Windows OpenSSH}
 
 Windows's own port of OpenSSH uses the same mechanism as Pageant to
 talk to its SSH agent (Windows named pipes). This means that Windows
@@ -184,7 +184,7 @@ configuration, then \c{ssh.exe} should automatically use Pageant as
 its agent, so that you can keep your keys in one place and have both
 SSH clients able to use them.
 
-The option is \c{--openssh-config}, and you follow it with a filename.
+The option is \i\c{--openssh-config}, and you follow it with a filename.
 
 To refer to this file from your main OpenSSH configuration, you can
 use the \cq{Include} directive. For example, you might run Pageant
