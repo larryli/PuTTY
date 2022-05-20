@@ -1,5 +1,5 @@
 /*
- * GTK implementation of a GUI password/passphrase prompt.
+ * Dummy (lack-of-)implementation of a GUI password/passphrase prompt.
  */
 
 #include "putty.h"
