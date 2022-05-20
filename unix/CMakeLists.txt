@@ -19,14 +19,16 @@ add_sources_from_current_dir(utils
   utils/pollwrap.c
   utils/signal.c
   utils/x11_ignore_error.c
-  # Compiled icon pixmap files
-  putty-xpm.c
-  putty-config-xpm.c
-  pterm-xpm.c
-  pterm-config-xpm.c
   # We want the ISO C implementation of ltime(), because we don't have
   # a local better alternative
   ../utils/ltime.c)
+# Compiled icon pixmap files
+add_library(puttyxpms STATIC
+  putty-xpm.c
+  putty-config-xpm.c)
+add_library(ptermxpms STATIC
+  pterm-xpm.c
+  pterm-config-xpm.c)
 add_sources_from_current_dir(eventloop
   cliloop.c uxsel.c)
 add_sources_from_current_dir(console
@@ -139,7 +141,7 @@ if(GTK_FOUND)
     pty.c)
   be_list(pterm pterm)
   target_link_libraries(pterm
-    guiterminal eventloop settings charset utils
+    guiterminal eventloop settings charset utils ptermxpms
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
   installed_program(pterm)
 
@@ -154,7 +156,7 @@ if(GTK_FOUND)
       pty.c)
     be_list(ptermapp pterm)
     target_link_libraries(ptermapp
-      guiterminal eventloop settings charset utils
+      guiterminal eventloop settings charset utils ptermxpms
       ${GTK_LIBRARIES} ${X11_LIBRARIES})
   endif()
 
@@ -164,7 +166,7 @@ if(GTK_FOUND)
   be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
   target_link_libraries(putty
     guiterminal eventloop sshclient otherbackends settings
-    network crypto charset utils
+    network crypto charset utils puttyxpms
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
   set_target_properties(putty
     PROPERTIES LINK_INTERFACE_MULTIPLICITY 2)
@@ -178,7 +180,7 @@ if(GTK_FOUND)
     be_list(puttyapp PuTTY SSH SERIAL OTHERBACKENDS)
     target_link_libraries(puttyapp
       guiterminal eventloop sshclient otherbackends settings
-      network crypto charset utils
+      network crypto charset utils puttyxpms
       ${GTK_LIBRARIES} ${X11_LIBRARIES})
   endif()
 
@@ -193,6 +195,7 @@ if(GTK_FOUND)
   be_list(puttytel PuTTYtel SERIAL OTHERBACKENDS)
   target_link_libraries(puttytel
     guiterminal eventloop otherbackends settings network charset utils
+    puttyxpms
     ${GTK_LIBRARIES} ${X11_LIBRARIES})
 endif()
 
