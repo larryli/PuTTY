@@ -190,7 +190,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
 
     si.StartupInfo.cb = sizeof(si);
 
-    size_t attrsize = 0;
+    SIZE_T attrsize = 0;
     InitializeProcThreadAttributeList(NULL, 1, 0, &attrsize);
     si.lpAttributeList = smalloc(attrsize);
     if (!InitializeProcThreadAttributeList(
