@@ -76,9 +76,6 @@ Making a release candidate build
  - Make the release tag, pointing at the version-update commit we just
    generated.
 
- - If the release is on a branch (which I expect it generally will
-   be), merge that branch to main.
-
  - Make a release-candidate build from the release tag, and put the
    build.out and build.log files somewhere safe. Normally I store
    these inside the ~/src/putty/X.YZ directory, alongside the git
@@ -119,6 +116,10 @@ Making a release candidate build
          also try Debian sid
        + test-build with all of GTK 1, 2 and 3
        + test-build with -DNOT_X_WINDOWS
+    * test that the Windows source builds with Visual Studio (just in
+      case there's an unguarded clangism that would prevent it)
+    * quick check of the outlying network protocols (Telnet, SUPDUP
+      etc)
     * feed the release-candidate source to Coverity and make sure it
       didn't turn up any last-minute problems
     * make sure we have a clean run of testsc
@@ -194,12 +195,18 @@ locally, this is the procedure for putting it up on the web.
    correctly and work:
       ../putty/release.pl --version=X.YZ --postcheck
 
+ - If the release is on a branch (which I expect it generally will
+   be), merge that branch to main, so that the 'update version number'
+   change appears on main and the snapshots start announcing
+   themselves as post-X.YZ.
+
  - Push all the git repositories:
     * run 'git push' in the website checkout
     * run 'git push' in the wishlist checkout
     * push from the main PuTTY checkout. Typically this one will be
-      pushing both the release tag and an update to the main branch,
-      plus removing the pre-release branch, so you'll want some
+      pushing both the release tag and the merge we just made to the
+      main branch, plus removing the pre-release branch, so you'll
+      want some
       commands along these lines:
         git push origin main          # update the main branch
         git push origin --tags        # should push the new release tag
