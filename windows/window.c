@@ -515,11 +515,6 @@ char *terminal_window_class_a(void)
     return classname;
 }
 
-const unsigned cmdline_tooltype =
-    TOOLTYPE_HOST_ARG |
-    TOOLTYPE_PORT_ARG |
-    TOOLTYPE_NO_VERBOSE_OPTION;
-
 HINSTANCE hinst;
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)

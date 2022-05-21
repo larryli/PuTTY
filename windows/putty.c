@@ -6,6 +6,11 @@ extern const char *dialog_box_demo_screenshot_filename;
 static strbuf *demo_terminal_data = NULL;
 static const char *terminal_demo_screenshot_filename;
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_PORT_ARG |
+    TOOLTYPE_NO_VERBOSE_OPTION;
+
 void gui_term_process_cmdline(Conf *conf, char *cmdline)
 {
     char *p;

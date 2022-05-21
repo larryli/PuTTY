@@ -759,11 +759,13 @@ int cmdline_process_param(const char *p, char *value,
 
     if (!strcmp(p, "-4") || !strcmp(p, "-ipv4")) {
         RETURN(1);
+        UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
         SAVEABLE(1);
         conf_set_int(conf, CONF_addressfamily, ADDRTYPE_IPV4);
     }
     if (!strcmp(p, "-6") || !strcmp(p, "-ipv6")) {
         RETURN(1);
+        UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
         SAVEABLE(1);
         conf_set_int(conf, CONF_addressfamily, ADDRTYPE_IPV6);
     }

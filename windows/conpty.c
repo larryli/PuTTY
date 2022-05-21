@@ -25,6 +25,27 @@ struct ConPTY {
     Backend backend;
 };
 
+DECL_WINDOWS_FUNCTION(static, HRESULT, CreatePseudoConsole,
+                      (COORD, HANDLE, HANDLE, DWORD, HPCON *));
+DECL_WINDOWS_FUNCTION(static, void, ClosePseudoConsole, (HPCON));
+DECL_WINDOWS_FUNCTION(static, HRESULT, ResizePseudoConsole, (HPCON, COORD));
+
+static bool init_conpty_api(void)
+{
+    static bool tried = false;
+    if (!tried) {
+        tried = true;
+        HMODULE kernel32_module = load_system32_dll("kernel32.dll");
+        GET_WINDOWS_FUNCTION(kernel32_module, CreatePseudoConsole);
+        GET_WINDOWS_FUNCTION(kernel32_module, ClosePseudoConsole);
+        GET_WINDOWS_FUNCTION(kernel32_module, ResizePseudoConsole);
+    }
+
+    return (p_CreatePseudoConsole != NULL &&
+            p_ClosePseudoConsole != NULL &&
+            p_ResizePseudoConsole != NULL);
+}
+
 static void conpty_terminate(ConPTY *conpty)
 {
     if (conpty->out) {
@@ -49,7 +70,7 @@ static void conpty_terminate(ConPTY *conpty)
         conpty->hprocess = INVALID_HANDLE_VALUE;
     }
     if (conpty->pseudoconsole != INVALID_HANDLE_VALUE) {
-        ClosePseudoConsole(conpty->pseudoconsole);
+        p_ClosePseudoConsole(conpty->pseudoconsole);
         conpty->pseudoconsole = INVALID_HANDLE_VALUE;
     }
 }
@@ -78,7 +99,7 @@ static void conpty_process_wait_callback(void *vctx)
      * as things clean themselves up.
      */
     if (conpty->pseudoconsole != INVALID_HANDLE_VALUE) {
-        ClosePseudoConsole(conpty->pseudoconsole);
+        p_ClosePseudoConsole(conpty->pseudoconsole);
         conpty->pseudoconsole = INVALID_HANDLE_VALUE;
     }
 }
@@ -158,6 +179,12 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     STARTUPINFOEX si;
     memset(&si, 0, sizeof(si));
 
+    if (!init_conpty_api()) {
+        err = dupprintf("Pseudo-console API is not available on this "
+                        "Windows system");
+        goto out;
+    }
+
     if (!CreatePipe(&in_r, &in_w, NULL, 0)) {
         err = dupprintf("CreatePipe: %s", win_strerror(GetLastError()));
         goto out;
@@ -171,7 +198,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     size.X = conf_get_int(conf, CONF_width);
     size.Y = conf_get_int(conf, CONF_height);
 
-    HRESULT result = CreatePseudoConsole(size, in_r, out_w, 0, &pcon);
+    HRESULT result = p_CreatePseudoConsole(size, in_r, out_w, 0, &pcon);
     if (FAILED(result)) {
         if (HRESULT_FACILITY(result) == FACILITY_WIN32)
             err = dupprintf("CreatePseudoConsole: %s",
@@ -190,7 +217,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
 
     si.StartupInfo.cb = sizeof(si);
 
-    size_t attrsize = 0;
+    SIZE_T attrsize = 0;
     InitializeProcThreadAttributeList(NULL, 1, 0, &attrsize);
     si.lpAttributeList = smalloc(attrsize);
     if (!InitializeProcThreadAttributeList(
@@ -271,7 +298,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     if (out_w != INVALID_HANDLE_VALUE)
         CloseHandle(out_w);
     if (pcon_needs_cleanup)
-        ClosePseudoConsole(pcon);
+        p_ClosePseudoConsole(pcon);
     sfree(si.lpAttributeList);
     return err;
 }
@@ -311,7 +338,7 @@ static void conpty_size(Backend *be, int width, int height)
     COORD size;
     size.X = width;
     size.Y = height;
-    ResizePseudoConsole(conpty->pseudoconsole, size);
+    p_ResizePseudoConsole(conpty->pseudoconsole, size);
 }
 
 static void conpty_special(Backend *be, SessionSpecialCode code, int arg)
