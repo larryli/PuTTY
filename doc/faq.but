@@ -220,7 +220,7 @@ Currently, release versions of PuTTY tools only run on Windows
 systems and Unix.
 
 As of 0.68, the supplied PuTTY executables run on versions of Windows
-from XP onwards, up to and including Windows 10; and we know of no
+from XP onwards, up to and including Windows 11; and we know of no
 reason why PuTTY should not continue to work on future versions of
 Windows. We provide 32-bit and 64-bit Windows executables for the
 common x86 processor family; see \k{faq-32bit-64bit} for discussion
