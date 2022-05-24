@@ -150,7 +150,7 @@ data at the server end; it's your guarantee that it hasn't been
 removed and replaced somewhere on the way. Host key checking makes
 the attacker's job \e{astronomically} hard, compared to packet
 sniffing, and even compared to subverting a router. Instead of
-applying a little intelligence and keeping an eye on Bugtraq, the
+applying a little intelligence and keeping an eye on oss-security, the
 attacker must now perform a brute-force attack against at least one
 military-strength cipher. That insignificant host key prompt really
 does make \e{that} much difference.
