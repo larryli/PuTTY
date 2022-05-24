@@ -1,6 +1,6 @@
 /*
- * window.c - the PuTTY(tel) main program, which runs a PuTTY terminal
- * emulator and backend in a window.
+ * window.c - the PuTTY(tel)/pterm main program, which runs a PuTTY
+ * terminal emulator and backend in a window.
  */
 
 #include <stdio.h>
@@ -381,8 +381,14 @@ static void start_backend(void)
                          conf_get_bool(conf, CONF_tcp_keepalives));
     if (error) {
         char *str = dupprintf("%s Error", appname);
-        char *msg = dupprintf("Unable to open connection to\n%s\n%s",
-                              conf_dest(conf), error);
+        char *msg;
+        if (cmdline_tooltype & TOOLTYPE_NONNETWORK) {
+            /* Special case for pterm. */
+            msg = dupprintf("Unable to open terminal:\n%s", error);
+        } else {
+            msg = dupprintf("Unable to open connection to\n%s\n%s",
+                            conf_dest(conf), error);
+        }
         sfree(error);
         MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
         sfree(str);

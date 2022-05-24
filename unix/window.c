@@ -5165,9 +5165,16 @@ static void start_backend(GtkFrontend *inst)
                          conf_get_bool(inst->conf, CONF_tcp_keepalives));
 
     if (error) {
-        seat_connection_fatal(&inst->seat,
-                              "Unable to open connection to %s:\n%s",
-                              conf_dest(inst->conf), error);
+        if (cmdline_tooltype & TOOLTYPE_NONNETWORK) {
+            /* Special case for pterm. */
+            seat_connection_fatal(&inst->seat,
+                                  "Unable to open terminal:\n%s",
+                                  error);
+        } else {
+            seat_connection_fatal(&inst->seat,
+                                  "Unable to open connection to %s:\n%s",
+                                  conf_dest(inst->conf), error);
+        }
         sfree(error);
         inst->exited = true;
         return;
