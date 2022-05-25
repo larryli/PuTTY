@@ -585,7 +585,7 @@ You can also paste by pressing Shift-Ins.
 keys, proxying, cipher selection, etc.) in PSCP, PSFTP and Plink?
 
 Most major features (e.g., public keys, port forwarding) are available
-through command line options. See the documentation.
+through command line options. See \k{using-general-opts}.
 
 Not all features are accessible from the command line yet, although
 we'd like to fix this. In the meantime, you can use most of
