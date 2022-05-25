@@ -55,7 +55,7 @@ ifneq "$(SNAPSHOT)" "" set Puttytextver PuTTY development snapshot $(Date).$(vcs
 ifneq "$(SNAPSHOT)" "" set Textver Development snapshot $(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Puttytextver PuTTY custom build $(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Textver Custom build $(Date).$(vcsid)
-in putty/doc do echo "\\versionid $(Puttytextver)" > version.but
+in putty/doc do echo "\\\\versionid $(Puttytextver)" > version.but
 
 # Set up the version string for use in the SSH connection greeting.
 #
