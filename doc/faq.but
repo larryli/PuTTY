@@ -250,8 +250,7 @@ There are Unix ports of most of the traditional PuTTY tools, and also
 one entirely new application.
 
 If you look at the source release, you should find a \c{unix}
-subdirectory. There are a couple of ways of building it,
-including the usual \c{configure}/\c{make}; see the file \c{README}
+subdirectory. You need \c{cmake} to build it; see the file \c{README}
 in the source distribution. This should build you:
 
 \b Unix ports of PuTTY, Plink, PSCP, and PSFTP, which work pretty much
