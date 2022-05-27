@@ -226,6 +226,17 @@ locally, this is the procedure for putting it up on the web.
    subdirectory for the new version and that the links from its
    latest.html point into that subdirectory.
 
+ - Start the process of updating our Windows Store entry:
+    + log into partner.microsoft.com and go to Partner Center
+    + start editing the existing app submission, which should
+      automatically create a new submission
+       * provide a new set of installer URLs, then click "save all"
+         which actually uploads them
+       * change the "what's new in this release" text in the store
+         listing
+       * upload revised screenshots, if necessary
+    + press Publish to submit that to the actual upload process
+
  - Announce the release!
     + Construct a release announcement email whose message body is the
       announcement written above, and which includes the following
