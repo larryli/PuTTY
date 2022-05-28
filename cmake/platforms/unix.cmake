@@ -123,6 +123,10 @@ cannot provide static GSSAPI support")
   endif()
 endif()
 
+if(PUTTY_GSSAPI STREQUAL OFF)
+  set(NO_GSSAPI ON)
+endif()
+
 if(STRICT AND (CMAKE_C_COMPILER_ID MATCHES "GNU" OR
                CMAKE_C_COMPILER_ID MATCHES "Clang"))
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wpointer-arith -Wvla")
