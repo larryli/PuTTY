@@ -1240,6 +1240,35 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
 int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
              wchar_t *wcstr, int wclen)
 {
+    if (codepage >= 65536) {
+        /* Character set not known to Windows, so we'll have to
+         * translate it ourself */
+        size_t index = codepage - 65536;
+        if (index >= lenof(cp_list))
+            return 0;
+        const struct cp_list_item *cp = &cp_list[index];
+        if (!cp->cp_table)
+            return 0;
+
+        size_t remaining = wclen;
+        wchar_t *p = wcstr;
+        unsigned tablebase = 256 - cp->cp_size;
+
+        while (mblen > 0) {
+            mblen--;
+            unsigned c = 0xFF & *mbstr++;
+            wchar_t wc = (c < tablebase ? c : cp->cp_table[c - tablebase]);
+            if (remaining > 0) {
+                remaining--;
+                *p++ = wc;
+            } else {
+                return p - wcstr;
+            }
+        }
+
+        return p - wcstr;
+    }
+
     int ret = MultiByteToWideChar(codepage, flags, mbstr, mblen, wcstr, wclen);
     if (ret)
         return ret;
