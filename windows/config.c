@@ -173,7 +173,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                       I(CONF_beep_ind),
                       "Disabled", I(B_IND_DISABLED),
                       "Flashing", I(B_IND_FLASH),
-                      "Steady", I(B_IND_STEADY), NULL);
+                      "Steady", I(B_IND_STEADY));
 
     /*
      * The sunken-edge border is a Windows GUI feature.
@@ -198,7 +198,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                       "Antialiased", I(FQ_ANTIALIASED),
                       "Non-Antialiased", I(FQ_NONANTIALIASED),
                       "ClearType", I(FQ_CLEARTYPE),
-                      "Default", I(FQ_DEFAULT), NULL);
+                      "Default", I(FQ_DEFAULT));
 
     /*
      * Cyrillic Lock is a horrid misfeature even on Windows, and
@@ -289,7 +289,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                       I(CONF_mouse_is_xterm),
                       "Windows (Middle extends, Right brings up menu)", I(2),
                       "Compromise (Middle extends, Right pastes)", I(0),
-                      "xterm (Right extends, Middle pastes)", I(1), NULL);
+                      "xterm (Right extends, Middle pastes)", I(1));
     /*
      * This really ought to go at the _top_ of its box, not the
      * bottom, so we'll just do some shuffling now we've set it
@@ -328,7 +328,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                           "Change the number of rows and columns", I(RESIZE_TERM),
                           "Change the size of the font", I(RESIZE_FONT),
                           "Change font size only when maximised", I(RESIZE_EITHER),
-                          "Forbid resizing completely", I(RESIZE_DISABLED), NULL);
+                          "Forbid resizing completely", I(RESIZE_DISABLED));
     }
 
     /*

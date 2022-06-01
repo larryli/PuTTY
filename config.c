@@ -1844,7 +1844,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
         ctrl_columns(s, 2, 62, 38);
         c = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
                               HELPCTX(session_hostname),
-                              config_protocols_handler, P(hp), NULL);
+                              config_protocols_handler, P(hp));
         c->column = 0;
         hp->protradio = c;
         c->radio.buttons = sresize(c->radio.buttons, PROTOCOL_LIMIT, char *);
@@ -1944,7 +1944,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       I(CONF_close_on_exit),
                       "Always", I(FORCE_ON),
                       "Never", I(FORCE_OFF),
-                      "Only on clean exit", I(AUTO), NULL);
+                      "Only on clean exit", I(AUTO));
 
     /*
      * The Session/Logging panel.
@@ -1974,8 +1974,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           "Printable output", 'p', I(LGTYP_ASCII),
                           "All session output", 'l', I(LGTYP_DEBUG),
                           sshlogname, 's', I(LGTYP_PACKETS),
-                          sshrawlogname, 'r', I(LGTYP_SSHRAW),
-                          NULL);
+                          sshrawlogname, 'r', I(LGTYP_SSHRAW));
     }
     ctrl_filesel(s, "Log file name:", 'f',
                  NULL, true, "Select session log file name",
@@ -1989,7 +1988,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       conf_radiobutton_handler, I(CONF_logxfovr),
                       "Always overwrite it", I(LGXF_OVR),
                       "Always append to the end of it", I(LGXF_APN),
-                      "Ask the user every time", I(LGXF_ASK), NULL);
+                      "Ask the user every time", I(LGXF_ASK));
     ctrl_checkbox(s, "Flush log file frequently", 'u',
                  HELPCTX(logging_flush),
                  conf_checkbox_handler, I(CONF_logflush));
@@ -2043,13 +2042,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       conf_radiobutton_handler,I(CONF_localecho),
                       "Auto", I(AUTO),
                       "Force on", I(FORCE_ON),
-                      "Force off", I(FORCE_OFF), NULL);
+                      "Force off", I(FORCE_OFF));
     ctrl_radiobuttons(s, "Local line editing:", 't', 3,
                       HELPCTX(terminal_localedit),
                       conf_radiobutton_handler,I(CONF_localedit),
                       "Auto", I(AUTO),
                       "Force on", I(FORCE_ON),
-                      "Force off", I(FORCE_OFF), NULL);
+                      "Force off", I(FORCE_OFF));
 
     s = ctrl_getset(b, "Terminal", "printing", "Remote-controlled printing");
     ctrl_combobox(s, "Printer to send ANSI printer output to:", 'p', 100,
@@ -2068,12 +2067,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       HELPCTX(keyboard_backspace),
                       conf_radiobutton_bool_handler,
                       I(CONF_bksp_is_delete),
-                      "Control-H", I(0), "Control-? (127)", I(1), NULL);
+                      "Control-H", I(0), "Control-? (127)", I(1));
     ctrl_radiobuttons(s, "The Home and End keys", 'e', 2,
                       HELPCTX(keyboard_homeend),
                       conf_radiobutton_bool_handler,
                       I(CONF_rxvt_homeend),
-                      "Standard", I(false), "rxvt", I(true), NULL);
+                      "Standard", I(false), "rxvt", I(true));
     ctrl_radiobuttons(s, "The Function keys and keypad", 'f', 4,
                       HELPCTX(keyboard_funkeys),
                       conf_radiobutton_handler,
@@ -2084,14 +2083,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       "VT400", I(FUNKY_VT400),
                       "VT100+", I(FUNKY_VT100P),
                       "SCO", I(FUNKY_SCO),
-                      "Xterm 216+", I(FUNKY_XTERM_216),
-                      NULL);
+                      "Xterm 216+", I(FUNKY_XTERM_216));
     ctrl_radiobuttons(s, "Shift/Ctrl/Alt with the arrow keys", 'w', 2,
                       HELPCTX(keyboard_sharrow),
                       conf_radiobutton_handler,
                       I(CONF_sharrow_type),
                       "Ctrl toggles app mode", I(SHARROW_APPLICATION),
-                      "xterm-style bitmap", I(SHARROW_BITMAP), NULL);
+                      "xterm-style bitmap", I(SHARROW_BITMAP));
 
     s = ctrl_getset(b, "Terminal/Keyboard", "appkeypad",
                     "Application keypad settings:");
@@ -2099,12 +2097,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       HELPCTX(keyboard_appcursor),
                       conf_radiobutton_bool_handler,
                       I(CONF_app_cursor),
-                      "Normal", I(0), "Application", I(1), NULL);
+                      "Normal", I(0), "Application", I(1));
     ctrl_radiobuttons(s, "Initial state of numeric keypad:", 'n', 3,
                       HELPCTX(keyboard_appkeypad),
                       numeric_keypad_handler, P(NULL),
-                      "Normal", I(0), "Application", I(1), "NetHack", I(2),
-                      NULL);
+                      "Normal", I(0), "Application", I(1), "NetHack", I(2));
 
     /*
      * The Terminal/Bell panel.
@@ -2118,7 +2115,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       conf_radiobutton_handler, I(CONF_beep),
                       "None (bell disabled)", I(BELL_DISABLED),
                       "Make default system alert sound", I(BELL_DEFAULT),
-                      "Visual bell (flash window)", I(BELL_VISUAL), NULL);
+                      "Visual bell (flash window)", I(BELL_VISUAL));
 
     s = ctrl_getset(b, "Terminal/Bell", "overload",
                     "Control the bell overload behaviour");
@@ -2172,7 +2169,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       I(CONF_remote_qtitle_action),
                       "None", I(TITLE_NONE),
                       "Empty string", I(TITLE_EMPTY),
-                      "Window title", I(TITLE_REAL), NULL);
+                      "Window title", I(TITLE_REAL));
     ctrl_checkbox(s, "Disable remote-controlled clearing of scrollback", 'e',
                   HELPCTX(features_clearscroll),
                   conf_checkbox_handler,
@@ -2249,7 +2246,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       I(CONF_cursor_type),
                       "Block", 'l', I(0),
                       "Underline", 'u', I(1),
-                      "Vertical line", 'v', I(2), NULL);
+                      "Vertical line", 'v', I(2));
     ctrl_checkbox(s, "Cursor blinks", 'b',
                   HELPCTX(appearance_cursor),
                   conf_checkbox_handler, I(CONF_blink_cur));
@@ -2315,13 +2312,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
     str = dupprintf("Adjust how %s handles line drawing characters", appname);
     s = ctrl_getset(b, "Window/Translation", "linedraw", str);
     sfree(str);
-    ctrl_radiobuttons(s, "Handling of line drawing characters:", NO_SHORTCUT,1,
-                      HELPCTX(translation_linedraw),
-                      conf_radiobutton_handler,
-                      I(CONF_vtmode),
-                      "Use Unicode line drawing code points",'u',I(VT_UNICODE),
-                      "Poor man's line drawing (+, - and |)",'p',I(VT_POORMAN),
-                      NULL);
+    ctrl_radiobuttons(
+        s, "Handling of line drawing characters:", NO_SHORTCUT,1,
+        HELPCTX(translation_linedraw),
+        conf_radiobutton_handler, I(CONF_vtmode),
+        "Use Unicode line drawing code points",'u',I(VT_UNICODE),
+        "Poor man's line drawing (+, - and |)",'p',I(VT_POORMAN));
     ctrl_checkbox(s, "Copy and paste line drawing characters as lqqqk",'d',
                   HELPCTX(selection_linedraw),
                   conf_checkbox_handler, I(CONF_rawcnp));
@@ -2346,7 +2342,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       conf_radiobutton_bool_handler,
                       I(CONF_rect_select),
                       "Normal", 'n', I(false),
-                      "Rectangular block", 'r', I(true), NULL);
+                      "Rectangular block", 'r', I(true));
 
     s = ctrl_getset(b, "Window/Selection", "clipboards",
                     "Assign copy/paste actions to clipboards");
@@ -2422,8 +2418,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       conf_radiobutton_handler, I(CONF_bold_style),
                       "The font", I(1),
                       "The colour", I(2),
-                      "Both", I(3),
-                      NULL);
+                      "Both", I(3));
 
     str = dupprintf("Adjust the precise colours %s displays", appname);
     s = ctrl_getset(b, "Window/Colours", "adjust", str);
@@ -2488,8 +2483,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           I(CONF_addressfamily),
                           "Auto", 'u', I(ADDRTYPE_UNSPEC),
                           "IPv4", '4', I(ADDRTYPE_IPV4),
-                          "IPv6", '6', I(ADDRTYPE_IPV6),
-                          NULL);
+                          "IPv6", '6', I(ADDRTYPE_IPV6));
 #endif
 
             {
@@ -2528,8 +2522,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                                   conf_radiobutton_bool_handler,
                                   I(CONF_username_from_env),
                                   "Prompt", I(false),
-                                  userlabel, I(true),
-                                  NULL);
+                                  userlabel, I(true));
                 sfree(userlabel);
             }
 
@@ -2613,7 +2606,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           I(CONF_proxy_dns),
                           "No", I(FORCE_OFF),
                           "Auto", I(AUTO),
-                          "Yes", I(FORCE_ON), NULL);
+                          "Yes", I(FORCE_ON));
         ctrl_editbox(s, "Username", 'u', 60,
                      HELPCTX(proxy_auth),
                      conf_editbox_handler,
@@ -2635,7 +2628,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           I(CONF_proxy_log_to_term),
                           "No", I(FORCE_OFF),
                           "Yes", I(FORCE_ON),
-                          "Only until session starts", I(AUTO), NULL);
+                          "Only until session starts", I(AUTO));
     }
 
     /*
@@ -2722,7 +2715,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               conf_radiobutton_handler,
                               I(CONF_sshprot),
                               "2", '2', I(3),
-                              "1 (INSECURE)", '1', I(0), NULL);
+                              "1 (INSECURE)", '1', I(0));
         }
 
         /*
@@ -3022,8 +3015,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                                              ttymodes_handler, P(td),
                                              "Auto", NO_SHORTCUT, P(NULL),
                                              "Nothing", NO_SHORTCUT, P(NULL),
-                                             "This:", NO_SHORTCUT, P(NULL),
-                                             NULL);
+                                             "This:", NO_SHORTCUT, P(NULL));
             td->valradio->column = 0;
             td->valbox = ctrl_editbox(s, NULL, NO_SHORTCUT, 100,
                                       HELPCTX(ssh_ttymodes),
@@ -3052,7 +3044,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               conf_radiobutton_handler,
                               I(CONF_x11_auth),
                               "MIT-Magic-Cookie-1", I(X11_MIT),
-                              "XDM-Authorization-1", I(X11_XDM), NULL);
+                              "XDM-Authorization-1", I(X11_XDM));
         }
 
         /*
@@ -3112,8 +3104,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                                            portfwd_handler, P(pfd),
                                            "Local", 'l', P(NULL),
                                            "Remote", 'm', P(NULL),
-                                           "Dynamic", 'y', P(NULL),
-                                           NULL);
+                                           "Dynamic", 'y', P(NULL));
 #ifndef NO_IPV6
         pfd->addressfamily =
             ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
@@ -3121,8 +3112,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               portfwd_handler, P(pfd),
                               "Auto", 'u', I(ADDRTYPE_UNSPEC),
                               "IPv4", '4', I(ADDRTYPE_IPV4),
-                              "IPv6", '6', I(ADDRTYPE_IPV6),
-                              NULL);
+                              "IPv6", '6', I(ADDRTYPE_IPV6));
 #endif
         ctrl_tabdelay(s, pfd->addbutton);
         ctrl_columns(s, 1, 100);
@@ -3251,12 +3241,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               conf_radiobutton_bool_handler,
                               I(CONF_rfc_environ),
                               "BSD (commonplace)", 'b', I(false),
-                              "RFC 1408 (unusual)", 'f', I(true), NULL);
+                              "RFC 1408 (unusual)", 'f', I(true));
             ctrl_radiobuttons(s, "Telnet negotiation mode:", 't', 2,
                               HELPCTX(telnet_passive),
                               conf_radiobutton_bool_handler,
                               I(CONF_passive_telnet),
-                              "Passive", I(true), "Active", I(false), NULL);
+                              "Passive", I(true), "Active", I(false));
         }
         ctrl_checkbox(s, "Keyboard sends Telnet special commands", 'k',
                       HELPCTX(telnet_specialkeys),
@@ -3303,7 +3293,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           I(CONF_supdup_ascii_set),
                           "None", I(SUPDUP_CHARSET_ASCII),
                           "ITS", I(SUPDUP_CHARSET_ITS),
-                          "WAITS", I(SUPDUP_CHARSET_WAITS), NULL);
+                          "WAITS", I(SUPDUP_CHARSET_WAITS));
 
         ctrl_checkbox(s, "**MORE** processing", 'm',
                       HELPCTX(supdup_more),

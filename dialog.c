@@ -282,9 +282,9 @@ dlgcontrol *ctrl_combobox(struct controlset *s, const char *label,
  * title is expected to be followed by a shortcut _iff_ `shortcut'
  * is NO_SHORTCUT.
  */
-dlgcontrol *ctrl_radiobuttons(struct controlset *s, const char *label,
-                              char shortcut, int ncolumns, intorptr helpctx,
-                              handler_fn handler, intorptr context, ...)
+dlgcontrol *ctrl_radiobuttons_fn(struct controlset *s, const char *label,
+                                 char shortcut, int ncolumns, intorptr helpctx,
+                                 handler_fn handler, intorptr context, ...)
 {
     va_list ap;
     int i;
