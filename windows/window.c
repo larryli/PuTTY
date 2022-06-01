@@ -473,7 +473,7 @@ static void sw_SetWindowText(HWND hwnd, wchar_t *text)
     if (unicode_window) {
         SetWindowTextW(hwnd, text);
     } else {
-        char *mb = dup_wc_to_mb(DEFAULT_CODEPAGE, 0, text, "?", &ucsdata);
+        char *mb = dup_wc_to_mb(DEFAULT_CODEPAGE, 0, text, "?");
         SetWindowTextA(hwnd, mb);
         sfree(mb);
     }

@@ -3416,7 +3416,7 @@ static strbuf *term_input_data_from_unicode(
         char *bufptr = strbuf_append(buf, len + 1);
         int rv;
         rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
-                      bufptr, len + 1, NULL, term->ucsdata);
+                      bufptr, len + 1, NULL);
         strbuf_shrink_to(buf, rv < 0 ? 0 : rv);
     }
 

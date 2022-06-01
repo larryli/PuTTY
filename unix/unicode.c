@@ -61,8 +61,7 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 }
 
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-             char *mbstr, int mblen, const char *defchr,
-             struct unicode_data *ucsdata)
+             char *mbstr, int mblen, const char *defchr)
 {
     if (codepage == DEFAULT_CODEPAGE) {
         char output[MB_LEN_MAX];

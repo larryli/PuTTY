@@ -600,7 +600,7 @@ static bool x11font_has_glyph(unifont *font, wchar_t glyph)
          */
         char sbstring[2];
         int sblen = wc_to_mb(xfont->real_charset, 0, &glyph, 1,
-                             sbstring, 2, "", NULL);
+                             sbstring, 2, "");
         if (sblen == 0 || !sbstring[0])
             return false;              /* not even in the charset */
 
@@ -956,7 +956,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
          */
         char *sbstring = snewn(len+1, char);
         int sblen = wc_to_mb(xfont->real_charset, 0, string, len,
-                             sbstring, len+1, ".", NULL);
+                             sbstring, len+1, ".");
         x11font_really_draw_text(x11font_drawfuncs + index + 0, ctx,
                                  &xfont->fonts[sfid], xfont->disp, x, y,
                                  sbstring, sblen, shadowoffset,
@@ -1644,8 +1644,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
      * string to UTF-8.
      */
     utfstring = snewn(len*6+1, char); /* UTF-8 has max 6 bytes/char */
-    utflen = wc_to_mb(CS_UTF8, 0, string, len,
-                      utfstring, len*6+1, ".", NULL);
+    utflen = wc_to_mb(CS_UTF8, 0, string, len, utfstring, len*6+1, ".");
 
     utfptr = utfstring;
     while (utflen > 0) {

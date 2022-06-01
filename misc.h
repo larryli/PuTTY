@@ -72,9 +72,9 @@ void strbuf_finalise_agent_query(strbuf *buf);
 wchar_t *dup_mb_to_wc_c(int codepage, int flags, const char *string, int len);
 wchar_t *dup_mb_to_wc(int codepage, int flags, const char *string);
 char *dup_wc_to_mb_c(int codepage, int flags, const wchar_t *string, int len,
-                     const char *defchr, struct unicode_data *ucsdata);
+                     const char *defchr);
 char *dup_wc_to_mb(int codepage, int flags, const wchar_t *string,
-                   const char *defchr, struct unicode_data *ucsdata);
+                   const char *defchr);
 
 static inline int toint(unsigned u)
 {
