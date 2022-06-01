@@ -2440,7 +2440,7 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
              struct unicode_data *ucsdata);
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
-int decode_codepage(char *cp_name);
+int decode_codepage(const char *cp_name);
 const char *cp_enumerate (int index);
 const char *cp_name(int codepage);
 void get_unitab(int codepage, wchar_t * unitab, int ftype);

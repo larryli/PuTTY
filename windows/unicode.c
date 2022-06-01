@@ -1000,9 +1000,9 @@ int check_compose(int first, int second)
     return check_compose_internal(first, second, 0);
 }
 
-int decode_codepage(char *cp_name)
+int decode_codepage(const char *cp_name)
 {
-    char *s, *d;
+    const char *s, *d;
     const struct cp_list_item *cpi;
     int codepage = -1;
     CPINFO cpinfo;

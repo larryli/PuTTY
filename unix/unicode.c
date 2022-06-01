@@ -264,7 +264,7 @@ const char *cp_enumerate(int index)
     return charset_to_localenc(charset);
 }
 
-int decode_codepage(char *cp_name)
+int decode_codepage(const char *cp_name)
 {
     if (!cp_name || !*cp_name)
         return CS_UTF8;
