@@ -303,7 +303,7 @@ unsigned ntru_ring_invert(uint16_t *out, const uint16_t *in,
     /* Run the gcd-finding algorithm. */
     for (size_t i = 0; i < STEPS; i++) {
         /*
-         * First swap round so that A is the one we'll be dividing by 2.
+         * First swap round so that A is the one we'll be dividing by x.
          *
          * In the case where one of the two polys has a zero constant
          * term, it's that one. In the other case, it's the one of
