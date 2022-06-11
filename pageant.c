@@ -124,6 +124,8 @@ struct PageantSignOp {
 /* Master lock that indicates whether a GUI request is currently in
  * progress */
 static bool gui_request_in_progress = false;
+static PageantKeyRequestNode requests_blocked_on_gui =
+    { &requests_blocked_on_gui, &requests_blocked_on_gui };
 
 static void failure(PageantClient *pc, PageantClientRequestId *reqid,
                     strbuf *sb, unsigned char type, const char *fmt, ...);
@@ -359,7 +361,7 @@ static PRINTF_LIKE(5, 6) void failure(
     }
 }
 
-static void signop_link(PageantSignOp *so)
+static void signop_link_to_key(PageantSignOp *so)
 {
     assert(!so->pkr.prev);
     assert(!so->pkr.next);
@@ -370,12 +372,24 @@ static void signop_link(PageantSignOp *so)
     so->pkr.next->prev = &so->pkr;
 }
 
+static void signop_link_to_pending_gui_request(PageantSignOp *so)
+{
+    assert(!so->pkr.prev);
+    assert(!so->pkr.next);
+
+    so->pkr.prev = requests_blocked_on_gui.prev;
+    so->pkr.next = &requests_blocked_on_gui;
+    so->pkr.prev->next = &so->pkr;
+    so->pkr.next->prev = &so->pkr;
+}
+
 static void signop_unlink(PageantSignOp *so)
 {
     if (so->pkr.next) {
         assert(so->pkr.prev);
         so->pkr.next->prev = so->pkr.prev;
         so->pkr.prev->next = so->pkr.next;
+        so->pkr.prev = so->pkr.next = NULL;
     } else {
         assert(!so->pkr.prev);
     }
@@ -413,8 +427,11 @@ static void signop_coroutine(PageantAsyncOp *pao)
 
     crBegin(so->crLine);
 
-    while (!so->pk->skey && gui_request_in_progress)
+    while (!so->pk->skey && gui_request_in_progress) {
+        signop_link_to_pending_gui_request(so);
         crReturnV;
+        signop_unlink(so);
+    }
 
     if (!so->pk->skey) {
         assert(so->pk->encrypted_key_file);
@@ -427,7 +444,7 @@ static void signop_coroutine(PageantAsyncOp *pao)
             goto respond;
         }
 
-        signop_link(so);
+        signop_link_to_key(so);
         crReturnV;
         signop_unlink(so);
     }
@@ -496,8 +513,16 @@ static void unblock_requests_for_key(PageantKey *pk)
 {
     for (PageantKeyRequestNode *pkr = pk->blocked_requests.next;
          pkr != &pk->blocked_requests; pkr = pkr->next) {
-        PageantSignOp *so = container_of(pk->blocked_requests.next,
-                                         PageantSignOp, pkr);
+        PageantSignOp *so = container_of(pkr, PageantSignOp, pkr);
+        queue_toplevel_callback(pageant_async_op_callback, &so->pao);
+    }
+}
+
+static void unblock_pending_gui_requests(void)
+{
+    for (PageantKeyRequestNode *pkr = requests_blocked_on_gui.next;
+         pkr != &requests_blocked_on_gui; pkr = pkr->next) {
+        PageantSignOp *so = container_of(pkr, PageantSignOp, pkr);
         queue_toplevel_callback(pageant_async_op_callback, &so->pao);
     }
 }
@@ -557,6 +582,8 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
     }
 
     unblock_requests_for_key(pk);
+
+    unblock_pending_gui_requests();
 }
 
 void pageant_passphrase_request_refused(PageantClientDialogId *dlgid)
@@ -568,6 +595,8 @@ void pageant_passphrase_request_refused(PageantClientDialogId *dlgid)
     pk->decryption_prompt_active = false;
 
     fail_requests_for_key(pk, "user refused to supply passphrase");
+
+    unblock_pending_gui_requests();
 }
 
 typedef struct PageantImmOp PageantImmOp;
