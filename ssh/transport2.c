@@ -690,16 +690,9 @@ static void ssh2_write_kexinit_lists(
                     if (!hca)
                         continue;
 
-                    bool match = false;
-                    for (size_t i = 0, e = hca->n_hostname_wildcards;
-                         i < e; i++) {
-                        if (wc_match(hca->hostname_wildcards[i], hk_host)) {
-                            match = true;
-                            break;
-                        }
-                    }
-
-                    if (match && hca->ca_public_key) {
+                    if (hca->ca_public_key &&
+                        cert_expr_match_str(hca->validity_expression,
+                                            hk_host, hk_port)) {
                         accept_certs = true;
                         add234(host_cas, hca);
                     } else {

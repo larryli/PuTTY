@@ -103,8 +103,7 @@ void store_host_key(const char *hostname, int port,
 struct host_ca {
     char *name;
     strbuf *ca_public_key;
-    char **hostname_wildcards;
-    size_t n_hostname_wildcards;
+    char *validity_expression;
     ca_options opts;
 };
 

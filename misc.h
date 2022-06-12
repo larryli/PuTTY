@@ -507,4 +507,18 @@ static inline ptrlen ptrlen_from_lf(LoadedFile *lf)
  * is made to handle difficult overlap cases. */
 void memxor(uint8_t *out, const uint8_t *in1, const uint8_t *in2, size_t size);
 
+/* Boolean expressions used in OpenSSH certificate configuration */
+bool cert_expr_valid(const char *expression,
+                     char **error_msg, ptrlen *error_loc);
+bool cert_expr_match_str(const char *expression,
+                         const char *hostname, unsigned port);
+/* Build a certificate expression out of hostname wildcards. Required
+ * to handle legacy configuration from early in development, when
+ * multiple wildcards were stored separately in config, implicitly
+ * ORed together. */
+CertExprBuilder *cert_expr_builder_new();
+void cert_expr_builder_free(CertExprBuilder *eb);
+void cert_expr_builder_add(CertExprBuilder *eb, const char *wildcard);
+char *cert_expr_expression(CertExprBuilder *eb);
+
 #endif

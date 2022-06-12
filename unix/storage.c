@@ -646,8 +646,8 @@ host_ca *host_ca_load(const char *name)
     host_ca *hca = host_ca_new();
     hca->name = dupstr(name);
 
-    size_t wcsize = 0;
     char *line;
+    CertExprBuilder *eb = NULL;
 
     while ( (line = fgetline(fp)) ) {
         char *value = strchr(line, '=');
@@ -662,10 +662,12 @@ host_ca *host_ca_load(const char *name)
         if (!strcmp(line, "PublicKey")) {
             hca->ca_public_key = base64_decode_sb(ptrlen_from_asciz(value));
         } else if (!strcmp(line, "MatchHosts")) {
-            sgrowarray(hca->hostname_wildcards, wcsize,
-                       hca->n_hostname_wildcards);
-            hca->hostname_wildcards[hca->n_hostname_wildcards++] =
-                dupstr(value);
+            if (!eb)
+                eb = cert_expr_builder_new();
+            cert_expr_builder_add(eb, value);
+        } else if (!strcmp(line, "Validity")) {
+            hca->validity_expression = strbuf_to_str(
+                percent_decode_sb(ptrlen_from_asciz(value)));
         } else if (!strcmp(line, "PermitRSASHA1")) {
             hca->opts.permit_rsa_sha1 = atoi(value);
         } else if (!strcmp(line, "PermitRSASHA256")) {
@@ -675,6 +677,13 @@ host_ca *host_ca_load(const char *name)
         }
 
         sfree(line);
+    }
+
+    if (eb) {
+        if (!hca->validity_expression) {
+            hca->validity_expression = cert_expr_expression(eb);
+        }
+        cert_expr_builder_free(eb);
     }
 
     return hca;
@@ -694,8 +703,9 @@ char *host_ca_save(host_ca *hca)
     base64_encode_fp(fp, ptrlen_from_strbuf(hca->ca_public_key), 0);
     fprintf(fp, "\n");
 
-    for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
-        fprintf(fp, "MatchHosts=%s\n", hca->hostname_wildcards[i]);
+    fprintf(fp, "Validity=");
+    percent_encode_fp(fp, ptrlen_from_asciz(hca->validity_expression), NULL);
+    fprintf(fp, "\n");
 
     fprintf(fp, "PermitRSASHA1=%d\n", (int)hca->opts.permit_rsa_sha1);
     fprintf(fp, "PermitRSASHA256=%d\n", (int)hca->opts.permit_rsa_sha256);

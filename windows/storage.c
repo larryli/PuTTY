@@ -432,19 +432,20 @@ host_ca *host_ca_load(const char *name)
     if ((s = get_reg_sz(rkey, "PublicKey")) != NULL)
         hca->ca_public_key = base64_decode_sb(ptrlen_from_asciz(s));
 
-    if ((sb = get_reg_multi_sz(rkey, "MatchHosts")) != NULL) {
+    if ((s = get_reg_sz(rkey, "Validity")) != NULL) {
+        hca->validity_expression = strbuf_to_str(
+            percent_decode_sb(ptrlen_from_asciz(s)));
+    } else if ((sb = get_reg_multi_sz(rkey, "MatchHosts")) != NULL) {
         BinarySource src[1];
         BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(sb));
+        CertExprBuilder *eb = cert_expr_builder_new();
 
         const char *wc;
-        size_t wcsize = 0;
-        while (wc = get_asciz(src), !get_err(src)) {
-            sgrowarray(hca->hostname_wildcards, wcsize,
-                       hca->n_hostname_wildcards);
-            hca->hostname_wildcards[hca->n_hostname_wildcards++] = dupstr(wc);
-        }
+        while (wc = get_asciz(src), !get_err(src))
+            cert_expr_builder_add(eb, wc);
 
-        strbuf_free(sb);
+        hca->validity_expression = cert_expr_expression(eb);
+        cert_expr_builder_free(eb);
     }
 
     if (get_reg_dword(rkey, "PermitRSASHA1", &val))
@@ -479,11 +480,10 @@ char *host_ca_save(host_ca *hca)
     put_reg_sz(rkey, "PublicKey", base64_pubkey->s);
     strbuf_free(base64_pubkey);
 
-    strbuf *wcs = strbuf_new();
-    for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
-        put_asciz(wcs, hca->hostname_wildcards[i]);
-    put_reg_multi_sz(rkey, "MatchHosts", wcs);
-    strbuf_free(wcs);
+    strbuf *validity = percent_encode_sb(
+        ptrlen_from_asciz(hca->validity_expression), NULL);
+    put_reg_sz(rkey, "Validity", validity->s);
+    strbuf_free(validity);
 
     put_reg_dword(rkey, "PermitRSASHA1", hca->opts.permit_rsa_sha1);
     put_reg_dword(rkey, "PermitRSASHA256", hca->opts.permit_rsa_sha256);

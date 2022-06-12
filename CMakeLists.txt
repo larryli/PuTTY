@@ -94,6 +94,11 @@ add_executable(test_wildcard
 target_compile_definitions(test_wildcard PRIVATE TEST)
 target_link_libraries(test_wildcard utils ${platform_libraries})
 
+add_executable(test_cert_expr
+  utils/cert-expr.c)
+target_compile_definitions(test_cert_expr PRIVATE TEST)
+target_link_libraries(test_cert_expr utils ${platform_libraries})
+
 add_executable(bidi_gettype
   terminal/bidi_gettype.c)
 target_link_libraries(bidi_gettype guiterminal utils ${platform_libraries})

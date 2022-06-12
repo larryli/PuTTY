@@ -15,10 +15,8 @@ host_ca *host_ca_new(void)
 void host_ca_free(host_ca *hca)
 {
     sfree(hca->name);
+    sfree(hca->validity_expression);
     if (hca->ca_public_key)
         strbuf_free(hca->ca_public_key);
-    for (size_t i = 0; i < hca->n_hostname_wildcards; i++)
-        sfree(hca->hostname_wildcards[i]);
-    sfree(hca->hostname_wildcards);
     sfree(hca);
 }

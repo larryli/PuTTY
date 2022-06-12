@@ -143,6 +143,8 @@ typedef struct Channel Channel;
 typedef struct SshChannel SshChannel;
 typedef struct mainchan mainchan;
 
+typedef struct CertExprBuilder CertExprBuilder;
+
 typedef struct ssh_sharing_state ssh_sharing_state;
 typedef struct ssh_sharing_connstate ssh_sharing_connstate;
 typedef struct share_channel share_channel;
