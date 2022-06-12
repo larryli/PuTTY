@@ -169,6 +169,21 @@ static inline ptrlen make_ptrlen(const void *ptr, size_t len)
     return pl;
 }
 
+static inline const void *ptrlen_end(ptrlen pl)
+{
+    return (const char *)pl.ptr + pl.len;
+}
+
+static inline ptrlen make_ptrlen_startend(const void *startv, const void *endv)
+{
+    const char *start = (const char *)startv, *end = (const char *)endv;
+    assert(end >= start);
+    ptrlen pl;
+    pl.ptr = start;
+    pl.len = end - start;
+    return pl;
+}
+
 static inline ptrlen ptrlen_from_asciz(const char *str)
 {
     return make_ptrlen(str, strlen(str));
@@ -190,6 +205,8 @@ int ptrlen_strcmp(ptrlen pl1, ptrlen pl2);
 bool ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail);
 bool ptrlen_endswith(ptrlen whole, ptrlen suffix, ptrlen *tail);
 ptrlen ptrlen_get_word(ptrlen *input, const char *separators);
+bool ptrlen_contains(ptrlen input, const char *characters);
+bool ptrlen_contains_only(ptrlen input, const char *characters);
 char *mkstr(ptrlen pl);
 int string_length_for_printf(size_t);
 /* Derive two printf arguments from a ptrlen, suitable for "%.*s" */
