@@ -46,6 +46,8 @@ add_sources_from_current_dir(utils
   nullstrcmp.c
   out_of_memory.c
   parse_blocksize.c
+  percent_decode.c
+  percent_encode.c
   prompts.c
   ptrlen.c
   read_file_into.c

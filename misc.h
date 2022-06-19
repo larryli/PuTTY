@@ -116,6 +116,13 @@ void base64_encode_fp(FILE *fp, ptrlen data, int cpl);
 strbuf *base64_encode_sb(ptrlen data, int cpl);
 bool base64_valid(ptrlen data);
 
+void percent_encode_bs(BinarySink *bs, ptrlen data, const char *badchars);
+void percent_encode_fp(FILE *fp, ptrlen data, const char *badchars);
+strbuf *percent_encode_sb(ptrlen data, const char *badchars);
+void percent_decode_bs(BinarySink *bs, ptrlen data);
+void percent_decode_fp(FILE *fp, ptrlen data);
+strbuf *percent_decode_sb(ptrlen data);
+
 struct bufchain_granule;
 struct bufchain_tag {
     struct bufchain_granule *head, *tail;
