@@ -313,7 +313,7 @@ void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
         entry = gtk_bin_get_child(GTK_BIN(uc->combo));
     else
 #endif
-    entry = uc->entry;
+        entry = uc->entry;
 
     assert(entry != NULL);
 
@@ -586,7 +586,7 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
     }
 #endif
     unreachable("bad control type in listbox_addwithid");
-    done:
+  done:
     dp->flags &= ~FLAG_UPDATING_COMBO_LIST;
 }
 
@@ -985,7 +985,7 @@ void dlg_set_focus(dlgcontrol *ctrl, dlgparam *dp)
         for (int i = 0; i < ctrl->radio.nbuttons; i++)
             if (gtk_toggle_button_get_active
                 (GTK_TOGGLE_BUTTON(uc->buttons[i]))) {
-              gtk_widget_grab_focus(uc->buttons[i]);
+                gtk_widget_grab_focus(uc->buttons[i]);
             }
         break;
       case CTRL_LISTBOX:
@@ -1098,7 +1098,7 @@ void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp)
             assert(uc->ctrl != NULL);
             if (uc->ctrl->handler != NULL)
                 uc->ctrl->handler(uc->ctrl, dp,
-                                          dp->data, EVENT_REFRESH);
+                                  dp->data, EVENT_REFRESH);
         }
     }
 }
@@ -1171,9 +1171,9 @@ void dlg_coloursel_start(dlgcontrol *ctrl, dlgparam *dp, int r, int g, int b)
     cancelbutton = ccs->cancel_button;
 #endif
     g_object_set_data(G_OBJECT(okbutton), "user-data",
-                        (gpointer)coloursel);
+                      (gpointer)coloursel);
     g_object_set_data(G_OBJECT(cancelbutton), "user-data",
-                        (gpointer)coloursel);
+                      (gpointer)coloursel);
     g_signal_connect(G_OBJECT(okbutton), "clicked",
                      G_CALLBACK(coloursel_ok), (gpointer)dp);
     g_signal_connect(G_OBJECT(cancelbutton), "clicked",
@@ -1317,7 +1317,7 @@ static gboolean listitem_key(GtkWidget *item, GdkEventKey *event,
 
         if (!multiple &&
             GTK_WIDGET_STATE(item) != GTK_STATE_SELECTED) {
-                gtk_list_select_child(GTK_LIST(list), item);
+            gtk_list_select_child(GTK_LIST(list), item);
         } else {
             int direction =
                 (event->keyval==GDK_Up || event->keyval==GDK_KP_Up ||
@@ -1397,10 +1397,10 @@ static gboolean listitem_button_press(GtkWidget *item, GdkEventButton *event,
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(item));
     switch (event->type) {
-    default:
-    case GDK_BUTTON_PRESS: uc->nclicks = 1; break;
-    case GDK_2BUTTON_PRESS: uc->nclicks = 2; break;
-    case GDK_3BUTTON_PRESS: uc->nclicks = 3; break;
+      default:
+      case GDK_BUTTON_PRESS: uc->nclicks = 1; break;
+      case GDK_2BUTTON_PRESS: uc->nclicks = 2; break;
+      case GDK_3BUTTON_PRESS: uc->nclicks = 3; break;
     }
     return false;
 }
@@ -1500,7 +1500,7 @@ static gboolean draglist_valchange(gpointer data)
         (struct draglist_valchange_ctx *)data;
 
     ctx->uc->ctrl->handler(ctx->uc->ctrl, ctx->dp,
-                                   ctx->dp->data, EVENT_VALCHANGE);
+                           ctx->dp->data, EVENT_VALCHANGE);
 
     sfree(ctx);
 
@@ -1781,7 +1781,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
                     char *name = XGetAtomName(disp, (Atom)ret);
                     if (name)
                         gtk_font_selection_dialog_set_font_name
-                        (GTK_FONT_SELECTION_DIALOG(fontsel), name);
+                            (GTK_FONT_SELECTION_DIALOG(fontsel), name);
                 }
                 gdk_font_unref(font);
             }
@@ -1972,19 +1972,19 @@ GtkWidget *layout_ctrls(
 
             w = columns_new(0);
             if (ctrl->label) {
-              GtkWidget *label = gtk_label_new(ctrl->label);
-              columns_add(COLUMNS(w), label, 0, 1);
-              columns_force_left_align(COLUMNS(w), label);
-              gtk_widget_show(label);
-              shortcut_add(scs, label, ctrl->radio.shortcut,
-                           SHORTCUT_UCTRL, uc);
-              uc->label = label;
+                GtkWidget *label = gtk_label_new(ctrl->label);
+                columns_add(COLUMNS(w), label, 0, 1);
+                columns_force_left_align(COLUMNS(w), label);
+                gtk_widget_show(label);
+                shortcut_add(scs, label, ctrl->radio.shortcut,
+                             SHORTCUT_UCTRL, uc);
+                uc->label = label;
             }
             percentages = g_new(gint, ctrl->radio.ncolumns);
             for (i = 0; i < ctrl->radio.ncolumns; i++) {
-              percentages[i] =
-                  ((100 * (i+1) / ctrl->radio.ncolumns) -
-                   100 * i / ctrl->radio.ncolumns);
+                percentages[i] =
+                    ((100 * (i+1) / ctrl->radio.ncolumns) -
+                     100 * i / ctrl->radio.ncolumns);
             }
             columns_set_cols(COLUMNS(w), ctrl->radio.ncolumns,
                              percentages);
@@ -1995,28 +1995,28 @@ GtkWidget *layout_ctrls(
             uc->buttons = snewn(uc->nbuttons, GtkWidget *);
 
             for (i = 0; i < ctrl->radio.nbuttons; i++) {
-              GtkWidget *b;
-              gint colstart;
+                GtkWidget *b;
+                gint colstart;
 
-              b = (gtk_radio_button_new_with_label
-                   (group, ctrl->radio.buttons[i]));
-              uc->buttons[i] = b;
-              group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(b));
-              colstart = i % ctrl->radio.ncolumns;
-              columns_add(COLUMNS(w), b, colstart,
-                          (i == ctrl->radio.nbuttons-1 ?
-                           ctrl->radio.ncolumns - colstart : 1));
-              columns_force_left_align(COLUMNS(w), b);
-              gtk_widget_show(b);
-              g_signal_connect(G_OBJECT(b), "toggled",
-                               G_CALLBACK(button_toggled), dp);
-              g_signal_connect(G_OBJECT(b), "focus_in_event",
-                               G_CALLBACK(widget_focus), dp);
-              if (ctrl->radio.shortcuts) {
-                shortcut_add(scs, gtk_bin_get_child(GTK_BIN(b)),
-                             ctrl->radio.shortcuts[i],
-                             SHORTCUT_UCTRL, uc);
-              }
+                b = (gtk_radio_button_new_with_label
+                     (group, ctrl->radio.buttons[i]));
+                uc->buttons[i] = b;
+                group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(b));
+                colstart = i % ctrl->radio.ncolumns;
+                columns_add(COLUMNS(w), b, colstart,
+                            (i == ctrl->radio.nbuttons-1 ?
+                             ctrl->radio.ncolumns - colstart : 1));
+                columns_force_left_align(COLUMNS(w), b);
+                gtk_widget_show(b);
+                g_signal_connect(G_OBJECT(b), "toggled",
+                                 G_CALLBACK(button_toggled), dp);
+                g_signal_connect(G_OBJECT(b), "focus_in_event",
+                                 G_CALLBACK(widget_focus), dp);
+                if (ctrl->radio.shortcuts) {
+                    shortcut_add(scs, gtk_bin_get_child(GTK_BIN(b)),
+                                 ctrl->radio.shortcuts[i],
+                                 SHORTCUT_UCTRL, uc);
+                }
             }
             break;
           }
@@ -2025,35 +2025,35 @@ GtkWidget *layout_ctrls(
 
             if (ctrl->editbox.has_list) {
 #if !GTK_CHECK_VERSION(2,4,0)
-              /*
-               * GTK 1 combo box.
-               */
-              w = gtk_combo_new();
-              gtk_combo_set_value_in_list(GTK_COMBO(w), false, true);
-              uc->entry = GTK_COMBO(w)->entry;
-              uc->list = GTK_COMBO(w)->list;
-              signalobject = uc->entry;
+                /*
+                 * GTK 1 combo box.
+                 */
+                w = gtk_combo_new();
+                gtk_combo_set_value_in_list(GTK_COMBO(w), false, true);
+                uc->entry = GTK_COMBO(w)->entry;
+                uc->list = GTK_COMBO(w)->list;
+                signalobject = uc->entry;
 #else
-              /*
-               * GTK 2 combo box.
-               */
-              uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
-                                                 G_TYPE_STRING);
-              w = gtk_combo_box_new_with_model_and_entry
-                  (GTK_TREE_MODEL(uc->listmodel));
-              g_object_set(G_OBJECT(w), "entry-text-column", 1,
-                           (const char *)NULL);
-              /* We cannot support password combo boxes. */
-              assert(!ctrl->editbox.password);
-              uc->combo = w;
-              signalobject = uc->combo;
+                /*
+                 * GTK 2 combo box.
+                 */
+                uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
+                                                   G_TYPE_STRING);
+                w = gtk_combo_box_new_with_model_and_entry
+                    (GTK_TREE_MODEL(uc->listmodel));
+                g_object_set(G_OBJECT(w), "entry-text-column", 1,
+                             (const char *)NULL);
+                /* We cannot support password combo boxes. */
+                assert(!ctrl->editbox.password);
+                uc->combo = w;
+                signalobject = uc->combo;
 #endif
             } else {
-              w = gtk_entry_new();
-              if (ctrl->editbox.password)
-                  gtk_entry_set_visibility(GTK_ENTRY(w), false);
-              uc->entry = w;
-              signalobject = w;
+                w = gtk_entry_new();
+                if (ctrl->editbox.password)
+                    gtk_entry_set_visibility(GTK_ENTRY(w), false);
+                uc->entry = w;
+                signalobject = w;
             }
             uc->entrysig =
                 g_signal_connect(G_OBJECT(signalobject), "changed",
@@ -2075,9 +2075,9 @@ GtkWidget *layout_ctrls(
              * from the column layout of the rest of the box.
              */
             {
-              GtkRequisition req;
-              gtk_widget_size_request(w, &req);
-              gtk_widget_set_size_request(w, 10, req.height);
+                GtkRequisition req;
+                gtk_widget_size_request(w, &req);
+                gtk_widget_set_size_request(w, 10, req.height);
             }
 #else
             /*
@@ -2089,34 +2089,34 @@ GtkWidget *layout_ctrls(
 #endif
 
             if (ctrl->label) {
-              GtkWidget *label;
+                GtkWidget *label;
 
-              label = gtk_label_new(ctrl->label);
+                label = gtk_label_new(ctrl->label);
 
-              shortcut_add(scs, label, ctrl->editbox.shortcut,
-                           SHORTCUT_FOCUS, uc->entry);
+                shortcut_add(scs, label, ctrl->editbox.shortcut,
+                             SHORTCUT_FOCUS, uc->entry);
 
-              if (ctrl->editbox.percentwidth == 100) {
-                columns_add(cols, label,
-                            COLUMN_START(ctrl->column),
-                            COLUMN_SPAN(ctrl->column));
-                columns_force_left_align(cols, label);
-              } else {
-                GtkWidget *container = columns_new(4);
-                gint percentages[2];
-                percentages[1] = ctrl->editbox.percentwidth;
-                percentages[0] = 100 - ctrl->editbox.percentwidth;
-                columns_set_cols(COLUMNS(container), 2, percentages);
-                columns_add(COLUMNS(container), label, 0, 1);
-                columns_force_left_align(COLUMNS(container), label);
-                columns_add(COLUMNS(container), w, 1, 1);
-                columns_align_next_to(COLUMNS(container), label, w);
-                gtk_widget_show(w);
-                w = container;
-              }
+                if (ctrl->editbox.percentwidth == 100) {
+                    columns_add(cols, label,
+                                COLUMN_START(ctrl->column),
+                                COLUMN_SPAN(ctrl->column));
+                    columns_force_left_align(cols, label);
+                } else {
+                    GtkWidget *container = columns_new(4);
+                    gint percentages[2];
+                    percentages[1] = ctrl->editbox.percentwidth;
+                    percentages[0] = 100 - ctrl->editbox.percentwidth;
+                    columns_set_cols(COLUMNS(container), 2, percentages);
+                    columns_add(COLUMNS(container), label, 0, 1);
+                    columns_force_left_align(COLUMNS(container), label);
+                    columns_add(COLUMNS(container), w, 1, 1);
+                    columns_align_next_to(COLUMNS(container), label, w);
+                    gtk_widget_show(w);
+                    w = container;
+                }
 
-              gtk_widget_show(label);
-              uc->label = label;
+                gtk_widget_show(label);
+                uc->label = label;
             }
             break;
           }
@@ -2312,9 +2312,9 @@ GtkWidget *layout_ctrls(
                 {
                     int edge;
                     edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
-                    gtk_widget_set_size_request(w, 10,
-                                         2*edge + (ctrl->listbox.height *
-                                                   get_listitemheight(w)));
+                    gtk_widget_set_size_request(
+                        w, 10, 2*edge + (ctrl->listbox.height *
+                                         get_listitemheight(w)));
                 }
 
                 if (ctrl->listbox.draglist) {
