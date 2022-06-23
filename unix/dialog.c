@@ -71,7 +71,6 @@ struct uctrl {
     GtkWidget *label;         /* for dlg_label_change */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
     struct selparam *sp;      /* which switchable pane of the box we're in */
-    guint entrysig;
     guint textsig;
     int nclicks;
     const char *textvalue;    /* temporary, for button-only file selectors */
@@ -2055,9 +2054,8 @@ GtkWidget *layout_ctrls(
                 uc->entry = w;
                 signalobject = w;
             }
-            uc->entrysig =
-                g_signal_connect(G_OBJECT(signalobject), "changed",
-                                 G_CALLBACK(editbox_changed), dp);
+            g_signal_connect(G_OBJECT(signalobject), "changed",
+                             G_CALLBACK(editbox_changed), dp);
             g_signal_connect(G_OBJECT(signalobject), "key_press_event",
                              G_CALLBACK(editbox_key), dp);
             g_signal_connect(G_OBJECT(signalobject), "focus_in_event",
@@ -2167,9 +2165,8 @@ GtkWidget *layout_ctrls(
 
                 g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
                                  G_CALLBACK(editbox_key), dp);
-                uc->entrysig =
-                    g_signal_connect(G_OBJECT(uc->entry), "changed",
-                                     G_CALLBACK(editbox_changed), dp);
+                g_signal_connect(G_OBJECT(uc->entry), "changed",
+                                 G_CALLBACK(editbox_changed), dp);
                 g_signal_connect(G_OBJECT(uc->entry), "focus_in_event",
                                  G_CALLBACK(widget_focus), dp);
             } else {
