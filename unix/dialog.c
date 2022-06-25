@@ -357,6 +357,27 @@ char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
     unreachable("bad control type in editbox_get");
 }
 
+void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,
+                              size_t start, size_t len)
+{
+    struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+    assert(uc->ctrl->type == CTRL_EDITBOX);
+
+    GtkWidget *entry = NULL;
+
+#if GTK_CHECK_VERSION(2,4,0)
+    if (uc->combo)
+        entry = gtk_bin_get_child(GTK_BIN(uc->combo));
+#endif
+
+    if (uc->entry)
+        entry = uc->entry;
+
+    assert(entry && "we should have a GtkEntry one way or another");
+
+    gtk_editable_select_region(GTK_EDITABLE(entry), start, start + len);
+}
+
 #if !GTK_CHECK_VERSION(2,4,0)
 static void container_remove_and_destroy(GtkWidget *w, gpointer data)
 {

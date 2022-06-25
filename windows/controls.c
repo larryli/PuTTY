@@ -2217,6 +2217,14 @@ char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
     return GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
 }
 
+void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,
+                              size_t start, size_t len)
+{
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    assert(c && c->ctrl->type == CTRL_EDITBOX);
+    SendDlgItemMessage(dp->hwnd, c->base_id+1, EM_SETSEL, start, start+len);
+}
+
 /* The `listbox' functions can also apply to combo boxes. */
 void dlg_listbox_clear(dlgcontrol *ctrl, dlgparam *dp)
 {
