@@ -2,6 +2,7 @@
  * Helper function from the dialog.h mechanism.
  */
 
+#include "putty.h"
 #include "misc.h"
 #include "dialog.h"
 

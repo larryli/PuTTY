@@ -78,7 +78,9 @@ extern const struct BackendVtable pty_backend;
 /*
  * Under GTK, there is no context help available.
  */
-#define HELPCTX(x) P(NULL)
+typedef void *HelpCtx;
+#define NULL_HELPCTX ((HelpCtx)NULL)
+#define HELPCTX(x) NULL
 #define FILTER_KEY_FILES NULL          /* FIXME */
 #define FILTER_DYNLIB_FILES NULL       /* FIXME */
 

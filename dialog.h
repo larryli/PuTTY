@@ -161,7 +161,7 @@ struct dlgcontrol {
      * platform-specific driver can use to ensure it brings up the
      * right piece of help text.
      */
-    intorptr helpctx;
+    HelpCtx helpctx;
     /*
      * Setting this to non-NULL coerces two or more controls to have
      * their y-coordinates adjusted so that they can sit alongside
@@ -519,11 +519,11 @@ void *ctrl_alloc_with_free(struct controlbox *b, size_t size,
 /* `ncolumns' is followed by that many percentages, as integers. */
 dlgcontrol *ctrl_columns(struct controlset *, int ncolumns, ...);
 dlgcontrol *ctrl_editbox(struct controlset *, const char *label,
-                         char shortcut, int percentage, intorptr helpctx,
+                         char shortcut, int percentage, HelpCtx helpctx,
                          handler_fn handler,
                          intorptr context, intorptr context2);
 dlgcontrol *ctrl_combobox(struct controlset *, const char *label,
-                          char shortcut, int percentage, intorptr helpctx,
+                          char shortcut, int percentage, HelpCtx helpctx,
                           handler_fn handler,
                           intorptr context, intorptr context2);
 /*
@@ -533,33 +533,33 @@ dlgcontrol *ctrl_combobox(struct controlset *, const char *label,
  * is NO_SHORTCUT.
  */
 dlgcontrol *ctrl_radiobuttons_fn(struct controlset *, const char *label,
-                                 char shortcut, int ncolumns, intorptr helpctx,
+                                 char shortcut, int ncolumns, HelpCtx helpctx,
                                  handler_fn handler, intorptr context, ...);
 #define ctrl_radiobuttons(...) \
     ctrl_radiobuttons_fn(__VA_ARGS__, (const char *)NULL)
 dlgcontrol *ctrl_pushbutton(struct controlset *, const char *label,
-                            char shortcut, intorptr helpctx,
+                            char shortcut, HelpCtx helpctx,
                             handler_fn handler, intorptr context);
 dlgcontrol *ctrl_listbox(struct controlset *, const char *label,
-                         char shortcut, intorptr helpctx,
+                         char shortcut, HelpCtx helpctx,
                          handler_fn handler, intorptr context);
 dlgcontrol *ctrl_droplist(struct controlset *, const char *label,
-                          char shortcut, int percentage, intorptr helpctx,
+                          char shortcut, int percentage, HelpCtx helpctx,
                           handler_fn handler, intorptr context);
 dlgcontrol *ctrl_draglist(struct controlset *, const char *label,
-                          char shortcut, intorptr helpctx,
+                          char shortcut, HelpCtx helpctx,
                           handler_fn handler, intorptr context);
 dlgcontrol *ctrl_filesel(struct controlset *, const char *label,
                          char shortcut, const char *filter, bool write,
-                         const char *title, intorptr helpctx,
+                         const char *title, HelpCtx helpctx,
                          handler_fn handler, intorptr context);
 dlgcontrol *ctrl_fontsel(struct controlset *, const char *label,
-                         char shortcut, intorptr helpctx,
+                         char shortcut, HelpCtx helpctx,
                          handler_fn handler, intorptr context);
 dlgcontrol *ctrl_text(struct controlset *, const char *text,
-                      intorptr helpctx);
+                      HelpCtx helpctx);
 dlgcontrol *ctrl_checkbox(struct controlset *, const char *label,
-                          char shortcut, intorptr helpctx,
+                          char shortcut, HelpCtx helpctx,
                           handler_fn handler, intorptr context);
 dlgcontrol *ctrl_tabdelay(struct controlset *, dlgcontrol *);
 

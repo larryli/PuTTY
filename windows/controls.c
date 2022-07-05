@@ -2131,12 +2131,12 @@ bool winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
 
     /*
      * This is the Windows front end, so we're allowed to assume
-     * `helpctx.p' is a context string.
+     * `helpctx' is a context string.
      */
-    if (!c->ctrl || !c->ctrl->helpctx.p)
+    if (!c->ctrl || !c->ctrl->helpctx)
         return false;            /* no help available for this ctrl */
 
-    launch_help(hwnd, c->ctrl->helpctx.p);
+    launch_help(hwnd, c->ctrl->helpctx);
     return true;
 }
 

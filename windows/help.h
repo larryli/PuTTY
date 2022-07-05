@@ -9,7 +9,9 @@
 
 /* These are used in the cross-platform configuration dialog code. */
 
-#define HELPCTX(x) P(WINHELP_CTX_ ## x)
+typedef const char *HelpCtx;
+#define NULL_HELPCTX NULL
+#define HELPCTX(x) WINHELP_CTX_ ## x
 
 #define WINHELP_CTX_no_help NULL
 

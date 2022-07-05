@@ -205,7 +205,7 @@ void *ctrl_alloc(struct controlbox *b, size_t size)
 }
 
 static dlgcontrol *ctrl_new(struct controlset *s, int type,
-                            intorptr helpctx, handler_fn handler,
+                            HelpCtx helpctx, handler_fn handler,
                             intorptr context)
 {
     dlgcontrol *c = snew(dlgcontrol);
@@ -228,7 +228,7 @@ static dlgcontrol *ctrl_new(struct controlset *s, int type,
 /* `ncolumns' is followed by that many percentages, as integers. */
 dlgcontrol *ctrl_columns(struct controlset *s, int ncolumns, ...)
 {
-    dlgcontrol *c = ctrl_new(s, CTRL_COLUMNS, P(NULL), NULL, P(NULL));
+    dlgcontrol *c = ctrl_new(s, CTRL_COLUMNS, NULL_HELPCTX, NULL, P(NULL));
     assert(s->ncolumns == 1 || ncolumns == 1);
     c->columns.ncols = ncolumns;
     s->ncolumns = ncolumns;
@@ -248,7 +248,7 @@ dlgcontrol *ctrl_columns(struct controlset *s, int ncolumns, ...)
 
 dlgcontrol *ctrl_editbox(struct controlset *s, const char *label,
                          char shortcut, int percentage,
-                         intorptr helpctx, handler_fn handler,
+                         HelpCtx helpctx, handler_fn handler,
                          intorptr context, intorptr context2)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_EDITBOX, helpctx, handler, context);
@@ -263,7 +263,7 @@ dlgcontrol *ctrl_editbox(struct controlset *s, const char *label,
 
 dlgcontrol *ctrl_combobox(struct controlset *s, const char *label,
                           char shortcut, int percentage,
-                          intorptr helpctx, handler_fn handler,
+                          HelpCtx helpctx, handler_fn handler,
                           intorptr context, intorptr context2)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_EDITBOX, helpctx, handler, context);
@@ -283,7 +283,7 @@ dlgcontrol *ctrl_combobox(struct controlset *s, const char *label,
  * is NO_SHORTCUT.
  */
 dlgcontrol *ctrl_radiobuttons_fn(struct controlset *s, const char *label,
-                                 char shortcut, int ncolumns, intorptr helpctx,
+                                 char shortcut, int ncolumns, HelpCtx helpctx,
                                  handler_fn handler, intorptr context, ...)
 {
     va_list ap;
@@ -329,7 +329,7 @@ dlgcontrol *ctrl_radiobuttons_fn(struct controlset *s, const char *label,
 }
 
 dlgcontrol *ctrl_pushbutton(struct controlset *s, const char *label,
-                            char shortcut, intorptr helpctx,
+                            char shortcut, HelpCtx helpctx,
                             handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_BUTTON, helpctx, handler, context);
@@ -341,7 +341,7 @@ dlgcontrol *ctrl_pushbutton(struct controlset *s, const char *label,
 }
 
 dlgcontrol *ctrl_listbox(struct controlset *s, const char *label,
-                         char shortcut, intorptr helpctx,
+                         char shortcut, HelpCtx helpctx,
                          handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
@@ -358,7 +358,7 @@ dlgcontrol *ctrl_listbox(struct controlset *s, const char *label,
 }
 
 dlgcontrol *ctrl_droplist(struct controlset *s, const char *label,
-                          char shortcut, int percentage, intorptr helpctx,
+                          char shortcut, int percentage, HelpCtx helpctx,
                           handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
@@ -375,7 +375,7 @@ dlgcontrol *ctrl_droplist(struct controlset *s, const char *label,
 }
 
 dlgcontrol *ctrl_draglist(struct controlset *s, const char *label,
-                          char shortcut, intorptr helpctx,
+                          char shortcut, HelpCtx helpctx,
                           handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_LISTBOX, helpctx, handler, context);
@@ -393,7 +393,7 @@ dlgcontrol *ctrl_draglist(struct controlset *s, const char *label,
 
 dlgcontrol *ctrl_filesel(struct controlset *s, const char *label,
                          char shortcut, const char *filter, bool write,
-                         const char *title, intorptr helpctx,
+                         const char *title, HelpCtx helpctx,
                          handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_FILESELECT, helpctx, handler, context);
@@ -406,7 +406,7 @@ dlgcontrol *ctrl_filesel(struct controlset *s, const char *label,
 }
 
 dlgcontrol *ctrl_fontsel(struct controlset *s, const char *label,
-                         char shortcut, intorptr helpctx,
+                         char shortcut, HelpCtx helpctx,
                          handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_FONTSELECT, helpctx, handler, context);
@@ -417,13 +417,13 @@ dlgcontrol *ctrl_fontsel(struct controlset *s, const char *label,
 
 dlgcontrol *ctrl_tabdelay(struct controlset *s, dlgcontrol *ctrl)
 {
-    dlgcontrol *c = ctrl_new(s, CTRL_TABDELAY, P(NULL), NULL, P(NULL));
+    dlgcontrol *c = ctrl_new(s, CTRL_TABDELAY, NULL_HELPCTX, NULL, P(NULL));
     c->tabdelay.ctrl = ctrl;
     return c;
 }
 
 dlgcontrol *ctrl_text(struct controlset *s, const char *text,
-                      intorptr helpctx)
+                      HelpCtx helpctx)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_TEXT, helpctx, NULL, P(NULL));
     c->label = dupstr(text);
@@ -432,7 +432,7 @@ dlgcontrol *ctrl_text(struct controlset *s, const char *text,
 }
 
 dlgcontrol *ctrl_checkbox(struct controlset *s, const char *label,
-                          char shortcut, intorptr helpctx,
+                          char shortcut, HelpCtx helpctx,
                           handler_fn handler, intorptr context)
 {
     dlgcontrol *c = ctrl_new(s, CTRL_CHECKBOX, helpctx, handler, context);

@@ -1588,7 +1588,7 @@ static void clipboard_selector_handler(dlgcontrol *ctrl, dlgparam *dlg,
 }
 
 static void clipboard_control(struct controlset *s, const char *label,
-                              char shortcut, int percentage, intorptr helpctx,
+                              char shortcut, int percentage, HelpCtx helpctx,
                               int setting, int strsetting)
 {
 #ifdef NAMED_CLIPBOARDS
