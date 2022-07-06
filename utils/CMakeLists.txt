@@ -70,6 +70,7 @@ add_sources_from_current_dir(utils
   version.c
   wcwidth.c
   wildcard.c
+  wordwrap.c
   write_c_string_literal.c
   x11authfile.c
   x11authnames.c

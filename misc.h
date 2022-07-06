@@ -232,6 +232,8 @@ int string_length_for_printf(size_t);
 /* Make a ptrlen out of a constant byte array. */
 #define PTRLEN_FROM_CONST_BYTES(a) make_ptrlen(a, sizeof(a))
 
+void wordwrap(BinarySink *bs, ptrlen input, size_t maxwid);
+
 /* Wipe sensitive data out of memory that's about to be freed. Simpler
  * than memset because we don't need the fill char parameter; also
  * attempts (by fiddly use of volatile) to inhibit the compiler from
