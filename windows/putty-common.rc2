@@ -61,6 +61,7 @@ IDD_HK_ABSENT DIALOG DISCARDABLE 50, 50, 340, 160
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY Security Alert"
 FONT 8, "MS Shell Dlg"
+CLASS "PuTTYHostKeyDialog"
 BEGIN
     LTEXT "The host key is not cached for this server:", 100, 40, 20, 300, 8
     LTEXT "You have no guarantee that the server is the computer you think it is.", 101, 40, 40, 300, 8
@@ -120,6 +121,7 @@ IDD_HK_MOREINFO DIALOG DISCARDABLE 140, 40, 400, 156
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY: information about the server's host key"
 FONT 8, "MS Shell Dlg"
+CLASS "PuTTYHostKeyMoreInfo"
 BEGIN
     LTEXT "SHA256 fingerprint:", 100, 12, 12, 80, 8
     EDITTEXT IDC_HKI_SHA256, 100, 10, 288, 12, ES_READONLY

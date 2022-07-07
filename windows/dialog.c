@@ -853,14 +853,13 @@ struct hostkey_dialog_ctx {
     const char *helpctx;
 };
 
-static INT_PTR CALLBACK HostKeyMoreInfoProc(HWND hwnd, UINT msg,
-                                            WPARAM wParam, LPARAM lParam)
+static INT_PTR HostKeyMoreInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
+                                   LPARAM lParam, void *vctx)
 {
+    struct hostkey_dialog_ctx *ctx = (struct hostkey_dialog_ctx *)vctx;
+
     switch (msg) {
       case WM_INITDIALOG: {
-        const struct hostkey_dialog_ctx *ctx =
-            (const struct hostkey_dialog_ctx *)lParam;
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
 
         if (ctx->fingerprints[SSH_FPTYPE_SHA256])
             SetDlgItemText(hwnd, IDC_HKI_SHA256,
@@ -876,26 +875,25 @@ static INT_PTR CALLBACK HostKeyMoreInfoProc(HWND hwnd, UINT msg,
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
-            EndDialog(hwnd, 0);
+            ShinyEndDialog(hwnd, 0);
             return 0;
         }
         return 0;
       case WM_CLOSE:
-        EndDialog(hwnd, 0);
+        ShinyEndDialog(hwnd, 0);
         return 0;
     }
     return 0;
 }
 
-static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
-                                          WPARAM wParam, LPARAM lParam)
+static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
+                                 WPARAM wParam, LPARAM lParam, void *vctx)
 {
+    struct hostkey_dialog_ctx *ctx = (struct hostkey_dialog_ctx *)vctx;
+
     switch (msg) {
       case WM_INITDIALOG: {
         strbuf *sb = strbuf_new();
-        const struct hostkey_dialog_ctx *ctx =
-            (const struct hostkey_dialog_ctx *)lParam;
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
         for (int id = 100;; id++) {
             char buf[256];
 
@@ -970,26 +968,21 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
           case IDC_HK_ACCEPT:
           case IDC_HK_ONCE:
           case IDCANCEL:
-            EndDialog(hwnd, LOWORD(wParam));
+            ShinyEndDialog(hwnd, LOWORD(wParam));
             return 0;
           case IDHELP: {
-            const struct hostkey_dialog_ctx *ctx =
-                (const struct hostkey_dialog_ctx *)
-                GetWindowLongPtr(hwnd, GWLP_USERDATA);
             launch_help(hwnd, ctx->helpctx);
             return 0;
           }
           case IDC_HK_MOREINFO: {
-            const struct hostkey_dialog_ctx *ctx =
-                (const struct hostkey_dialog_ctx *)
-                GetWindowLongPtr(hwnd, GWLP_USERDATA);
-            DialogBoxParam(hinst, MAKEINTRESOURCE(IDD_HK_MOREINFO),
-                           hwnd, HostKeyMoreInfoProc, (LPARAM)ctx);
+            ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_HK_MOREINFO),
+                           "PuTTYHostKeyMoreInfo", hwnd,
+                           HostKeyMoreInfoProc, ctx);
           }
         }
         return 0;
       case WM_CLOSE:
-        EndDialog(hwnd, IDCANCEL);
+        ShinyEndDialog(hwnd, IDCANCEL);
         return 0;
     }
     return 0;
@@ -1021,9 +1014,9 @@ SeatPromptResult win_seat_confirm_ssh_host_key(
     ctx->host = host;
     ctx->port = port;
     int dlgid = (mismatch ? IDD_HK_WRONG : IDD_HK_ABSENT);
-    int mbret = DialogBoxParam(
-        hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,
-        HostKeyDialogProc, (LPARAM)ctx);
+    int mbret = ShinyDialogBox(
+        hinst, MAKEINTRESOURCE(dlgid), "PuTTYHostKeyDialog",
+        wgs->term_hwnd, HostKeyDialogProc, ctx);
     assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
     if (mbret == IDC_HK_ACCEPT) {
         store_host_key(host, port, keytype, keystr);
