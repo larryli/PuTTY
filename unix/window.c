@@ -429,6 +429,7 @@ static const SeatVtable gtk_seat_vt = {
     .confirm_ssh_host_key = gtk_seat_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = gtk_seat_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = gtk_seat_confirm_weak_cached_hostkey,
+    .prompt_descriptions = gtk_seat_prompt_descriptions,
     .is_utf8 = gtk_seat_is_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = gtk_seat_get_x_display,

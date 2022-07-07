@@ -53,6 +53,7 @@ add_sources_from_current_dir(utils
   ptrlen.c
   read_file_into.c
   seat_connection_fatal.c
+  seat_dialog_text.c
   sessprep.c
   sk_free_peer_info.c
   smemclr.c

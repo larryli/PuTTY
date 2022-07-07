@@ -116,6 +116,9 @@ typedef struct LogPolicyVtable LogPolicyVtable;
 
 typedef struct Seat Seat;
 typedef struct SeatVtable SeatVtable;
+typedef struct SeatDialogText SeatDialogText;
+typedef struct SeatDialogTextItem SeatDialogTextItem;
+typedef struct SeatDialogPromptDescriptions SeatDialogPromptDescriptions;
 typedef struct SeatPromptResult SeatPromptResult;
 
 typedef struct cmdline_get_passwd_input_state cmdline_get_passwd_input_state;

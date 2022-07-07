@@ -226,7 +226,7 @@ int has_embedded_chm(void);            /* 1 = yes, 0 = no, -1 = N/A */
  */
 SeatPromptResult win_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 SeatPromptResult win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -234,6 +234,7 @@ SeatPromptResult win_seat_confirm_weak_crypto_primitive(
 SeatPromptResult win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+const SeatDialogPromptDescriptions *win_seat_prompt_descriptions(Seat *seat);
 
 /*
  * Windows-specific clipboard helper function shared with dialog.c,

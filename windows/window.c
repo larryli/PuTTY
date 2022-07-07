@@ -346,6 +346,7 @@ static const SeatVtable win_seat_vt = {
     .confirm_ssh_host_key = win_seat_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = win_seat_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = win_seat_confirm_weak_cached_hostkey,
+    .prompt_descriptions = win_seat_prompt_descriptions,
     .is_utf8 = win_seat_is_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = nullseat_get_x_display,

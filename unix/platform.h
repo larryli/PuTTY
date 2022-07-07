@@ -222,7 +222,7 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
                      void (*callback)(void *ctx, int result), void *ctx);
 SeatPromptResult gtk_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -230,6 +230,7 @@ SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
 SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+const SeatDialogPromptDescriptions *gtk_seat_prompt_descriptions(Seat *seat);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 struct message_box_button {
     const char *title;

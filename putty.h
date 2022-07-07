@@ -1085,6 +1085,24 @@ typedef enum SeatOutputType {
     SEAT_OUTPUT_STDOUT, SEAT_OUTPUT_STDERR
 } SeatOutputType;
 
+typedef enum SeatDialogTextType {
+    SDT_PARA, SDT_DISPLAY, SDT_SCARY_HEADING,
+    SDT_TITLE, SDT_PROMPT, SDT_BATCH_ABORT,
+    SDT_MORE_INFO_KEY, SDT_MORE_INFO_VALUE_SHORT, SDT_MORE_INFO_VALUE_BLOB
+} SeatDialogTextType;
+struct SeatDialogTextItem {
+    SeatDialogTextType type;
+    char *text;
+};
+struct SeatDialogText {
+    size_t nitems, itemsize;
+    SeatDialogTextItem *items;
+};
+SeatDialogText *seat_dialog_text_new(void);
+void seat_dialog_text_free(SeatDialogText *sdt);
+PRINTF_LIKE(3, 4) void seat_dialog_text_append(
+    SeatDialogText *sdt, SeatDialogTextType type, const char *fmt, ...);
+
 /*
  * Data type 'Seat', which is an API intended to contain essentially
  * everything that a back end might need to talk to its client for:
@@ -1259,9 +1277,8 @@ struct SeatVtable {
      */
     SeatPromptResult (*confirm_ssh_host_key)(
         Seat *seat, const char *host, int port, const char *keytype,
-        char *keystr, const char *keydisp, char **key_fingerprints,
-        bool mismatch, void (*callback)(void *ctx, SeatPromptResult result),
-        void *ctx);
+        char *keystr, SeatDialogText *text, HelpCtx helpctx,
+        void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 
     /*
      * Check with the seat whether it's OK to use a cryptographic
@@ -1287,6 +1304,13 @@ struct SeatVtable {
     SeatPromptResult (*confirm_weak_cached_hostkey)(
         Seat *seat, const char *algname, const char *betteralgs,
         void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+
+    /*
+     * Some snippets of text describing the UI actions in host key
+     * prompts / dialog boxes, to be used in ssh/common.c when it
+     * assembles the full text of those prompts.
+     */
+    const SeatDialogPromptDescriptions *(*prompt_descriptions)(Seat *seat);
 
     /*
      * Indicates whether the seat is expecting to interact with the
@@ -1409,10 +1433,10 @@ static inline void seat_set_busy_status(Seat *seat, BusyStatus status)
 { seat->vt->set_busy_status(seat, status); }
 static inline SeatPromptResult seat_confirm_ssh_host_key(
     InteractionReadySeat iseat, const char *h, int p, const char *ktyp,
-    char *kstr, const char *kdsp, char **fps, bool mis,
+    char *kstr, SeatDialogText *text, HelpCtx helpctx,
     void (*cb)(void *ctx, SeatPromptResult result), void *ctx)
 { return iseat.seat->vt->confirm_ssh_host_key(
-        iseat.seat, h, p, ktyp, kstr, kdsp, fps, mis, cb, ctx); }
+        iseat.seat, h, p, ktyp, kstr, text, helpctx, cb, ctx); }
 static inline SeatPromptResult seat_confirm_weak_crypto_primitive(
     InteractionReadySeat iseat, const char *atyp, const char *aname,
     void (*cb)(void *ctx, SeatPromptResult result), void *ctx)
@@ -1423,6 +1447,9 @@ static inline SeatPromptResult seat_confirm_weak_cached_hostkey(
     void (*cb)(void *ctx, SeatPromptResult result), void *ctx)
 { return iseat.seat->vt->confirm_weak_cached_hostkey(
         iseat.seat, aname, better, cb, ctx); }
+static inline const SeatDialogPromptDescriptions *seat_prompt_descriptions(
+    Seat *seat)
+{ return seat->vt->prompt_descriptions(seat); }
 static inline bool seat_is_utf8(Seat *seat)
 { return seat->vt->is_utf8(seat); }
 static inline void seat_echoedit_update(Seat *seat, bool ec, bool ed)
@@ -1468,6 +1495,12 @@ static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
 static inline size_t seat_banner_pl(InteractionReadySeat iseat, ptrlen data)
 { return iseat.seat->vt->banner(iseat.seat, data.ptr, data.len); }
 
+struct SeatDialogPromptDescriptions {
+    const char *hk_accept_action;
+    const char *hk_connect_once_action;
+    const char *hk_cancel_action, *hk_cancel_action_Participle;
+};
+
 /* In the utils subdir: print a message to the Seat which can't be
  * spoofed by server-supplied auth-time output such as SSH banners */
 void seat_antispoof_msg(InteractionReadySeat iseat, const char *msg);
@@ -1495,7 +1528,7 @@ char *nullseat_get_ttymode(Seat *seat, const char *mode);
 void nullseat_set_busy_status(Seat *seat, BusyStatus status);
 SeatPromptResult nullseat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 SeatPromptResult nullseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -1503,6 +1536,7 @@ SeatPromptResult nullseat_confirm_weak_crypto_primitive(
 SeatPromptResult nullseat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+const SeatDialogPromptDescriptions *nullseat_prompt_descriptions(Seat *seat);
 bool nullseat_is_never_utf8(Seat *seat);
 bool nullseat_is_always_utf8(Seat *seat);
 void nullseat_echoedit_update(Seat *seat, bool echoing, bool editing);
@@ -1530,7 +1564,7 @@ bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
 void console_connection_fatal(Seat *seat, const char *message);
 SeatPromptResult console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -1543,6 +1577,7 @@ StripCtrlChars *console_stripctrl_new(
 void console_set_trust_status(Seat *seat, bool trusted);
 bool console_can_set_trust_status(Seat *seat);
 bool console_has_mixed_input_stream(Seat *seat);
+const SeatDialogPromptDescriptions *console_prompt_descriptions(Seat *seat);
 
 /*
  * Other centralised seat functions.

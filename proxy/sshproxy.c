@@ -407,7 +407,7 @@ static void sshproxy_connection_fatal(Seat *seat, const char *message)
 
 static SeatPromptResult sshproxy_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **key_fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
@@ -418,8 +418,8 @@ static SeatPromptResult sshproxy_confirm_ssh_host_key(
          * request on to it.
          */
         return seat_confirm_ssh_host_key(
-            wrap(sp->clientseat), host, port, keytype, keystr, keydisp,
-            key_fingerprints, mismatch, callback, ctx);
+            wrap(sp->clientseat), host, port, keytype, keystr, text,
+            helpctx, callback, ctx);
     }
 
     /*
@@ -482,6 +482,20 @@ static SeatPromptResult sshproxy_confirm_weak_cached_hostkey(
                         "weak cached host key");
 }
 
+static const SeatDialogPromptDescriptions *sshproxy_prompt_descriptions(
+    Seat *seat)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+
+    /* If we have a client seat, return their prompt descriptions, so
+     * that prompts passed on to them will make sense. */
+    if (sp->clientseat)
+        return seat_prompt_descriptions(sp->clientseat);
+
+    /* Otherwise, it doesn't matter what we return, so do the easiest thing. */
+    return nullseat_prompt_descriptions(NULL);
+}
+
 static StripCtrlChars *sshproxy_stripctrl_new(
     Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
 {
@@ -533,6 +547,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .confirm_ssh_host_key = sshproxy_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = sshproxy_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = sshproxy_confirm_weak_cached_hostkey,
+    .prompt_descriptions = sshproxy_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = nullseat_get_x_display,

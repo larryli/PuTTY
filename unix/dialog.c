@@ -3592,41 +3592,22 @@ static void more_info_button_clicked(GtkButton *button, gpointer vctx)
         &buttons_ok, more_info_closed, ctx);
 }
 
+const SeatDialogPromptDescriptions *gtk_seat_prompt_descriptions(Seat *seat)
+{
+    static const SeatDialogPromptDescriptions descs = {
+        .hk_accept_action = "press \"Accept\"",
+        .hk_connect_once_action = "press \"Connect Once\"",
+        .hk_cancel_action = "press \"Cancel\"",
+        .hk_cancel_action_Participle = "Pressing \"Cancel\"",
+    };
+    return &descs;
+}
+
 SeatPromptResult gtk_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    static const char absenttxt[] =
-        "The host key is not cached for this server:\n\n"
-        "%s (port %d)\n\n"
-        "You have no guarantee that the server is the computer "
-        "you think it is.\n"
-        "The server's %s key fingerprint is:\n\n"
-        "%s\n\n"
-        "If you trust this host, press \"Accept\" to add the key to "
-        "PuTTY's cache and carry on connecting.\n"
-        "If you want to carry on connecting just once, without "
-        "adding the key to the cache, press \"Connect Once\".\n"
-        "If you do not trust this host, press \"Cancel\" to abandon the "
-        "connection.";
-    static const char wrongtxt[] =
-        "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "The host key does not match the one PuTTY has cached "
-        "for this server:\n\n"
-        "%s (port %d)\n\n"
-        "This means that either the server administrator has "
-        "changed the host key, or you have actually connected "
-        "to another computer pretending to be the server.\n"
-        "The new %s key fingerprint is:\n\n"
-        "%s\n\n"
-        "If you were expecting this change and trust the new key, "
-        "press \"Accept\" to update PuTTY's cache and continue connecting.\n"
-        "If you want to carry on connecting but without updating "
-        "the cache, press \"Connect Once\".\n"
-        "If you want to abandon the connection completely, press "
-        "\"Cancel\" to cancel. Pressing \"Cancel\" is the ONLY guaranteed "
-        "safe choice.";
     static const struct message_box_button button_array_hostkey[] = {
         {"Accept", 'a', 0, 2},
         {"Connect Once", 'o', 0, 1},
@@ -3636,17 +3617,40 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
         button_array_hostkey, lenof(button_array_hostkey),
     };
 
-    char *text;
-    struct confirm_ssh_host_key_dialog_ctx *result_ctx;
+    const char *dlg_title = NULL;
+    strbuf *dlg_text = strbuf_new();
+    int width = string_width("default dialog width determination string");
+
+    for (SeatDialogTextItem *item = text->items,
+             *end = item + text->nitems; item < end; item++) {
+        switch (item->type) {
+          case SDT_PARA:
+            put_fmt(dlg_text, "%s\n\n", item->text);
+            break;
+          case SDT_DISPLAY: {
+            put_fmt(dlg_text, "%s\n\n", item->text);
+            int thiswidth = string_width(item->text);
+            if (width < thiswidth)
+                width = thiswidth;
+            break;
+          }
+          case SDT_SCARY_HEADING:
+            /* Can't change font size or weight in this context */
+            put_fmt(dlg_text, "%s\n\n", item->text);
+            break;
+          case SDT_TITLE:
+            dlg_title = item->text;
+            break;
+          default:
+            break;
+        }
+    }
+    while (strbuf_chomp(dlg_text, '\n'));
+
     GtkWidget *mainwin, *msgbox;
 
-    FingerprintType fptype_default =
-        ssh2_pick_default_fingerprint(fingerprints);
-
-    text = dupprintf((mismatch ? wrongtxt : absenttxt), host, port,
-                     keytype, fingerprints[fptype_default]);
-
-    result_ctx = snew(struct confirm_ssh_host_key_dialog_ctx);
+    struct confirm_ssh_host_key_dialog_ctx *result_ctx =
+        snew(struct confirm_ssh_host_key_dialog_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->host = dupstr(host);
@@ -3658,41 +3662,48 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     GtkWidget *more_info_button = NULL;
     msgbox = create_message_box_general(
-        mainwin, "PuTTY Security Alert", text,
-        string_width(fingerprints[fptype_default]), true,
+        mainwin, dlg_title, dlg_text->s, width, true,
         &buttons_hostkey, confirm_ssh_host_key_result_callback, result_ctx,
         add_more_info_button, &more_info_button);
 
     result_ctx->main_dialog = msgbox;
     result_ctx->more_info_dialog = NULL;
 
-    strbuf *sb = strbuf_new();
-    if (fingerprints[SSH_FPTYPE_SHA256])
-        put_fmt(sb, "SHA256 fingerprint: %s\n",
-                fingerprints[SSH_FPTYPE_SHA256]);
-    if (fingerprints[SSH_FPTYPE_MD5])
-        put_fmt(sb, "MD5 fingerprint: %s\n",
-                fingerprints[SSH_FPTYPE_MD5]);
-    put_fmt(sb, "Full text of host's public key:");
-    /* We have to manually wrap the public key, or else the GtkLabel
-     * will resize itself to accommodate the longest word, which will
-     * lead to a hilariously wide message box. */
-    for (const char *p = keydisp, *q = p + strlen(p); p < q ;) {
-        size_t linelen = q-p;
-        if (linelen > 72)
-            linelen = 72;
-        put_byte(sb, '\n');
-        put_data(sb, p, linelen);
-        p += linelen;
+    strbuf *moreinfo = strbuf_new();
+    for (SeatDialogTextItem *item = text->items,
+             *end = item + text->nitems; item < end; item++) {
+        switch (item->type) {
+          case SDT_MORE_INFO_KEY:
+            put_fmt(moreinfo, "%s", item->text);
+            break;
+          case SDT_MORE_INFO_VALUE_SHORT:
+            put_fmt(moreinfo, ": %s\n", item->text);
+            break;
+          case SDT_MORE_INFO_VALUE_BLOB:
+            /* We have to manually wrap the public key, or else the GtkLabel
+             * will resize itself to accommodate the longest word, which will
+             * lead to a hilariously wide message box. */
+            for (const char *p = item->text, *q = p + strlen(p); p < q ;) {
+                size_t linelen = q-p;
+                if (linelen > 72)
+                    linelen = 72;
+                put_byte(moreinfo, '\n');
+                put_data(moreinfo, p, linelen);
+                p += linelen;
+            }
+            break;
+          default:
+            break;
+        }
     }
-    result_ctx->more_info = strbuf_to_str(sb);
+    result_ctx->more_info = strbuf_to_str(moreinfo);
 
     g_signal_connect(G_OBJECT(more_info_button), "clicked",
                      G_CALLBACK(more_info_button_clicked), result_ctx);
 
     register_dialog(seat, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
-    sfree(text);
+    strbuf_free(dlg_text);
 
     return SPR_INCOMPLETE;             /* dialog still in progress */
 }
