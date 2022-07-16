@@ -268,7 +268,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
         .alternate_ssh_id = opensshcert_alternate_ssh_id,               \
         .related_alg = opensshcert_related_alg,                         \
         .ssh_id = ssh_alg_id_prefix "-cert-v01@openssh.com",            \
-        .cache_id = NULL,                                               \
+        .cache_id = "opensshcert-" ssh_key_id_prefix,                   \
         .extra = &opensshcert_##name##_extra,                           \
         .is_certificate = true,                                         \
         .base_alg = &name,                                              \
@@ -559,8 +559,8 @@ static bool opensshcert_has_private(ssh_key *key)
 
 static char *opensshcert_cache_str(ssh_key *key)
 {
-    unreachable(
-        "Certificates are not expected to be stored in the host key cache");
+    opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
+    return ssh_key_cache_str(ck->basekey);
 }
 
 static void opensshcert_time_to_iso8601(BinarySink *bs, uint64_t time)

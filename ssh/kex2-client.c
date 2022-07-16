@@ -718,8 +718,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         }
     }
 
-    s->keystr = (s->hkey && !ssh_key_alg(s->hkey)->is_certificate ?
-                 ssh_key_cache_str(s->hkey) : NULL);
+    s->keystr = ssh_key_cache_str(s->hkey);
 #ifndef NO_GSSAPI
     if (s->gss_kex_used) {
         /*
@@ -868,8 +867,6 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * hash.)
              */
             if (ssh_key_alg(s->hkey)->is_certificate) {
-                ssh2_free_all_fingerprints(fingerprints);
-
                 char *base_fp = ssh2_fingerprint(ssh_key_base_key(s->hkey),
                                                  fptype_default);
                 ppl_logevent("Host key is a certificate, whose base key has "
@@ -917,24 +914,26 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 }
                 if (cert_ok) {
                     strbuf_free(error);
+                    ssh2_free_all_fingerprints(fingerprints);
                     ppl_logevent("Accepted certificate");
+                    goto host_key_ok;
                 } else {
                     ppl_logevent("Rejected host key certificate: %s",
                                  error->s);
-                    ssh_sw_abort(s->ppl.ssh,
-                                 "Rejected host key certificate: %s",
-                                 error->s);
-                    *aborted = true;
-                    strbuf_free(error);
-                    return;
+                    /* now fall through into normal host key checking */
                 }
-            } else {
+            }
+
+            {
                 char *keydisp = ssh2_pubkey_openssh_str(&uk);
+
+                int ca_count = ssh_key_alg(s->hkey)->is_certificate ?
+                    count234(s->host_cas) : 0;
 
                 s->spr = verify_ssh_host_key(
                     ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport,
                     s->hkey, ssh_key_cache_id(s->hkey), s->keystr, keydisp,
-                    fingerprints, ssh2_transport_dialog_callback, s);
+                    fingerprints, ca_count, ssh2_transport_dialog_callback, s);
 
                 ssh2_free_all_fingerprints(fingerprints);
                 sfree(keydisp);
@@ -947,7 +946,21 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                     ssh_spr_close(s->ppl.ssh, s->spr, "host key verification");
                     return;
                 }
+
+                if (ssh_key_alg(s->hkey)->is_certificate) {
+                    /*
+                     * Explain what's going on in the Event Log: if we
+                     * got here by way of a certified key whose
+                     * certificate we didn't like, then we should
+                     * explain why we chose to continue with the
+                     * connection anyway!
+                     */
+                    ppl_logevent("Accepting certified host key anyway based "
+                                 "on cache");
+                }
             }
+
+          host_key_ok:
 
             /*
              * Save this host key, to check against the one presented in

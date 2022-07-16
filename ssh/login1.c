@@ -243,7 +243,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
         s->spr = verify_ssh_host_key(
             ppl_get_iseat(&s->ppl), s->conf, s->savedhost, s->savedport, NULL,
-            "rsa", keystr, keydisp, fingerprints,
+            "rsa", keystr, keydisp, fingerprints, 0,
             ssh1_login_dialog_callback, s);
 
         ssh2_free_all_fingerprints(fingerprints);

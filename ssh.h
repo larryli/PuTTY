@@ -1801,8 +1801,8 @@ bool get_commasep_word(ptrlen *list, ptrlen *word);
 SeatPromptResult verify_ssh_host_key(
     InteractionReadySeat iseat, Conf *conf, const char *host, int port,
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
-    char **fingerprints, void (*callback)(void *ctx, SeatPromptResult result),
-    void *ctx);
+    char **fingerprints, int ca_count,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 
 typedef struct ssh_transient_hostkey_cache ssh_transient_hostkey_cache;
 ssh_transient_hostkey_cache *ssh_transient_hostkey_cache_new(void);

@@ -855,8 +855,8 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
 SeatPromptResult verify_ssh_host_key(
     InteractionReadySeat iseat, Conf *conf, const char *host, int port,
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
-    char **fingerprints, void (*callback)(void *ctx, SeatPromptResult result),
-    void *ctx)
+    char **fingerprints, int ca_count,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     /*
      * First, check if the Conf includes a manual specification of the
@@ -934,7 +934,51 @@ SeatPromptResult verify_ssh_host_key(
     seat_dialog_text_append(
         text, SDT_TITLE, "%s Security Alert", appname);
 
-    if (storage_status == 1) {
+    if (key && ssh_key_alg(key)->is_certificate) {
+        seat_dialog_text_append(
+            text, SDT_SCARY_HEADING, "WARNING - POTENTIAL SECURITY BREACH!");
+        seat_dialog_text_append(
+            text, SDT_PARA, "This server presented a certified host key:");
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s (port %d)", host, port);
+        if (ca_count) {
+            seat_dialog_text_append(
+                text, SDT_PARA, "which was signed by a different "
+                "certification authority from the %s %s is configured to "
+                "trust for this server.", ca_count > 1 ? "ones" : "one",
+                appname);
+            if (storage_status == 2) {
+                seat_dialog_text_append(
+                    text, SDT_PARA, "ALSO, that key does not match the key "
+                    "%s had previously cached for this server.", appname);
+                seat_dialog_text_append(
+                    text, SDT_PARA, "This means that either another "
+                    "certification authority is operating in this realm AND "
+                    "the server administrator has changed the host key, or "
+                    "you have actually connected to another computer "
+                    "pretending to be the server.");
+            } else {
+                seat_dialog_text_append(
+                    text, SDT_PARA, "This means that either another "
+                    "certification authority is operating in this realm, or "
+                    "you have actually connected to another computer "
+                    "pretending to be the server.");
+            }
+        } else {
+            assert(storage_status == 2);
+            seat_dialog_text_append(
+                text, SDT_PARA, "which does not match the certified key %s "
+                "had previously cached for this server.", appname);
+            seat_dialog_text_append(
+                text, SDT_PARA, "This means that either the server "
+                "administrator has changed the host key, or you have actually "
+                "connected to another computer pretending to be the server.");
+        }
+        seat_dialog_text_append(
+            text, SDT_PARA, "The new %s key fingerprint is:", keytype);
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+    } else if (storage_status == 1) {
         seat_dialog_text_append(
             text, SDT_PARA, "The host key is not cached for this server:");
         seat_dialog_text_append(

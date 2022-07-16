@@ -725,8 +725,8 @@ static void ssh2_write_kexinit_lists(
             }
         }
 
-        /* Next, add uncertified algorithms we already know a key for
-         * (unless configured not to do that) */
+        /* Next, add algorithms we already know a key for (unless
+         * configured not to do that) */
         warn = false;
         for (i = 0; i < n_preferred_hk; i++) {
             if (preferred_hk[i] == HK_WARN)
@@ -734,8 +734,8 @@ static void ssh2_write_kexinit_lists(
             for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
                 const struct ssh_signkey_with_user_pref_id *a =
                     &ssh2_hostkey_algs[j];
-                if (a->alg->is_certificate || !a->alg->cache_id)
-                    continue;
+                if (a->alg->is_certificate && accept_certs)
+                    continue;          /* already added this one */
                 if (a->id != preferred_hk[i])
                     continue;
                 if (conf_get_bool(conf, CONF_ssh_prefer_known_hostkeys) &&
