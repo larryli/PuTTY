@@ -840,7 +840,7 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
 
 #undef BITMAP_UNIVERSAL
 #undef BITMAP_CONDITIONAL
-#undef SSH1_BITMAP_WORD
+#undef SSH2_BITMAP_WORD
 
 /* ----------------------------------------------------------------------
  * Centralised component of SSH host key verification.
