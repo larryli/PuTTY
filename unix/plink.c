@@ -322,7 +322,12 @@ static BinarySink *stdout_bs, *stderr_bs;
 
 static enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
-size_t try_output(bool is_stderr)
+static size_t output_backlog(void)
+{
+    return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
+}
+
+void try_output(bool is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
@@ -343,12 +348,13 @@ size_t try_output(bool is_stderr)
             perror(is_stderr ? "stderr: write" : "stdout: write");
             exit(1);
         }
+
+        backend_unthrottle(backend, output_backlog());
     }
     if (outgoingeof == EOF_PENDING && bufchain_size(&stdout_data) == 0) {
         close(STDOUT_FILENO);
         outgoingeof = EOF_SENT;
     }
-    return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
 static size_t plink_output(
@@ -360,7 +366,8 @@ static size_t plink_output(
     BinarySink *bs = is_stderr ? stderr_bs : stdout_bs;
     put_data(bs, data, len);
 
-    return try_output(is_stderr);
+    try_output(is_stderr);
+    return output_backlog();
 }
 
 static bool plink_eof(Seat *seat)
@@ -650,13 +657,11 @@ static void plink_pw_check(void *vctx, pollwrapper *pw)
         }
     }
 
-    if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
-        backend_unthrottle(backend, try_output(false));
-    }
+    if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W))
+        try_output(false);
 
-    if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
-        backend_unthrottle(backend, try_output(true));
-    }
+    if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W))
+        try_output(true);
 }
 
 static bool plink_continue(void *vctx, bool found_any_fd,
