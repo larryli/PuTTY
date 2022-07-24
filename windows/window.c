@@ -4627,7 +4627,11 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
             if (shift_state & 2)
                 break;
 
-            p += format_small_keypad_key((char *)p, term, sk_key);
+            p += format_small_keypad_key((char *)p, term, sk_key,
+                                     shift_state & 1, shift_state & 2,
+                                     left_alt, &consumed_alt);
+            if (consumed_alt)
+                left_alt = false; /* supersedes the usual prefixing of Esc */
             return p - output;
 
             char xkey;

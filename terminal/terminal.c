@@ -7477,7 +7477,9 @@ int format_function_key(char *buf, Terminal *term, int key_number,
     return p - buf;
 }
 
-int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key)
+int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key,
+                            bool shift, bool ctrl, bool alt,
+                            bool *consumed_alt)
 {
     char *p = buf;
 
@@ -7508,7 +7510,17 @@ int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key)
     } else if ((code == 1 || code == 4) && term->rxvt_homeend) {
         p += sprintf(p, code == 1 ? "\x1B[H" : "\x1BOw");
     } else {
-        p += sprintf(p, "\x1B[%d~", code);
+        if (term->vt52_mode) {
+	    p += sprintf(p, "\x1B[%d~", code);
+        } else {
+            int bitmap = 0;
+            if (term->funky_type == FUNKY_XTERM_216)
+                bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
+            if (bitmap)
+                p += sprintf(p, "\x1B[%d;%d~", code, bitmap);
+            else
+                p += sprintf(p, "\x1B[%d~", code);
+        }
     }
 
     return p - buf;
