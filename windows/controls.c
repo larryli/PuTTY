@@ -1581,16 +1581,16 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             buttons = snewn(ctrl->radio.nbuttons, struct radio);
 
             for (i = 0; i < ctrl->radio.nbuttons; i++) {
-              buttons[i].text =
-                  shortcut_escape(ctrl->radio.buttons[i],
-                                  (char)(ctrl->radio.shortcuts ?
-                                         ctrl->radio.shortcuts[i] :
-                                         NO_SHORTCUT));
-              buttons[i].id = base_id + 1 + i;
-              if (ctrl->radio.shortcuts) {
-                assert(nshortcuts < MAX_SHORTCUTS_PER_CTRL);
-                shortcuts[nshortcuts++] = ctrl->radio.shortcuts[i];
-              }
+                buttons[i].text =
+                    shortcut_escape(ctrl->radio.buttons[i],
+                                    (char)(ctrl->radio.shortcuts ?
+                                           ctrl->radio.shortcuts[i] :
+                                           NO_SHORTCUT));
+                buttons[i].id = base_id + 1 + i;
+                if (ctrl->radio.shortcuts) {
+                    assert(nshortcuts < MAX_SHORTCUTS_PER_CTRL);
+                    shortcuts[nshortcuts++] = ctrl->radio.shortcuts[i];
+                }
             }
 
             radioline_common(&pos, escaped, base_id,
@@ -1598,7 +1598,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                              buttons, ctrl->radio.nbuttons);
 
             for (i = 0; i < ctrl->radio.nbuttons; i++) {
-              sfree((char *)buttons[i].text);
+                sfree((char *)buttons[i].text);
             }
             sfree(buttons);
             sfree(escaped);
