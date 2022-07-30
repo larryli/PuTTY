@@ -114,7 +114,7 @@ def read_pubkey_file(fh):
                 comment = val.strip("\r\n")
             line = next(lines)
         # Now expect lines of base64 data.
-        while line != "---- BEGIN SSH2 PUBLIC KEY ----":
+        while line != "---- END SSH2 PUBLIC KEY ----":
             b64buf.write(line)
             line = next(lines)
 
