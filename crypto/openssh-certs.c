@@ -3,6 +3,7 @@
  */
 
 #include "ssh.h"
+#include "putty.h"
 
 enum {
     SSH_CERT_TYPE_USER = 1,
@@ -203,6 +204,7 @@ static void opensshcert_private_blob(ssh_key *key, BinarySink *bs);
 static void opensshcert_openssh_blob(ssh_key *key, BinarySink *bs);
 static void opensshcert_ca_public_blob(ssh_key *key, BinarySink *bs);
 static void opensshcert_cert_id_string(ssh_key *key, BinarySink *bs);
+static SeatDialogText *opensshcert_cert_info(ssh_key *key);
 static bool opensshcert_has_private(ssh_key *key);
 static char *opensshcert_cache_str(ssh_key *key);
 static key_components *opensshcert_components(ssh_key *key);
@@ -263,6 +265,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
         .ca_public_blob = opensshcert_ca_public_blob,                   \
         .check_cert = opensshcert_check_cert,                           \
         .cert_id_string = opensshcert_cert_id_string,                   \
+        .cert_info = opensshcert_cert_info,                             \
         .pubkey_bits = opensshcert_pubkey_bits,                         \
         .supported_flags = opensshcert_supported_flags,                 \
         .alternate_ssh_id = opensshcert_alternate_ssh_id,               \
@@ -664,6 +667,205 @@ static key_components *opensshcert_components(ssh_key *key)
     key_components_add_binary(kc, "cert_ca_sig", ptrlen_from_strbuf(
                                   ck->signature));
     return kc;
+}
+
+static SeatDialogText *opensshcert_cert_info(ssh_key *key)
+{
+    opensshcert_key *ck = container_of(key, opensshcert_key, sshk);
+    SeatDialogText *text = seat_dialog_text_new();
+    strbuf *tmp = strbuf_new();
+
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "Certificate type");
+    switch (ck->type) {
+      case SSH_CERT_TYPE_HOST:
+        seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                                "host key");
+        seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                "Valid host names");
+        break;
+      case SSH_CERT_TYPE_USER:
+        seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                                "user authentication key");
+        seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                "Valid user names");
+        break;
+      default:
+        seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                                "unknown type %" PRIu32, ck->type);
+        seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                "Valid principals");
+        break;
+    }
+
+    {
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(
+                                      ck->valid_principals));
+        const char *sep = "";
+        strbuf_clear(tmp);
+        while (get_avail(src)) {
+            ptrlen principal = get_string(src);
+            if (get_err(src))
+                break;
+            put_dataz(tmp, sep);
+            sep = ",";
+            put_datapl(tmp, principal);
+        }
+        seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                                "%s", tmp->s);
+    }
+
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "Validity period");
+    strbuf_clear(tmp);
+    if (ck->valid_after == 0) {
+        if (ck->valid_before == 0xFFFFFFFFFFFFFFFF) {
+            put_dataz(tmp, "forever");
+        } else {
+            put_dataz(tmp, "until ");
+            opensshcert_time_to_iso8601(BinarySink_UPCAST(tmp),
+                                        ck->valid_before);
+        }
+    } else {
+        if (ck->valid_before == 0xFFFFFFFFFFFFFFFF) {
+            put_dataz(tmp, "after ");
+            opensshcert_time_to_iso8601(BinarySink_UPCAST(tmp),
+                                        ck->valid_after);
+        } else {
+            opensshcert_time_to_iso8601(BinarySink_UPCAST(tmp),
+                                        ck->valid_after);
+            put_dataz(tmp, " - ");
+            opensshcert_time_to_iso8601(BinarySink_UPCAST(tmp),
+                                        ck->valid_before);
+        }
+    }
+    seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s", tmp->s);
+
+    /*
+     * List critical options we know about. (This is everything listed
+     * in PROTOCOL.certkeys that isn't specific to U2F/FIDO key types
+     * that PuTTY doesn't currently support.)
+     */
+    {
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(
+                                      ck->critical_options));
+        strbuf_clear(tmp);
+        while (get_avail(src)) {
+            ptrlen key = get_string(src);
+            ptrlen value = get_string(src);
+            if (get_err(src))
+                break;
+            if (ck->type == SSH_CERT_TYPE_USER &&
+                ptrlen_eq_string(key, "source-address")) {
+                BinarySource src2[1];
+                BinarySource_BARE_INIT_PL(src2, value);
+                ptrlen addresslist = get_string(src2);
+                seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                        "Permitted client IP addresses");
+                seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                                        "%.*s", PTRLEN_PRINTF(addresslist));
+            } else if (ck->type == SSH_CERT_TYPE_USER &&
+                       ptrlen_eq_string(key, "force-command")) {
+                BinarySource src2[1];
+                BinarySource_BARE_INIT_PL(src2, value);
+                ptrlen command = get_string(src2);
+                seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                        "Forced remote command");
+                seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                                        "%.*s", PTRLEN_PRINTF(command));
+            }
+        }
+    }
+
+    /*
+     * List certificate extensions. Again, we go through everything in
+     * PROTOCOL.certkeys that isn't specific to U2F/FIDO key types.
+     * But we also flip the sense round for user-readability: I think
+     * it's more likely that the typical key will permit all these
+     * things, so we emit no output in that case, and only mention the
+     * things that _aren't_ enabled.
+     */
+
+    bool x11_ok = false, agent_ok = false, portfwd_ok = false;
+    bool pty_ok = false, user_rc_ok = false;
+
+    {
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(
+                                      ck->extensions));
+        while (get_avail(src)) {
+            ptrlen key = get_string(src);
+            /* ptrlen value = */ get_string(src); // nothing needs this yet
+            if (get_err(src))
+                break;
+            if (ptrlen_eq_string(key, "permit-X11-forwarding")) {
+                x11_ok = true;
+            } else if (ptrlen_eq_string(key, "permit-agent-forwarding")) {
+                agent_ok = true;
+            } else if (ptrlen_eq_string(key, "permit-port-forwarding")) {
+                portfwd_ok = true;
+            } else if (ptrlen_eq_string(key, "permit-pty")) {
+                pty_ok = true;
+            } else if (ptrlen_eq_string(key, "permit-user-rc")) {
+                user_rc_ok = true;
+            }
+        }
+    }
+
+    if (ck->type == SSH_CERT_TYPE_USER) {
+        if (!x11_ok) {
+            seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                    "X11 forwarding permitted");
+            seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "no");
+        }
+        if (!agent_ok) {
+            seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                    "Agent forwarding permitted");
+            seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "no");
+        }
+        if (!portfwd_ok) {
+            seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                    "Port forwarding permitted");
+            seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "no");
+        }
+        if (!pty_ok) {
+            seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                    "PTY allocation permitted");
+            seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "no");
+        }
+        if (!user_rc_ok) {
+            seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                                    "Running user ~/.ssh.rc permitted");
+            seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "no");
+        }
+    }
+
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "Certificate ID string");
+    seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                            "%s", ck->key_id->s);
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "Certificate serial number");
+    seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT,
+                            "%" PRIu64, ck->serial);
+
+    char *fp = ssh2_fingerprint_blob(ptrlen_from_strbuf(ck->signature_key),
+                                     SSH_FPTYPE_DEFAULT);
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "Fingerprint of signing CA key");
+    seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s", fp);
+    sfree(fp);
+
+    fp = ssh2_fingerprint(ck->basekey, SSH_FPTYPE_DEFAULT);
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "Fingerprint of underlying key");
+    seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s", fp);
+    sfree(fp);
+
+    strbuf_free(tmp);
+    return text;
 }
 
 static int opensshcert_pubkey_bits(const ssh_keyalg *self, ptrlen blob)

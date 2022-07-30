@@ -237,7 +237,7 @@ int main(int argc, char **argv)
     enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, EDDSA } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
-           OPENSSH_NEW, SSHCOM, TEXT } outtype = PRIVATE;
+           OPENSSH_NEW, SSHCOM, TEXT, CERTINFO } outtype = PRIVATE;
     int bits = -1;
     const char *comment = NULL;
     char *origcomment = NULL;
@@ -368,6 +368,10 @@ int main(int argc, char **argv)
                       }
                     } else if (!strcmp(opt, "-dump")) {
                         outtype = TEXT;
+                    } else if (!strcmp(opt, "-cert-info") ||
+                               !strcmp(opt, "-certinfo") ||
+                               !strcmp(opt, "-cert_info")) {
+                        outtype = CERTINFO;
                     } else if (!strcmp(opt, "-primes")) {
                         if (!val && argc > 1)
                             --argc, val = *++argv;
@@ -594,6 +598,8 @@ int main(int argc, char **argv)
                             outtype = SSHCOM, sshver = 2;
                         else if (!strcmp(p, "text"))
                             outtype = TEXT;
+                        else if (!strcmp(p, "cert-info"))
+                            outtype = CERTINFO;
                         else {
                             fprintf(stderr,
                                     "puttygen: unknown output type `%s'\n", p);
@@ -1522,6 +1528,83 @@ int main(int argc, char **argv)
         if (outfile)
             fclose(fp);
         key_components_free(kc);
+        break;
+      }
+
+      case CERTINFO: {
+        if (sshver == 1) {
+            fprintf(stderr, "puttygen: SSH-1 keys cannot contain "
+                    "certificates\n");
+            RETURN(1);
+        }
+
+        const ssh_keyalg *alg;
+        ssh_key *sk;
+        bool sk_allocated = false;
+
+        if (ssh2key) {
+            sk = ssh2key->key;
+            alg = ssh_key_alg(sk);
+        } else {
+            assert(ssh2blob);
+            ptrlen algname = pubkey_blob_to_alg_name(
+                ptrlen_from_strbuf(ssh2blob));
+            alg = find_pubkey_alg_len(algname);
+            if (!alg) {
+                fprintf(stderr, "puttygen: cannot extract certificate info "
+                        "from public key of unknown type '%.*s'\n",
+                        PTRLEN_PRINTF(algname));
+                RETURN(1);
+            }
+            sk = ssh_key_new_pub(alg, ptrlen_from_strbuf(ssh2blob));
+            if (!sk) {
+                fprintf(stderr, "puttygen: unable to decode public key\n");
+                RETURN(1);
+            }
+            sk_allocated = true;
+        }
+
+        if (!alg->is_certificate) {
+            fprintf(stderr, "puttygen: key is not a certificate\n");
+        } else {
+            SeatDialogText *text = ssh_key_cert_info(sk);
+
+            FILE *fp;
+            if (outfile) {
+                fp = f_open(outfilename, "w", false);
+                if (!fp) {
+                    fprintf(stderr, "unable to open output file\n");
+                    exit(1);
+                }
+            } else {
+                fp = stdout;
+            }
+
+            for (SeatDialogTextItem *item = text->items,
+                     *end = item+text->nitems; item < end; item++) {
+                switch (item->type) {
+                  case SDT_MORE_INFO_KEY:
+                    fprintf(fp, "%s", item->text);
+                    break;
+                  case SDT_MORE_INFO_VALUE_SHORT:
+                    fprintf(fp, ": %s\n", item->text);
+                    break;
+                  case SDT_MORE_INFO_VALUE_BLOB:
+                    fprintf(fp, ":\n%s\n", item->text);
+                    break;
+                  default:
+                    break;
+                }
+            }
+
+            if (outfile)
+                fclose(fp);
+
+            seat_dialog_text_free(text);
+        }
+
+        if (sk_allocated)
+            ssh_key_free(sk);
         break;
       }
     }

@@ -851,6 +851,7 @@ struct ssh_keyalg {
                        uint64_t time, const ca_options *opts,
                        BinarySink *error);
     void (*cert_id_string)(ssh_key *key, BinarySink *);
+    SeatDialogText *(*cert_info)(ssh_key *key);
 
     /* 'Class methods' that don't deal with an ssh_key at all */
     int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
@@ -903,6 +904,8 @@ static inline void ssh_key_ca_public_blob(ssh_key *key, BinarySink *bs)
 { key->vt->ca_public_blob(key, bs); }
 static inline void ssh_key_cert_id_string(ssh_key *key, BinarySink *bs)
 { key->vt->cert_id_string(key, bs); }
+static inline SeatDialogText *ssh_key_cert_info(ssh_key *key)
+{ return key->vt->cert_info(key); }
 static inline bool ssh_key_check_cert(
     ssh_key *key, bool host, ptrlen principal, uint64_t time,
     const ca_options *opts, BinarySink *error)
