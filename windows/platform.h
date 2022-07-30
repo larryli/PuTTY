@@ -444,6 +444,7 @@ void radioline(struct ctlpos *cp, const char *text, int id, int nacross, ...);
 void bareradioline(struct ctlpos *cp, int nacross, ...);
 void radiobig(struct ctlpos *cp, const char *text, int id, ...);
 void checkbox(struct ctlpos *cp, const char *text, int id);
+void button(struct ctlpos *cp, const char *btext, int bid, bool defbtn);
 void statictext(struct ctlpos *cp, const char *text, int lines, int id);
 void staticbtn(struct ctlpos *cp, const char *stext, int sid,
                const char *btext, int bid);

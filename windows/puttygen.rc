@@ -82,6 +82,16 @@ BEGIN
     PUSHBUTTON "&Cancel", IDCANCEL, 134, 80, 40, 14
 END
 
+/* Accelerators used: clw */
+216 DIALOG DISCARDABLE 140, 40, 450, 300
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTYgen: certificate information"
+FONT 8, "MS Shell Dlg"
+CLASS "PuTTYgenCertInfo"
+BEGIN
+    DEFPUSHBUTTON "&Close", IDOK, 201, 130, 48, 14
+END
+
 #include "version.rc2"
 
 #ifndef NO_MANIFESTS
