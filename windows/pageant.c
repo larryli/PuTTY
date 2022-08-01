@@ -317,14 +317,24 @@ struct keylist_update_ctx {
     bool enable_reencrypt_controls;
 };
 
+struct keylist_display_data {
+    strbuf *alg, *bits, *hash, *comment, *info;
+};
+
 static void keylist_update_callback(
     void *vctx, char **fingerprints, const char *comment, uint32_t ext_flags,
     struct pageant_pubkey *key)
 {
     struct keylist_update_ctx *ctx = (struct keylist_update_ctx *)vctx;
     FingerprintType this_type = ssh2_pick_fingerprint(fingerprints, fptype);
-    const char *fingerprint = fingerprints[this_type];
-    strbuf *listentry = strbuf_new();
+    ptrlen fingerprint = ptrlen_from_asciz(fingerprints[this_type]);
+
+    struct keylist_display_data *disp = snew(struct keylist_display_data);
+    disp->alg = strbuf_new();
+    disp->bits = strbuf_new();
+    disp->hash = strbuf_new();
+    disp->comment = strbuf_new();
+    disp->info = strbuf_new();
 
     /* There is at least one key, so the controls for removing keys
      * should be enabled */
@@ -332,76 +342,55 @@ static void keylist_update_callback(
 
     switch (key->ssh_version) {
       case 1: {
-        put_fmt(listentry, "ssh1\t%s\t%s", fingerprint, comment);
-
         /*
-         * Replace the space in the fingerprint (between bit count and
-         * hash) with a tab, for nice alignment in the box.
+         * Expect the fingerprint to contain two words: bit count and
+         * hash.
          */
-        char *p = strchr(listentry->s, ' ');
-        if (p)
-            *p = '\t';
+        put_dataz(disp->alg, "ssh1");
+        put_datapl(disp->bits, ptrlen_get_word(&fingerprint, " "));
+        put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
         break;
       }
 
       case 2: {
         /*
-         * For nice alignment in the list box, we would ideally want
-         * every entry to align to the tab stop settings, and have a
-         * column for algorithm name, one for bit count, one for hex
-         * fingerprint, and one for key comment.
-         *
-         * Unfortunately, some of the algorithm names are so long that
-         * they overflow into the bit-count field. Fortunately, at the
-         * moment, those are _precisely_ the algorithm names that
-         * don't need a bit count displayed anyway (because for
-         * NIST-style ECDSA the bit count is mentioned in the
-         * algorithm name, and for ssh-ed25519 there is only one
-         * possible value anyway). So we fudge this by simply omitting
-         * the bit count field in that situation.
-         *
-         * This is fragile not only in the face of further key types
-         * that don't follow this pattern, but also in the face of
-         * font metrics changes - the Windows semantics for list box
-         * tab stops is that \t aligns to the next one you haven't
-         * already exceeded, so I have to guess when the key type will
-         * overflow past the bit-count tab stop and leave out a tab
-         * character. Urgh.
+         * Expect the fingerprint to contain three words: algorithm
+         * name, bit count, hash.
+         */
+        put_datapl(disp->alg, ptrlen_get_word(&fingerprint, " "));
+        put_datapl(disp->bits, ptrlen_get_word(&fingerprint, " "));
+        put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
+
+        /*
+         * But we don't display the bit count if the algorithm isn't
+         * one of the ones where it can vary. That way, those
+         * algorithm names (which are generally longer) can safely
+         * overlap into the bits column without colliding with
+         * pointless text.
          */
         const ssh_keyalg *alg = pubkey_blob_to_alg(
             ptrlen_from_strbuf(key->blob));
-
-        bool include_bit_count = (alg == &ssh_dsa || alg == &ssh_rsa);
-
-        int wordnumber = 0;
-        for (const char *p = fingerprint; *p; p++) {
-            char c = *p;
-            if (c == ' ') {
-                if (wordnumber < 2)
-                    c = '\t';
-                wordnumber++;
-            }
-            if (include_bit_count || wordnumber != 1)
-                put_byte(listentry, c);
-        }
-
-        put_fmt(listentry, "\t%s", comment);
-        break;
+        if (!(alg == &ssh_dsa || alg == &ssh_rsa))
+            strbuf_clear(disp->bits);
       }
     }
 
+    put_dataz(disp->comment, comment);
+
     if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
-        put_fmt(listentry, "\t(encrypted)");
+        put_fmt(disp->info, "(encrypted)");
     } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
-        put_fmt(listentry, "\t(re-encryptable)");
+        put_fmt(disp->info, "(re-encryptable)");
 
         /* At least one key can be re-encrypted */
         ctx->enable_reencrypt_controls = true;
     }
 
+    /* This list box is owner-drawn but doesn't have LBS_HASSTRINGS,
+     * so we can use LB_ADDSTRING to hand the list box our display
+     * info pointer */
     SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
-                       LB_ADDSTRING, 0, (LPARAM)listentry->s);
-    strbuf_free(listentry);
+                       LB_ADDSTRING, 0, (LPARAM)disp);
 }
 
 /*
@@ -410,6 +399,25 @@ static void keylist_update_callback(
 void keylist_update(void)
 {
     if (keylist) {
+        /*
+         * Clear the previous list box content and free their display
+         * structures.
+         */
+        {
+            int nitems = SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                                            LB_GETCOUNT, 0, 0);
+            for (int i = 0; i < nitems; i++) {
+                struct keylist_display_data *disp =
+                    (struct keylist_display_data *)SendDlgItemMessage(
+                        keylist, IDC_KEYLIST_LISTBOX, LB_GETITEMDATA, i, 0);
+                strbuf_free(disp->alg);
+                strbuf_free(disp->bits);
+                strbuf_free(disp->hash);
+                strbuf_free(disp->comment);
+                strbuf_free(disp->info);
+                sfree(disp);
+            }
+        }
         SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
                            LB_RESETCONTENT, 0, 0);
 
@@ -582,12 +590,6 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         }
 
         keylist = hwnd;
-        {
-          static int tabs[] = { 35, 75, 300 };
-          SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_SETTABSTOPS,
-                             sizeof(tabs) / sizeof(*tabs),
-                             (LPARAM) tabs);
-        }
 
         int selection = 0;
         for (size_t i = 0; i < lenof(fptypes); i++) {
@@ -600,6 +602,105 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                            CB_SETCURSEL, 0, selection);
 
         keylist_update();
+        return 0;
+      }
+      case WM_MEASUREITEM: {
+        assert(wParam == IDC_KEYLIST_LISTBOX);
+
+        MEASUREITEMSTRUCT *mi = (MEASUREITEMSTRUCT *)lParam;
+
+        /*
+         * Our list box is owner-drawn, but we put normal text in it.
+         * So the line height is the same as it would normally be,
+         * which is 8 dialog units.
+         */
+        RECT r;
+        r.left = r.right = r.top = 0;
+        r.bottom = 8;
+        MapDialogRect(hwnd, &r);
+        mi->itemHeight = r.bottom;
+
+        return 0;
+      }
+      case WM_DRAWITEM: {
+        assert(wParam == IDC_KEYLIST_LISTBOX);
+
+        DRAWITEMSTRUCT *di = (DRAWITEMSTRUCT *)lParam;
+
+        if (di->itemAction == ODA_FOCUS) {
+            /* Just toggle the focus rectangle either on or off. This
+             * is an XOR-type function, so it's the same call in
+             * either case. */
+            DrawFocusRect(di->hDC, &di->rcItem);
+        } else {
+            /* Draw the full text. */
+            bool selected = (di->itemState & ODS_SELECTED);
+            COLORREF newfg = GetSysColor(
+                selected ? COLOR_HIGHLIGHTTEXT : COLOR_WINDOWTEXT);
+            COLORREF newbg = GetSysColor(
+                selected ? COLOR_HIGHLIGHT : COLOR_WINDOW);
+            COLORREF oldfg = SetTextColor(di->hDC, newfg);
+            COLORREF oldbg = SetBkColor(di->hDC, newbg);
+
+            HFONT font = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+            HFONT oldfont = SelectObject(di->hDC, font);
+
+            /* ExtTextOut("") is an easy way to just draw the
+             * background rectangle */
+            ExtTextOut(di->hDC, di->rcItem.left, di->rcItem.top,
+                       ETO_OPAQUE | ETO_CLIPPED, &di->rcItem, "", 0, NULL);
+
+            struct keylist_display_data *disp =
+                (struct keylist_display_data *)di->itemData;
+
+            RECT r;
+
+            /* Apparently real list boxes start drawing at x=1, not x=0 */
+            r.left = r.top = r.bottom = 0;
+            r.right = 1;
+            MapDialogRect(hwnd, &r);
+            ExtTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
+                       ETO_CLIPPED, &di->rcItem, disp->alg->s,
+                       disp->alg->len, NULL);
+
+            if (disp->bits->len) {
+                r.left = r.top = r.bottom = 0;
+                r.right = 35;
+                MapDialogRect(hwnd, &r);
+                ExtTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
+                           ETO_CLIPPED, &di->rcItem, disp->bits->s,
+                           disp->bits->len, NULL);
+            }
+
+            r.left = r.top = r.bottom = 0;
+            r.right = 75;
+            MapDialogRect(hwnd, &r);
+            ExtTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
+                       ETO_CLIPPED, &di->rcItem, disp->hash->s,
+                       disp->hash->len, NULL);
+
+            strbuf *sb = strbuf_new();
+            put_datapl(sb, ptrlen_from_strbuf(disp->comment));
+            if (disp->info->len) {
+                put_byte(sb, '\t');
+                put_datapl(sb, ptrlen_from_strbuf(disp->info));
+            }
+
+            r.left = r.top = r.bottom = 0;
+            r.right = 300;
+            MapDialogRect(hwnd, &r);
+            TabbedTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
+                          sb->s, sb->len, 0, NULL, 0);
+
+            strbuf_free(sb);
+
+            SetTextColor(di->hDC, oldfg);
+            SetBkColor(di->hDC, oldbg);
+            SelectObject(di->hDC, oldfont);
+
+            if (di->itemState & ODS_FOCUS)
+                DrawFocusRect(di->hDC, &di->rcItem);
+        }
         return 0;
       }
       case WM_COMMAND:
