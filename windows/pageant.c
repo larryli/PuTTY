@@ -346,7 +346,7 @@ static void keylist_update_callback(
          * Expect the fingerprint to contain two words: bit count and
          * hash.
          */
-        put_dataz(disp->alg, "ssh1");
+        put_dataz(disp->alg, "SSH-1");
         put_datapl(disp->bits, ptrlen_get_word(&fingerprint, " "));
         put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
         break;
@@ -357,7 +357,21 @@ static void keylist_update_callback(
          * Expect the fingerprint to contain three words: algorithm
          * name, bit count, hash.
          */
-        put_datapl(disp->alg, ptrlen_get_word(&fingerprint, " "));
+        const ssh_keyalg *alg = pubkey_blob_to_alg(
+            ptrlen_from_strbuf(key->blob));
+
+        ptrlen keytype_word = ptrlen_get_word(&fingerprint, " ");
+        if (alg) {
+            /* Use our own human-legible algorithm names if available,
+             * because they fit better in the space. (Certificate key
+             * algorithm names in particular are terribly long.) */
+            char *alg_desc = ssh_keyalg_desc(alg);
+            put_dataz(disp->alg, alg_desc);
+            sfree(alg_desc);
+        } else {
+            put_datapl(disp->alg, keytype_word);
+        }
+
         put_datapl(disp->bits, ptrlen_get_word(&fingerprint, " "));
         put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
 
@@ -368,8 +382,6 @@ static void keylist_update_callback(
          * overlap into the bits column without colliding with
          * pointless text.
          */
-        const ssh_keyalg *alg = pubkey_blob_to_alg(
-            ptrlen_from_strbuf(key->blob));
         if (!(alg == &ssh_dsa || alg == &ssh_rsa))
             strbuf_clear(disp->bits);
       }

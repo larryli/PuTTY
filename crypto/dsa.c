@@ -490,6 +490,8 @@ static void dsa_sign(ssh_key *key, ptrlen data, unsigned flags, BinarySink *bs)
     mp_free(s);
 }
 
+static char *dsa_alg_desc(const ssh_keyalg *self) { return dupstr("DSA"); }
+
 const ssh_keyalg ssh_dsa = {
     .new_pub = dsa_new_pub,
     .new_priv = dsa_new_priv,
@@ -508,6 +510,7 @@ const ssh_keyalg ssh_dsa = {
     .pubkey_bits = dsa_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = dsa_alg_desc,
     .ssh_id = "ssh-dss",
     .cache_id = "dss",
 };

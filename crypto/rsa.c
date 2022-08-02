@@ -859,6 +859,8 @@ const char *ssh_rsa_alternate_ssh_id(const ssh_keyalg *self, unsigned flags)
     return self->ssh_id;
 }
 
+static char *rsa2_alg_desc(const ssh_keyalg *self) { return dupstr("RSA"); }
+
 static const struct ssh2_rsa_extra
     rsa_extra = { 0 },
     rsa_sha256_extra = { SSH_AGENT_RSA_SHA2_256 },
@@ -880,6 +882,7 @@ static const struct ssh2_rsa_extra
     .components = rsa2_components,              \
     .base_key = nullkey_base_key,               \
     .pubkey_bits = rsa2_pubkey_bits,            \
+    .alg_desc = rsa2_alg_desc,                  \
     .cache_id = "rsa2"
 
 const ssh_keyalg ssh_rsa = {

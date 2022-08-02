@@ -216,6 +216,7 @@ static int opensshcert_pubkey_bits(const ssh_keyalg *self, ptrlen blob);
 static unsigned opensshcert_supported_flags(const ssh_keyalg *self);
 static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
                                                 unsigned flags);
+static char *opensshcert_alg_desc(const ssh_keyalg *self);
 static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
                                                  const ssh_keyalg *base);
 
@@ -269,6 +270,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
         .pubkey_bits = opensshcert_pubkey_bits,                         \
         .supported_flags = opensshcert_supported_flags,                 \
         .alternate_ssh_id = opensshcert_alternate_ssh_id,               \
+        .alg_desc = opensshcert_alg_desc,                               \
         .related_alg = opensshcert_related_alg,                         \
         .ssh_id = ssh_alg_id_prefix "-cert-v01@openssh.com",            \
         .cache_id = "opensshcert-" ssh_key_id_prefix,                   \
@@ -896,6 +898,14 @@ static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
     }
 
     return self->ssh_id;
+}
+
+static char *opensshcert_alg_desc(const ssh_keyalg *self)
+{
+    char *base_desc = ssh_keyalg_desc(self->base_alg);
+    char *our_desc = dupcat(base_desc, " cert");
+    sfree(base_desc);
+    return our_desc;
 }
 
 static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,

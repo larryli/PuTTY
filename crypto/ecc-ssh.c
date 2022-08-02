@@ -325,6 +325,9 @@ struct ecsign_extra {
     const unsigned char *oid;
     int oidlen;
 
+    /* Human-readable algorithm description */
+    const char *alg_desc;
+
     /* Some EdDSA instances prefix a string to all hash preimages, to
      * disambiguate which signature variant they're being used with */
     ptrlen hash_prefix;
@@ -1251,9 +1254,16 @@ static void eddsa_sign(ssh_key *key, ptrlen data,
     mp_free(s);
 }
 
+static char *ec_alg_desc(const ssh_keyalg *self)
+{
+    const struct ecsign_extra *extra =
+        (const struct ecsign_extra *)self->extra;
+    return dupstr(extra->alg_desc);
+}
+
 static const struct ecsign_extra sign_extra_ed25519 = {
     ec_ed25519, &ssh_sha512,
-    NULL, 0, PTRLEN_DECL_LITERAL(""),
+    NULL, 0, "Ed25519", PTRLEN_DECL_LITERAL(""),
 };
 const ssh_keyalg ssh_ecdsa_ed25519 = {
     .new_pub = eddsa_new_pub,
@@ -1273,6 +1283,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
     .pubkey_bits = ec_shared_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = ec_alg_desc,
     .ssh_id = "ssh-ed25519",
     .cache_id = "ssh-ed25519",
     .extra = &sign_extra_ed25519,
@@ -1280,7 +1291,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
 
 static const struct ecsign_extra sign_extra_ed448 = {
     ec_ed448, &ssh_shake256_114bytes,
-    NULL, 0, PTRLEN_DECL_LITERAL("SigEd448\0\0"),
+    NULL, 0, "Ed448", PTRLEN_DECL_LITERAL("SigEd448\0\0"),
 };
 const ssh_keyalg ssh_ecdsa_ed448 = {
     .new_pub = eddsa_new_pub,
@@ -1300,6 +1311,7 @@ const ssh_keyalg ssh_ecdsa_ed448 = {
     .pubkey_bits = ec_shared_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = ec_alg_desc,
     .ssh_id = "ssh-ed448",
     .cache_id = "ssh-ed448",
     .extra = &sign_extra_ed448,
@@ -1311,7 +1323,7 @@ static const unsigned char nistp256_oid[] = {
 };
 static const struct ecsign_extra sign_extra_nistp256 = {
     ec_p256, &ssh_sha256,
-    nistp256_oid, lenof(nistp256_oid),
+    nistp256_oid, lenof(nistp256_oid), "NIST p256",
 };
 const ssh_keyalg ssh_ecdsa_nistp256 = {
     .new_pub = ecdsa_new_pub,
@@ -1331,6 +1343,7 @@ const ssh_keyalg ssh_ecdsa_nistp256 = {
     .pubkey_bits = ec_shared_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = ec_alg_desc,
     .ssh_id = "ecdsa-sha2-nistp256",
     .cache_id = "ecdsa-sha2-nistp256",
     .extra = &sign_extra_nistp256,
@@ -1342,7 +1355,7 @@ static const unsigned char nistp384_oid[] = {
 };
 static const struct ecsign_extra sign_extra_nistp384 = {
     ec_p384, &ssh_sha384,
-    nistp384_oid, lenof(nistp384_oid),
+    nistp384_oid, lenof(nistp384_oid), "NIST p384",
 };
 const ssh_keyalg ssh_ecdsa_nistp384 = {
     .new_pub = ecdsa_new_pub,
@@ -1362,6 +1375,7 @@ const ssh_keyalg ssh_ecdsa_nistp384 = {
     .pubkey_bits = ec_shared_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = ec_alg_desc,
     .ssh_id = "ecdsa-sha2-nistp384",
     .cache_id = "ecdsa-sha2-nistp384",
     .extra = &sign_extra_nistp384,
@@ -1373,7 +1387,7 @@ static const unsigned char nistp521_oid[] = {
 };
 static const struct ecsign_extra sign_extra_nistp521 = {
     ec_p521, &ssh_sha512,
-    nistp521_oid, lenof(nistp521_oid),
+    nistp521_oid, lenof(nistp521_oid), "NIST p521",
 };
 const ssh_keyalg ssh_ecdsa_nistp521 = {
     .new_pub = ecdsa_new_pub,
@@ -1393,6 +1407,7 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
     .pubkey_bits = ec_shared_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = ec_alg_desc,
     .ssh_id = "ecdsa-sha2-nistp521",
     .cache_id = "ecdsa-sha2-nistp521",
     .extra = &sign_extra_nistp521,

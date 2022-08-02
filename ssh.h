@@ -857,6 +857,7 @@ struct ssh_keyalg {
     int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
     unsigned (*supported_flags) (const ssh_keyalg *self);
     const char *(*alternate_ssh_id) (const ssh_keyalg *self, unsigned flags);
+    char *(*alg_desc)(const ssh_keyalg *self);
     /* The following methods can be NULL if !is_certificate */
     const ssh_keyalg *(*related_alg)(const ssh_keyalg *self,
                                      const ssh_keyalg *base);
@@ -925,6 +926,8 @@ static inline const unsigned ssh_keyalg_supported_flags(const ssh_keyalg *self)
 static inline const char *ssh_keyalg_alternate_ssh_id(
     const ssh_keyalg *self, unsigned flags)
 { return self->alternate_ssh_id(self, flags); }
+static inline char *ssh_keyalg_desc(const ssh_keyalg *self)
+{ return self->alg_desc(self); }
 static inline const ssh_keyalg *ssh_keyalg_related_alg(
     const ssh_keyalg *self, const ssh_keyalg *base)
 { return self->related_alg(self, base); }
