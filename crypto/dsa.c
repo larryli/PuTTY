@@ -511,6 +511,7 @@ const ssh_keyalg ssh_dsa = {
     .supported_flags = nullkey_supported_flags,
     .alternate_ssh_id = nullkey_alternate_ssh_id,
     .alg_desc = dsa_alg_desc,
+    .variable_size = nullkey_variable_size_yes,
     .ssh_id = "ssh-dss",
     .cache_id = "dss",
 };

@@ -217,6 +217,7 @@ static unsigned opensshcert_supported_flags(const ssh_keyalg *self);
 static const char *opensshcert_alternate_ssh_id(const ssh_keyalg *self,
                                                 unsigned flags);
 static char *opensshcert_alg_desc(const ssh_keyalg *self);
+static bool opensshcert_variable_size(const ssh_keyalg *self);
 static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
                                                  const ssh_keyalg *base);
 
@@ -271,6 +272,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
         .supported_flags = opensshcert_supported_flags,                 \
         .alternate_ssh_id = opensshcert_alternate_ssh_id,               \
         .alg_desc = opensshcert_alg_desc,                               \
+        .variable_size = opensshcert_variable_size,                     \
         .related_alg = opensshcert_related_alg,                         \
         .ssh_id = ssh_alg_id_prefix "-cert-v01@openssh.com",            \
         .cache_id = "opensshcert-" ssh_key_id_prefix,                   \
@@ -286,6 +288,26 @@ static const ssh_keyalg *const opensshcert_all_keyalgs[] = {
     KEYALG_LIST(KEYALG_LIST_ENTRY)
 };
 #undef KEYALG_LIST_ENTRY
+
+static strbuf *get_base_public_blob(BinarySource *src,
+                                    const opensshcert_extra *extra)
+{
+    strbuf *basepub = strbuf_new();
+    put_stringz(basepub, extra->base_key_ssh_id);
+
+    /* Make the base public key blob out of the public key
+     * material in the certificate. This invocation of the
+     * blobtrans system doesn't do any format translation, but it
+     * does ensure that the right amount of data is copied so that
+     * src ends up in the right position to read the remaining
+     * certificate fields. */
+    BLOBTRANS_DECLARE(bt);
+    blobtrans_read(bt, src, extra->pub_fmt);
+    blobtrans_write(bt, BinarySink_UPCAST(basepub), extra->pub_fmt);
+    blobtrans_clear(bt);
+
+    return basepub;
+}
 
 static opensshcert_key *opensshcert_new_shared(
     const ssh_keyalg *self, ptrlen blob, strbuf **basepub_out)
@@ -304,21 +326,7 @@ static opensshcert_key *opensshcert_new_shared(
     ck->sshk.vt = self;
 
     ck->nonce = strbuf_dup(get_string(src));
-    strbuf *basepub = strbuf_new();
-    {
-        put_stringz(basepub, extra->base_key_ssh_id);
-
-        /* Make the base public key blob out of the public key
-         * material in the certificate. This invocation of the
-         * blobtrans system doesn't do any format translation, but it
-         * does ensure that the right amount of data is copied so that
-         * src ends up in the right position to read the remaining
-         * certificate fields. */
-        BLOBTRANS_DECLARE(bt);
-        blobtrans_read(bt, src, extra->pub_fmt);
-        blobtrans_write(bt, BinarySink_UPCAST(basepub), extra->pub_fmt);
-        blobtrans_clear(bt);
-    }
+    strbuf *basepub = get_base_public_blob(src, extra);
     ck->serial = get_uint64(src);
     ck->type = get_uint32(src);
     ck->key_id = strbuf_dup(get_string(src));
@@ -877,8 +885,11 @@ static int opensshcert_pubkey_bits(const ssh_keyalg *self, ptrlen blob)
 
     get_string(src);                   /* key type */
     get_string(src);                   /* nonce */
-    return ssh_key_public_bits(
-        self->base_alg, make_ptrlen(get_ptr(src), get_avail(src)));
+    strbuf *basepub = get_base_public_blob(src, self->extra);
+    int bits = ssh_key_public_bits(
+        self->base_alg, ptrlen_from_strbuf(basepub));
+    strbuf_free(basepub);
+    return bits;
 }
 
 static unsigned opensshcert_supported_flags(const ssh_keyalg *self)
@@ -906,6 +917,11 @@ static char *opensshcert_alg_desc(const ssh_keyalg *self)
     char *our_desc = dupcat(base_desc, " cert");
     sfree(base_desc);
     return our_desc;
+}
+
+static bool opensshcert_variable_size(const ssh_keyalg *self)
+{
+    return ssh_keyalg_variable_size(self->base_alg);
 }
 
 static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,

@@ -372,18 +372,11 @@ static void keylist_update_callback(
             put_datapl(disp->alg, keytype_word);
         }
 
-        put_datapl(disp->bits, ptrlen_get_word(&fingerprint, " "));
-        put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
+        ptrlen bits_word = ptrlen_get_word(&fingerprint, " ");
+        if (ssh_keyalg_variable_size(alg))
+            put_datapl(disp->bits, bits_word);
 
-        /*
-         * But we don't display the bit count if the algorithm isn't
-         * one of the ones where it can vary. That way, those
-         * algorithm names (which are generally longer) can safely
-         * overlap into the bits column without colliding with
-         * pointless text.
-         */
-        if (!(alg == &ssh_dsa || alg == &ssh_rsa))
-            strbuf_clear(disp->bits);
+        put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
       }
     }
 

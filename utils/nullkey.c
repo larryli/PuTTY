@@ -17,3 +17,6 @@ ssh_key *nullkey_base_key(ssh_key *key)
     /* When a key is not certified, it is its own base */
     return key;
 }
+
+bool nullkey_variable_size_no(const ssh_keyalg *self) { return false; }
+bool nullkey_variable_size_yes(const ssh_keyalg *self) { return true; }

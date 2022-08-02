@@ -858,6 +858,7 @@ struct ssh_keyalg {
     unsigned (*supported_flags) (const ssh_keyalg *self);
     const char *(*alternate_ssh_id) (const ssh_keyalg *self, unsigned flags);
     char *(*alg_desc)(const ssh_keyalg *self);
+    bool (*variable_size)(const ssh_keyalg *self);
     /* The following methods can be NULL if !is_certificate */
     const ssh_keyalg *(*related_alg)(const ssh_keyalg *self,
                                      const ssh_keyalg *base);
@@ -928,6 +929,8 @@ static inline const char *ssh_keyalg_alternate_ssh_id(
 { return self->alternate_ssh_id(self, flags); }
 static inline char *ssh_keyalg_desc(const ssh_keyalg *self)
 { return self->alg_desc(self); }
+static inline bool ssh_keyalg_variable_size(const ssh_keyalg *self)
+{ return self->variable_size(self); }
 static inline const ssh_keyalg *ssh_keyalg_related_alg(
     const ssh_keyalg *self, const ssh_keyalg *base)
 { return self->related_alg(self, base); }
@@ -936,6 +939,8 @@ static inline const ssh_keyalg *ssh_keyalg_related_alg(
 unsigned nullkey_supported_flags(const ssh_keyalg *self);
 const char *nullkey_alternate_ssh_id(const ssh_keyalg *self, unsigned flags);
 ssh_key *nullkey_base_key(ssh_key *key);
+bool nullkey_variable_size_no(const ssh_keyalg *self);
+bool nullkey_variable_size_yes(const ssh_keyalg *self);
 
 /* Utility functions implemented centrally */
 ssh_key *ssh_key_clone(ssh_key *key);

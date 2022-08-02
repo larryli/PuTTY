@@ -883,6 +883,7 @@ static const struct ssh2_rsa_extra
     .base_key = nullkey_base_key,               \
     .pubkey_bits = rsa2_pubkey_bits,            \
     .alg_desc = rsa2_alg_desc,                  \
+    .variable_size = nullkey_variable_size_yes, \
     .cache_id = "rsa2"
 
 const ssh_keyalg ssh_rsa = {
