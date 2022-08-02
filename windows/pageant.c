@@ -313,6 +313,8 @@ void old_keyfile_warning(void)
 }
 
 struct keylist_update_ctx {
+    HDC hdc;
+    int algbitswidth, algwidth, bitswidth, hashwidth;
     bool enable_remove_controls;
     bool enable_reencrypt_controls;
 };
@@ -382,6 +384,19 @@ static void keylist_update_callback(
 
     put_dataz(disp->comment, comment);
 
+    SIZE sz;
+    if (disp->bits->len) {
+        GetTextExtentPoint32(ctx->hdc, disp->alg->s, disp->alg->len, &sz);
+        if (ctx->algwidth < sz.cx) ctx->algwidth = sz.cx;
+        GetTextExtentPoint32(ctx->hdc, disp->bits->s, disp->bits->len, &sz);
+        if (ctx->bitswidth < sz.cx) ctx->bitswidth = sz.cx;
+    } else {
+        GetTextExtentPoint32(ctx->hdc, disp->alg->s, disp->alg->len, &sz);
+        if (ctx->algbitswidth < sz.cx) ctx->algbitswidth = sz.cx;
+    }
+    GetTextExtentPoint32(ctx->hdc, disp->hash->s, disp->hash->len, &sz);
+    if (ctx->hashwidth < sz.cx) ctx->hashwidth = sz.cx;
+
     if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
         put_fmt(disp->info, "(encrypted)");
     } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
@@ -397,6 +412,9 @@ static void keylist_update_callback(
     SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
                        LB_ADDSTRING, 0, (LPARAM)disp);
 }
+
+/* Column start positions for the list box, in pixels (not dialog units). */
+static int colpos_bits, colpos_hash, colpos_comment;
 
 /*
  * Update the visible key list.
@@ -430,7 +448,22 @@ void keylist_update(void)
         struct keylist_update_ctx ctx[1];
         ctx->enable_remove_controls = false;
         ctx->enable_reencrypt_controls = false;
+        ctx->algbitswidth = ctx->algwidth = 0;
+        ctx->bitswidth = ctx->hashwidth = 0;
+        ctx->hdc = GetDC(keylist);
+        SelectObject(ctx->hdc, (HFONT)SendMessage(keylist, WM_GETFONT, 0, 0));
         int status = pageant_enum_keys(keylist_update_callback, ctx, &errmsg);
+
+        SIZE sz;
+        GetTextExtentPoint32(ctx->hdc, "MM", 2, &sz);
+        int gutter = sz.cx;
+
+        DeleteDC(ctx->hdc);
+        colpos_hash = ctx->algwidth + ctx->bitswidth + 2*gutter;
+        if (colpos_hash < ctx->algbitswidth + gutter)
+            colpos_hash = ctx->algbitswidth + gutter;
+        colpos_bits = colpos_hash - ctx->bitswidth - gutter;
+        colpos_comment = colpos_hash + ctx->hashwidth + gutter;
         assert(status == PAGEANT_ACTION_OK);
         assert(!errmsg);
 
@@ -669,20 +702,14 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                        disp->alg->len, NULL);
 
             if (disp->bits->len) {
-                r.left = r.top = r.bottom = 0;
-                r.right = 35;
-                MapDialogRect(hwnd, &r);
-                ExtTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
-                           ETO_CLIPPED, &di->rcItem, disp->bits->s,
-                           disp->bits->len, NULL);
+                ExtTextOut(di->hDC, di->rcItem.left + r.right + colpos_bits,
+                           di->rcItem.top, ETO_CLIPPED, &di->rcItem,
+                           disp->bits->s, disp->bits->len, NULL);
             }
 
-            r.left = r.top = r.bottom = 0;
-            r.right = 75;
-            MapDialogRect(hwnd, &r);
-            ExtTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
-                       ETO_CLIPPED, &di->rcItem, disp->hash->s,
-                       disp->hash->len, NULL);
+            ExtTextOut(di->hDC, di->rcItem.left + r.right + colpos_hash,
+                       di->rcItem.top, ETO_CLIPPED, &di->rcItem,
+                       disp->hash->s, disp->hash->len, NULL);
 
             strbuf *sb = strbuf_new();
             put_datapl(sb, ptrlen_from_strbuf(disp->comment));
@@ -691,11 +718,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 put_datapl(sb, ptrlen_from_strbuf(disp->info));
             }
 
-            r.left = r.top = r.bottom = 0;
-            r.right = 300;
-            MapDialogRect(hwnd, &r);
-            TabbedTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
-                          sb->s, sb->len, 0, NULL, 0);
+            TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
+                          di->rcItem.top, sb->s, sb->len, 0, NULL, 0);
 
             strbuf_free(sb);
 
