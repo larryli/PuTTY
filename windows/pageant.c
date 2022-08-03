@@ -622,9 +622,9 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                              GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
                              WS_EX_CONTEXTHELP);
         else {
-          HWND item = GetDlgItem(hwnd, IDC_KEYLIST_HELP);
-          if (item)
-              DestroyWindow(item);
+            HWND item = GetDlgItem(hwnd, IDC_KEYLIST_HELP);
+            if (item)
+                DestroyWindow(item);
         }
 
         keylist = hwnd;
@@ -852,9 +852,9 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             topic = WINHELP_CTX_pageant_deferred; break;
         }
         if (topic) {
-          launch_help(hwnd, topic);
+            launch_help(hwnd, topic);
         } else {
-          MessageBeep(0);
+            MessageBeep(0);
         }
         break;
       }
@@ -1312,8 +1312,8 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 
             if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
                                      _T(""), SW_SHOW) <= 32) {
-              MessageBox(NULL, "Unable to execute PuTTY!",
-                         "Error", MB_OK | MB_ICONERROR);
+                MessageBox(NULL, "Unable to execute PuTTY!",
+                           "Error", MB_OK | MB_ICONERROR);
             }
             break;
           }
@@ -1371,25 +1371,25 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             break;
           default: {
             if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
-              MENUITEMINFO mii;
-              TCHAR buf[MAX_PATH + 1];
-              TCHAR param[MAX_PATH + 1];
-              memset(&mii, 0, sizeof(mii));
-              mii.cbSize = sizeof(mii);
-              mii.fMask = MIIM_TYPE;
-              mii.cch = MAX_PATH;
-              mii.dwTypeData = buf;
-              GetMenuItemInfo(session_menu, wParam, false, &mii);
-              param[0] = '\0';
-              if (restrict_putty_acl)
-                  strcat(param, "&R");
-              strcat(param, "@");
-              strcat(param, mii.dwTypeData);
-              if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
-                                       _T(""), SW_SHOW) <= 32) {
-                MessageBox(NULL, "Unable to execute PuTTY!", "Error",
-                           MB_OK | MB_ICONERROR);
-              }
+                MENUITEMINFO mii;
+                TCHAR buf[MAX_PATH + 1];
+                TCHAR param[MAX_PATH + 1];
+                memset(&mii, 0, sizeof(mii));
+                mii.cbSize = sizeof(mii);
+                mii.fMask = MIIM_TYPE;
+                mii.cch = MAX_PATH;
+                mii.dwTypeData = buf;
+                GetMenuItemInfo(session_menu, wParam, false, &mii);
+                param[0] = '\0';
+                if (restrict_putty_acl)
+                    strcat(param, "&R");
+                strcat(param, "@");
+                strcat(param, mii.dwTypeData);
+                if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
+                                         _T(""), SW_SHOW) <= 32) {
+                    MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+                               MB_OK | MB_ICONERROR);
+                }
             }
             break;
           }
@@ -1425,10 +1425,10 @@ static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
         err = answer_filemapping_message(mapname);
         if (err) {
 #ifdef DEBUG_IPC
-          debug("IPC failed: %s\n", err);
+            debug("IPC failed: %s\n", err);
 #endif
-          sfree(err);
-          return 0;
+            sfree(err);
+            return 0;
         }
         return 1;
       }

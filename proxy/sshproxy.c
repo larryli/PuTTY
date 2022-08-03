@@ -431,8 +431,8 @@ static SeatPromptResult sshproxy_confirm_ssh_host_key(
 }
 
 static SeatPromptResult sshproxy_confirm_weak_crypto_primitive(
-        Seat *seat, const char *algtype, const char *algname,
-        void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
+    Seat *seat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 
@@ -457,8 +457,8 @@ static SeatPromptResult sshproxy_confirm_weak_crypto_primitive(
 }
 
 static SeatPromptResult sshproxy_confirm_weak_cached_hostkey(
-        Seat *seat, const char *algname, const char *betteralgs,
-        void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
+    Seat *seat, const char *algname, const char *betteralgs,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     SshProxy *sp = container_of(seat, SshProxy, seat);
 

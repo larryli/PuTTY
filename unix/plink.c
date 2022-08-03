@@ -442,57 +442,57 @@ static void from_tty(void *vbuf, unsigned len)
     p = buf; end = buf + len;
     while (p < end) {
         switch (state) {
-            case NORMAL:
-                if (*p == '\xff') {
-                    p++;
-                    state = FF;
-                } else {
-                    q = memchr(p, '\xff', end - p);
-                    if (q == NULL) q = end;
-                    backend_send(backend, p, q - p);
-                    p = q;
-                }
-                break;
-            case FF:
-                if (*p == '\xff') {
-                    backend_send(backend, p, 1);
-                    p++;
-                    state = NORMAL;
-                } else if (*p == '\0') {
-                    p++;
-                    state = FF00;
-                } else abort();
-                break;
-            case FF00:
-                if (*p == '\0') {
-                    backend_special(backend, SS_BRK, 0);
-                } else {
-                    /*
-                     * Pretend that PARMRK wasn't set.  This involves
-                     * faking what INPCK and IGNPAR would have done if
-                     * we hadn't overridden them.  Unfortunately, we
-                     * can't do this entirely correctly because INPCK
-                     * distinguishes between framing and parity
-                     * errors, but PARMRK format represents both in
-                     * the same way.  We assume that parity errors are
-                     * more common than framing errors, and hence
-                     * treat all input errors as being subject to
-                     * INPCK.
-                     */
-                    if (orig_termios.c_iflag & INPCK) {
-                        /* If IGNPAR is set, we throw away the character. */
-                        if (!(orig_termios.c_iflag & IGNPAR)) {
-                            /* PE/FE get passed on as NUL. */
-                            *p = 0;
-                            backend_send(backend, p, 1);
-                        }
-                    } else {
-                        /* INPCK not set.  Assume we got a parity error. */
-                        backend_send(backend, p, 1);
-                    }
-                }
+          case NORMAL:
+            if (*p == '\xff') {
+                p++;
+                state = FF;
+            } else {
+                q = memchr(p, '\xff', end - p);
+                if (q == NULL) q = end;
+                backend_send(backend, p, q - p);
+                p = q;
+            }
+            break;
+          case FF:
+            if (*p == '\xff') {
+                backend_send(backend, p, 1);
                 p++;
                 state = NORMAL;
+            } else if (*p == '\0') {
+                p++;
+                state = FF00;
+            } else abort();
+            break;
+          case FF00:
+            if (*p == '\0') {
+                backend_special(backend, SS_BRK, 0);
+            } else {
+                /*
+                 * Pretend that PARMRK wasn't set.  This involves
+                 * faking what INPCK and IGNPAR would have done if
+                 * we hadn't overridden them.  Unfortunately, we
+                 * can't do this entirely correctly because INPCK
+                 * distinguishes between framing and parity
+                 * errors, but PARMRK format represents both in
+                 * the same way.  We assume that parity errors are
+                 * more common than framing errors, and hence
+                 * treat all input errors as being subject to
+                 * INPCK.
+                 */
+                if (orig_termios.c_iflag & INPCK) {
+                    /* If IGNPAR is set, we throw away the character. */
+                    if (!(orig_termios.c_iflag & IGNPAR)) {
+                        /* PE/FE get passed on as NUL. */
+                        *p = 0;
+                        backend_send(backend, p, 1);
+                    }
+                } else {
+                    /* INPCK not set.  Assume we got a parity error. */
+                    backend_send(backend, p, 1);
+                }
+            }
+            p++;
+            state = NORMAL;
         }
     }
 }

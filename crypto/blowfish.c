@@ -430,7 +430,7 @@ static void blowfish_msb_decrypt_cbc(unsigned char *blk, int len,
 }
 
 static void blowfish_msb_sdctr(unsigned char *blk, int len,
-                                     BlowfishContext * ctx)
+                               BlowfishContext * ctx)
 {
     uint32_t b[2], iv0, iv1, tmp;
 

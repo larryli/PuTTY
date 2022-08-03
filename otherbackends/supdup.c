@@ -717,15 +717,15 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     *backend_handle = &supdup->backend;
 
     switch (conf_get_int(supdup->conf, CONF_supdup_ascii_set)) {
-    case SUPDUP_CHARSET_ASCII:
-      supdup->print = print_ascii;
-      break;
-    case SUPDUP_CHARSET_ITS:
-      supdup->print = print_its;
-      break;
-    case SUPDUP_CHARSET_WAITS:
-      supdup->print = print_waits;
-      break;
+      case SUPDUP_CHARSET_ASCII:
+        supdup->print = print_ascii;
+        break;
+      case SUPDUP_CHARSET_ITS:
+        supdup->print = print_its;
+        break;
+      case SUPDUP_CHARSET_WAITS:
+        supdup->print = print_waits;
+        break;
     }
 
     /*

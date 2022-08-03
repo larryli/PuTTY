@@ -927,7 +927,7 @@ static DWORD try_connect(NetSocket *sock)
         goto ret;
     }
 
-        SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
     if (sock->oobinline) {
         BOOL b = true;
@@ -1708,9 +1708,9 @@ void select_result(WPARAM wParam, LPARAM lParam)
         t = p_accept(s->s,(struct sockaddr *)&isa,&addrlen);
         if (t == INVALID_SOCKET)
         {
-          err = p_WSAGetLastError();
-          if (err == WSATRY_AGAIN)
-              break;
+            err = p_WSAGetLastError();
+            if (err == WSATRY_AGAIN)
+                break;
         }
 
         actx.p = (void *)t;
@@ -1723,9 +1723,9 @@ void select_result(WPARAM wParam, LPARAM lParam)
         if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr))
 #endif
         {
-          p_closesocket(t);      /* dodgy WinSock let nonlocal through */
+            p_closesocket(t);      /* dodgy WinSock let nonlocal through */
         } else if (plug_accepting(s->plug, sk_net_accept, actx)) {
-          p_closesocket(t);      /* denied or error */
+            p_closesocket(t);      /* denied or error */
         }
         break;
       }

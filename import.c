@@ -1249,8 +1249,8 @@ static struct openssh_new_key *load_openssh_new_key(BinarySource *filesrc,
         ret->kdfopts.bcrypt.rounds = get_uint32(opts);
 
         if (get_err(opts)) {
-          errmsg = "failed to parse bcrypt options string";
-          goto error;
+            errmsg = "failed to parse bcrypt options string";
+            goto error;
         }
         break;
       }

@@ -1565,8 +1565,8 @@ static void ssh2_delete_sharing_channel(ConnectionLayer *cl, unsigned localid)
 }
 
 static void ssh2_send_packet_from_downstream(
-        ConnectionLayer *cl, unsigned id, int type,
-        const void *data, int datalen, const char *additional_log_text)
+    ConnectionLayer *cl, unsigned id, int type,
+    const void *data, int datalen, const char *additional_log_text)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);

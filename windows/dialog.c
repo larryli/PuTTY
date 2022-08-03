@@ -582,9 +582,9 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
 
                 c = strrchr(s->pathname, '/');
                 if (!c)
-                        c = s->pathname;
+                    c = s->pathname;
                 else
-                        c++;
+                    c++;
 
                 item = treeview_insert(&tvfaff, j, c, s->pathname);
                 if (!hfirst) {

@@ -150,9 +150,9 @@ static int cmpfortree(void *av, void *bv)
     if (as > bs)
         return +1;
     if (a < b)
-       return -1;
+        return -1;
     if (a > b)
-       return +1;
+        return +1;
     return 0;
 }
 
@@ -655,14 +655,14 @@ static int try_connect(NetSocket *sock)
             } else {
                 err = errno;
                 if (err != EADDRINUSE) /* failed, for a bad reason */
-                  break;
+                    break;
             }
 
             if (localport == 0)
-              break;                   /* we're only looping once */
+                break;                   /* we're only looping once */
             localport--;
             if (localport == 0)
-              break;                   /* we might have got to the end */
+                break;                   /* we might have got to the end */
         }
 
         if (err)

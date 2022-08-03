@@ -299,73 +299,73 @@ int main(int argc, char **argv)
                     while (*p && *p != '=')
                         p++;               /* find end of option */
                     if (*p == '=') {
-                      *p++ = '\0';
-                      val = p;
+                        *p++ = '\0';
+                        val = p;
                     } else
                         val = NULL;
 
                     if (!strcmp(opt, "-help")) {
-                      if (val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects no argument\n", opt);
-                      } else {
-                        help();
-                        nogo = true;
-                      }
+                        if (val) {
+                            errs = true;
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects no argument\n", opt);
+                        } else {
+                            help();
+                            nogo = true;
+                        }
                     } else if (!strcmp(opt, "-version")) {
-                      if (val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects no argument\n", opt);
-                      } else {
-                        showversion();
-                        nogo = true;
-                      }
+                        if (val) {
+                            errs = true;
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects no argument\n", opt);
+                        } else {
+                            showversion();
+                            nogo = true;
+                        }
                     } else if (!strcmp(opt, "-pgpfp")) {
-                      if (val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects no argument\n", opt);
-                      } else {
-                        /* support --pgpfp for consistency */
-                        pgp_fingerprints();
-                        nogo = true;
-                      }
+                        if (val) {
+                            errs = true;
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects no argument\n", opt);
+                        } else {
+                            /* support --pgpfp for consistency */
+                            pgp_fingerprints();
+                            nogo = true;
+                        }
                     } else if (!strcmp(opt, "-old-passphrase")) {
-                      if (!val && argc > 1)
-                          --argc, val = *++argv;
-                      if (!val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects an argument\n", opt);
-                      } else {
-                        old_passphrase = readpassphrase(val);
-                        if (!old_passphrase)
+                        if (!val && argc > 1)
+                            --argc, val = *++argv;
+                        if (!val) {
                             errs = true;
-                      }
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects an argument\n", opt);
+                        } else {
+                            old_passphrase = readpassphrase(val);
+                            if (!old_passphrase)
+                                errs = true;
+                        }
                     } else if (!strcmp(opt, "-new-passphrase")) {
-                      if (!val && argc > 1)
-                          --argc, val = *++argv;
-                      if (!val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects an argument\n", opt);
-                      } else {
-                        new_passphrase = readpassphrase(val);
-                        if (!new_passphrase)
+                        if (!val && argc > 1)
+                            --argc, val = *++argv;
+                        if (!val) {
                             errs = true;
-                      }
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects an argument\n", opt);
+                        } else {
+                            new_passphrase = readpassphrase(val);
+                            if (!new_passphrase)
+                                errs = true;
+                        }
                     } else if (!strcmp(opt, "-random-device")) {
-                      if (!val && argc > 1)
-                          --argc, val = *++argv;
-                      if (!val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects an argument\n", opt);
-                      } else {
-                        random_device = val;
-                      }
+                        if (!val && argc > 1)
+                            --argc, val = *++argv;
+                        if (!val) {
+                            errs = true;
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects an argument\n", opt);
+                        } else {
+                            random_device = val;
+                        }
                     } else if (!strcmp(opt, "-dump")) {
                         outtype = TEXT;
                     } else if (!strcmp(opt, "-cert-info") ||
@@ -401,15 +401,15 @@ int main(int argc, char **argv)
                     } else if (!strcmp(opt, "-strong-rsa")) {
                         strong_rsa = true;
                     } else if (!strcmp(opt, "-certificate")) {
-                      if (!val && argc > 1)
-                          --argc, val = *++argv;
-                      if (!val) {
-                        errs = true;
-                        fprintf(stderr, "puttygen: option `-%s'"
-                                " expects an argument\n", opt);
-                      } else {
-                        certfile = val;
-                      }
+                        if (!val && argc > 1)
+                            --argc, val = *++argv;
+                        if (!val) {
+                            errs = true;
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects an argument\n", opt);
+                        } else {
+                            certfile = val;
+                        }
                     } else if (!strcmp(opt, "-remove-certificate")) {
                         remove_cert = true;
                     } else if (!strcmp(opt, "-reencrypt")) {
@@ -490,9 +490,9 @@ int main(int argc, char **argv)
                             }
                         }
                     } else {
-                      errs = true;
-                      fprintf(stderr,
-                              "puttygen: no such option `-%s'\n", opt);
+                        errs = true;
+                        fprintf(stderr,
+                                "puttygen: no such option `-%s'\n", opt);
                     }
                     p = NULL;
                     break;
@@ -1334,29 +1334,29 @@ int main(int argc, char **argv)
         FILE *fp;
 
         if (outfile) {
-          fp = f_open(outfilename, "w", false);
-          if (!fp) {
-            fprintf(stderr, "unable to open output file\n");
-            exit(1);
-          }
+            fp = f_open(outfilename, "w", false);
+            if (!fp) {
+                fprintf(stderr, "unable to open output file\n");
+                exit(1);
+            }
         } else {
-          fp = stdout;
+            fp = stdout;
         }
 
         if (sshver == 1) {
-          ssh1_write_pubkey(fp, ssh1key);
+            ssh1_write_pubkey(fp, ssh1key);
         } else {
-          if (!ssh2blob) {
-            assert(ssh2key);
-            ssh2blob = strbuf_new();
-            ssh_key_public_blob(ssh2key->key, BinarySink_UPCAST(ssh2blob));
-          }
+            if (!ssh2blob) {
+                assert(ssh2key);
+                ssh2blob = strbuf_new();
+                ssh_key_public_blob(ssh2key->key, BinarySink_UPCAST(ssh2blob));
+            }
 
-          ssh2_write_pubkey(fp, ssh2key ? ssh2key->comment : origcomment,
-                            ssh2blob->s, ssh2blob->len,
-                            (outtype == PUBLIC ?
-                             SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 :
-                             SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH));
+            ssh2_write_pubkey(fp, ssh2key ? ssh2key->comment : origcomment,
+                              ssh2blob->s, ssh2blob->len,
+                              (outtype == PUBLIC ?
+                               SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 :
+                               SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH));
         }
 
         if (outfile)
@@ -1370,26 +1370,26 @@ int main(int argc, char **argv)
         char *fingerprint;
 
         if (sshver == 1) {
-          assert(ssh1key);
-          fingerprint = rsa_ssh1_fingerprint(ssh1key);
+            assert(ssh1key);
+            fingerprint = rsa_ssh1_fingerprint(ssh1key);
         } else {
-          if (ssh2key) {
-            fingerprint = ssh2_fingerprint(ssh2key->key, fptype);
-          } else {
-            assert(ssh2blob);
-            fingerprint = ssh2_fingerprint_blob(
-                ptrlen_from_strbuf(ssh2blob), fptype);
-          }
+            if (ssh2key) {
+                fingerprint = ssh2_fingerprint(ssh2key->key, fptype);
+            } else {
+                assert(ssh2blob);
+                fingerprint = ssh2_fingerprint_blob(
+                    ptrlen_from_strbuf(ssh2blob), fptype);
+            }
         }
 
         if (outfile) {
-          fp = f_open(outfilename, "w", false);
-          if (!fp) {
-            fprintf(stderr, "unable to open output file\n");
-            exit(1);
-          }
+            fp = f_open(outfilename, "w", false);
+            if (!fp) {
+                fprintf(stderr, "unable to open output file\n");
+                exit(1);
+            }
         } else {
-          fp = stdout;
+            fp = stdout;
         }
         fprintf(fp, "%s\n", fingerprint);
         if (outfile)

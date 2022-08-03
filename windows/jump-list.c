@@ -716,10 +716,10 @@ void remove_session_from_jumplist(const char * const sessionname)
 
 bool set_explicit_app_user_model_id(void)
 {
-  DECL_WINDOWS_FUNCTION(static, HRESULT, SetCurrentProcessExplicitAppUserModelID,
-                        (PCWSTR));
+    DECL_WINDOWS_FUNCTION(
+        static, HRESULT, SetCurrentProcessExplicitAppUserModelID, (PCWSTR));
 
-  static HMODULE shell32_module = 0;
+    static HMODULE shell32_module = 0;
 
     if (!shell32_module)
     {
@@ -738,7 +738,7 @@ bool set_explicit_app_user_model_id(void)
         const wchar_t *id = get_app_user_model_id();
         if (p_SetCurrentProcessExplicitAppUserModelID(id) == S_OK)
         {
-          return true;
+            return true;
         }
         return false;
     }

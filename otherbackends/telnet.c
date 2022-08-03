@@ -452,7 +452,7 @@ static void process_subneg(Telnet *telnet)
                  eval != NULL;
                  eval = conf_get_str_strs(telnet->conf, CONF_environmt,
                                          ekey, &ekey))
-                 bsize += strlen(ekey) + strlen(eval) + 2;
+                bsize += strlen(ekey) + strlen(eval) + 2;
             user = get_remote_username(telnet->conf);
             if (user)
                 bsize += 6 + strlen(user);

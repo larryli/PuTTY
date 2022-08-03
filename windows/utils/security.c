@@ -175,7 +175,7 @@ bool make_private_security_descriptor(DWORD permissions,
     *error = NULL;
 
     if (!getsids(error))
-      goto cleanup;
+        goto cleanup;
 
     memset(ea, 0, sizeof(ea));
     ea[0].grfAccessPermissions = permissions;

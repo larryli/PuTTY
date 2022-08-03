@@ -1073,7 +1073,7 @@ static int sblines(Terminal *term)
     int sblines = count234(term->scrollback);
     if (term->erase_to_scrollback &&
         term->alt_which && term->alt_screen) {
-            sblines += term->alt_sblines;
+        sblines += term->alt_sblines;
     }
     return sblines;
 }

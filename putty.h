@@ -1544,7 +1544,7 @@ const char *nullseat_get_x_display(Seat *seat);
 bool nullseat_get_windowid(Seat *seat, long *id_out);
 bool nullseat_get_window_pixel_size(Seat *seat, int *width, int *height);
 StripCtrlChars *nullseat_stripctrl_new(
-        Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
 void nullseat_set_trust_status(Seat *seat, bool trusted);
 bool nullseat_can_set_trust_status_yes(Seat *seat);
 bool nullseat_can_set_trust_status_no(Seat *seat);
@@ -1573,7 +1573,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 StripCtrlChars *console_stripctrl_new(
-        Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
 void console_set_trust_status(Seat *seat, bool trusted);
 bool console_can_set_trust_status(Seat *seat);
 bool console_has_mixed_input_stream(Seat *seat);

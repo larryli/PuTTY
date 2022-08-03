@@ -10,34 +10,34 @@ static const TermWinVtable fuzz_termwin_vt;
 
 int main(int argc, char **argv)
 {
-        char blk[512];
-        size_t len;
-        Terminal *term;
-        Conf *conf;
-        struct unicode_data ucsdata;
-        TermWin termwin;
+    char blk[512];
+    size_t len;
+    Terminal *term;
+    Conf *conf;
+    struct unicode_data ucsdata;
+    TermWin termwin;
 
-        termwin.vt = &fuzz_termwin_vt;
+    termwin.vt = &fuzz_termwin_vt;
 
-        conf = conf_new();
-        do_defaults(NULL, conf);
-        init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
-                 conf_get_bool(conf, CONF_utf8_override),
-                 CS_NONE, conf_get_int(conf, CONF_vtmode));
+    conf = conf_new();
+    do_defaults(NULL, conf);
+    init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
+             conf_get_bool(conf, CONF_utf8_override),
+             CS_NONE, conf_get_int(conf, CONF_vtmode));
 
-        term = term_init(conf, &ucsdata, &termwin);
-        term_size(term, 24, 80, 10000);
-        term->ldisc = NULL;
-        /* Tell american fuzzy lop that this is a good place to fork. */
+    term = term_init(conf, &ucsdata, &termwin);
+    term_size(term, 24, 80, 10000);
+    term->ldisc = NULL;
+    /* Tell american fuzzy lop that this is a good place to fork. */
 #ifdef __AFL_HAVE_MANUAL_CONTROL
-        __AFL_INIT();
+    __AFL_INIT();
 #endif
-        while (!feof(stdin)) {
-                len = fread(blk, 1, sizeof(blk), stdin);
-                term_data(term, blk, len);
-        }
-        term_update(term);
-        return 0;
+    while (!feof(stdin)) {
+        len = fread(blk, 1, sizeof(blk), stdin);
+        term_data(term, blk, len);
+    }
+    term_update(term);
+    return 0;
 }
 
 /* functions required by terminal.c */

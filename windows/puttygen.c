@@ -438,9 +438,9 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
             topic = WINHELP_CTX_puttygen_kdfparam; break;
         }
         if (topic) {
-          launch_help(hwnd, topic);
+            launch_help(hwnd, topic);
         } else {
-          MessageBeep(0);
+            MessageBeep(0);
         }
         break;
       }
@@ -2353,9 +2353,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             topic = WINHELP_CTX_puttygen_conversions; break;
         }
         if (topic) {
-          launch_help(hwnd, topic);
+            launch_help(hwnd, topic);
         } else {
-          MessageBeep(0);
+            MessageBeep(0);
         }
         break;
       }
