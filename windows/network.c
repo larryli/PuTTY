@@ -1068,7 +1068,7 @@ static DWORD try_connect(NetSocket *sock)
 
     err = 0;
 
-    ret:
+  ret:
 
     /*
      * No matter what happened, put the socket back in the tree.

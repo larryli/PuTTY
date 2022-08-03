@@ -498,7 +498,7 @@ static struct openssh_pem_key *load_openssh_pem_key(BinarySource *src,
     if (errmsg_p) *errmsg_p = NULL;
     return ret;
 
-    error:
+  error:
     if (line) {
         smemclr(line, strlen(line));
         sfree(line);
@@ -801,7 +801,7 @@ static ssh2_userkey *openssh_pem_read(
     errmsg = NULL;                     /* no error */
     retval = retkey;
 
-    error:
+  error:
     strbuf_free(blob);
     strbuf_free(key->keyblob);
     smemclr(key, sizeof(*key));
@@ -1084,7 +1084,7 @@ static bool openssh_pem_write(
     fclose(fp);
     ret = true;
 
-    error:
+  error:
     if (outblob)
         strbuf_free(outblob);
     if (spareblob) {
@@ -1298,7 +1298,7 @@ static struct openssh_new_key *load_openssh_new_key(BinarySource *filesrc,
     if (errmsg_p) *errmsg_p = NULL;
     return ret;
 
-    error:
+  error:
     if (line) {
         smemclr(line, strlen(line));
         sfree(line);
@@ -1488,7 +1488,7 @@ static ssh2_userkey *openssh_new_read(
     retval = retkey;
     retkey = NULL;                     /* prevent the free */
 
-    error:
+  error:
     if (retkey) {
         sfree(retkey->comment);
         if (retkey->key)
@@ -1619,7 +1619,7 @@ static bool openssh_new_write(
     fclose(fp);
     ret = true;
 
-    error:
+  error:
     if (cblob)
         strbuf_free(cblob);
     if (privblob)
@@ -1854,7 +1854,7 @@ static struct sshcom_key *load_sshcom_key(BinarySource *src,
     if (errmsg_p) *errmsg_p = NULL;
     return ret;
 
-    error:
+  error:
     if (line) {
         smemclr(line, strlen(line));
         sfree(line);
@@ -1892,7 +1892,7 @@ static bool sshcom_encrypted(BinarySource *filesrc, char **comment)
     if (!ptrlen_eq_string(str, "none"))
         answer = true;
 
-    done:
+  done:
     if (key) {
         *comment = dupstr(key->comment);
         strbuf_free(key->keyblob);
@@ -2143,7 +2143,7 @@ static ssh2_userkey *sshcom_read(
     errmsg = NULL; /* no error */
     ret = retkey;
 
-    error:
+  error:
     if (blob) {
         strbuf_free(blob);
     }
@@ -2322,7 +2322,7 @@ static bool sshcom_write(
     fclose(fp);
     ret = true;
 
-    error:
+  error:
     if (outblob)
         strbuf_free(outblob);
     if (privblob)

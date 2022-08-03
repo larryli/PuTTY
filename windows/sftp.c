@@ -222,16 +222,16 @@ int seek_file(WFile *f, uint64_t offset, int whence)
     DWORD movemethod;
 
     switch (whence) {
-    case FROM_START:
+      case FROM_START:
         movemethod = FILE_BEGIN;
         break;
-    case FROM_CURRENT:
+      case FROM_CURRENT:
         movemethod = FILE_CURRENT;
         break;
-    case FROM_END:
+      case FROM_END:
         movemethod = FILE_END;
         break;
-    default:
+      default:
         return -1;
     }
 

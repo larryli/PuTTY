@@ -155,7 +155,7 @@ static bool getsids(char **error)
 
     ret = true;
 
- cleanup:
+  cleanup:
     return ret;
 }
 

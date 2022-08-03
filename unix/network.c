@@ -731,7 +731,7 @@ static int try_connect(NetSocket *sock)
 
     uxsel_tell(sock);
 
-    ret:
+  ret:
 
     /*
      * No matter what happened, put the socket back in the tree.
@@ -1043,7 +1043,7 @@ void *sk_getxdmdata(Socket *sock, int *lenp)
         PUT_16BIT_MSB_FIRST(buf+4, ntohs(u.sin.sin_port));
         break;
 #ifndef NO_IPV6
-    case AF_INET6:
+      case AF_INET6:
         *lenp = 6;
         buf = snewn(*lenp, char);
         if (IN6_IS_ADDR_V4MAPPED(&u.sin6.sin6_addr)) {

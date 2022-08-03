@@ -131,7 +131,7 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
 
     return ret;
 
-    error:
+  error:
     sfree(buffer);
     sfree(ret);
     *nprinters_ptr = 0;
@@ -195,7 +195,7 @@ printer_job *printer_start_job(char *printer)
 
     return ret;
 
-    error:
+  error:
     if (pagestarted)
         p_EndPagePrinter(ret->hprinter);
     if (jobstarted)

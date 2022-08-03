@@ -806,7 +806,7 @@ int check_stored_host_key(const char *hostname, int port,
         else
             ret = 2;                   /* key mismatch */
 
-        done:
+      done:
         sfree(line);
         if (ret != 1)
             break;

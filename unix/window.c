@@ -1978,7 +1978,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         goto done;
     }
 
-    done:
+  done:
 
     if (end-start > 0) {
         if (special) {
