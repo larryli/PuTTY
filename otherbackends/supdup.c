@@ -946,7 +946,7 @@ static int supdup_exitcode(Backend *be)
 }
 
 /*
- * cfg_info for Dupdup does nothing at all.
+ * cfg_info for Supdup does nothing at all.
  */
 static int supdup_cfg_info(Backend *be)
 {
