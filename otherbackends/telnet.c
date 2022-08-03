@@ -191,7 +191,7 @@ struct Telnet {
 
     enum {
         TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
-            SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
+        SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
     } state;
 
     Conf *conf;

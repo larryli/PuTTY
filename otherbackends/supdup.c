@@ -1,6 +1,6 @@
 /*
-* Supdup backend
-*/
+ * Supdup backend
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +10,7 @@
 
 /*
  * TTYOPT FUNCTION BITS (36-bit bitmasks)
-*/
+ */
 #define TOALT   0200000000000LL         //  Characters 0175 and 0176 are converted to altmode (0033) on input
 #define TOCLC   0100000000000LL         //  (user option bit) Convert lower-case input to upper-case
 #define TOERS   0040000000000LL         //  Selective erase is supported
@@ -671,13 +671,13 @@ static const InteractorVtable Supdup_interactorvt = {
 };
 
 /*
-* Called to set up the Supdup connection.
-*
-* Returns an error message, or NULL on success.
-*
-* Also places the canonical host name into `realhost'. It must be
-* freed by the caller.
-*/
+ * Called to set up the Supdup connection.
+ *
+ * Returns an error message, or NULL on success.
+ *
+ * Also places the canonical host name into `realhost'. It must be
+ * freed by the caller.
+ */
 static char *supdup_init(const BackendVtable *x, Seat *seat,
                          Backend **backend_handle,
                          LogContext *logctx, Conf *conf,
@@ -837,16 +837,16 @@ static void supdup_free(Backend *be)
 }
 
 /*
-* Reconfigure the Supdup backend.
-*/
+ * Reconfigure the Supdup backend.
+ */
 static void supdup_reconfig(Backend *be, Conf *conf)
 {
     /* Nothing to do; SUPDUP cannot be reconfigured while running. */
 }
 
 /*
-* Called to send data down the Supdup connection.
-*/
+ * Called to send data down the Supdup connection.
+ */
 static void supdup_send(Backend *be, const char *buf, size_t len)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
@@ -867,8 +867,8 @@ static void supdup_send(Backend *be, const char *buf, size_t len)
 }
 
 /*
-* Called to query the current socket sendability status.
-*/
+ * Called to query the current socket sendability status.
+ */
 static size_t supdup_sendbuffer(Backend *be)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
@@ -876,8 +876,8 @@ static size_t supdup_sendbuffer(Backend *be)
 }
 
 /*
-* Called to set the size of the window from Supdup's POV.
-*/
+ * Called to set the size of the window from Supdup's POV.
+ */
 static void supdup_size(Backend *be, int width, int height)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
@@ -892,8 +892,8 @@ static void supdup_size(Backend *be, int width, int height)
 }
 
 /*
-* Send Telnet special codes.
-*/
+ * Send Telnet special codes.
+ */
 static void supdup_special(Backend *be, SessionSpecialCode code, int arg)
 {
 }
@@ -946,8 +946,8 @@ static int supdup_exitcode(Backend *be)
 }
 
 /*
-* cfg_info for Dupdup does nothing at all.
-*/
+ * cfg_info for Dupdup does nothing at all.
+ */
 static int supdup_cfg_info(Backend *be)
 {
     return 0;

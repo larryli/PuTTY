@@ -1575,7 +1575,7 @@ OPTIONAL_PTR_FUNC(string)
     static void handle_##fname(BinarySource *_in, strbuf *_out) {       \
         ARGS_##fname _args = get_args_##fname(_in);                     \
         (void)_args; /* suppress warning if no actual arguments */      \
-        return_##outtype(_out, JUXTAPOSE2(realname, (__VA_ARGS__)));     \
+        return_##outtype(_out, JUXTAPOSE2(realname, (__VA_ARGS__)));    \
     }
 #include "testcrypt-func.h"
 #undef FUNC_INNER

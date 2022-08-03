@@ -681,7 +681,7 @@ void init_ucs(Conf *conf, struct unicode_data *ucsdata)
         for (i = 96; i < 127; i++)
             if (!DIRECT_FONT(ucsdata->unitab_xterm[i]))
                 ucsdata->unitab_xterm[i] =
-            (WCHAR) (CSET_ACP + poorman_vt100[i - 96]);
+                    (WCHAR) (CSET_ACP + poorman_vt100[i - 96]);
         for(i=128;i<256;i++)
             if (!DIRECT_FONT(ucsdata->unitab_scoacs[i]))
                 ucsdata->unitab_scoacs[i] =
@@ -724,7 +724,7 @@ wchar_t xlat_uskbd2cyrllic(int ch)
         0x0440, 0x0448, 0x043e, 0x043b, 0x0434, 0x044c, 0x0442, 0x0449,
         0x0437, 0x0439, 0x043a, 0x044b, 0x0435, 0x0433, 0x043c, 0x0446,
         0x0447, 0x043d, 0x044f, 0x0425, 0x0407, 0x042a,    126,    127
-       };
+    };
     return cyrtab[ch&0x7F];
 }
 

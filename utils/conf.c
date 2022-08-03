@@ -476,7 +476,7 @@ void conf_del_str_str(Conf *conf, int primary, const char *secondary)
         del234(conf->tree, entry);
         free_entry(entry);
     }
- }
+}
 
 void conf_set_filename(Conf *conf, int primary, const Filename *value)
 {

@@ -721,8 +721,7 @@ bool set_explicit_app_user_model_id(void)
 
     static HMODULE shell32_module = 0;
 
-    if (!shell32_module)
-    {
+    if (!shell32_module) {
         shell32_module = load_system32_dll("Shell32.dll");
         /*
          * We can't typecheck this function here, because it's defined
@@ -733,11 +732,9 @@ bool set_explicit_app_user_model_id(void)
             shell32_module, SetCurrentProcessExplicitAppUserModelID);
     }
 
-    if (p_SetCurrentProcessExplicitAppUserModelID)
-    {
+    if (p_SetCurrentProcessExplicitAppUserModelID) {
         const wchar_t *id = get_app_user_model_id();
-        if (p_SetCurrentProcessExplicitAppUserModelID(id) == S_OK)
-        {
+        if (p_SetCurrentProcessExplicitAppUserModelID(id) == S_OK) {
             return true;
         }
         return false;

@@ -56,7 +56,7 @@ static const gss_OID_desc oids[] = {
      *
      * The implementation must reserve static storage for a
      * gss_OID_desc object containing the value */
-     {10, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04"},
+    {10, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04"},
     /* corresponding to an object-identifier value of {iso(1)
      * member-body(2) Unites States(840) mit(113554) infosys(1)
      * gssapi(2) generic(1) service_name(4)}.  The constant
@@ -75,7 +75,7 @@ static const gss_OID_desc oids[] = {
      * The implementation must reserve static storage for a
      * gss_OID_desc object containing the value */
     {6, (void *)"\x2b\x06\x01\x05\x06\x04"},
-     /* corresponding to an object-identifier value of
+    /* corresponding to an object-identifier value of
      * {1(iso), 3(org), 6(dod), 1(internet), 5(security),
      * 6(nametypes), 4(gss-api-exported-name)}.  The constant
      * GSS_C_NT_EXPORT_NAME should be initialized to point

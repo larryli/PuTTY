@@ -586,7 +586,7 @@ static void load_module(
 #define TRY_WRAP(fn, pre, post) do                              \
     {                                                           \
         static bool done_this_one = false;                      \
-        try_wrap_fn(module, fn, pre, post, &done_this_one);    \
+        try_wrap_fn(module, fn, pre, post, &done_this_one);     \
     } while (0)
 
     if (loaded) {

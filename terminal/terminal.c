@@ -3128,8 +3128,8 @@ static void do_osc(Terminal *term)
 {
     if (term->osc_w) {
         while (term->osc_strlen--)
-            term->wordness[(unsigned char)
-                term->osc_string[term->osc_strlen]] = term->esc_args[0];
+            term->wordness[(unsigned char)term->osc_string[term->osc_strlen]] =
+                term->esc_args[0];
     } else {
         term->osc_string[term->osc_strlen] = '\0';
         switch (term->esc_args[0]) {
@@ -6028,7 +6028,7 @@ static void do_paint(Terminal *term)
 
             if (!term->ansi_colour)
                 tattr = (tattr & ~(ATTR_FGMASK | ATTR_BGMASK)) |
-                ATTR_DEFFG | ATTR_DEFBG;
+                    ATTR_DEFFG | ATTR_DEFBG;
 
             if (!term->xterm_256_colour) {
                 int colour;

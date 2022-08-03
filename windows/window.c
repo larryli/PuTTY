@@ -1494,10 +1494,9 @@ static void init_fonts(int pick_width, int pick_height)
         /* !!! Yes the next line is right */
         if (cset == OEM_CHARSET)
             ucsdata.font_codepage = GetOEMCP();
-        else
-            if (TranslateCharsetInfo ((DWORD *)(ULONG_PTR)cset,
-                                      &info, TCI_SRCCHARSET))
-                ucsdata.font_codepage = info.ciACP;
+        else if (TranslateCharsetInfo ((DWORD *)(ULONG_PTR)cset,
+                                       &info, TCI_SRCCHARSET))
+            ucsdata.font_codepage = info.ciACP;
         else
             ucsdata.font_codepage = -1;
 
@@ -2040,10 +2039,10 @@ static Mouse_Button translate_button(Mouse_Button button)
         return MBT_SELECT;
     if (button == MBT_MIDDLE)
         return conf_get_int(conf, CONF_mouse_is_xterm) == 1 ?
-        MBT_PASTE : MBT_EXTEND;
+            MBT_PASTE : MBT_EXTEND;
     if (button == MBT_RIGHT)
         return conf_get_int(conf, CONF_mouse_is_xterm) == 1 ?
-        MBT_EXTEND : MBT_PASTE;
+            MBT_EXTEND : MBT_PASTE;
     return 0;                          /* shouldn't happen */
 }
 
@@ -3819,9 +3818,7 @@ static void do_text_internal(
                     MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
                                         dbcstext, 2, uni_buf+nlen, 1);
                     mptr++;
-                }
-                else
-                {
+                } else {
                     char dbcstext[1];
                     dbcstext[0] = text[mptr] & 0xFF;
                     MultiByteToWideChar(ucsdata.font_codepage, MB_USEGLYPHCHARS,
@@ -4301,9 +4298,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     }
 
     if (wParam == compose_keycode) {
-        if (compose_state == 0
-            && (HIWORD(lParam) & (KF_UP | KF_REPEAT)) == 0) compose_state =
-                1;
+        if (compose_state == 0 &&
+            (HIWORD(lParam) & (KF_UP | KF_REPEAT)) == 0)
+            compose_state = 1;
         else if (compose_state == 1 && (HIWORD(lParam) & KF_UP))
             compose_state = 2;
         else

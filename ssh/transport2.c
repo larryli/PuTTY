@@ -2192,9 +2192,9 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
     for (i = 0; i < CIPHER_MAX; i++)
         if (conf_get_int_int(s->conf, CONF_ssh_cipherlist, i) !=
             conf_get_int_int(conf, CONF_ssh_cipherlist, i)) {
-        rekey_reason = "cipher settings changed";
-        rekey_mandatory = true;
-    }
+            rekey_reason = "cipher settings changed";
+            rekey_mandatory = true;
+        }
     if (conf_get_bool(s->conf, CONF_ssh2_des_cbc) !=
         conf_get_bool(conf, CONF_ssh2_des_cbc)) {
         rekey_reason = "cipher settings changed";

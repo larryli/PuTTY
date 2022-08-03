@@ -353,7 +353,7 @@ static void show_help(FILE *fp)
           "         --rsakexkey KEY      key for SSH-2 RSA key exchange "
           "(in SSH-1 format)\n"
           "         --userkey KEY        public key"
-           " acceptable for user authentication\n"
+          " acceptable for user authentication\n"
           "         --sessiondir DIR     cwd for session subprocess (default $HOME)\n"
           "         --bannertext TEXT    send TEXT as SSH-2 auth banner\n"
           "         --bannerfile FILE    send contents of FILE as SSH-2 auth "

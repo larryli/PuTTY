@@ -870,7 +870,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     agentreq = strbuf_new_for_agent_query();
                     put_byte(agentreq, SSH2_AGENTC_SIGN_REQUEST);
                     put_stringpl(agentreq, ptrlen_from_strbuf(
-                            s->agent_keys[s->agent_key_index].blob));
+                                     s->agent_keys[s->agent_key_index].blob));
                     /* Now the data to be signed... */
                     sigdata = strbuf_new();
                     ssh2_userauth_add_session_id(s, sigdata);
@@ -1223,8 +1223,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         ppl_logevent("GSSAPI authentication initialisation "
                                      "failed");
 
-                        if (s->shgss->lib->display_status(s->shgss->lib,
-                                s->shgss->ctx, &s->gss_buf) == SSH_GSS_OK) {
+                        if (s->shgss->lib->display_status(
+                                s->shgss->lib, s->shgss->ctx, &s->gss_buf)
+                            == SSH_GSS_OK) {
                             ppl_logevent("%s", (char *)s->gss_buf.value);
                             sfree(s->gss_buf.value);
                         }

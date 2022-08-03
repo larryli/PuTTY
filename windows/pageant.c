@@ -1166,8 +1166,7 @@ static char *answer_filemapping_message(const char *mapname)
             err = dupstr("wrong owning SID of file mapping");
             goto cleanup;
         }
-    } else
-    {
+    } else {
 #ifdef DEBUG_IPC
         debug("security APIs not present\n");
 #endif
