@@ -664,7 +664,7 @@ static struct share_xchannel *share_find_xchannel_by_server
 }
 
 static void share_remove_xchannel(struct ssh_sharing_connstate *cs,
-                                 struct share_xchannel *xc)
+                                  struct share_xchannel *xc)
 {
     del234(cs->xchannels_by_us, xc);
     del234(cs->xchannels_by_server, xc);

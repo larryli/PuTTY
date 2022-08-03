@@ -665,8 +665,8 @@ static Ssh_gss_stat ssh_sspi_verify_mic(struct ssh_gss_library *lib,
     InputSecurityToken[1].pvBuffer = mic->value;
 
     winctx->maj_stat = p_VerifySignature(&winctx->context,
-                                       &InputBufferDescriptor,
-                                       0, &qop);
+                                         &InputBufferDescriptor,
+                                         0, &qop);
     return winctx->maj_stat;
 }
 

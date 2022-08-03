@@ -393,8 +393,8 @@ static char *dns_log_msg(const char *host, int addressfamily,
 }
 
 SockAddr *name_lookup(const char *host, int port, char **canonicalname,
-                     Conf *conf, int addressfamily, LogContext *logctx,
-                     const char *reason)
+                      Conf *conf, int addressfamily, LogContext *logctx,
+                      const char *reason)
 {
     if (conf_get_int(conf, CONF_proxy_type) != PROXY_NONE &&
         do_proxy_dns(conf) &&
@@ -581,10 +581,10 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
 
         {
             char *logmsg = dupprintf("Will use %s proxy at %s:%d to connect"
-                                      " to %s:%d", vt->type,
-                                      conf_get_str(conf, CONF_proxy_host),
-                                      conf_get_int(conf, CONF_proxy_port),
-                                      hostname, port);
+                                     " to %s:%d", vt->type,
+                                     conf_get_str(conf, CONF_proxy_host),
+                                     conf_get_int(conf, CONF_proxy_port),
+                                     hostname, port);
             plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }

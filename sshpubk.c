@@ -1857,7 +1857,7 @@ static int key_type_s_internal(BinarySource *src)
     if (find_pubkey_alg_len(get_nonchars(src, " \n")) > 0 &&
         get_chars(src, " ").len == 1 &&
         get_chars(src, "0123456789ABCDEFGHIJKLMNOPQRSTUV"
-                   "WXYZabcdefghijklmnopqrstuvwxyz+/=").len > 0 &&
+                  "WXYZabcdefghijklmnopqrstuvwxyz+/=").len > 0 &&
         get_nonchars(src, " \n").len == 0)
         return SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH;
 

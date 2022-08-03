@@ -203,7 +203,7 @@ struct PassphraseProcStruct {
  * Dialog-box function for the passphrase box.
  */
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
-                                   WPARAM wParam, LPARAM lParam)
+                                       WPARAM wParam, LPARAM lParam)
 {
     static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
@@ -483,7 +483,7 @@ static bool prompt_keyfile(HWND hwnd, char *dlgtitle,
  * Dialog-box function for the Licence box.
  */
 static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
-                                WPARAM wParam, LPARAM lParam)
+                                    WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG: {
@@ -522,7 +522,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
  * Dialog-box function for the About box.
  */
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
-                              WPARAM wParam, LPARAM lParam)
+                                  WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG:
@@ -1457,7 +1457,7 @@ static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
         MapDialogRect(hwnd, &r);
         HWND ctl = GetDlgItem(hwnd, IDOK);
         SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
-                         SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
+                     SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
 
         r.left = r.top = r.right = 0;
         r.bottom = 300;
@@ -1496,7 +1496,7 @@ static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
  * Dialog-box function for the main PuTTYgen dialog box.
  */
 static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
-                                WPARAM wParam, LPARAM lParam)
+                                    WPARAM wParam, LPARAM lParam)
 {
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     static const char entropy_msg[] =

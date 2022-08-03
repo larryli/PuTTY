@@ -336,7 +336,7 @@ char *conf_get_str_str(Conf *conf, int primary, const char *secondary)
 }
 
 char *conf_get_str_strs(Conf *conf, int primary,
-                       char *subkeyin, char **subkeyout)
+                        char *subkeyin, char **subkeyout)
 {
     struct constkey key;
     struct conf_entry *entry;

@@ -341,8 +341,8 @@ static int dsa_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
 }
 
 mp_int *dsa_gen_k(const char *id_string, mp_int *modulus,
-                     mp_int *private_key,
-                     unsigned char *digest, int digest_len)
+                  mp_int *private_key,
+                  unsigned char *digest, int digest_len)
 {
     /*
      * The basic DSA signing algorithm is:

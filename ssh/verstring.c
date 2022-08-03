@@ -43,7 +43,7 @@ static void ssh_verstring_handle_input(BinaryPacketProtocol *bpp);
 static void ssh_verstring_handle_output(BinaryPacketProtocol *bpp);
 static PktOut *ssh_verstring_new_pktout(int type);
 static void ssh_verstring_queue_disconnect(BinaryPacketProtocol *bpp,
-                                          const char *msg, int category);
+                                           const char *msg, int category);
 
 static const BinaryPacketProtocolVtable ssh_verstring_vtable = {
     .free = ssh_verstring_free,

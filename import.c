@@ -1002,7 +1002,7 @@ static bool openssh_pem_write(
 
         /* Append the BIT STRING to the sequence */
         put_ber_id_len(seq, 1, sub->len,
-                         ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+                       ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
         put_data(seq, sub->s, sub->len);
         strbuf_free(sub);
 
@@ -1988,7 +1988,7 @@ static ssh2_userkey *sshcom_read(
         !memcmp(str.ptr, prefix_rsa, sizeof(prefix_rsa) - 1)) {
         type = RSA;
     } else if (str.len > sizeof(prefix_dsa) - 1 &&
-        !memcmp(str.ptr, prefix_dsa, sizeof(prefix_dsa) - 1)) {
+               !memcmp(str.ptr, prefix_dsa, sizeof(prefix_dsa) - 1)) {
         type = DSA;
     } else {
         errmsg = "key is of unknown type";

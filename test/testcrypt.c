@@ -779,7 +779,7 @@ strbuf *ssh_cipher_decrypt_wrapper(ssh_cipher *c, ptrlen input)
 }
 
 strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
-                                           unsigned long seq)
+                                          unsigned long seq)
 {
     if (input.len != 4)
         fatal_error("ssh_cipher_encrypt_length: needs exactly 4 bytes");
@@ -789,7 +789,7 @@ strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
 }
 
 strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
-                                           unsigned long seq)
+                                          unsigned long seq)
 {
     if (input.len % ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_decrypt_length: needs exactly 4 bytes");
@@ -964,7 +964,7 @@ int16_list *ntru_bias_wrapper(int16_list *in, unsigned bias,
 }
 
 int16_list *ntru_scale_wrapper(int16_list *in, unsigned scale,
-                              unsigned p, unsigned q)
+                               unsigned p, unsigned q)
 {
     int16_list_resize(in, p);
     int16_list *out = make_int16_list(p);

@@ -647,7 +647,7 @@ static void makeliteral_truecolour(strbuf *b, termchar *c, unsigned long *state)
      * Put the used parts of the colour info into the buffer.
      */
     put_byte(b, ((c->truecolour.fg.enabled ? 1 : 0) |
-            (c->truecolour.bg.enabled ? 2 : 0)));
+                 (c->truecolour.bg.enabled ? 2 : 0)));
     if (c->truecolour.fg.enabled) {
         put_byte(b, c->truecolour.fg.r);
         put_byte(b, c->truecolour.fg.g);

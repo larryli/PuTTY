@@ -575,7 +575,7 @@ static bool fxp_got_attrs(struct sftp_packet *pktin, struct fxp_attrs *attrs)
 }
 
 bool fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
-                  struct fxp_attrs *attrs)
+                   struct fxp_attrs *attrs)
 {
     sfree(req);
     if (pktin->type == SSH_FXP_ATTRS) {

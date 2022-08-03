@@ -472,7 +472,7 @@ void ntru_bias(uint16_t *out, const uint16_t *in, unsigned bias,
  * Given an array of values mod q, multiply each one by a constant.
  */
 void ntru_scale(uint16_t *out, const uint16_t *in, uint16_t scale,
-               unsigned p, unsigned q)
+                unsigned p, unsigned q)
 {
     SETUP;
     for (unsigned i = 0; i < p; i++)

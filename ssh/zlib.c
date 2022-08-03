@@ -946,7 +946,7 @@ void zlib_decompress_cleanup(ssh_decompressor *dc)
 }
 
 static int zlib_huflookup(unsigned long *bitsp, int *nbitsp,
-                   struct zlib_table *tab)
+                          struct zlib_table *tab)
 {
     unsigned long bits = *bitsp;
     int nbits = *nbitsp;
@@ -1094,7 +1094,7 @@ bool zlib_decompress_block(ssh_decompressor *dc,
             if (dctx->lenptr >= dctx->hlit + dctx->hdist) {
                 dctx->currlentable = zlib_mktable(dctx->lengths, dctx->hlit);
                 dctx->currdisttable = zlib_mktable(dctx->lengths + dctx->hlit,
-                                                  dctx->hdist);
+                                                   dctx->hdist);
                 zlib_freetable(&dctx->lenlentable);
                 dctx->lenlentable = NULL;
                 dctx->state = INBLK;
@@ -1112,7 +1112,7 @@ bool zlib_decompress_block(ssh_decompressor *dc,
                 dctx->lenextrabits = (code == 16 ? 2 : code == 17 ? 3 : 7);
                 dctx->lenaddon = (code == 18 ? 11 : 3);
                 dctx->lenrep = (code == 16 && dctx->lenptr > 0 ?
-                               dctx->lengths[dctx->lenptr - 1] : 0);
+                                dctx->lengths[dctx->lenptr - 1] : 0);
                 dctx->state = TREES_LENREP;
             }
             break;

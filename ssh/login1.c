@@ -866,8 +866,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 return;
             }
         } else if (conf_get_bool(s->conf, CONF_try_tis_auth) &&
-            (s->supported_auths_mask & (1 << SSH1_AUTH_CCARD)) &&
-            !s->ccard_auth_refused) {
+                   (s->supported_auths_mask & (1 << SSH1_AUTH_CCARD)) &&
+                   !s->ccard_auth_refused) {
             ssh1_login_setup_tis_scc(s);
             s->pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
             ppl_logevent("Requested CryptoCard authentication");

@@ -438,7 +438,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_window_set_title(GTK_WINDOW(ctx->dialog), window_title);
     gtk_window_set_position(GTK_WINDOW(ctx->dialog), GTK_WIN_POS_CENTER);
     g_signal_connect(G_OBJECT(ctx->dialog), "delete-event",
-                              G_CALLBACK(askpass_dialog_closed), ctx);
+                     G_CALLBACK(askpass_dialog_closed), ctx);
     ctx->promptlabel = gtk_label_new(prompt_text);
     align_label_left(GTK_LABEL(ctx->promptlabel));
     gtk_widget_show(ctx->promptlabel);

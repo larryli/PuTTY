@@ -548,7 +548,7 @@ static void rsa2_private_blob(ssh_key *key, BinarySink *bs)
 }
 
 static ssh_key *rsa2_new_priv(const ssh_keyalg *self,
-                               ptrlen pub, ptrlen priv)
+                              ptrlen pub, ptrlen priv)
 {
     BinarySource src[1];
     ssh_key *sshk;

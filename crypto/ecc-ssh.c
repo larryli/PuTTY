@@ -1705,7 +1705,7 @@ const ssh_kexes ssh_ecdh_kex = { lenof(ec_kex_list), ec_kex_list };
  */
 
 const ssh_keyalg *ec_alg_by_oid(int len, const void *oid,
-                                        const struct ec_curve **curve)
+                                const struct ec_curve **curve)
 {
     static const ssh_keyalg *algs_with_oid[] = {
         &ssh_ecdsa_nistp256,

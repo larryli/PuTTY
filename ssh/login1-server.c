@@ -50,7 +50,7 @@ static bool ssh1_login_server_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special,
     void *ctx) { return false; }
 static void ssh1_login_server_special_cmd(PacketProtocolLayer *ppl,
-                                   SessionSpecialCode code, int arg) {}
+                                          SessionSpecialCode code, int arg) {}
 static void ssh1_login_server_reconfigure(
     PacketProtocolLayer *ppl, Conf *conf) {}
 

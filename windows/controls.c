@@ -1854,7 +1854,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
         SetMapMode(hdc, MM_TEXT);      /* ensure logical units == pixels */
 
         GetTextExtentPoint32(hdc, (char *)c->data,
-                                 strlen((char *)c->data), &s);
+                             strlen((char *)c->data), &s);
         DrawEdge(hdc, &r, EDGE_ETCHED, BF_ADJUST | BF_RECT);
         TextOut(hdc,
                 r.left + (r.right-r.left-s.cx)/2,
@@ -2286,7 +2286,7 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
     msg = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
            LB_ADDSTRING : CB_ADDSTRING);
     msg2 = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
-           LB_SETITEMDATA : CB_SETITEMDATA);
+            LB_SETITEMDATA : CB_SETITEMDATA);
     index = SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)text);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg2, index, (LPARAM)id);
 }
@@ -2547,7 +2547,7 @@ void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp)
                  i++) {
                 if (c->ctrl && c->ctrl->handler != NULL)
                     c->ctrl->handler(c->ctrl, dp,
-                                             dp->data, EVENT_REFRESH);
+                                     dp->data, EVENT_REFRESH);
             }
         }
     } else {

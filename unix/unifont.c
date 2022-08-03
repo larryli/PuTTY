@@ -2573,7 +2573,7 @@ static void unifontsel_setup_stylelist(unifontsel_internal *fs,
             continue;                  /* we're filtering out this font */
         }
         if (!info || !started || strnullcasecmp(currcs, info->charset) ||
-             strnullcasecmp(currstyle, info->style)) {
+            strnullcasecmp(currstyle, info->style)) {
             /*
              * We've either finished a style/charset, or started a
              * new one, or both.

@@ -602,7 +602,7 @@ static void kexlist_handler(dlgcontrol *ctrl, dlgparam *dlg,
 }
 
 static void hklist_handler(dlgcontrol *ctrl, dlgparam *dlg,
-                            void *data, int event)
+                           void *data, int event)
 {
     Conf *conf = (Conf *)data;
     if (event == EVENT_REFRESH) {
@@ -1990,11 +1990,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       "Always append to the end of it", I(LGXF_APN),
                       "Ask the user every time", I(LGXF_ASK));
     ctrl_checkbox(s, "Flush log file frequently", 'u',
-                 HELPCTX(logging_flush),
-                 conf_checkbox_handler, I(CONF_logflush));
+                  HELPCTX(logging_flush),
+                  conf_checkbox_handler, I(CONF_logflush));
     ctrl_checkbox(s, "Include header", 'i',
-                 HELPCTX(logging_header),
-                 conf_checkbox_handler, I(CONF_logheader));
+                  HELPCTX(logging_header),
+                  conf_checkbox_handler, I(CONF_logheader));
 
     if ((midsession && protocol == PROT_SSH) ||
         (!midsession && backend_vt_from_proto(PROT_SSH))) {
@@ -2476,14 +2476,14 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           I(CONF_tcp_keepalives));
 #ifndef NO_IPV6
             s = ctrl_getset(b, "Connection", "ipversion",
-                          "Internet protocol version");
+                            "Internet protocol version");
             ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
-                          HELPCTX(connection_ipversion),
-                          conf_radiobutton_handler,
-                          I(CONF_addressfamily),
-                          "Auto", 'u', I(ADDRTYPE_UNSPEC),
-                          "IPv4", '4', I(ADDRTYPE_IPV4),
-                          "IPv6", '6', I(ADDRTYPE_IPV6));
+                              HELPCTX(connection_ipversion),
+                              conf_radiobutton_handler,
+                              I(CONF_addressfamily),
+                              "Auto", 'u', I(ADDRTYPE_UNSPEC),
+                              "IPv4", '4', I(ADDRTYPE_IPV4),
+                              "IPv6", '6', I(ADDRTYPE_IPV6));
 #endif
 
             {

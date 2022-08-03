@@ -468,7 +468,7 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
                 break;                 /* finished command-line processing */
             } else
                 err = true, fprintf(stderr, "%s: -e expects an argument\n",
-                                 appname);
+                                    appname);
 
         } else if (!strcmp(p, "-title")) {
             EXPECTS_ARG;

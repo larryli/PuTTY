@@ -211,7 +211,7 @@ static void aes_neon_setkey(ssh_cipher *ciph, const void *vkey)
     const unsigned char *key = (const unsigned char *)vkey;
 
     aes_neon_key_expand(key, ctx->ciph.vt->real_keybits / 32,
-                      ctx->keysched_e, ctx->keysched_d);
+                        ctx->keysched_e, ctx->keysched_d);
 }
 
 static void aes_neon_setiv_cbc(ssh_cipher *ciph, const void *iv)

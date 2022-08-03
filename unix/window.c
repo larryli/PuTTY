@@ -3062,8 +3062,8 @@ static void gtkwin_clip_write(
     state->pasteout_data = snewn(len*6, char);
     state->pasteout_data_len = len*6;
     state->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
-                                       data, len, state->pasteout_data,
-                                       state->pasteout_data_len, NULL);
+                                        data, len, state->pasteout_data,
+                                        state->pasteout_data_len, NULL);
     if (state->pasteout_data_len == 0) {
         sfree(state->pasteout_data);
         state->pasteout_data = NULL;

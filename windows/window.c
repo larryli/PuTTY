@@ -1724,8 +1724,8 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
         height = extra_height + font_height * h;
 
         SetWindowPos(wgs.term_hwnd, NULL, 0, 0, width, height,
-            SWP_NOACTIVATE | SWP_NOCOPYBITS |
-            SWP_NOMOVE | SWP_NOZORDER);
+                     SWP_NOACTIVATE | SWP_NOCOPYBITS |
+                     SWP_NOMOVE | SWP_NOZORDER);
     } else {
         /*
          * If we're resizing by changing the font, we must tell the
@@ -1864,10 +1864,10 @@ static void reset_window(int reinit) {
         rect.right += (window_border * 2);
         rect.bottom += (window_border * 2);
         OffsetRect(&dpi_info.new_wnd_rect,
-            ((dpi_info.new_wnd_rect.right - dpi_info.new_wnd_rect.left) -
-             (rect.right - rect.left)) / 2,
-            ((dpi_info.new_wnd_rect.bottom - dpi_info.new_wnd_rect.top) -
-             (rect.bottom - rect.top)) / 2);
+                   ((dpi_info.new_wnd_rect.right - dpi_info.new_wnd_rect.left) -
+                    (rect.right - rect.left)) / 2,
+                   ((dpi_info.new_wnd_rect.bottom - dpi_info.new_wnd_rect.top) -
+                    (rect.bottom - rect.top)) / 2);
         SetWindowPos(wgs.term_hwnd, NULL,
                      dpi_info.new_wnd_rect.left, dpi_info.new_wnd_rect.top,
                      rect.right - rect.left, rect.bottom - rect.top,
@@ -1912,7 +1912,7 @@ static void reset_window(int reinit) {
      */
     if ((resize_action == RESIZE_TERM && reinit<=0) ||
         (resize_action == RESIZE_EITHER && reinit<0) ||
-            reinit>0) {
+        reinit>0) {
         offset_width = offset_height = window_border;
         extra_width = wr.right - wr.left - cr.right + cr.left + offset_width*2;
         extra_height = wr.bottom - wr.top - cr.bottom + cr.top +offset_height*2;
@@ -4628,8 +4628,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                 break;
 
             p += format_small_keypad_key((char *)p, term, sk_key,
-                                     shift_state & 1, shift_state & 2,
-                                     left_alt, &consumed_alt);
+                                         shift_state & 1, shift_state & 2,
+                                         left_alt, &consumed_alt);
             if (consumed_alt)
                 left_alt = false; /* supersedes the usual prefixing of Esc */
             return p - output;
@@ -5627,7 +5627,7 @@ static void wintw_bell(TermWin *tw, int mode)
     } else if (mode == BELL_WAVEFILE) {
         Filename *bell_wavefile = conf_get_filename(conf, CONF_bell_wavefile);
         if (!p_PlaySound || !p_PlaySound(bell_wavefile->path, NULL,
-                         SND_ASYNC | SND_FILENAME)) {
+                                         SND_ASYNC | SND_FILENAME)) {
             char *buf, *otherbuf;
             show_mouseptr(true);
             buf = dupprintf(

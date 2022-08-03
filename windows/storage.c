@@ -348,7 +348,7 @@ int check_stored_host_key(const char *hostname, int port,
 }
 
 bool have_ssh_host_key(const char *hostname, int port,
-                      const char *keytype)
+                       const char *keytype)
 {
     /*
      * If we have a host key, check_stored_host_key will return 0 or 2.

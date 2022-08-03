@@ -1034,7 +1034,7 @@ SeatPromptResult verify_ssh_host_key(
         seat_dialog_text_append(
             text, SDT_PARA, "If you were expecting this change and trust the "
             "new key, %s to update %s's cache and carry on connecting.",
-             pds->hk_accept_action, appname);
+            pds->hk_accept_action, appname);
         seat_dialog_text_append(
             text, SDT_PARA, "If you want to carry on connecting but without "
             "updating the cache, %s.", pds->hk_connect_once_action);

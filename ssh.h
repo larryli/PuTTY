@@ -515,7 +515,7 @@ struct ec_curve {
 };
 
 const ssh_keyalg *ec_alg_by_oid(int len, const void *oid,
-                                        const struct ec_curve **curve);
+                                const struct ec_curve **curve);
 const unsigned char *ec_alg_oid(const ssh_keyalg *alg, int *oidlen);
 extern const int ec_nist_curve_lengths[], n_ec_nist_curve_lengths;
 extern const int ec_ed_curve_lengths[], n_ec_ed_curve_lengths;
@@ -631,8 +631,8 @@ mp_int *ssh_rsakex_decrypt(
  * Helper function for k generation in DSA, reused in ECDSA
  */
 mp_int *dsa_gen_k(const char *id_string,
-                     mp_int *modulus, mp_int *private_key,
-                     unsigned char *digest, int digest_len);
+                  mp_int *modulus, mp_int *private_key,
+                  unsigned char *digest, int digest_len);
 
 struct ssh_cipher {
     const ssh_cipheralg *vt;
@@ -1484,7 +1484,7 @@ bool import_possible(int type);
 int import_target_type(int type);
 bool import_encrypted(const Filename *filename, int type, char **comment);
 bool import_encrypted_s(const Filename *filename, BinarySource *src,
-                      int type, char **comment);
+                        int type, char **comment);
 int import_ssh1(const Filename *filename, int type,
                 RSAKey *key, char *passphrase, const char **errmsg_p);
 int import_ssh1_s(BinarySource *src, int type,
@@ -1492,7 +1492,7 @@ int import_ssh1_s(BinarySource *src, int type,
 ssh2_userkey *import_ssh2(const Filename *filename, int type,
                           char *passphrase, const char **errmsg_p);
 ssh2_userkey *import_ssh2_s(BinarySource *src, int type,
-                          char *passphrase, const char **errmsg_p);
+                            char *passphrase, const char **errmsg_p);
 bool export_ssh1(const Filename *filename, int type,
                  RSAKey *key, char *passphrase);
 bool export_ssh2(const Filename *filename, int type,

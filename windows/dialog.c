@@ -928,7 +928,7 @@ static INT_PTR HostKeyMoreInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
         MapDialogRect(hwnd, &r);
         HWND ctl = GetDlgItem(hwnd, IDOK);
         SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
-                         SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
+                     SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
 
         r.left = r.top = r.right = 0;
         r.bottom = 300;
