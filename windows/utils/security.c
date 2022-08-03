@@ -290,10 +290,10 @@ static bool really_restrict_process_acl(char **error)
         goto cleanup;
     }
 
-    if (ERROR_SUCCESS != p_SetSecurityInfo
-        (GetCurrentProcess(), SE_KERNEL_OBJECT,
-         OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
-         usersid, NULL, acl, NULL)) {
+    if (ERROR_SUCCESS != p_SetSecurityInfo(
+            GetCurrentProcess(), SE_KERNEL_OBJECT,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+            usersid, NULL, acl, NULL)) {
         *error = dupprintf("Unable to set process ACL: %s",
                            win_strerror(GetLastError()));
         goto cleanup;

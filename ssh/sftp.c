@@ -283,8 +283,8 @@ bool fxp_init(void)
         return false;
     }
     if (remotever > SFTP_PROTO_VERSION) {
-        fxp_internal_error
-            ("remote protocol is more advanced than we support");
+        fxp_internal_error(
+            "remote protocol is more advanced than we support");
         sftp_pkt_free(pktin);
         return false;
     }

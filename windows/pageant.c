@@ -133,10 +133,10 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG: {
         char *buildinfo_text = buildinfo("\r\n");
-        char *text = dupprintf
-            ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-             ver, buildinfo_text,
-             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+        char *text = dupprintf(
+            "Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+            ver, buildinfo_text,
+            "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
         sfree(buildinfo_text);
         SetDlgItemText(hwnd, IDC_ABOUT_TEXTBOX, text);
         MakeDlgItemBorderless(hwnd, IDC_ABOUT_TEXTBOX);

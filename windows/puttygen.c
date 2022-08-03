@@ -543,10 +543,10 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
         {
             char *buildinfo_text = buildinfo("\r\n");
-            char *text = dupprintf
-                ("PuTTYgen\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-                 ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+            char *text = dupprintf(
+                "PuTTYgen\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+                ver, buildinfo_text,
+                "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
             MakeDlgItemBorderless(hwnd, 1000);
@@ -1922,10 +1922,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
                 if ((state->keytype == RSA || state->keytype == DSA) &&
                     state->key_bits < 256) {
-                    char *message = dupprintf
-                        ("PuTTYgen will not generate a key smaller than 256"
-                         " bits.\nKey length reset to default %d. Continue?",
-                         DEFAULT_KEY_BITS);
+                    char *message = dupprintf(
+                        "PuTTYgen will not generate a key smaller than 256"
+                        " bits.\nKey length reset to default %d. Continue?",
+                        DEFAULT_KEY_BITS);
                     int ret = MessageBox(hwnd, message, "PuTTYgen Warning",
                                          MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);
@@ -1935,9 +1935,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
                 } else if ((state->keytype == RSA || state->keytype == DSA) &&
                            state->key_bits < DEFAULT_KEY_BITS) {
-                    char *message = dupprintf
-                        ("Keys shorter than %d bits are not recommended. "
-                         "Really generate this key?", DEFAULT_KEY_BITS);
+                    char *message = dupprintf(
+                        "Keys shorter than %d bits are not recommended. "
+                        "Really generate this key?", DEFAULT_KEY_BITS);
                     int ret = MessageBox(hwnd, message, "PuTTYgen Warning",
                                          MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);

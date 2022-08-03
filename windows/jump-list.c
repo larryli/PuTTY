@@ -544,13 +544,13 @@ static void update_jumplist_from_registry(void)
              */
             for (i = 0, found = false; i < nremoved && !found; i++) {
                 IShellLink *rlink;
-                if (SUCCEEDED(pRemoved->lpVtbl->GetAt
-                              (pRemoved, i, COMPTR(IShellLink, &rlink)))) {
+                if (SUCCEEDED(pRemoved->lpVtbl->GetAt(
+                                  pRemoved, i, COMPTR(IShellLink, &rlink)))) {
                     char desc1[2048], desc2[2048];
-                    if (SUCCEEDED(link->lpVtbl->GetDescription
-                                  (link, desc1, sizeof(desc1)-1)) &&
-                        SUCCEEDED(rlink->lpVtbl->GetDescription
-                                  (rlink, desc2, sizeof(desc2)-1)) &&
+                    if (SUCCEEDED(link->lpVtbl->GetDescription(
+                                      link, desc1, sizeof(desc1)-1)) &&
+                        SUCCEEDED(rlink->lpVtbl->GetDescription(
+                                      rlink, desc2, sizeof(desc2)-1)) &&
                         !strcmp(desc1, desc2)) {
                         found = true;
                     }
@@ -575,8 +575,8 @@ static void update_jumplist_from_registry(void)
      * Get the array form of the collection we've just constructed,
      * and put it in the jump list.
      */
-    if (!SUCCEEDED(collection->lpVtbl->QueryInterface
-                   (collection, COMPTR(IObjectArray, &array))))
+    if (!SUCCEEDED(collection->lpVtbl->QueryInterface(
+                       collection, COMPTR(IObjectArray, &array))))
         goto cleanup;
 
     pCDL->lpVtbl->AppendCategory(pCDL, L"Recent Sessions", array);
@@ -608,8 +608,8 @@ static void update_jumplist_from_registry(void)
      * Get the array form of the collection we've just constructed,
      * and put it in the jump list.
      */
-    if (!SUCCEEDED(collection->lpVtbl->QueryInterface
-                   (collection, COMPTR(IObjectArray, &array))))
+    if (!SUCCEEDED(collection->lpVtbl->QueryInterface(
+                       collection, COMPTR(IObjectArray, &array))))
         goto cleanup;
 
     pCDL->lpVtbl->AddUserTasks(pCDL, array);
@@ -636,8 +636,8 @@ static void update_jumplist_from_registry(void)
      * Get the array form of the collection we've just constructed,
      * and put it in the jump list.
      */
-    if (!SUCCEEDED(collection->lpVtbl->QueryInterface
-                   (collection, COMPTR(IObjectArray, &array))))
+    if (!SUCCEEDED(collection->lpVtbl->QueryInterface(
+                       collection, COMPTR(IObjectArray, &array))))
         goto cleanup;
 
     pCDL->lpVtbl->AddUserTasks(pCDL, array);

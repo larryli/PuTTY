@@ -685,8 +685,8 @@ void write_random_seed(void *data, int len)
  * returning the resulting concatenated list of strings in 'out' (if
  * non-null).
  */
-static int transform_jumplist_registry
-    (const char *add, const char *rem, char **out)
+static int transform_jumplist_registry(
+    const char *add, const char *rem, char **out)
 {
     HKEY rkey = open_regkey(true, HKEY_CURRENT_USER, reg_jumplist_key);
     if (!rkey)

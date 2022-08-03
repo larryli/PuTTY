@@ -345,8 +345,8 @@ char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
 
 #if GTK_CHECK_VERSION(2,4,0)
     if (uc->combo) {
-        return dupstr(gtk_entry_get_text
-                      (GTK_ENTRY(gtk_bin_get_child(GTK_BIN(uc->combo)))));
+        return dupstr(gtk_entry_get_text(
+                          GTK_ENTRY(gtk_bin_get_child(GTK_BIN(uc->combo)))));
     }
 #endif
 
@@ -425,9 +425,9 @@ void dlg_listbox_del(dlgcontrol *ctrl, dlgparam *dp, int index)
 
 #if !GTK_CHECK_VERSION(2,4,0)
     if (uc->menu) {
-        gtk_container_remove
-            (GTK_CONTAINER(uc->menu),
-             g_list_nth_data(GTK_MENU_SHELL(uc->menu)->children, index));
+        gtk_container_remove(
+            GTK_CONTAINER(uc->menu),
+            g_list_nth_data(GTK_MENU_SHELL(uc->menu)->children, index));
         return;
     }
     if (uc->list) {
@@ -1003,8 +1003,8 @@ void dlg_set_focus(dlgcontrol *ctrl, dlgparam *dp)
          * focus it.
          */
         for (int i = 0; i < ctrl->radio.nbuttons; i++)
-            if (gtk_toggle_button_get_active
-                (GTK_TOGGLE_BUTTON(uc->buttons[i]))) {
+            if (gtk_toggle_button_get_active(
+                    GTK_TOGGLE_BUTTON(uc->buttons[i]))) {
                 gtk_widget_grab_focus(uc->buttons[i]);
             }
         break;
@@ -1137,8 +1137,8 @@ void dlg_coloursel_start(dlgcontrol *ctrl, dlgparam *dp, int r, int g, int b)
     GtkWidget *coloursel =
         gtk_color_selection_dialog_new("Select a colour");
     GtkColorSelectionDialog *ccs = GTK_COLOR_SELECTION_DIALOG(coloursel);
-    GtkColorSelection *cs = GTK_COLOR_SELECTION
-        (gtk_color_selection_dialog_get_color_selection(ccs));
+    GtkColorSelection *cs = GTK_COLOR_SELECTION(
+        gtk_color_selection_dialog_get_color_selection(ccs));
     gtk_color_selection_set_has_opacity_control(cs, false);
 #endif
 
@@ -1385,10 +1385,10 @@ static gboolean listitem_key(GtkWidget *item, GdkEventKey *event,
                     gtk_list_select_child(GTK_LIST(list),
                                           GTK_WIDGET(children->data));
                 gtk_widget_grab_focus(GTK_WIDGET(children->data));
-                gtk_adjustment_clamp_page
-                    (adj,
-                     adj->lower + (adj->upper-adj->lower) * i / n,
-                     adj->lower + (adj->upper-adj->lower) * (i+1) / n);
+                gtk_adjustment_clamp_page(
+                    adj,
+                    adj->lower + (adj->upper-adj->lower) * i / n,
+                    adj->lower + (adj->upper-adj->lower) * (i+1) / n);
             }
 
             g_list_free(chead);
@@ -1620,8 +1620,8 @@ static void filesel_ok(GtkButton *button, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     gpointer filesel = g_object_get_data(G_OBJECT(button), "user-data");
     struct uctrl *uc = g_object_get_data(G_OBJECT(filesel), "user-data");
-    const char *name = gtk_file_selection_get_filename
-        (GTK_FILE_SELECTION(filesel));
+    const char *name = gtk_file_selection_get_filename(
+        GTK_FILE_SELECTION(filesel));
     filechoose_emit_value(dp, uc, name);
 }
 #endif
@@ -1634,14 +1634,14 @@ static void fontsel_ok(GtkButton *button, gpointer data)
 
     gpointer fontsel = g_object_get_data(G_OBJECT(button), "user-data");
     struct uctrl *uc = g_object_get_data(G_OBJECT(fontsel), "user-data");
-    const char *name = gtk_font_selection_dialog_get_font_name
-        (GTK_FONT_SELECTION_DIALOG(fontsel));
+    const char *name = gtk_font_selection_dialog_get_font_name(
+        GTK_FONT_SELECTION_DIALOG(fontsel));
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
 
 #else
 
-    unifontsel *fontsel = (unifontsel *)g_object_get_data
-        (G_OBJECT(button), "user-data");
+    unifontsel *fontsel = (unifontsel *)g_object_get_data(
+        G_OBJECT(button), "user-data");
     struct uctrl *uc = (struct uctrl *)fontsel->user_data;
     char *name = unifontsel_get_name(fontsel);
     assert(name);              /* should always be ok after OK pressed */
@@ -1685,9 +1685,9 @@ static void coloursel_ok(GtkButton *button, gpointer data)
 
 #if GTK_CHECK_VERSION(2,0,0)
     {
-        GtkColorSelection *cs = GTK_COLOR_SELECTION
-            (gtk_color_selection_dialog_get_color_selection
-             (GTK_COLOR_SELECTION_DIALOG(coloursel)));
+        GtkColorSelection *cs = GTK_COLOR_SELECTION(
+            gtk_color_selection_dialog_get_color_selection(
+                GTK_COLOR_SELECTION_DIALOG(coloursel)));
         GdkColor col;
         gtk_color_selection_get_current_color(cs, &col);
         dp->coloursel_result.r = col.red / 0x0100;
@@ -1696,9 +1696,9 @@ static void coloursel_ok(GtkButton *button, gpointer data)
     }
 #else
     {
-        GtkColorSelection *cs = GTK_COLOR_SELECTION
-            (gtk_color_selection_dialog_get_color_selection
-             (GTK_COLOR_SELECTION_DIALOG(coloursel)));
+        GtkColorSelection *cs = GTK_COLOR_SELECTION(
+            gtk_color_selection_dialog_get_color_selection(
+                GTK_COLOR_SELECTION_DIALOG(coloursel)));
         gdouble cvals[4];
         gtk_color_selection_get_color(cs, cvals);
         dp->coloursel_result.r = (int) (255 * cvals[0]);
@@ -1728,14 +1728,14 @@ static void filefont_clicked(GtkButton *button, gpointer data)
 
     if (uc->ctrl->type == CTRL_FILESELECT) {
 #ifdef USE_GTK_FILE_CHOOSER_DIALOG
-        GtkWidget *filechoose = gtk_file_chooser_dialog_new
-            (uc->ctrl->fileselect.title, GTK_WINDOW(dp->window),
-             (uc->ctrl->fileselect.for_writing ?
-              GTK_FILE_CHOOSER_ACTION_SAVE :
-              GTK_FILE_CHOOSER_ACTION_OPEN),
-             STANDARD_CANCEL_LABEL, GTK_RESPONSE_CANCEL,
-             STANDARD_OPEN_LABEL, GTK_RESPONSE_ACCEPT,
-             (const gchar *)NULL);
+        GtkWidget *filechoose = gtk_file_chooser_dialog_new(
+            uc->ctrl->fileselect.title, GTK_WINDOW(dp->window),
+            (uc->ctrl->fileselect.for_writing ?
+             GTK_FILE_CHOOSER_ACTION_SAVE :
+             GTK_FILE_CHOOSER_ACTION_OPEN),
+            STANDARD_CANCEL_LABEL, GTK_RESPONSE_CANCEL,
+            STANDARD_OPEN_LABEL, GTK_RESPONSE_ACCEPT,
+            (const gchar *)NULL);
         gtk_window_set_modal(GTK_WINDOW(filechoose), true);
         g_object_set_data(G_OBJECT(filechoose), "user-data", (gpointer)uc);
         g_signal_connect(G_OBJECT(filechoose), "response",
@@ -1745,19 +1745,19 @@ static void filefont_clicked(GtkButton *button, gpointer data)
         GtkWidget *filesel =
             gtk_file_selection_new(uc->ctrl->fileselect.title);
         gtk_window_set_modal(GTK_WINDOW(filesel), true);
-        g_object_set_data
-            (G_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button), "user-data",
-             (gpointer)filesel);
+        g_object_set_data(
+            G_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button), "user-data",
+            (gpointer)filesel);
         g_object_set_data(G_OBJECT(filesel), "user-data", (gpointer)uc);
-        g_signal_connect
-            (G_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button), "clicked",
-             G_CALLBACK(filesel_ok), (gpointer)dp);
-        g_signal_connect_swapped
-            (G_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button), "clicked",
-             G_CALLBACK(gtk_widget_destroy), (gpointer)filesel);
-        g_signal_connect_swapped
-            (G_OBJECT(GTK_FILE_SELECTION(filesel)->cancel_button), "clicked",
-             G_CALLBACK(gtk_widget_destroy), (gpointer)filesel);
+        g_signal_connect(
+            G_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button), "clicked",
+            G_CALLBACK(filesel_ok), (gpointer)dp);
+        g_signal_connect_swapped(
+            G_OBJECT(GTK_FILE_SELECTION(filesel)->ok_button), "clicked",
+            G_CALLBACK(gtk_widget_destroy), (gpointer)filesel);
+        g_signal_connect_swapped(
+            G_OBJECT(GTK_FILE_SELECTION(filesel)->cancel_button), "clicked",
+            G_CALLBACK(gtk_widget_destroy), (gpointer)filesel);
         gtk_widget_show(filesel);
 #endif
     }
@@ -1775,12 +1775,12 @@ static void filefont_clicked(GtkButton *button, gpointer data)
         GtkWidget *fontsel =
             gtk_font_selection_dialog_new("Select a font");
         gtk_window_set_modal(GTK_WINDOW(fontsel), true);
-        gtk_font_selection_dialog_set_filter
-            (GTK_FONT_SELECTION_DIALOG(fontsel),
-             GTK_FONT_FILTER_BASE, GTK_FONT_ALL,
-             NULL, NULL, NULL, NULL, spacings, NULL);
-        if (!gtk_font_selection_dialog_set_font_name
-            (GTK_FONT_SELECTION_DIALOG(fontsel), fontname)) {
+        gtk_font_selection_dialog_set_filter(
+            GTK_FONT_SELECTION_DIALOG(fontsel),
+            GTK_FONT_FILTER_BASE, GTK_FONT_ALL,
+            NULL, NULL, NULL, NULL, spacings, NULL);
+        if (!gtk_font_selection_dialog_set_font_name(
+                GTK_FONT_SELECTION_DIALOG(fontsel), fontname)) {
             /*
              * If the font name wasn't found as it was, try opening
              * it and extracting its FONT property. This should
@@ -1800,27 +1800,27 @@ static void filefont_clicked(GtkButton *button, gpointer data)
                 if (XGetFontProperty(xfs, fontprop, &ret)) {
                     char *name = XGetAtomName(disp, (Atom)ret);
                     if (name)
-                        gtk_font_selection_dialog_set_font_name
-                            (GTK_FONT_SELECTION_DIALOG(fontsel), name);
+                        gtk_font_selection_dialog_set_font_name(
+                            GTK_FONT_SELECTION_DIALOG(fontsel), name);
                 }
                 gdk_font_unref(font);
             }
         }
-        g_object_set_data
-            (G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
-             "user-data", (gpointer)fontsel);
+        g_object_set_data(
+            G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
+            "user-data", (gpointer)fontsel);
         g_object_set_data(G_OBJECT(fontsel), "user-data", (gpointer)uc);
-        g_signal_connect
-            (G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
-             "clicked", G_CALLBACK(fontsel_ok), (gpointer)dp);
-        g_signal_connect_swapped
-            (G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
-             "clicked", G_CALLBACK(gtk_widget_destroy),
-             (gpointer)fontsel);
-        g_signal_connect_swapped
-            (G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->cancel_button),
-             "clicked", G_CALLBACK(gtk_widget_destroy),
-             (gpointer)fontsel);
+        g_signal_connect(
+            G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
+            "clicked", G_CALLBACK(fontsel_ok), (gpointer)dp);
+        g_signal_connect_swapped(
+            G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->ok_button),
+            "clicked", G_CALLBACK(gtk_widget_destroy),
+            (gpointer)fontsel);
+        g_signal_connect_swapped(
+            G_OBJECT(GTK_FONT_SELECTION_DIALOG(fontsel)->cancel_button),
+            "clicked", G_CALLBACK(gtk_widget_destroy),
+            (gpointer)fontsel);
         gtk_widget_show(fontsel);
 
 #else /* !GTK_CHECK_VERSION(2,0,0) */
@@ -2018,8 +2018,8 @@ GtkWidget *layout_ctrls(
                 GtkWidget *b;
                 gint colstart;
 
-                b = (gtk_radio_button_new_with_label
-                     (group, ctrl->radio.buttons[i]));
+                b = gtk_radio_button_new_with_label(
+                    group, ctrl->radio.buttons[i]);
                 uc->buttons[i] = b;
                 group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(b));
                 colstart = i % ctrl->radio.ncolumns;
@@ -2059,8 +2059,8 @@ GtkWidget *layout_ctrls(
                  */
                 uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
                                                    G_TYPE_STRING);
-                w = gtk_combo_box_new_with_model_and_entry
-                    (GTK_TREE_MODEL(uc->listmodel));
+                w = gtk_combo_box_new_with_model_and_entry(
+                    GTK_TREE_MODEL(uc->listmodel));
                 g_object_set(G_OBJECT(w), "entry-text-column", 1,
                              (const char *)NULL);
                 /* We cannot support password combo boxes. */
@@ -2261,8 +2261,8 @@ GtkWidget *layout_ctrls(
                  * Create a non-editable GtkComboBox (that is, not
                  * its subclass GtkComboBoxEntry).
                  */
-                w = gtk_combo_box_new_with_model
-                    (GTK_TREE_MODEL(uc->listmodel));
+                w = gtk_combo_box_new_with_model(
+                    GTK_TREE_MODEL(uc->listmodel));
                 uc->combo = w;
 
                 /*
@@ -2306,8 +2306,8 @@ GtkWidget *layout_ctrls(
                 gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(w),
                                                GTK_POLICY_NEVER,
                                                GTK_POLICY_AUTOMATIC);
-                uc->adj = gtk_scrolled_window_get_vadjustment
-                    (GTK_SCROLLED_WINDOW(w));
+                uc->adj = gtk_scrolled_window_get_vadjustment(
+                    GTK_SCROLLED_WINDOW(w));
 
                 gtk_widget_show(uc->list);
                 g_signal_connect(G_OBJECT(uc->list), "selection-changed",
@@ -2377,15 +2377,15 @@ GtkWidget *layout_ctrls(
                  * Create the list box itself, its columns, and
                  * its containing scrolled window.
                  */
-                w = gtk_tree_view_new_with_model
-                    (GTK_TREE_MODEL(uc->listmodel));
+                w = gtk_tree_view_new_with_model(
+                    GTK_TREE_MODEL(uc->listmodel));
                 g_object_set_data(G_OBJECT(uc->listmodel), "user-data",
                                   (gpointer)w);
                 gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
                 sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(w));
-                gtk_tree_selection_set_mode
-                    (sel, ctrl->listbox.multisel ? GTK_SELECTION_MULTIPLE :
-                     GTK_SELECTION_SINGLE);
+                gtk_tree_selection_set_mode(
+                    sel, ctrl->listbox.multisel ? GTK_SELECTION_MULTIPLE :
+                    GTK_SELECTION_SINGLE);
                 uc->treeview = w;
                 g_signal_connect(G_OBJECT(w), "row-activated",
                                  G_CALLBACK(listbox_doubleclick), dp);
@@ -2422,10 +2422,10 @@ GtkWidget *layout_ctrls(
                                          "ellipsize-set", true,
                                          (const char *)NULL);
                         }
-                        column = gtk_tree_view_column_new_with_attributes
-                            ("heading", cellrend, "text", i+1, (char *)NULL);
-                        gtk_tree_view_column_set_sizing
-                            (column, GTK_TREE_VIEW_COLUMN_GROW_ONLY);
+                        column = gtk_tree_view_column_new_with_attributes(
+                            "heading", cellrend, "text", i+1, (char *)NULL);
+                        gtk_tree_view_column_set_sizing(
+                            column, GTK_TREE_VIEW_COLUMN_GROW_ONLY);
                         gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
                     }
                 }
@@ -2434,16 +2434,16 @@ GtkWidget *layout_ctrls(
                     GtkWidget *scroll;
 
                     scroll = gtk_scrolled_window_new(NULL, NULL);
-                    gtk_scrolled_window_set_shadow_type
-                        (GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
+                    gtk_scrolled_window_set_shadow_type(
+                        GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
                     gtk_widget_show(w);
                     gtk_container_add(GTK_CONTAINER(scroll), w);
                     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
                                                    GTK_POLICY_AUTOMATIC,
                                                    GTK_POLICY_ALWAYS);
-                    gtk_widget_set_size_request
-                        (scroll, -1,
-                         ctrl->listbox.height * get_listitemheight(w));
+                    gtk_widget_set_size_request(
+                        scroll, -1,
+                        ctrl->listbox.height * get_listitemheight(w));
 
                     w = scroll;
                 }
@@ -2737,8 +2737,8 @@ gint win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 if (schr == sc->uc->ctrl->radio.shortcut) {
                     int i;
                     for (i = 0; i < sc->uc->ctrl->radio.nbuttons; i++)
-                        if (gtk_toggle_button_get_active
-                            (GTK_TOGGLE_BUTTON(sc->uc->buttons[i]))) {
+                        if (gtk_toggle_button_get_active(
+                                GTK_TOGGLE_BUTTON(sc->uc->buttons[i]))) {
                             gtk_widget_grab_focus(sc->uc->buttons[i]);
                         }
                 } else if (sc->uc->ctrl->radio.shortcuts) {
@@ -2746,8 +2746,8 @@ gint win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
                     for (i = 0; i < sc->uc->ctrl->radio.nbuttons; i++)
                         if (schr == sc->uc->ctrl->radio.shortcuts[i]) {
                             gtk_widget_grab_focus(sc->uc->buttons[i]);
-                            g_signal_emit_by_name
-                                (G_OBJECT(sc->uc->buttons[i]), "clicked");
+                            g_signal_emit_by_name(
+                                G_OBJECT(sc->uc->buttons[i]), "clicked");
                         }
                 }
                 break;
@@ -3036,13 +3036,13 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     gtk_widget_show(label);
     treescroll = gtk_scrolled_window_new(NULL, NULL);
 #if GTK_CHECK_VERSION(2,0,0)
-    treestore = gtk_tree_store_new
-        (TREESTORE_NUM, G_TYPE_STRING, G_TYPE_INT);
+    treestore = gtk_tree_store_new(
+        TREESTORE_NUM, G_TYPE_STRING, G_TYPE_INT);
     tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(treestore));
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tree), false);
     treerenderer = gtk_cell_renderer_text_new();
-    treecolumn = gtk_tree_view_column_new_with_attributes
-        ("Label", treerenderer, "text", 0, NULL);
+    treecolumn = gtk_tree_view_column_new_with_attributes(
+        "Label", treerenderer, "text", 0, NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree), treecolumn);
     treeselection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
     gtk_tree_selection_set_mode(treeselection, GTK_SELECTION_BROWSE);
@@ -3170,9 +3170,8 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
                 if (j > 0) {
                     if (!treelevels[j-1]) {
                         treelevels[j-1] = GTK_TREE(gtk_tree_new());
-                        gtk_tree_item_set_subtree
-                            (treeitemlevels[j-1],
-                             GTK_WIDGET(treelevels[j-1]));
+                        gtk_tree_item_set_subtree(
+                            treeitemlevels[j-1], GTK_WIDGET(treelevels[j-1]));
                         if (j < 2)
                             gtk_tree_item_expand(treeitemlevels[j-1]);
                         else
@@ -3910,10 +3909,10 @@ void about_box(void *window)
 
     {
         char *buildinfo_text = buildinfo("\n");
-        char *label_text = dupprintf
-            ("%s\n\n%s\n\n%s\n\n%s",
-             appname, ver, buildinfo_text,
-             "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
+        char *label_text = dupprintf(
+            "%s\n\n%s\n\n%s\n\n%s",
+            appname, ver, buildinfo_text,
+            "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
         w = gtk_label_new(label_text);
         gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);
 #if GTK_CHECK_VERSION(2,0,0)
@@ -4055,8 +4054,8 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     gtk_list_unselect_all(GTK_LIST(uc->list));
 #else
     assert(uc->treeview);
-    gtk_tree_selection_unselect_all
-        (gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview)));
+    gtk_tree_selection_unselect_all(
+        gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview)));
 #endif
     es->ignore_selchange = false;
 
@@ -4112,10 +4111,10 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
     gtk_widget_show(w0);
     w1 = layout_ctrls(&es->dp, NULL, &es->scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
-    gtk_widget_set_size_request(w1, 20 + string_width
-                                ("LINE OF TEXT GIVING WIDTH OF EVENT LOG IS "
-                                 "QUITE LONG 'COS SSH LOG ENTRIES ARE WIDE"),
-                                -1);
+    gtk_widget_set_size_request(
+        w1, 20 + string_width("LINE OF TEXT GIVING WIDTH OF EVENT LOG IS "
+                              "QUITE LONG 'COS SSH LOG ENTRIES ARE WIDE"),
+        -1);
     our_dialog_add_to_content_area(GTK_WINDOW(window), w1, true, true, 0);
     {
         struct uctrl *uc = dlg_find_byctrl(&es->dp, es->listctrl);

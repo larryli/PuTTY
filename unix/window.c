@@ -1675,10 +1675,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                  */
                 guint new_keyval;
                 GdkModifierType consumed;
-                if (gdk_keymap_translate_keyboard_state
-                    (gdk_keymap_get_for_display(gdk_display_get_default()),
-                     event->hardware_keycode, event->state & ~META_MANUAL_MASK,
-                     0, &new_keyval, NULL, NULL, &consumed)) {
+                if (gdk_keymap_translate_keyboard_state(
+                        gdk_keymap_get_for_display(gdk_display_get_default()),
+                        event->hardware_keycode,
+                        event->state & ~META_MANUAL_MASK,
+                        0, &new_keyval, NULL, NULL, &consumed)) {
                     ucsoutput[0] = '\033';
                     ucsoutput[1] = gdk_keyval_to_unicode(new_keyval);
 #ifdef KEY_EVENT_DIAGNOSTICS

@@ -292,8 +292,8 @@ static gboolean try_grab_keyboard(gpointer vctx)
     if (!GDK_IS_WINDOW(gdkw) || !gdk_window_is_visible(gdkw))
         goto fail;
 
-    seat = gdk_display_get_default_seat
-        (gtk_widget_get_display(ctx->dialog));
+    seat = gdk_display_get_default_seat(
+        gtk_widget_get_display(ctx->dialog));
     if (!seat)
         goto fail;
 
@@ -317,8 +317,8 @@ static gboolean try_grab_keyboard(gpointer vctx)
     GdkDeviceManager *dm;
     GdkDevice *pointer, *keyboard;
 
-    dm = gdk_display_get_device_manager
-        (gtk_widget_get_display(ctx->dialog));
+    dm = gdk_display_get_device_manager(
+        gtk_widget_get_display(ctx->dialog));
     if (!dm)
         goto fail;
 

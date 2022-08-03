@@ -1208,15 +1208,15 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                      * When acquire_cred yields no useful expiration, go with
                      * the service ticket expiration.
                      */
-                    s->gss_stat = s->shgss->lib->init_sec_context
-                        (s->shgss->lib,
-                         &s->shgss->ctx,
-                         s->shgss->srv_name,
-                         s->gssapi_fwd,
-                         &s->gss_rcvtok,
-                         &s->gss_sndtok,
-                         NULL,
-                         NULL);
+                    s->gss_stat = s->shgss->lib->init_sec_context(
+                        s->shgss->lib,
+                        &s->shgss->ctx,
+                        s->shgss->srv_name,
+                        s->gssapi_fwd,
+                        &s->gss_rcvtok,
+                        &s->gss_sndtok,
+                        NULL,
+                        NULL);
 
                     if (s->gss_stat!=SSH_GSS_S_COMPLETE &&
                         s->gss_stat!=SSH_GSS_S_CONTINUE_NEEDED) {
