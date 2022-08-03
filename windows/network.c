@@ -220,8 +220,8 @@ DECL_WINDOWS_FUNCTION(static, int, getaddrinfo,
                        const struct addrinfo *hints, struct addrinfo **res));
 DECL_WINDOWS_FUNCTION(static, void, freeaddrinfo, (struct addrinfo *res));
 DECL_WINDOWS_FUNCTION(static, int, getnameinfo,
-                      (const struct sockaddr FAR * sa, socklen_t salen,
-                       char FAR * host, DWORD hostlen, char FAR * serv,
+                      (const struct sockaddr FAR *sa, socklen_t salen,
+                       char FAR *host, DWORD hostlen, char FAR *serv,
                        DWORD servlen, int flags));
 DECL_WINDOWS_FUNCTION(static, int, WSAAddressToStringA,
                       (LPSOCKADDR, DWORD, LPWSAPROTOCOL_INFO,

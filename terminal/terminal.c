@@ -2341,7 +2341,7 @@ void term_provide_backend(Terminal *term, Backend *backend)
  * If only the top line has content, returns 0.
  * If no lines have content, return -1.
  */
-static int find_last_nonempty_line(Terminal * term, tree234 * screen)
+static int find_last_nonempty_line(Terminal *term, tree234 *screen)
 {
     int i;
     for (i = count234(screen) - 1; i >= 0; i--) {

@@ -435,7 +435,7 @@ static const struct cp_list_item cp_list[] = {
     {0, 0}
 };
 
-static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr);
+static void link_font(WCHAR *line_tbl, WCHAR *font_tbl, WCHAR attr);
 
 /*
  * We keep a collection of reverse mappings from Unicode back to code pages,
@@ -689,7 +689,7 @@ void init_ucs(Conf *conf, struct unicode_data *ucsdata)
     }
 }
 
-static void link_font(WCHAR * line_tbl, WCHAR * font_tbl, WCHAR attr)
+static void link_font(WCHAR *line_tbl, WCHAR *font_tbl, WCHAR attr)
 {
     int font_index, line_index, i;
     for (line_index = 0; line_index < 256; line_index++) {
@@ -1200,7 +1200,7 @@ const char *cp_enumerate(int index)
     return cp_list[index].name;
 }
 
-void get_unitab(int codepage, wchar_t * unitab, int ftype)
+void get_unitab(int codepage, wchar_t *unitab, int ftype)
 {
     char tbuf[4];
     int i, max = 256, flg = MB_ERR_INVALID_CHARS;

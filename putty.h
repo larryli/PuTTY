@@ -2209,7 +2209,7 @@ char *term_get_ttymode(Terminal *term, const char *mode);
 SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p);
 void term_set_trust_status(Terminal *term, bool trusted);
 void term_keyinput(Terminal *, int codepage, const void *buf, int len);
-void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
+void term_keyinputw(Terminal *, const wchar_t *widebuf, int len);
 void term_get_cursor_position(Terminal *term, int *x, int *y);
 void term_setup_window_titles(Terminal *term, const char *title_hostname);
 void term_notify_minimised(Terminal *term, bool minimised);
@@ -2478,7 +2478,7 @@ int check_compose(int first, int second);
 int decode_codepage(const char *cp_name);
 const char *cp_enumerate (int index);
 const char *cp_name(int codepage);
-void get_unitab(int codepage, wchar_t * unitab, int ftype);
+void get_unitab(int codepage, wchar_t *unitab, int ftype);
 
 /*
  * Exports from wcwidth.c

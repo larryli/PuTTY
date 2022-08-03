@@ -54,8 +54,8 @@ struct LZ77InternalContext;
 struct LZ77Context {
     struct LZ77InternalContext *ictx;
     void *userdata;
-    void (*literal) (struct LZ77Context * ctx, unsigned char c);
-    void (*match) (struct LZ77Context * ctx, int distance, int len);
+    void (*literal) (struct LZ77Context *ctx, unsigned char c);
+    void (*match) (struct LZ77Context *ctx, int distance, int len);
 };
 
 /*

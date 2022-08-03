@@ -178,7 +178,7 @@ static void sk_proxy_set_frozen (Socket *s, bool is_frozen)
     sk_set_frozen(ps->sub_socket, is_frozen);
 }
 
-static const char * sk_proxy_socket_error (Socket *s)
+static const char *sk_proxy_socket_error (Socket *s)
 {
     ProxySocket *ps = container_of(s, ProxySocket, sock);
     if (ps->error != NULL || ps->sub_socket == NULL) {

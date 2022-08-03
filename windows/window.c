@@ -122,7 +122,7 @@ static int prev_rows, prev_cols;
 
 static void flash_window(int mode);
 static void sys_cursor_update(void);
-static bool get_fullscreen_rect(RECT * ss);
+static bool get_fullscreen_rect(RECT *ss);
 
 static int caret_x = -1, caret_y = -1;
 
@@ -5743,7 +5743,7 @@ static bool is_full_screen()
 /* Get the rect/size of a full screen window using the nearest available
  * monitor in multimon systems; default to something sensible if only
  * one monitor is present. */
-static bool get_fullscreen_rect(RECT * ss)
+static bool get_fullscreen_rect(RECT *ss)
 {
 #if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
     if (p_GetMonitorInfoA && p_MonitorFromWindow) {
