@@ -1752,6 +1752,7 @@ static void ssh2_fingerprint_blob_sha256(ptrlen blob, strbuf *sb)
 char *ssh2_fingerprint_blob(ptrlen blob, FingerprintType fptype)
 {
     strbuf *sb = strbuf_new();
+    strbuf *tmp = NULL;
 
     /*
      * Identify the key algorithm, if possible.
@@ -1767,21 +1768,60 @@ char *ssh2_fingerprint_blob(ptrlen blob, FingerprintType fptype)
         if (alg) {
             int bits = ssh_key_public_bits(alg, blob);
             put_fmt(sb, "%.*s %d ", PTRLEN_PRINTF(algname), bits);
+
+            if (!ssh_fptype_is_cert(fptype) && alg->is_certificate) {
+                ssh_key *key = ssh_key_new_pub(alg, blob);
+                if (key) {
+                    tmp = strbuf_new();
+                    ssh_key_public_blob(ssh_key_base_key(key),
+                                        BinarySink_UPCAST(tmp));
+                    blob = ptrlen_from_strbuf(tmp);
+                    ssh_key_free(key);
+                }
+            }
         } else {
             put_fmt(sb, "%.*s ", PTRLEN_PRINTF(algname));
         }
     }
 
-    switch (fptype) {
+    switch (ssh_fptype_from_cert(fptype)) {
       case SSH_FPTYPE_MD5:
         ssh2_fingerprint_blob_md5(blob, sb);
         break;
       case SSH_FPTYPE_SHA256:
         ssh2_fingerprint_blob_sha256(blob, sb);
         break;
+      default:
+        unreachable("ssh_fptype_from_cert ruled out the other values");
     }
 
+    if (tmp)
+        strbuf_free(tmp);
+
     return strbuf_to_str(sb);
+}
+
+char *ssh2_double_fingerprint_blob(ptrlen blob, FingerprintType fptype)
+{
+    if (ssh_fptype_is_cert(fptype))
+        fptype = ssh_fptype_from_cert(fptype);
+
+    char *fp = ssh2_fingerprint_blob(blob, fptype);
+    char *p = strrchr(fp, ' ');
+    char *hash = p ? p + 1 : fp;
+
+    char *fpc = ssh2_fingerprint_blob(blob, ssh_fptype_to_cert(fptype));
+    char *pc = strrchr(fpc, ' ');
+    char *hashc = pc ? pc + 1 : fpc;
+
+    if (strcmp(hash, hashc)) {
+        char *tmp = dupprintf("%s (with certificate: %s)", fp, hashc);
+        sfree(fp);
+        fp = tmp;
+    }
+
+    sfree(fpc);
+    return fp;
 }
 
 char **ssh2_all_fingerprints_for_blob(ptrlen blob)
@@ -1797,6 +1837,15 @@ char *ssh2_fingerprint(ssh_key *data, FingerprintType fptype)
     strbuf *blob = strbuf_new();
     ssh_key_public_blob(data, BinarySink_UPCAST(blob));
     char *ret = ssh2_fingerprint_blob(ptrlen_from_strbuf(blob), fptype);
+    strbuf_free(blob);
+    return ret;
+}
+
+char *ssh2_double_fingerprint(ssh_key *data, FingerprintType fptype)
+{
+    strbuf *blob = strbuf_new();
+    ssh_key_public_blob(data, BinarySink_UPCAST(blob));
+    char *ret = ssh2_double_fingerprint_blob(ptrlen_from_strbuf(blob), fptype);
     strbuf_free(blob);
     return ret;
 }

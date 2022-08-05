@@ -868,9 +868,9 @@ static SeatDialogText *opensshcert_cert_info(ssh_key *key)
     seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s", fp);
     sfree(fp);
 
-    fp = ssh2_fingerprint(ck->basekey, SSH_FPTYPE_DEFAULT);
+    fp = ssh2_fingerprint(key, ssh_fptype_to_cert(SSH_FPTYPE_DEFAULT));
     seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
-                            "Fingerprint of underlying key");
+                            "Fingerprint including certificate");
     seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s", fp);
     sfree(fp);
 

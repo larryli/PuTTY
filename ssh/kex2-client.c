@@ -732,7 +732,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * host key, store it.
              */
             if (s->hkey) {
-                char *fingerprint = ssh2_fingerprint(
+                char *fingerprint = ssh2_double_fingerprint(
                     s->hkey, SSH_FPTYPE_DEFAULT);
                 ppl_logevent("GSS kex provided fallback host key:");
                 ppl_logevent("%s", fingerprint);
@@ -791,7 +791,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * triggered on purpose to populate the transient cache.
              */
             assert(s->hkey);  /* only KEXTYPE_GSS lets this be null */
-            char *fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
+            char *fingerprint = ssh2_double_fingerprint(
+                s->hkey, SSH_FPTYPE_DEFAULT);
 
             if (s->need_gss_transient_hostkey) {
                 ppl_logevent("Post-GSS rekey provided fallback host key:");
@@ -867,10 +868,10 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * hash.)
              */
             if (ssh_key_alg(s->hkey)->is_certificate) {
-                char *base_fp = ssh2_fingerprint(ssh_key_base_key(s->hkey),
-                                                 fptype_default);
-                ppl_logevent("Host key is a certificate, whose base key has "
-                             "fingerprint:");
+                char *base_fp = ssh2_fingerprint(
+                    s->hkey, ssh_fptype_to_cert(fptype_default));
+                ppl_logevent("Host key is a certificate. "
+                             "Hash including certificate:");
                 ppl_logevent("%s", base_fp);
                 sfree(base_fp);
 
@@ -972,7 +973,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             assert(s->hkey);
             assert(ssh_key_alg(s->hkey) == s->cross_certifying);
 
-            char *fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
+            char *fingerprint = ssh2_double_fingerprint(
+                s->hkey, SSH_FPTYPE_DEFAULT);
             ppl_logevent("Storing additional host key for this host:");
             ppl_logevent("%s", fingerprint);
             sfree(fingerprint);

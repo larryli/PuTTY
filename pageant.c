@@ -729,7 +729,7 @@ static PageantAsyncOp *pageant_make_op(
             int i;
             PageantKey *pk;
             for (i = 0; NULL != (pk = pageant_nth_key(2, i)); i++) {
-                char *fingerprint = ssh2_fingerprint_blob(
+                char *fingerprint = ssh2_double_fingerprint_blob(
                     ptrlen_from_strbuf(pk->public_blob), SSH_FPTYPE_DEFAULT);
                 pageant_client_log(pc, reqid, "returned key: %s %s",
                                    fingerprint, pk->comment);
@@ -839,7 +839,7 @@ static PageantAsyncOp *pageant_make_op(
             have_flags = true;
 
         if (!pc->suppress_logging) {
-            char *fingerprint = ssh2_fingerprint_blob(
+            char *fingerprint = ssh2_double_fingerprint_blob(
                 keyblob, SSH_FPTYPE_DEFAULT);
             pageant_client_log(pc, reqid, "requested key: %s", fingerprint);
             sfree(fingerprint);
@@ -1047,7 +1047,7 @@ static PageantAsyncOp *pageant_make_op(
         }
 
         if (!pc->suppress_logging) {
-            char *fingerprint = ssh2_fingerprint_blob(
+            char *fingerprint = ssh2_double_fingerprint_blob(
                 blob, SSH_FPTYPE_DEFAULT);
             pageant_client_log(pc, reqid, "unwanted key: %s", fingerprint);
             sfree(fingerprint);
@@ -1160,7 +1160,7 @@ static PageantAsyncOp *pageant_make_op(
             }
 
             if (!pc->suppress_logging) {
-                char *fingerprint = ssh2_fingerprint_blob(
+                char *fingerprint = ssh2_double_fingerprint_blob(
                     ptrlen_from_strbuf(public_blob), SSH_FPTYPE_DEFAULT);
                 pageant_client_log(pc, reqid, "add-ppk: %s %s",
                                    fingerprint, comment);
@@ -1263,7 +1263,7 @@ static PageantAsyncOp *pageant_make_op(
             }
 
             if (!pc->suppress_logging) {
-                char *fingerprint = ssh2_fingerprint_blob(
+                char *fingerprint = ssh2_double_fingerprint_blob(
                     blob, SSH_FPTYPE_DEFAULT);
                 pageant_client_log(pc, reqid, "key to re-encrypt: %s",
                                    fingerprint);
@@ -1348,7 +1348,7 @@ static PageantAsyncOp *pageant_make_op(
                 int i;
                 PageantKey *pk;
                 for (i = 0; NULL != (pk = pageant_nth_key(2, i)); i++) {
-                    char *fingerprint = ssh2_fingerprint_blob(
+                    char *fingerprint = ssh2_double_fingerprint_blob(
                         ptrlen_from_strbuf(pk->public_blob),
                         SSH_FPTYPE_DEFAULT);
                     pageant_client_log(pc, reqid, "returned key: %s %s",

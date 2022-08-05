@@ -600,6 +600,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
     } fptypes[] = {
         {"SHA256", SSH_FPTYPE_SHA256},
         {"MD5", SSH_FPTYPE_MD5},
+        {"SHA256 including certificate", SSH_FPTYPE_SHA256_CERT},
+        {"MD5 including certificate", SSH_FPTYPE_MD5_CERT},
     };
 
     switch (msg) {

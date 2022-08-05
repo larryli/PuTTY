@@ -614,6 +614,10 @@ int main(int argc, char **argv)
                             fptype = SSH_FPTYPE_MD5;
                         else if (!strcmp(p, "sha256"))
                             fptype = SSH_FPTYPE_SHA256;
+                        else if (!strcmp(p, "md5-cert"))
+                            fptype = SSH_FPTYPE_MD5_CERT;
+                        else if (!strcmp(p, "sha256-cert"))
+                            fptype = SSH_FPTYPE_SHA256_CERT;
                         else {
                             fprintf(stderr, "puttygen: unknown fingerprint "
                                     "type `%s'\n", p);

@@ -1454,12 +1454,36 @@ enum {
 };
 
 typedef enum {
+    /* Default fingerprint types strip off a certificate to show you
+     * the fingerprint of the underlying public key */
     SSH_FPTYPE_MD5,
     SSH_FPTYPE_SHA256,
+    /* Non-default version of each fingerprint type which is 'raw',
+     * giving you the true hash of the public key blob even if it
+     * includes a certificate */
+    SSH_FPTYPE_MD5_CERT,
+    SSH_FPTYPE_SHA256_CERT,
 } FingerprintType;
 
+static inline bool ssh_fptype_is_cert(FingerprintType fptype)
+{
+    return fptype >= SSH_FPTYPE_MD5_CERT;
+}
+static inline FingerprintType ssh_fptype_from_cert(FingerprintType fptype)
+{
+    if (ssh_fptype_is_cert(fptype))
+        fptype -= (SSH_FPTYPE_MD5_CERT - SSH_FPTYPE_MD5);
+    return fptype;
+}
+static inline FingerprintType ssh_fptype_to_cert(FingerprintType fptype)
+{
+    if (!ssh_fptype_is_cert(fptype))
+        fptype += (SSH_FPTYPE_MD5_CERT - SSH_FPTYPE_MD5);
+    return fptype;
+}
+
+#define SSH_N_FPTYPES (SSH_FPTYPE_SHA256_CERT + 1)
 #define SSH_FPTYPE_DEFAULT SSH_FPTYPE_SHA256
-#define SSH_N_FPTYPES (SSH_FPTYPE_SHA256 + 1)
 
 FingerprintType ssh2_pick_fingerprint(char **fingerprints,
                                       FingerprintType preferred_type);
@@ -1473,6 +1497,8 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
                        int keytype);
 char *ssh2_fingerprint_blob(ptrlen, FingerprintType);
 char *ssh2_fingerprint(ssh_key *key, FingerprintType);
+char *ssh2_double_fingerprint_blob(ptrlen, FingerprintType);
+char *ssh2_double_fingerprint(ssh_key *key, FingerprintType);
 char **ssh2_all_fingerprints_for_blob(ptrlen);
 char **ssh2_all_fingerprints(ssh_key *key);
 void ssh2_free_all_fingerprints(char **);

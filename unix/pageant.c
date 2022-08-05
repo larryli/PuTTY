@@ -612,6 +612,7 @@ static bool match_fingerprint_string(
 
         switch (fptype) {
           case SSH_FPTYPE_MD5:
+          case SSH_FPTYPE_MD5_CERT:
             /* MD5 fingerprints are in hex, so disregard case differences. */
             case_sensitive = false;
             /* And we don't really need to force the user to type the
@@ -620,6 +621,7 @@ static bool match_fingerprint_string(
             ignore_chars = ":";
             break;
           case SSH_FPTYPE_SHA256:
+          case SSH_FPTYPE_SHA256_CERT:
             /* Skip over the "SHA256:" prefix, which we don't really
              * want to force the user to type. On the other hand,
              * tolerate it on the input string. */
@@ -713,6 +715,18 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
         try_comment = false;
         try_all_fptypes = false;
         fptype = SSH_FPTYPE_SHA256;
+    } else if (!strnicmp(string, "md5-cert:", 9)) {
+        string += 9;
+        try_file = false;
+        try_comment = false;
+        try_all_fptypes = false;
+        fptype = SSH_FPTYPE_MD5_CERT;
+    } else if (!strncmp(string, "sha256-cert:", 12)) {
+        string += 12;
+        try_file = false;
+        try_comment = false;
+        try_all_fptypes = false;
+        fptype = SSH_FPTYPE_SHA256_CERT;
     }
 
     /*
@@ -1402,6 +1416,10 @@ int main(int argc, char **argv)
                     key_list_fptype = SSH_FPTYPE_MD5;
                 else if (!strcmp(keyword, "sha256"))
                     key_list_fptype = SSH_FPTYPE_SHA256;
+                else if (!strcmp(keyword, "md5-cert"))
+                    key_list_fptype = SSH_FPTYPE_MD5_CERT;
+                else if (!strcmp(keyword, "sha256-cert"))
+                    key_list_fptype = SSH_FPTYPE_SHA256_CERT;
                 else {
                     fprintf(stderr, "pageant: unknown fingerprint type `%s'\n",
                             keyword);
