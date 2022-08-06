@@ -76,6 +76,21 @@ RSAKey *BinarySource_get_rsa_ssh1_priv_agent(BinarySource *src)
     return rsa;
 }
 
+void duprsakey(RSAKey *dst, const RSAKey *src)
+{
+    dst->bits = src->bits;
+    dst->bytes = src->bytes;
+    dst->modulus = mp_copy(src->modulus);
+    dst->exponent = mp_copy(src->exponent);
+    dst->private_exponent = src->private_exponent ?
+        mp_copy(src->private_exponent) : NULL;
+    dst->p = mp_copy(src->p);
+    dst->q = mp_copy(src->q);
+    dst->iqmp = mp_copy(src->iqmp);
+    dst->comment = src->comment ? dupstr(src->comment) : NULL;
+    dst->sshk.vt = src->sshk.vt;
+}
+
 bool rsa_ssh1_encrypt(unsigned char *data, int length, RSAKey *key)
 {
     mp_int *b1, *b2;
