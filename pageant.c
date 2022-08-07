@@ -1052,7 +1052,7 @@ static PageantAsyncOp *pageant_make_op(
 
         pageant_client_log(pc, reqid, "reply: SSH1_AGENT_RSA_RESPONSE");
 
-          challenge1_cleanup:
+      challenge1_cleanup:
         if (response)
             mp_free(response);
         mp_free(challenge);
@@ -1165,7 +1165,7 @@ static PageantAsyncOp *pageant_make_op(
             fail("key already present");
         }
 
-          add1_cleanup:
+      add1_cleanup:
         if (key) {
             freersakey(key);
             sfree(key);
@@ -1226,7 +1226,7 @@ static PageantAsyncOp *pageant_make_op(
             fail("key already present");
         }
 
-          add2_cleanup:
+      add2_cleanup:
         if (key) {
             if (key->key)
                 ssh_key_free(key->key);
