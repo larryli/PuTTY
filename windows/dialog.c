@@ -974,7 +974,6 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         const char *dlg_title = "";
         ctx->has_title = false;
         LPCTSTR iconid = IDI_QUESTION;
-        ctx->helpctx = WINHELP_CTX_errors_hostkey_absent;
 
         for (SeatDialogTextItem *item = ctx->text->items,
                  *end = item + ctx->text->nitems; item < end; item++) {
@@ -988,7 +987,6 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
               case SDT_SCARY_HEADING:
                 SetDlgItemText(hwnd, IDC_HK_TITLE, item->text);
                 iconid = IDI_WARNING;
-                ctx->helpctx = WINHELP_CTX_errors_hostkey_changed;
                 ctx->has_title = true;
                 break;
               case SDT_TITLE:
