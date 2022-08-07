@@ -113,10 +113,14 @@ typedef const char *HelpCtx;
 #define WINHELP_CTX_ssh_gssapi_kex_delegation "config-ssh-kex-gssapi-delegation"
 #define WINHELP_CTX_ssh_kex_repeat "config-ssh-kex-rekey"
 #define WINHELP_CTX_ssh_kex_manual_hostkeys "config-ssh-kex-manual-hostkeys"
+#define WINHELP_CTX_ssh_kex_cert "config-ssh-kex-cert"
+#define WINHELP_CTX_ssh_cert_valid_expr "config-ssh-cert-valid-expr"
+#define WINHELP_CTX_ssh_cert_rsa_hash "config-ssh-cert-rsa-hash"
 #define WINHELP_CTX_ssh_auth_bypass "config-ssh-noauth"
 #define WINHELP_CTX_ssh_no_trivial_userauth "config-ssh-notrivialauth"
 #define WINHELP_CTX_ssh_auth_banner "config-ssh-banner"
 #define WINHELP_CTX_ssh_auth_privkey "config-ssh-privkey"
+#define WINHELP_CTX_ssh_auth_cert "config-ssh-cert"
 #define WINHELP_CTX_ssh_auth_agentfwd "config-ssh-agentfwd"
 #define WINHELP_CTX_ssh_auth_changeuser "config-ssh-changeuser"
 #define WINHELP_CTX_ssh_auth_pageant "config-ssh-tryagent"
@@ -193,6 +197,7 @@ typedef const char *HelpCtx;
 #define WINHELP_CTX_puttygen_conversions "puttygen-conversions"
 #define WINHELP_CTX_puttygen_ppkver "puttygen-save-ppk-version"
 #define WINHELP_CTX_puttygen_kdfparam "puttygen-save-passphrase-hashing"
+#define WINHELP_CTX_errors_cert_mismatch "errors-cert-mismatch"
 
 /* These are used in Windows-specific bits of the frontend.
  * We (ab)use "help context identifiers" (dwContextId) to identify them. */

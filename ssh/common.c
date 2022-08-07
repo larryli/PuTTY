@@ -934,6 +934,8 @@ SeatPromptResult verify_ssh_host_key(
     seat_dialog_text_append(
         text, SDT_TITLE, "%s Security Alert", appname);
 
+    HelpCtx helpctx;
+
     if (key && ssh_key_alg(key)->is_certificate) {
         seat_dialog_text_append(
             text, SDT_SCARY_HEADING, "WARNING - POTENTIAL SECURITY BREACH!");
@@ -978,6 +980,7 @@ SeatPromptResult verify_ssh_host_key(
             text, SDT_PARA, "The new %s key fingerprint is:", keytype);
         seat_dialog_text_append(
             text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+        helpctx = HELPCTX(errors_cert_mismatch);
     } else if (storage_status == 1) {
         seat_dialog_text_append(
             text, SDT_PARA, "The host key is not cached for this server:");
@@ -990,6 +993,7 @@ SeatPromptResult verify_ssh_host_key(
             text, SDT_PARA, "The server's %s key fingerprint is:", keytype);
         seat_dialog_text_append(
             text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+        helpctx = HELPCTX(errors_hostkey_absent);
     } else {
         seat_dialog_text_append(
             text, SDT_SCARY_HEADING, "WARNING - POTENTIAL SECURITY BREACH!");
@@ -1006,14 +1010,13 @@ SeatPromptResult verify_ssh_host_key(
             text, SDT_PARA, "The new %s key fingerprint is:", keytype);
         seat_dialog_text_append(
             text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+        helpctx = HELPCTX(errors_hostkey_changed);
     }
 
     /* The above text is printed even in batch mode. Here's where we stop if
      * we can't present interactive prompts. */
     seat_dialog_text_append(
         text, SDT_BATCH_ABORT, "Connection abandoned.");
-
-    HelpCtx helpctx;
 
     if (storage_status == 1) {
         seat_dialog_text_append(
@@ -1029,7 +1032,6 @@ SeatPromptResult verify_ssh_host_key(
             "connection.", pds->hk_cancel_action);
         seat_dialog_text_append(
             text, SDT_PROMPT, "Store key in cache?");
-        helpctx = HELPCTX(errors_hostkey_absent);
     } else {
         seat_dialog_text_append(
             text, SDT_PARA, "If you were expecting this change and trust the "
@@ -1044,7 +1046,6 @@ SeatPromptResult verify_ssh_host_key(
             pds->hk_cancel_action, pds->hk_cancel_action_Participle);
         seat_dialog_text_append(
             text, SDT_PROMPT, "Update cached key?");
-        helpctx = HELPCTX(errors_hostkey_changed);
     }
 
     seat_dialog_text_append(text, SDT_MORE_INFO_KEY,

@@ -90,6 +90,15 @@ By default this is shown in the \q{SHA256} format. You can change to the
 older \q{MD5} format (which looks like \c{aa:bb:cc:...}) with the
 \q{Fingerprint type} drop-down, but bear in mind that this format is
 less secure and should be avoided for comparison purposes where possible.
+
+If some of the keys loaded into Pageant have certificates attached,
+then Pageant will default to showing the fingerprint of the underlying
+key. This way, a certified and uncertified version of the same key
+will have the same fingerprint, so you can see that they match. You
+can instead use the \q{Fingerprint type} drop-down to ask for a
+different fingerprint to be shown for certified keys, which includes
+the certificate as part of the fingerprinted data. That way you can
+tell two certificates apart.
 }
 
 \b The comment attached to the key.

@@ -2610,6 +2610,142 @@ neither read \e{nor written}, unless you explicitly do so.
 If the box is empty (as it usually is), then PuTTY's automated host
 key management will work as normal.
 
+\S{config-ssh-kex-cert} Configuring PuTTY to accept host \i{certificates}
+
+In some environments, the SSH host keys for a lot of servers will all
+be signed in turn by a central \q{certification authority} (\q{CA} for
+short). This simplifies host key configuration for users, because if
+they configure their SSH client to accept host keys certified by that
+CA, then they don't need to individually confirm each host key the
+first time they connect to that server.
+
+In order to do this, press the \q{Configure host CAs} button in the
+\q{Host keys} configuration panel. This will launch a secondary
+configuration dialog box where you can configure what CAs PuTTY will
+accept signatures from.
+
+\s{Note that this configuration is common to all saved sessions}.
+Everything in the main PuTTY configuration is specific to one saved
+session, and you can prepare a separate session with all the
+configuration different. But there's only one copy of the host CA
+configuration, and it applies to all sessions PuTTY runs, whether
+saved or not.
+
+(Otherwise, it would be useless \dash configuring a CA by hand for
+each new host wouldn't be any more convenient than pressing the
+\q{confirm} button for each new host's host key.)
+
+To set up a new CA using this config box:
+
+First, load the CA's public key from a file, or paste it directly into
+the \q{Public key of certification authority} edit box. If your
+organisation signs its host keys in this way, they will publish the
+public key of their CA so that SSH users can include it in their
+configuration.
+
+Next, in the \q{Valid hosts this key is trusted to certify} box,
+configure at least one hostname wildcard to say what servers PuTTY
+should trust this CA to speak for. For example, suppose you work for
+Example Corporation (\cw{example.com}), and the Example Corporation IT
+department has advertised a CA that signs all the Example internal
+machines' host keys. Then probably you want to trust that CA to sign
+host keys for machines in the domain \cw{example.com}, but not for
+anything else. So you might enter \cq{*.example.com} into the \q{Valid
+hosts} box.
+
+\s{It's important to limit what the CA key is allowed to sign}. Don't
+just enter \cq{*} in that box! If you do that, you're saying that
+Example Corporation IT department is authorised to sign a host key for
+\e{anything at all} you might decide to connect to \dash even if
+you're connecting out of the company network to a machine somewhere
+else, such as your own personal server. So that configuration would
+enable the Example IT department to act as a \q{man-in-the-middle}
+between your PuTTY process and your server, and listen in to your
+communications \dash exactly the thing SSH is supposed to avoid.
+
+So, if the CA was provided to you by the sysadmins responsible for
+\cw{example.com} (or whatever), make sure PuTTY will \e{only} trust it
+for machines in the \cw{example.com} domain.
+
+For the full syntax of the \q{Valid hosts} expression, see
+\k{config-ssh-cert-valid-expr}.
+
+Finally, choose an identifying name for this CA; enter that name in
+the \q{Name for this CA} edit box at the top of the window, and press
+\q{Save} to record the CA in your configuration. The name you chose
+will appear in the list of saved CAs to the left of the \q{Save}
+button.
+
+The identifying name can be anything you like. It's there so that if
+you store multiple certificates you can tell which is which later when
+you want to edit or delete them. It also appears in the PuTTY Event
+Log when a server presents a certificate signed by that CA.
+
+To reload an existing CA configuration, select it in the list box and
+press \q{Load}. Then you can make changes, and save it again.
+
+To remove a CA from your configuration completely, select it in the
+list and press \q{Delete}.
+
+\S2{config-ssh-cert-valid-expr} Expressions you can enter in \q{Valid
+hosts}
+
+The simplest thing you can enter in the \q{Valid hosts this key is
+trusted to certify} edit box is just a hostname wildcard such as
+\cq{*.example.com}. But you can also enter multiple host name
+wildcards, and port number ranges, and make complicated Boolean
+expressions out of them using the operators \cq{&&} for \q{and},
+\cq{||} for \q{or}, \cq{!} for \q{not}, and parentheses.
+
+For example, here are some other things you could enter.
+
+\b \cq{*.foo.example.com || *.bar.example.com}. This means the CA is
+trusted to sign the host key for a connection if the host name matches
+\q{*.foo.example.com} \e{or} it matches \q{*.bar.example.com}. In
+other words, the CA has authority over those two particular subdomains
+of \cw{example.com}, but not for anything else, like
+\cw{www.example.com}.
+
+\b \cq{*.example.com && ! *.extrasecure.example.com}. This means the
+CA is trusted to sign the host key for a connection if the host name
+matches \q{*.example.com} \e{but does not} match
+\q{*.extrasecure.example.com}. (Imagine if there was one top-secret
+set of servers in your company that the main IT department didn't have
+security clearance to administer.)
+
+\b \cq{*.example.com && port:22}. This means the CA is trusted to sign
+the host key for a connection if the host name matches
+\q{*.example.com} \e{and} the port number is 22. SSH servers running
+on other ports would not be covered.
+
+\b \cq{(*.foo.example.com || *.bar.example.com) && port:0-1023}. This
+matches two subdomains of \cw{example.com}, as before, but \e{also}
+restricts the port number to the range 0-1023.
+
+A certificate configuration expression consists of one or more
+individual requirements which can each be a hostname wildcard, a
+single port number, or a port number range, combined together with
+these Boolean operators.
+
+Unlike other languages such as C, there is no implied priority between
+\cq{&&} and \cq{||}. If you write \cq{A && B || C} (where \cw{A},
+\cw{B} and \cw{C} are some particular requirements), then PuTTY will
+report a syntax error, because you haven't said which of the \cq{&&}
+and \cq{||} takes priority tightly. You will have to write either
+\cq{(A && B) || C}, meaning \q{both of \cw{A} and \cw{B}, or
+alternatively just \cw{C}}, or \cq{A && (B || C)} (\q{\cw{A}, and also
+at least one of \cw{B} and \cw{C}}), to make it clear.
+
+\S2{config-ssh-cert-rsa-hash} RSA signature types in certificates
+
+RSA keys can be used to generate signatures with a choice of secure
+hash function. Typically, any version of OpenSSH new enough to support
+certificates at all will also be new enough to avoid using SHA-1, so
+the default settings of accepting the more modern SHA-256 and SHA-512
+should be suitable for nearly all cases. For completeness, however,
+you can configure which types of RSA signature PuTTY will accept in a
+certificate from a CA using an RSA key.
+
 \H{config-ssh-encryption} The Cipher panel
 
 PuTTY supports a variety of different \i{encryption algorithm}s, and
@@ -2848,6 +2984,34 @@ for a passphrase as normal. You can also specify a \e{public} key file
 in this case (in RFC 4716 or OpenSSH format), as that's sufficient to
 identify the key to Pageant, but of course if Pageant isn't present
 PuTTY can't fall back to using this file itself.
+
+\S{config-ssh-cert} \q{\ii{Certificate} to use with the private key}
+
+In some environments, user authentication keys can be signed in turn
+by a \q{certifying authority} (\q{CA} for short), and user accounts on
+an SSH server can be configured to automatically trust any key that's
+certified by the right signature.
+
+This can be a convenient setup if you have a very large number of
+servers. When you change your key pair, you might otherwise have to
+edit the \cw{authorized_keys} file on every server individually, to
+make them all accept the new key. But if instead you configure all
+those servers \e{once} to accept keys signed as yours by a CA, then
+when you change your public key, all you have to do is to get the new
+key certified by the same CA as before, and then all your servers will
+automatically accept it without needing individual reconfiguration.
+
+One way to use a certificate is to incorporate it into your private
+key file. \K{puttygen-cert} explains how to do that using PuTTYgen.
+But another approach is to tell PuTTY itself where to find the public
+certificate file, and then it will automatically present that
+certificate when authenticating with the corresponding private key.
+
+To do this, enter the pathname of the certificate file into the
+\q{Certificate to use with the private key} file selector.
+
+When this setting is configured, PuTTY will honour it no matter
+whether the private key is found in a file, or loaded into Pageant.
 
 \H{config-ssh-auth-gssapi} The \i{GSSAPI} panel
 

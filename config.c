@@ -2835,7 +2835,8 @@ void setup_config_box(struct controlbox *b, bool midsession,
         s = ctrl_getset(b, "Connection/SSH/Host keys", "ca",
                         "Configure trusted certification authorities");
         c = ctrl_pushbutton(s, "Configure host CAs", NO_SHORTCUT,
-                            HELPCTX(no_help), host_ca_button_handler, I(0));
+                            HELPCTX(ssh_kex_cert),
+                            host_ca_button_handler, I(0));
 
         if (!midsession || !(protcfginfo == 1 || protcfginfo == -1)) {
             /*
@@ -2909,7 +2910,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                          conf_filesel_handler, I(CONF_keyfile));
             ctrl_filesel(s, "Certificate to use with the private key:", 'e',
                          NULL, false, "Select certificate file",
-                         HELPCTX(ssh_auth_privkey),
+                         HELPCTX(ssh_auth_cert),
                          conf_filesel_handler, I(CONF_detached_cert));
 
 #ifndef NO_GSSAPI

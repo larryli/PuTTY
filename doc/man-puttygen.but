@@ -143,6 +143,18 @@ to type).
 automatic when you are generating a new key, but not when you are
 modifying an existing key.
 
+\dt \cw{\-\-certificate} \e{certificate-file}
+
+\dd Adds an OpenSSH-style certificate to the public half of the key,
+so that the output file contains a certified public key with the same
+private key. If the input file already contained a certificate, it
+will be replaced with the new one.
+
+\dt \cw{\-\-remove\-certificate}
+
+\dd Removes any certificate that was part of the key, to recover the
+uncertified version of the underlying key.
+
 \dt \cw{\-\-reencrypt}
 
 \dd For an existing private key saved with a passphrase, refresh the
@@ -260,6 +272,13 @@ newer format even for RSA, DSA, and ECDSA keys.
 \dd Save an SSH-2 private key in ssh.com's format. This option is not
 permitted for SSH-1 keys.
 
+\dt \cw{cert-info}
+
+\dd Save a textual dump of information about the certificate on the
+key, if any: whether it's a host or a user certificate, what host(s)
+or user(s) it's certified to be, its validity period, ID and serial
+number, and the fingerprint of the signing CA.
+
 \dt \cw{text}
 
 \dd Save a textual dump of the numeric components comprising the key
@@ -298,6 +317,10 @@ fingerprint. Otherwise, the \c{\-o} option is required.
 
 \dd Synonym for \q{\cw{-O public}}.
 
+\dt \cw{\-\-cert\-info}
+
+\dd Synonym for \q{\cw{-O cert-info}}.
+
 \dt \cw{\-\-dump}
 
 \dd Synonym for \q{\cw{-O text}}.
@@ -305,7 +328,18 @@ fingerprint. Otherwise, the \c{\-o} option is required.
 \dt \cw{-E} \e{fptype}
 
 \dd Specify the algorithm to use if generating a fingerprint. The
-options are \cw{sha256} (the default) and \cw{md5}.
+available algorithms are are \cw{sha256} (the default) and \cw{md5}.
+
+\lcont{
+
+By default, when showing the fingerprint of a public key that includes
+a certificate, \c{puttygen} will not include the certificate, so that
+the fingerprint shown will be the same as the underlying public key.
+If you want the fingerprint including the certificate (for example, so
+as to tell two certified keys apart), you can specify \cw{sha256-cert}
+or \cw{md5-cert} as the fingerprint type.
+
+}
 
 \dt \cw{\-\-new\-passphrase} \e{file}
 
