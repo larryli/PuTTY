@@ -273,6 +273,7 @@ FUNC(val_mac, ssh2_mac_new, ARG(macalg, alg), ARG(opt_val_cipher, cipher))
 FUNC(void, ssh2_mac_setkey, ARG(val_mac, m), ARG(val_string_ptrlen, key))
 FUNC(void, ssh2_mac_start, ARG(val_mac, m))
 FUNC(void, ssh2_mac_update, ARG(val_mac, m), ARG(val_string_ptrlen, data))
+FUNC(void, ssh2_mac_next_message, ARG(val_mac, m))
 FUNC_WRAPPED(val_string, ssh2_mac_genresult, ARG(val_mac, m))
 FUNC(val_string_asciz_const, ssh2_mac_text_name, ARG(val_mac, m))
 
@@ -341,6 +342,7 @@ FUNC_WRAPPED(val_string, ssh_cipher_encrypt_length, ARG(val_cipher, c),
              ARG(val_string_ptrlen, blk), ARG(uint, seq))
 FUNC_WRAPPED(val_string, ssh_cipher_decrypt_length, ARG(val_cipher, c),
              ARG(val_string_ptrlen, blk), ARG(uint, seq))
+FUNC(void, ssh_cipher_next_message, ARG(val_cipher, c))
 
 /*
  * Integer Diffie-Hellman.

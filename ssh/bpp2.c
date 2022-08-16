@@ -513,6 +513,10 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
         dts_consume(&s->stats->in, s->packetlen);
 
         s->pktin->sequence = s->in.sequence++;
+        if (s->in.cipher)
+            ssh_cipher_next_message(s->in.cipher);
+        if (s->in.mac)
+            ssh2_mac_next_message(s->in.mac);
 
         s->length = s->packetlen - s->pad;
         assert(s->length >= 0);
@@ -819,6 +823,10 @@ static void ssh2_bpp_format_packet_inner(struct ssh2_bpp_state *s, PktOut *pkt)
     }
 
     s->out.sequence++;       /* whether or not we MACed */
+    if (s->out.cipher)
+        ssh_cipher_next_message(s->out.cipher);
+    if (s->out.mac)
+        ssh2_mac_next_message(s->out.mac);
 
     dts_consume(&s->stats->out, origlen + padding);
 }

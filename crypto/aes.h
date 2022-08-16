@@ -52,6 +52,7 @@ static inline bool check_availability(const struct aes_extra *extra)
         .setkey = aes ## impl_c ## _setkey,                             \
         .encrypt = aes ## bits ## impl_c ## _cbc_encrypt,               \
         .decrypt = aes ## bits ## impl_c ## _cbc_decrypt,               \
+        .next_message = nullcipher_next_message,                        \
         .ssh2_id = "aes" #bits "-cbc",                                  \
         .blksize = 16,                                                  \
         .real_keybits = bits,                                           \
@@ -69,6 +70,7 @@ static inline bool check_availability(const struct aes_extra *extra)
         .setkey = aes ## impl_c ## _setkey,                             \
         .encrypt = aes ## bits ## impl_c ## _sdctr,                     \
         .decrypt = aes ## bits ## impl_c ## _sdctr,                     \
+        .next_message = nullcipher_next_message,                        \
         .ssh2_id = "aes" #bits "-ctr",                                  \
         .blksize = 16,                                                  \
         .real_keybits = bits,                                           \

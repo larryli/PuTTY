@@ -651,6 +651,9 @@ struct ssh_cipheralg {
                            unsigned long seq);
     void (*decrypt_length)(ssh_cipher *, void *blk, int len,
                            unsigned long seq);
+    /* For ciphers that update their state per logical message
+     * (typically, per unit independently MACed) */
+    void (*next_message)(ssh_cipher *);
     const char *ssh2_id;
     int blksize;
     /* real_keybits is the number of bits of entropy genuinely used by
@@ -695,8 +698,12 @@ static inline void ssh_cipher_encrypt_length(
 static inline void ssh_cipher_decrypt_length(
     ssh_cipher *c, void *blk, int len, unsigned long seq)
 { c->vt->decrypt_length(c, blk, len, seq); }
+static inline void ssh_cipher_next_message(ssh_cipher *c)
+{ c->vt->next_message(c); }
 static inline const struct ssh_cipheralg *ssh_cipher_alg(ssh_cipher *c)
 { return c->vt; }
+
+void nullcipher_next_message(ssh_cipher *);
 
 struct ssh2_ciphers {
     int nciphers;
@@ -715,6 +722,7 @@ struct ssh2_macalg {
     void (*setkey)(ssh2_mac *, ptrlen key);
     void (*start)(ssh2_mac *);
     void (*genresult)(ssh2_mac *, unsigned char *);
+    void (*next_message)(ssh2_mac *);
     const char *(*text_name)(ssh2_mac *);
     const char *name, *etm_name;
     int len, keylen;
@@ -734,6 +742,8 @@ static inline void ssh2_mac_start(ssh2_mac *m)
 { m->vt->start(m); }
 static inline void ssh2_mac_genresult(ssh2_mac *m, unsigned char *out)
 { m->vt->genresult(m, out); }
+static inline void ssh2_mac_next_message(ssh2_mac *m)
+{ m->vt->next_message(m); }
 static inline const char *ssh2_mac_text_name(ssh2_mac *m)
 { return m->vt->text_name(m); }
 static inline const ssh2_macalg *ssh2_mac_alg(ssh2_mac *m)
@@ -745,6 +755,8 @@ static inline const ssh2_macalg *ssh2_mac_alg(ssh2_mac *m)
 bool ssh2_mac_verresult(ssh2_mac *, const void *);
 void ssh2_mac_generate(ssh2_mac *, void *, int, unsigned long seq);
 bool ssh2_mac_verify(ssh2_mac *, const void *, int, unsigned long seq);
+
+void nullmac_next_message(ssh2_mac *m);
 
 /* Use a MAC in its raw form, outside SSH-2 context, to MAC a given
  * string with a given key in the most obvious way. */
