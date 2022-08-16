@@ -49,15 +49,19 @@ static inline u_long getauxval(int which) { return 0; }
 #endif /* defined __arm__ || defined __aarch64__ */
 
 #if defined __APPLE__
-static inline bool test_sysctl_flag(const char *flagname)
+typedef enum { SYSCTL_MISSING, SYSCTL_OFF, SYSCTL_ON } SysctlResult;
+
+static inline SysctlResult test_sysctl_flag(const char *flagname)
 {
 #if HAVE_SYSCTLBYNAME
     int value;
     size_t size = sizeof(value);
-    return (sysctlbyname(flagname, &value, &size, NULL, 0) == 0 &&
-            size == sizeof(value) && value != 0);
+    if (sysctlbyname(flagname, &value, &size, NULL, 0) == 0 &&
+        size == sizeof(value)) {
+        return value != 0 ? SYSCTL_ON : SYSCTL_OFF;
+    }
 #else /* HAVE_SYSCTLBYNAME */
-    return false;
+    return SYSCTL_MISSING;
 #endif /* HAVE_SYSCTLBYNAME */
 }
 #endif /* defined __APPLE__ */
