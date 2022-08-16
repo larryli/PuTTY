@@ -145,6 +145,11 @@ def get_aes_impls():
             for impl in get_implementations("aes128_cbc")
             if impl.startswith("aes128_cbc_")]
 
+def get_aesgcm_impls():
+    return [impl.split("_", 1)[1]
+            for impl in get_implementations("aesgcm")
+            if impl.startswith("aesgcm_")]
+
 class MyTestBase(unittest.TestCase):
     "Intermediate class that adds useful helper methods."
     def assertEqualBin(self, x, y):
@@ -2933,6 +2938,184 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         per_base_keytype_tests('rsa', run_ca_rsa_tests=True, ca_signflags=2)
         per_base_keytype_tests('rsa', run_ca_rsa_tests=True, ca_signflags=4)
 
+    def testAESGCMBlockBoundaries(self):
+        # For standard AES-GCM test vectors, see the separate tests in
+        # standard_test_vectors.testAESGCM. This function will test
+        # the local interface, including the skip length and the
+        # machinery for incremental MAC update.
+
+        def aesgcm(key, iv, aes_impl, gcm_impl):
+            c = ssh_cipher_new('aes{:d}_gcm_{}'.format(8*len(key), aes_impl))
+            m = ssh2_mac_new('aesgcm_{}'.format(gcm_impl), c)
+            if m is None: return # skip test if HW GCM not available
+            c.setkey(key)
+            c.setiv(iv + b'\0'*4)
+            m.setkey(b'')
+            return c, m
+
+        def test_one(aes_impl, gcm_impl):
+            # An actual test from a session with OpenSSH, which
+            # demonstrates that the implementation in practice matches up
+            # to what the test vectors say. This is its SSH2_MSG_EXT_INFO
+            # packet.
+            key = unhex('dbf98b2f56c83fb2f9476aa876511225')
+            iv = unhex('9af15ecccf2bacaaa9625a6a')
+            plain = unhex('1007000000020000000f736572766572'
+                          '2d7369672d616c6773000000db737368'
+                          '2d656432353531392c736b2d7373682d'
+                          '65643235353139406f70656e7373682e'
+                          '636f6d2c7373682d7273612c7273612d'
+                          '736861322d3235362c7273612d736861'
+                          '322d3531322c7373682d6473732c6563'
+                          '6473612d736861322d6e697374703235'
+                          '362c65636473612d736861322d6e6973'
+                          '74703338342c65636473612d73686132'
+                          '2d6e697374703532312c736b2d656364'
+                          '73612d736861322d6e69737470323536'
+                          '406f70656e7373682e636f6d2c776562'
+                          '617574686e2d736b2d65636473612d73'
+                          '6861322d6e69737470323536406f7065'
+                          '6e7373682e636f6d0000001f7075626c'
+                          '69636b65792d686f7374626f756e6440'
+                          '6f70656e7373682e636f6d0000000130'
+                          '5935130804ad4b19ed2789210290c438')
+            aad = unhex('00000130')
+            cipher = unhex('c4b88f35c1ef8aa6225033c3f185d648'
+                           '3c485d84930d5846f7851daacbff49d5'
+                           '8cf72169fca7ab3c170376df65dd69de'
+                           'c40a94c6b8e3da6d61161ab19be27466'
+                           '02e0dfa3330faae291ef4173a20e87a4'
+                           'd40728c645baa72916c1958531ef7b54'
+                           '27228513e53005e6d17b9bb384b8d8c1'
+                           '92b8a10b731459eed5a0fb120c283412'
+                           'e34445981df1257f1c35a06196731fed'
+                           '1b3115f419e754de0b634bf68768cb02'
+                           '29e70bb2259cedb5101ff6a4ac19aaad'
+                           '46f1c30697361b45d6c152c3069cee6b'
+                           'd46e9785d65ea6bf7fca41f0ac3c8e93'
+                           'ce940b0059c39d51e49c17f60d48d633'
+                           '5bae4402faab61d8d65221b24b400e65'
+                           '89f941ff48310231a42641851ea00832'
+                           '2c2d188f4cc6a4ec6002161c407d0a92'
+                           'f1697bb319fbec1ca63fa8e7ac171c85'
+                           '5b60142bfcf4e5b0a9ada3451799866e')
+
+            c, m = aesgcm(key, iv, aes_impl, gcm_impl)
+            len_dec = c.decrypt_length(aad, 123)
+            self.assertEqual(len_dec, aad) # length not actually encrypted
+            m.start()
+            # We expect 4 bytes skipped (the sequence number that
+            # ChaCha20-Poly1305 wants at the start of its MAC), and 4
+            # bytes AAD. These were initialised by the call to
+            # encrypt_length.
+            m.update(b'fake' + aad + cipher)
+            self.assertEqualBin(m.genresult(),
+                                unhex('4a5a6d57d54888b4e58c57a96e00b73a'))
+            self.assertEqualBin(c.decrypt(cipher), plain)
+
+            c, m = aesgcm(key, iv, aes_impl, gcm_impl)
+            len_enc = c.encrypt_length(aad, 123)
+            self.assertEqual(len_enc, aad) # length not actually encrypted
+            self.assertEqualBin(c.encrypt(plain), cipher)
+
+            # Test incremental update.
+            def testIncremental(skiplen, aad, plain):
+                key, iv = b'SomeRandomKeyVal', b'SomeRandomIV'
+                mac_input = b'x' * skiplen + aad + plain
+
+                c, m = aesgcm(key, iv, aes_impl, gcm_impl)
+                aesgcm_set_prefix_lengths(m, skiplen, len(aad))
+
+                m.start()
+                m.update(mac_input)
+                reference_mac = m.genresult()
+
+                # Break the input just once, at each possible byte
+                # position.
+                for i in range(1, len(mac_input)):
+                    c.setiv(iv + b'\0'*4)
+                    m.setkey(b'')
+                    aesgcm_set_prefix_lengths(m, skiplen, len(aad))
+                    m.start()
+                    m.update(mac_input[:i])
+                    m.update(mac_input[i:])
+                    self.assertEqualBin(m.genresult(), reference_mac)
+
+                # Feed the entire input in a byte at a time.
+                c.setiv(iv + b'\0'*4)
+                m.setkey(b'')
+                aesgcm_set_prefix_lengths(m, skiplen, len(aad))
+                m.start()
+                for i in range(len(mac_input)):
+                    m.update(mac_input[i:i+1])
+                self.assertEqualBin(m.genresult(), reference_mac)
+
+            # Incremental test with more than a full block of each thing
+            testIncremental(23, b'abcdefghijklmnopqrst',
+                            b'Lorem ipsum dolor sit amet')
+
+            # Incremental test with exactly a full block of each thing
+            testIncremental(16, b'abcdefghijklmnop',
+                            b'Lorem ipsum dolo')
+
+            # Incremental test with less than a full block of each thing
+            testIncremental(7, b'abcdefghij',
+                            b'Lorem ipsum')
+
+        for aes_impl in get_aes_impls():
+            for gcm_impl in get_aesgcm_impls():
+                with self.subTest(aes_impl=aes_impl, gcm_impl=gcm_impl):
+                    test_one(aes_impl, gcm_impl)
+
+    def testAESGCMIV(self):
+        key = b'SomeRandomKeyVal'
+
+        def test(gcm, cbc, iv_fixed, iv_msg):
+            gcm.setiv(ssh_uint32(iv_fixed) + ssh_uint64(iv_msg) + b'fake')
+
+            cbc.setiv(b'\0' * 16)
+            preimage = cbc.decrypt(gcm.encrypt(b'\0' * 16))
+            self.assertEqualBin(preimage, ssh_uint32(iv_fixed) +
+                                ssh_uint64(iv_msg) + ssh_uint32(1))
+            cbc.setiv(b'\0' * 16)
+            preimage = cbc.decrypt(gcm.encrypt(b'\0' * 16))
+            self.assertEqualBin(preimage, ssh_uint32(iv_fixed) +
+                                ssh_uint64(iv_msg) + ssh_uint32(2))
+
+            gcm.next_message()
+            iv_msg = (iv_msg + 1) & ((1<<64)-1)
+
+            cbc.setiv(b'\0' * 16)
+            preimage = cbc.decrypt(gcm.encrypt(b'\0' * 16))
+            self.assertEqualBin(preimage, ssh_uint32(iv_fixed) +
+                                ssh_uint64(iv_msg) + ssh_uint32(1))
+            cbc.setiv(b'\0' * 16)
+            preimage = cbc.decrypt(gcm.encrypt(b'\0' * 16))
+            self.assertEqualBin(preimage, ssh_uint32(iv_fixed) +
+                                ssh_uint64(iv_msg) + ssh_uint32(2))
+
+
+        for impl in get_aes_impls():
+            with self.subTest(aes_impl=impl):
+                gcm = ssh_cipher_new('aes{:d}_gcm_{}'.format(8*len(key), impl))
+                gcm.setkey(key)
+
+                cbc = ssh_cipher_new('aes{:d}_cbc_{}'.format(8*len(key), impl))
+                cbc.setkey(key)
+
+                # A simple test to ensure the low word gets
+                # incremented and that the whole IV looks basically
+                # the way we expect it to
+                test(gcm, cbc, 0x27182818, 0x3141592653589793)
+
+                # Test that carries are propagated into the high word
+                test(gcm, cbc, 0x27182818, 0x00000000FFFFFFFF)
+
+                # Test that carries _aren't_ propagated out of the
+                # high word of the message counter into the fixed word
+                # at the top
+                test(gcm, cbc, 0x27182818, 0xFFFFFFFFFFFFFFFF)
+
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):
@@ -3725,6 +3908,178 @@ class standard_test_vectors(MyTestBase):
                              b'response="ae66e67d6b427bd3f120414a82e4acff38e8ecd9101d6c861229025f607a79dd", '
                              b'opaque="HRPCssKJSGjCrkzDg8OhwpzCiGPChXYjwrI2QmXDnsOS", '
                              b'userhash=true')
+
+    def testAESGCM(self):
+        def test(key, iv, plaintext, aad, ciphertext, mac):
+            c = ssh_cipher_new('aes{:d}_gcm'.format(8*len(key)))
+            m = ssh2_mac_new('aesgcm_{}'.format(impl), c)
+            if m is None: return # skip test if HW GCM not available
+            c.setkey(key)
+            c.setiv(iv + b'\0'*4)
+            m.setkey(b'')
+            aesgcm_set_prefix_lengths(m, 0, len(aad))
+
+            # Some test cases have plaintext/ciphertext that is not a
+            # multiple of the cipher block size. Our MAC
+            # implementation supports this, but the cipher
+            # implementation expects block-granular input.
+            padlen = 15 & -len(plaintext)
+            ciphertext_got = c.encrypt(plaintext + b'0' * padlen)[
+                :len(plaintext)]
+
+            m.start()
+            m.update(aad + ciphertext)
+            mac_got = m.genresult()
+
+            self.assertEqualBin(ciphertext_got, ciphertext)
+            self.assertEqualBin(mac_got, mac)
+
+            c.setiv(iv + b'\0'*4)
+
+        for impl in get_aesgcm_impls():
+            # 'The Galois/Counter Mode of Operation', McGrew and
+            # Viega, Appendix B. All the tests except the ones whose
+            # IV is the wrong length, because handling that requires
+            # an extra evaluation of the polynomial hash, which is
+            # never used in an SSH context, so I didn't implement it
+            # just for the sake of test vectors.
+
+            # Test Case 1
+            test(unhex('00000000000000000000000000000000'),
+                 unhex('000000000000000000000000'),
+                 unhex(''), unhex(''), unhex(''),
+                 unhex('58e2fccefa7e3061367f1d57a4e7455a'))
+
+            # Test Case 2
+            test(unhex('00000000000000000000000000000000'),
+                 unhex('000000000000000000000000'),
+                 unhex('00000000000000000000000000000000'),
+                 unhex(''),
+                 unhex('0388dace60b6a392f328c2b971b2fe78'),
+                 unhex('ab6e47d42cec13bdf53a67b21257bddf'))
+
+            # Test Case 3
+            test(unhex('feffe9928665731c6d6a8f9467308308'),
+                 unhex('cafebabefacedbaddecaf888'),
+                 unhex('d9313225f88406e5a55909c5aff5269a'
+                       '86a7a9531534f7da2e4c303d8a318a72'
+                       '1c3c0c95956809532fcf0e2449a6b525'
+                       'b16aedf5aa0de657ba637b391aafd255'),
+                 unhex(''),
+                 unhex('42831ec2217774244b7221b784d0d49c'
+                       'e3aa212f2c02a4e035c17e2329aca12e'
+                       '21d514b25466931c7d8f6a5aac84aa05'
+                       '1ba30b396a0aac973d58e091473f5985'),
+                 unhex('4d5c2af327cd64a62cf35abd2ba6fab4'))
+
+            # Test Case 4
+            test(unhex('feffe9928665731c6d6a8f9467308308'),
+                 unhex('cafebabefacedbaddecaf888'),
+                 unhex('d9313225f88406e5a55909c5aff5269a'
+                       '86a7a9531534f7da2e4c303d8a318a72'
+                       '1c3c0c95956809532fcf0e2449a6b525'
+                       'b16aedf5aa0de657ba637b39'),
+                 unhex('feedfacedeadbeeffeedfacedeadbeef'
+                       'abaddad2'),
+                 unhex('42831ec2217774244b7221b784d0d49c'
+                       'e3aa212f2c02a4e035c17e2329aca12e'
+                       '21d514b25466931c7d8f6a5aac84aa05'
+                       '1ba30b396a0aac973d58e091'),
+                 unhex('5bc94fbc3221a5db94fae95ae7121a47'))
+
+            # Test Case 7
+            test(unhex('00000000000000000000000000000000'
+                       '0000000000000000'),
+                 unhex('000000000000000000000000'),
+                 unhex(''), unhex(''), unhex(''),
+                 unhex('cd33b28ac773f74ba00ed1f312572435'))
+
+            # Test Case 8
+            test(unhex('00000000000000000000000000000000'
+                       '0000000000000000'),
+                 unhex('000000000000000000000000'),
+                 unhex('00000000000000000000000000000000'),
+                 unhex(''),
+                 unhex('98e7247c07f0fe411c267e4384b0f600'),
+                 unhex('2ff58d80033927ab8ef4d4587514f0fb'))
+
+            # Test Case 9
+            test(unhex('feffe9928665731c6d6a8f9467308308'
+                       'feffe9928665731c'),
+                 unhex('cafebabefacedbaddecaf888'),
+                 unhex('d9313225f88406e5a55909c5aff5269a'
+                       '86a7a9531534f7da2e4c303d8a318a72'
+                       '1c3c0c95956809532fcf0e2449a6b525'
+                       'b16aedf5aa0de657ba637b391aafd255'),
+                 unhex(''),
+                 unhex('3980ca0b3c00e841eb06fac4872a2757'
+                       '859e1ceaa6efd984628593b40ca1e19c'
+                       '7d773d00c144c525ac619d18c84a3f47'
+                       '18e2448b2fe324d9ccda2710acade256'),
+                 unhex('9924a7c8587336bfb118024db8674a14'))
+
+            # Test Case 10
+            test(unhex('feffe9928665731c6d6a8f9467308308'
+                       'feffe9928665731c'),
+                 unhex('cafebabefacedbaddecaf888'),
+                 unhex('d9313225f88406e5a55909c5aff5269a'
+                       '86a7a9531534f7da2e4c303d8a318a72'
+                       '1c3c0c95956809532fcf0e2449a6b525'
+                       'b16aedf5aa0de657ba637b39'),
+                 unhex('feedfacedeadbeeffeedfacedeadbeef'
+                       'abaddad2'),
+                 unhex('3980ca0b3c00e841eb06fac4872a2757'
+                       '859e1ceaa6efd984628593b40ca1e19c'
+                       '7d773d00c144c525ac619d18c84a3f47'
+                       '18e2448b2fe324d9ccda2710'),
+                 unhex('2519498e80f1478f37ba55bd6d27618c'))
+
+            # Test Case 13
+            test(unhex('00000000000000000000000000000000'
+                       '00000000000000000000000000000000'),
+                 unhex('000000000000000000000000'),
+                 unhex(''), unhex(''), unhex(''),
+                 unhex('530f8afbc74536b9a963b4f1c4cb738b'))
+
+            # Test Case 14
+            test(unhex('00000000000000000000000000000000'
+                       '00000000000000000000000000000000'),
+                 unhex('000000000000000000000000'),
+                 unhex('00000000000000000000000000000000'),
+                 unhex(''),
+                 unhex('cea7403d4d606b6e074ec5d3baf39d18'),
+                 unhex('d0d1c8a799996bf0265b98b5d48ab919'))
+
+            # Test Case 15
+            test(unhex('feffe9928665731c6d6a8f9467308308'
+                       'feffe9928665731c6d6a8f9467308308'),
+                 unhex('cafebabefacedbaddecaf888'),
+                 unhex('d9313225f88406e5a55909c5aff5269a'
+                       '86a7a9531534f7da2e4c303d8a318a72'
+                       '1c3c0c95956809532fcf0e2449a6b525'
+                       'b16aedf5aa0de657ba637b391aafd255'),
+                 unhex(''),
+                 unhex('522dc1f099567d07f47f37a32a84427d'
+                       '643a8cdcbfe5c0c97598a2bd2555d1aa'
+                       '8cb08e48590dbb3da7b08b1056828838'
+                       'c5f61e6393ba7a0abcc9f662898015ad'),
+                 unhex('b094dac5d93471bdec1a502270e3cc6c'))
+
+            # Test Case 16
+            test(unhex('feffe9928665731c6d6a8f9467308308'
+                       'feffe9928665731c6d6a8f9467308308'),
+                 unhex('cafebabefacedbaddecaf888'),
+                 unhex('d9313225f88406e5a55909c5aff5269a'
+                       '86a7a9531534f7da2e4c303d8a318a72'
+                       '1c3c0c95956809532fcf0e2449a6b525'
+                       'b16aedf5aa0de657ba637b39'),
+                 unhex('feedfacedeadbeeffeedfacedeadbeef'
+                       'abaddad2'),
+                 unhex('522dc1f099567d07f47f37a32a84427d'
+                       '643a8cdcbfe5c0c97598a2bd2555d1aa'
+                       '8cb08e48590dbb3da7b08b1056828838'
+                       'c5f61e6393ba7a0abcc9f662'),
+                 unhex('76fc6ece0f4e1768cddf8853bb2d551b'))
 
 if __name__ == "__main__":
     # Run the tests, suppressing automatic sys.exit and collecting the

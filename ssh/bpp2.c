@@ -132,6 +132,12 @@ void ssh2_bpp_new_outgoing_crypto(
     s->out.etm_mode = etm_mode;
     if (mac) {
         s->out.mac = ssh2_mac_new(mac, s->out.cipher);
+        /*
+         * Important that mac_setkey comes after cipher_setkey,
+         * because in the case where the MAC makes use of the cipher
+         * (e.g. AES-GCM), it will need the cipher to be keyed
+         * already.
+         */
         ssh2_mac_setkey(s->out.mac, make_ptrlen(mac_key, mac->keylen));
 
         bpp_logevent("Initialised %s outbound MAC algorithm%s%s",
@@ -189,6 +195,7 @@ void ssh2_bpp_new_incoming_crypto(
     s->in.etm_mode = etm_mode;
     if (mac) {
         s->in.mac = ssh2_mac_new(mac, s->in.cipher);
+        /* MAC setkey has to follow cipher, just as in outgoing_crypto above */
         ssh2_mac_setkey(s->in.mac, make_ptrlen(mac_key, mac->keylen));
 
         bpp_logevent("Initialised %s inbound MAC algorithm%s%s",

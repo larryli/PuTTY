@@ -20,6 +20,11 @@ bool platform_aes_neon_available(void)
     return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
 }
 
+bool platform_pmull_neon_available(void)
+{
+    return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
 bool platform_sha256_neon_available(void)
 {
     return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);

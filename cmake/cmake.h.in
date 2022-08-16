@@ -49,7 +49,9 @@
 #cmakedefine01 HAVE_AES_NI
 #cmakedefine01 HAVE_SHA_NI
 #cmakedefine01 HAVE_SHAINTRIN_H
+#cmakedefine01 HAVE_CLMUL
 #cmakedefine01 HAVE_NEON_CRYPTO
+#cmakedefine01 HAVE_NEON_PMULL
 #cmakedefine01 HAVE_NEON_SHA512
 #cmakedefine01 HAVE_NEON_SHA512_INTRINSICS
 #cmakedefine01 USE_ARM64_NEON_H

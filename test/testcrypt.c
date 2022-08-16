@@ -1329,7 +1329,16 @@ strbuf *get_implementations_commasep(ptrlen alg)
     strbuf *out = strbuf_new();
     put_datapl(out, alg);
 
-    if (ptrlen_startswith(alg, PTRLEN_LITERAL("aes"), NULL)) {
+    if (ptrlen_startswith(alg, PTRLEN_LITERAL("aesgcm"), NULL)) {
+        put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_ref_poly", PTRLEN_PRINTF(alg));
+#if HAVE_CLMUL
+        put_fmt(out, ",%.*s_clmul", PTRLEN_PRINTF(alg));
+#endif
+#if HAVE_NEON_PMULL
+        put_fmt(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+#endif
+    } else if (ptrlen_startswith(alg, PTRLEN_LITERAL("aes"), NULL)) {
         put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
 #if HAVE_AES_NI
         put_fmt(out, ",%.*s_ni", PTRLEN_PRINTF(alg));

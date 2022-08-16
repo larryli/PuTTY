@@ -453,6 +453,7 @@ enum {
     CIPHER_DES,
     CIPHER_ARCFOUR,
     CIPHER_CHACHA20,
+    CIPHER_AESGCM,
     CIPHER_MAX                         /* no. ciphers (inc warn) */
 };
 

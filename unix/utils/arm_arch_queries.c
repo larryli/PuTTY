@@ -27,6 +27,21 @@ bool platform_aes_neon_available(void)
 #endif
 }
 
+bool platform_pmull_neon_available(void)
+{
+#if defined HWCAP_PMULL
+    return getauxval(AT_HWCAP) & HWCAP_PMULL;
+#elif defined HWCAP2_PMULL
+    return getauxval(AT_HWCAP2) & HWCAP2_PMULL;
+#elif defined __APPLE__
+    SysctlResult res = test_sysctl_flag("hw.optional.arm.FEAT_PMULL");
+    /* As above, treat 'missing' as enabled */
+    return res != SYSCTL_OFF;
+#else
+    return false;
+#endif
+}
+
 bool platform_sha256_neon_available(void)
 {
 #if defined HWCAP_SHA2

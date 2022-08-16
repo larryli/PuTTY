@@ -1072,6 +1072,10 @@ extern const ssh_cipheralg ssh_aes256_sdctr;
 extern const ssh_cipheralg ssh_aes256_sdctr_ni;
 extern const ssh_cipheralg ssh_aes256_sdctr_neon;
 extern const ssh_cipheralg ssh_aes256_sdctr_sw;
+extern const ssh_cipheralg ssh_aes256_gcm;
+extern const ssh_cipheralg ssh_aes256_gcm_ni;
+extern const ssh_cipheralg ssh_aes256_gcm_neon;
+extern const ssh_cipheralg ssh_aes256_gcm_sw;
 extern const ssh_cipheralg ssh_aes256_cbc;
 extern const ssh_cipheralg ssh_aes256_cbc_ni;
 extern const ssh_cipheralg ssh_aes256_cbc_neon;
@@ -1080,6 +1084,10 @@ extern const ssh_cipheralg ssh_aes192_sdctr;
 extern const ssh_cipheralg ssh_aes192_sdctr_ni;
 extern const ssh_cipheralg ssh_aes192_sdctr_neon;
 extern const ssh_cipheralg ssh_aes192_sdctr_sw;
+extern const ssh_cipheralg ssh_aes192_gcm;
+extern const ssh_cipheralg ssh_aes192_gcm_ni;
+extern const ssh_cipheralg ssh_aes192_gcm_neon;
+extern const ssh_cipheralg ssh_aes192_gcm_sw;
 extern const ssh_cipheralg ssh_aes192_cbc;
 extern const ssh_cipheralg ssh_aes192_cbc_ni;
 extern const ssh_cipheralg ssh_aes192_cbc_neon;
@@ -1088,6 +1096,10 @@ extern const ssh_cipheralg ssh_aes128_sdctr;
 extern const ssh_cipheralg ssh_aes128_sdctr_ni;
 extern const ssh_cipheralg ssh_aes128_sdctr_neon;
 extern const ssh_cipheralg ssh_aes128_sdctr_sw;
+extern const ssh_cipheralg ssh_aes128_gcm;
+extern const ssh_cipheralg ssh_aes128_gcm_ni;
+extern const ssh_cipheralg ssh_aes128_gcm_neon;
+extern const ssh_cipheralg ssh_aes128_gcm_sw;
 extern const ssh_cipheralg ssh_aes128_cbc;
 extern const ssh_cipheralg ssh_aes128_cbc_ni;
 extern const ssh_cipheralg ssh_aes128_cbc_neon;
@@ -1103,6 +1115,7 @@ extern const ssh2_ciphers ssh2_aes;
 extern const ssh2_ciphers ssh2_blowfish;
 extern const ssh2_ciphers ssh2_arcfour;
 extern const ssh2_ciphers ssh2_ccp;
+extern const ssh2_ciphers ssh2_aesgcm;
 extern const ssh_hashalg ssh_md5;
 extern const ssh_hashalg ssh_sha1;
 extern const ssh_hashalg ssh_sha1_ni;
@@ -1163,11 +1176,19 @@ extern const ssh2_macalg ssh_hmac_sha1_96;
 extern const ssh2_macalg ssh_hmac_sha1_96_buggy;
 extern const ssh2_macalg ssh_hmac_sha256;
 extern const ssh2_macalg ssh2_poly1305;
+extern const ssh2_macalg ssh2_aesgcm_mac;
+extern const ssh2_macalg ssh2_aesgcm_mac_sw;
+extern const ssh2_macalg ssh2_aesgcm_mac_ref_poly;
+extern const ssh2_macalg ssh2_aesgcm_mac_clmul;
+extern const ssh2_macalg ssh2_aesgcm_mac_neon;
 extern const ssh_compression_alg ssh_zlib;
 
 /* Special constructor: BLAKE2b can be instantiated with any hash
  * length up to 128 bytes */
 ssh_hash *blake2b_new_general(unsigned hashlen);
+
+/* Special test function for AES-GCM */
+void aesgcm_set_prefix_lengths(ssh2_mac *mac, size_t skip, size_t aad);
 
 /*
  * On some systems, you have to detect hardware crypto acceleration by
@@ -1176,6 +1197,7 @@ ssh_hash *blake2b_new_general(unsigned hashlen);
  * platform subdirectory.
  */
 bool platform_aes_neon_available(void);
+bool platform_pmull_neon_available(void);
 bool platform_sha256_neon_available(void);
 bool platform_sha1_neon_available(void);
 bool platform_sha512_neon_available(void);

@@ -17,6 +17,7 @@
 static const struct keyvalwhere ciphernames[] = {
     { "aes",        CIPHER_AES,             -1, -1 },
     { "chacha20",   CIPHER_CHACHA20,        CIPHER_AES, +1 },
+    { "aesgcm",     CIPHER_AESGCM,          CIPHER_CHACHA20, +1 },
     { "3des",       CIPHER_3DES,            -1, -1 },
     { "WARN",       CIPHER_WARN,            -1, -1 },
     { "des",        CIPHER_DES,             -1, -1 },

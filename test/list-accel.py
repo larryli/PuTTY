@@ -25,10 +25,14 @@ def list_implementations(alg, checkfn):
 def list_cipher_implementations(alg):
     list_implementations(alg, lambda impl: ssh_cipher_new(impl) is not None)
 
+def list_mac_implementations(alg):
+    list_implementations(alg, lambda impl: ssh2_mac_new(impl, None) is not None)
+
 def list_hash_implementations(alg):
     list_implementations(alg, lambda impl: ssh_hash_new(impl) is not None)
 
 list_cipher_implementations("aes256_cbc")
+list_mac_implementations("aesgcm")
 list_hash_implementations("sha1")
 list_hash_implementations("sha256")
 list_hash_implementations("sha512")

@@ -491,6 +491,7 @@ static void cipherlist_handler(dlgcontrol *ctrl, dlgparam *dlg,
 
         static const struct { const char *s; int c; } ciphers[] = {
             { "ChaCha20 (SSH-2 only)",  CIPHER_CHACHA20 },
+            { "AES-GCM (SSH-2 only)",   CIPHER_AESGCM },
             { "3DES",                   CIPHER_3DES },
             { "Blowfish",               CIPHER_BLOWFISH },
             { "DES",                    CIPHER_DES },

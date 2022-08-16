@@ -600,6 +600,9 @@ static void ssh2_write_kexinit_lists(
           case CIPHER_CHACHA20:
             preferred_ciphers[n_preferred_ciphers++] = &ssh2_ccp;
             break;
+          case CIPHER_AESGCM:
+            preferred_ciphers[n_preferred_ciphers++] = &ssh2_aesgcm;
+            break;
           case CIPHER_WARN:
             /* Flag for later. Don't bother if it's the last in
              * the list. */

@@ -277,6 +277,9 @@ FUNC(void, ssh2_mac_next_message, ARG(val_mac, m))
 FUNC_WRAPPED(val_string, ssh2_mac_genresult, ARG(val_mac, m))
 FUNC(val_string_asciz_const, ssh2_mac_text_name, ARG(val_mac, m))
 
+FUNC(void, aesgcm_set_prefix_lengths,
+     ARG(val_mac, m), ARG(uint, skip), ARG(uint, aad))
+
 /*
  * The ssh_key abstraction. All the uses of BinarySink and
  * BinarySource in parameters are replaced with ordinary strings for

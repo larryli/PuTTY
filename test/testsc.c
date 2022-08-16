@@ -259,6 +259,12 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 #define IF_SHA_NI(x)
 #endif
 
+#if HAVE_CLMUL
+#define IF_CLMUL(x) x
+#else
+#define IF_CLMUL(x)
+#endif
+
 #if HAVE_NEON_CRYPTO
 #define IF_NEON_CRYPTO(x) x
 #else
@@ -271,6 +277,12 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 #define IF_NEON_SHA512(x)
 #endif
 
+#if HAVE_NEON_PMULL
+#define IF_NEON_PMULL(x) x
+#else
+#define IF_NEON_PMULL(x)
+#endif
+
 /* Ciphers that we expect to pass this test. Blowfish and Arcfour are
  * intentionally omitted, because we already know they don't. */
 #define CIPHERS(X, Y)                           \
@@ -280,28 +292,40 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_des)                               \
     X(Y, ssh_des_sshcom_ssh2)                   \
     X(Y, ssh_aes256_sdctr)                      \
+    X(Y, ssh_aes256_gcm)                        \
     X(Y, ssh_aes256_cbc)                        \
     X(Y, ssh_aes192_sdctr)                      \
+    X(Y, ssh_aes192_gcm)                        \
     X(Y, ssh_aes192_cbc)                        \
     X(Y, ssh_aes128_sdctr)                      \
+    X(Y, ssh_aes128_gcm)                        \
     X(Y, ssh_aes128_cbc)                        \
     X(Y, ssh_aes256_sdctr_sw)                   \
+    X(Y, ssh_aes256_gcm_sw)                     \
     X(Y, ssh_aes256_cbc_sw)                     \
     X(Y, ssh_aes192_sdctr_sw)                   \
+    X(Y, ssh_aes192_gcm_sw)                     \
     X(Y, ssh_aes192_cbc_sw)                     \
     X(Y, ssh_aes128_sdctr_sw)                   \
+    X(Y, ssh_aes128_gcm_sw)                     \
     X(Y, ssh_aes128_cbc_sw)                     \
     IF_AES_NI(X(Y, ssh_aes256_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes256_gcm_ni))          \
     IF_AES_NI(X(Y, ssh_aes256_cbc_ni))          \
     IF_AES_NI(X(Y, ssh_aes192_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes192_gcm_ni))          \
     IF_AES_NI(X(Y, ssh_aes192_cbc_ni))          \
     IF_AES_NI(X(Y, ssh_aes128_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes128_gcm_ni))          \
     IF_AES_NI(X(Y, ssh_aes128_cbc_ni))          \
     IF_NEON_CRYPTO(X(Y, ssh_aes256_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes256_gcm_neon))   \
     IF_NEON_CRYPTO(X(Y, ssh_aes256_cbc_neon))   \
     IF_NEON_CRYPTO(X(Y, ssh_aes192_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes192_gcm_neon))   \
     IF_NEON_CRYPTO(X(Y, ssh_aes192_cbc_neon))   \
     IF_NEON_CRYPTO(X(Y, ssh_aes128_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes128_gcm_neon))   \
     IF_NEON_CRYPTO(X(Y, ssh_aes128_cbc_neon))   \
     X(Y, ssh2_chacha20_poly1305)                \
     /* end of list */
@@ -317,9 +341,17 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_hmac_sha256)                       \
     /* end of list */
 
-#define ALL_MACS(X, Y)                          \
-    SIMPLE_MACS(X, Y)                           \
-    X(Y, poly1305)                              \
+#define ALL_MACS(X, Y)                                      \
+    SIMPLE_MACS(X, Y)                                       \
+    X(Y, poly1305)                                          \
+    X(Y, aesgcm_sw_sw)                                      \
+    X(Y, aesgcm_sw_refpoly)                                 \
+    IF_AES_NI(X(Y, aesgcm_ni_sw))                           \
+    IF_NEON_CRYPTO(X(Y, aesgcm_neon_sw))                    \
+    IF_CLMUL(X(Y, aesgcm_sw_clmul))                         \
+    IF_NEON_PMULL(X(Y, aesgcm_sw_neon))                     \
+    IF_AES_NI(IF_CLMUL(X(Y, aesgcm_ni_clmul)))              \
+    IF_NEON_CRYPTO(IF_NEON_PMULL(X(Y, aesgcm_neon_neon)))   \
     /* end of list */
 
 #define MAC_TESTLIST(X, name) X(mac_ ## name)
@@ -1472,6 +1504,58 @@ static void test_mac_poly1305(void)
 {
     test_mac(&ssh2_poly1305, &ssh2_chacha20_poly1305);
 }
+
+static void test_mac_aesgcm_sw_sw(void)
+{
+    test_mac(&ssh2_aesgcm_mac_sw, &ssh_aes128_gcm_sw);
+}
+
+static void test_mac_aesgcm_sw_refpoly(void)
+{
+    test_mac(&ssh2_aesgcm_mac_ref_poly, &ssh_aes128_gcm_sw);
+}
+
+#if HAVE_AES_NI
+static void test_mac_aesgcm_ni_sw(void)
+{
+    test_mac(&ssh2_aesgcm_mac_sw, &ssh_aes128_gcm_ni);
+}
+#endif
+
+#if HAVE_NEON_CRYPTO
+static void test_mac_aesgcm_neon_sw(void)
+{
+    test_mac(&ssh2_aesgcm_mac_sw, &ssh_aes128_gcm_neon);
+}
+#endif
+
+#if HAVE_CLMUL
+static void test_mac_aesgcm_sw_clmul(void)
+{
+    test_mac(&ssh2_aesgcm_mac_clmul, &ssh_aes128_gcm_sw);
+}
+#endif
+
+#if HAVE_NEON_PMULL
+static void test_mac_aesgcm_sw_neon(void)
+{
+    test_mac(&ssh2_aesgcm_mac_neon, &ssh_aes128_gcm_sw);
+}
+#endif
+
+#if HAVE_AES_NI && HAVE_CLMUL
+static void test_mac_aesgcm_ni_clmul(void)
+{
+    test_mac(&ssh2_aesgcm_mac_clmul, &ssh_aes128_gcm_ni);
+}
+#endif
+
+#if HAVE_NEON_CRYPTO && HAVE_NEON_PMULL
+static void test_mac_aesgcm_neon_neon(void)
+{
+    test_mac(&ssh2_aesgcm_mac_neon, &ssh_aes128_gcm_neon);
+}
+#endif
 
 static void test_hash(const ssh_hashalg *halg)
 {
