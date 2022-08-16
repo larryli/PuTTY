@@ -73,15 +73,6 @@ BinaryPacketProtocol *ssh2_bpp_new(
 
 static void ssh2_bpp_free_outgoing_crypto(struct ssh2_bpp_state *s)
 {
-    /*
-     * We must free the MAC before the cipher, because sometimes the
-     * MAC is not actually separately allocated but just a different
-     * facet of the same object as the cipher, in which case
-     * ssh2_mac_free does nothing and ssh_cipher_free does the actual
-     * freeing. So if we freed the cipher first and then tried to
-     * dereference the MAC's vtable pointer to find out how to free
-     * that too, we'd be accessing freed memory.
-     */
     if (s->out.mac)
         ssh2_mac_free(s->out.mac);
     if (s->out.cipher)
