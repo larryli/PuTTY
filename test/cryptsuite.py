@@ -1799,6 +1799,66 @@ class crypt(MyTestBase):
                     ssh_cipher_decrypt(cipher, iv[:ivlen])
                     self.assertEqualBin(ssh_cipher_decrypt(cipher, c), p)
 
+    def testChaCha20Poly1305(self):
+        # A test case of this cipher taken from a real connection to
+        # OpenSSH.
+        key = unhex('49e67c5ae596ea7f230e266538d0e373'
+                    '177cc8fe08ff7b642c22d736ca975655'
+                    'c3fb639010fd297ca03c36b20a182ef4'
+                    '0e1272f0c54251c175546ee00b150805')
+        len_p = unhex('00000128')
+        len_c = unhex('3ff3677b')
+        msg_p = unhex('0807000000020000000f736572766572'
+                      '2d7369672d616c6773000000db737368'
+                      '2d656432353531392c736b2d7373682d'
+                      '65643235353139406f70656e7373682e'
+                      '636f6d2c7373682d7273612c7273612d'
+                      '736861322d3235362c7273612d736861'
+                      '322d3531322c7373682d6473732c6563'
+                      '6473612d736861322d6e697374703235'
+                      '362c65636473612d736861322d6e6973'
+                      '74703338342c65636473612d73686132'
+                      '2d6e697374703532312c736b2d656364'
+                      '73612d736861322d6e69737470323536'
+                      '406f70656e7373682e636f6d2c776562'
+                      '617574686e2d736b2d65636473612d73'
+                      '6861322d6e69737470323536406f7065'
+                      '6e7373682e636f6d0000001f7075626c'
+                      '69636b65792d686f7374626f756e6440'
+                      '6f70656e7373682e636f6d0000000130'
+                      'c34aaefcafae6fc2')
+        msg_c = unhex('bf587eabf385b1281fa9c755d8515dfd'
+                      'c40cb5e993b346e722dce48b1741b4e5'
+                      'ce9ae075f6df0a1d2f72f94f73570125'
+                      '7011630bbb0c7febd767184c0d5aa810'
+                      '47cbce82972129a234b8ac5fc5f2b5be'
+                      '9264baca6d13ff3c9813a61e1f23468f'
+                      '31964b60fc3f0888a227f02c737b2d27'
+                      'b7ae3cd60ede17533863a5bb6bb2d60a'
+                      'c998ccd27e8ba56259f676ed04749fad'
+                      '4114678fb871add3a40625110637947c'
+                      'e91459811622fd3d1fa7eb7efad4b1e8'
+                      '97f3e860473935d3d8df0679a8b0df85'
+                      'aa4124f2d9ac7207abd10719f465c9ed'
+                      '859d2b03bde55315b9024f660ba8d63a'
+                      '64e0beb81e532201df830a52cf221484'
+                      '18d0c4c7da242346161d7320ac534cb5'
+                      'c6b6fec905ee5f424becb9f97c3afbc5'
+                      '5ef4ba369e61bce847158f0dc5bd7227'
+                      '3b8693642db36f87')
+        mac = unhex('09757178642dfc9f2c38ac5999e0fcfd')
+        seqno = 3
+        c = ssh_cipher_new('chacha20_poly1305')
+        m = ssh2_mac_new('poly1305', c)
+        c.setkey(key)
+        self.assertEqualBin(c.encrypt_length(len_p, seqno), len_c)
+        self.assertEqualBin(c.encrypt(msg_p), msg_c)
+        m.start()
+        m.update(ssh_uint32(seqno) + len_c + msg_c)
+        self.assertEqualBin(m.genresult(), mac)
+        self.assertEqualBin(c.decrypt_length(len_c, seqno), len_p)
+        self.assertEqualBin(c.decrypt(msg_c), msg_p)
+
     def testRSAKex(self):
         # Round-trip test of the RSA key exchange functions, plus a
         # hardcoded plain/ciphertext pair to guard against the
