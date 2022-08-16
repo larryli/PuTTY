@@ -4,6 +4,8 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+project(sclog LANGUAGES C)
+
 find_package(DynamoRIO)
 if (NOT DynamoRIO_FOUND)
   message(FATAL_ERROR "DynamoRIO not found")
