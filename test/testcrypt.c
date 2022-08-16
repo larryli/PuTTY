@@ -791,7 +791,7 @@ strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
 strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
                                           unsigned long seq)
 {
-    if (input.len % ssh_cipher_alg(c)->blksize)
+    if (input.len != 4)
         fatal_error("ssh_cipher_decrypt_length: needs exactly 4 bytes");
     strbuf *sb = strbuf_dup(input);
     ssh_cipher_decrypt_length(c, sb->u, sb->len, seq);
