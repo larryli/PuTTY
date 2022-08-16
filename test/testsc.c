@@ -1610,6 +1610,8 @@ static void test_ntru(void)
                 ntru_encode_plaintext(plaintext, p, BinarySink_UPCAST(buffer));
                 log_end();
 
+                ntru_keypair_free(keypair);
+
                 break;
             }
 
