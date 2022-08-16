@@ -308,13 +308,18 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 
 #define CIPHER_TESTLIST(X, name) X(cipher_ ## name)
 
-#define MACS(X, Y)                              \
+#define SIMPLE_MACS(X, Y)                       \
     X(Y, ssh_hmac_md5)                          \
     X(Y, ssh_hmac_sha1)                         \
     X(Y, ssh_hmac_sha1_buggy)                   \
     X(Y, ssh_hmac_sha1_96)                      \
     X(Y, ssh_hmac_sha1_96_buggy)                \
     X(Y, ssh_hmac_sha256)                       \
+    /* end of list */
+
+#define ALL_MACS(X, Y)                          \
+    SIMPLE_MACS(X, Y)                           \
+    X(Y, poly1305)                              \
     /* end of list */
 
 #define MAC_TESTLIST(X, name) X(mac_ ## name)
@@ -388,7 +393,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(ecc_edwards_get_affine)                   \
     X(ecc_edwards_decompress)                   \
     CIPHERS(CIPHER_TESTLIST, X)                 \
-    MACS(MAC_TESTLIST, X)                       \
+    ALL_MACS(MAC_TESTLIST, X)                   \
     HASHES(HASH_TESTLIST, X)                    \
     X(argon2)                                   \
     X(primegen_probabilistic)                   \
@@ -1402,20 +1407,37 @@ static void test_cipher(const ssh_cipheralg *calg)
     static void test_cipher_##cipher(void) { test_cipher(&cipher); }
 CIPHERS(CIPHER_TESTFN, Y_unused)
 
-static void test_mac(const ssh2_macalg *malg)
+static void test_mac(const ssh2_macalg *malg, const ssh_cipheralg *calg)
 {
-    ssh2_mac *m = ssh2_mac_new(malg, NULL);
+    ssh_cipher *c = NULL;
+    if (calg) {
+        c = ssh_cipher_new(calg);
+        if (!c) {
+            test_skipped = true;
+            return;
+        }
+    }
+
+    ssh2_mac *m = ssh2_mac_new(malg, c);
     if (!m) {
         test_skipped = true;
+        if (c)
+            ssh_cipher_free(c);
         return;
     }
 
+    size_t ckeylen = calg ? calg->padded_keybytes : 0;
+    size_t civlen = calg ? calg->blksize : 0;
+    uint8_t *ckey = snewn(ckeylen, uint8_t);
+    uint8_t *civ = snewn(civlen, uint8_t);
     uint8_t *mkey = snewn(malg->keylen, uint8_t);
     size_t datalen = 256;
     size_t maclen = malg->len;
     uint8_t *data = snewn(datalen + maclen, uint8_t);
 
     for (size_t i = 0; i < looplimit(16); i++) {
+        random_read(ckey, ckeylen);
+        random_read(civ, civlen);
         random_read(mkey, malg->keylen);
         random_read(data, datalen);
         uint8_t seqbuf[4];
@@ -1423,20 +1445,33 @@ static void test_mac(const ssh2_macalg *malg)
         uint32_t seq = GET_32BIT_MSB_FIRST(seqbuf);
 
         log_start();
+        if (c) {
+            ssh_cipher_setkey(c, ckey);
+            ssh_cipher_setiv(c, civ);
+        }
         ssh2_mac_setkey(m, make_ptrlen(mkey, malg->keylen));
         ssh2_mac_generate(m, data, datalen, seq);
         ssh2_mac_verify(m, data, datalen, seq);
         log_end();
     }
 
+    sfree(ckey);
+    sfree(civ);
     sfree(mkey);
     sfree(data);
     ssh2_mac_free(m);
+    if (c)
+        ssh_cipher_free(c);
 }
 
 #define MAC_TESTFN(Y_unused, mac)                                 \
-    static void test_mac_##mac(void) { test_mac(&mac); }
-MACS(MAC_TESTFN, Y_unused)
+    static void test_mac_##mac(void) { test_mac(&mac, NULL); }
+SIMPLE_MACS(MAC_TESTFN, Y_unused)
+
+static void test_mac_poly1305(void)
+{
+    test_mac(&ssh2_poly1305, &ssh2_chacha20_poly1305);
+}
 
 static void test_hash(const ssh_hashalg *halg)
 {
