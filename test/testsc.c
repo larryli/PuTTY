@@ -248,28 +248,27 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 }
 
 #if HAVE_AES_NI
-#define CIPHERS_AES_NI(X, Y) \
-    X(Y, ssh_aes256_sdctr_ni)                   \
-    X(Y, ssh_aes256_cbc_ni)                     \
-    X(Y, ssh_aes192_sdctr_ni)                   \
-    X(Y, ssh_aes192_cbc_ni)                     \
-    X(Y, ssh_aes128_sdctr_ni)                   \
-    X(Y, ssh_aes128_cbc_ni)                     \
-    /* end of list */
+#define IF_AES_NI(x) x
 #else
-#define CIPHERS_AES_NI(X, Y)
+#define IF_AES_NI(x)
 #endif
-#if HAVE_NEON_CRYPTO
-#define CIPHERS_AES_NEON(X, Y) \
-    X(Y, ssh_aes256_sdctr_neon)                   \
-    X(Y, ssh_aes256_cbc_neon)                     \
-    X(Y, ssh_aes192_sdctr_neon)                   \
-    X(Y, ssh_aes192_cbc_neon)                     \
-    X(Y, ssh_aes128_sdctr_neon)                   \
-    X(Y, ssh_aes128_cbc_neon)                     \
-    /* end of list */
+
+#if HAVE_SHA_NI
+#define IF_SHA_NI(x) x
 #else
-#define CIPHERS_AES_NEON(X, Y)
+#define IF_SHA_NI(x)
+#endif
+
+#if HAVE_NEON_CRYPTO
+#define IF_NEON_CRYPTO(x) x
+#else
+#define IF_NEON_CRYPTO(x)
+#endif
+
+#if HAVE_NEON_SHA512
+#define IF_NEON_SHA512(x) x
+#else
+#define IF_NEON_SHA512(x)
 #endif
 
 /* Ciphers that we expect to pass this test. Blowfish and Arcfour are
@@ -292,8 +291,18 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_aes192_cbc_sw)                     \
     X(Y, ssh_aes128_sdctr_sw)                   \
     X(Y, ssh_aes128_cbc_sw)                     \
-    CIPHERS_AES_NI(X, Y)                        \
-    CIPHERS_AES_NEON(X, Y)                      \
+    IF_AES_NI(X(Y, ssh_aes256_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes256_cbc_ni))          \
+    IF_AES_NI(X(Y, ssh_aes192_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes192_cbc_ni))          \
+    IF_AES_NI(X(Y, ssh_aes128_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes128_cbc_ni))          \
+    IF_NEON_CRYPTO(X(Y, ssh_aes256_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes256_cbc_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes192_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes192_cbc_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes128_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes128_cbc_neon))   \
     X(Y, ssh2_chacha20_poly1305)                \
     /* end of list */
 
@@ -310,22 +319,6 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 
 #define MAC_TESTLIST(X, name) X(mac_ ## name)
 
-#if HAVE_SHA_NI
-#define HASH_SHA_NI(X, Y) X(Y, ssh_sha256_ni) X(Y, ssh_sha1_ni)
-#else
-#define HASH_SHA_NI(X, Y)
-#endif
-#if HAVE_NEON_CRYPTO
-#define HASH_SHA_NEON(X, Y) X(Y, ssh_sha256_neon) X(Y, ssh_sha1_neon)
-#else
-#define HASH_SHA_NEON(X, Y)
-#endif
-#if HAVE_NEON_SHA512
-#define HASH_SHA512_NEON(X, Y) X(Y, ssh_sha384_neon) X(Y, ssh_sha512_neon)
-#else
-#define HASH_SHA512_NEON(X, Y)
-#endif
-
 #define HASHES(X, Y)                            \
     X(Y, ssh_md5)                               \
     X(Y, ssh_sha1)                              \
@@ -336,9 +329,12 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_sha512)                            \
     X(Y, ssh_sha384_sw)                         \
     X(Y, ssh_sha512_sw)                         \
-    HASH_SHA_NI(X, Y)                           \
-    HASH_SHA_NEON(X, Y)                         \
-    HASH_SHA512_NEON(X, Y)                      \
+    IF_SHA_NI(X(Y, ssh_sha256_ni))              \
+    IF_SHA_NI(X(Y, ssh_sha1_ni))                \
+    IF_NEON_CRYPTO(X(Y, ssh_sha256_neon))       \
+    IF_NEON_CRYPTO(X(Y, ssh_sha1_neon))         \
+    IF_NEON_SHA512(X(Y, ssh_sha384_neon))       \
+    IF_NEON_SHA512(X(Y, ssh_sha512_neon))       \
     X(Y, ssh_sha3_224)                          \
     X(Y, ssh_sha3_256)                          \
     X(Y, ssh_sha3_384)                          \
