@@ -2760,7 +2760,8 @@ PuTTY currently supports the following algorithms:
 
 \b \i{ChaCha20-Poly1305}, a combined cipher and \i{MAC} (SSH-2 only)
 
-\b \i{AES} (Rijndael) - 256, 192, or 128-bit SDCTR or CBC (SSH-2 only)
+\b \i{AES} (Rijndael) - 256, 192, or 128-bit SDCTR or CBC, or
+256 or 128-bit GCM (SSH-2 only)
 
 \b \i{Arcfour} (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
 
