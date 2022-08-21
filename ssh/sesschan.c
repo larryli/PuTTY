@@ -292,7 +292,11 @@ static char *sesschan_log_close_msg(Channel *chan)
 
 static void sesschan_set_input_wanted(Channel *chan, bool wanted)
 {
-    /* I don't think we need to do anything here */
+    sesschan *sess = container_of(chan, sesschan, chan);
+    /* Request the back end to resume sending input, if it had become
+     * throttled by the channel window shortening */
+    if (wanted && sess->backend)
+        backend_unthrottle(sess->backend, 0);
 }
 
 static void sesschan_start_backend(sesschan *sess, const char *cmd)
