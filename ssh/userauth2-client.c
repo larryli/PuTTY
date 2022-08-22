@@ -117,6 +117,11 @@ static void ssh2_userauth_add_session_id(
 static PktOut *ssh2_userauth_gss_packet(
     struct ssh2_userauth_state *s, const char *authtype);
 #endif
+static bool ssh2_userauth_ki_setup_prompts(
+    struct ssh2_userauth_state *s, BinarySource *src);
+static bool ssh2_userauth_ki_run_prompts(struct ssh2_userauth_state *s);
+static void ssh2_userauth_ki_write_responses(
+    struct ssh2_userauth_state *s, BinarySink *bs);
 
 static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
     .free = ssh2_userauth_free,
@@ -1362,126 +1367,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                  * Loop while the server continues to send INFO_REQUESTs.
                  */
                 while (pktin->type == SSH2_MSG_USERAUTH_INFO_REQUEST) {
-                    ptrlen name, inst;
-                    strbuf *sb;
+                    if (!ssh2_userauth_ki_setup_prompts(
+                            s, BinarySource_UPCAST(pktin)))
+                        return;
+                    crMaybeWaitUntilV(ssh2_userauth_ki_run_prompts(s));
 
-                    /*
-                     * We've got a fresh USERAUTH_INFO_REQUEST.
-                     * Get the preamble and start building a prompt.
-                     */
-                    name = get_string(pktin);
-                    inst = get_string(pktin);
-                    get_string(pktin); /* skip language tag */
-                    s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
-                    s->cur_prompt->to_server = true;
-                    s->cur_prompt->from_server = true;
-
-                    /*
-                     * Get any prompt(s) from the packet.
-                     */
-                    s->num_prompts = get_uint32(pktin);
-                    for (uint32_t i = 0; i < s->num_prompts; i++) {
-                        s->is_trivial_auth = false;
-                        ptrlen prompt = get_string(pktin);
-                        bool echo = get_bool(pktin);
-
-                        if (get_err(pktin)) {
-                            ssh_proto_error(
-                                s->ppl.ssh, "Server sent truncated "
-                                "SSH_MSG_USERAUTH_INFO_REQUEST packet");
-                            return;
-                        }
-
-                        sb = strbuf_new();
-                        if (!prompt.len) {
-                            put_datapl(sb, PTRLEN_LITERAL(
-                                "<server failed to send prompt>: "));
-                        } else if (s->ki_scc) {
-                            stripctrl_retarget(
-                                s->ki_scc, BinarySink_UPCAST(sb));
-                            put_datapl(s->ki_scc, prompt);
-                            stripctrl_retarget(s->ki_scc, NULL);
-                        } else {
-                            put_datapl(sb, prompt);
-                        }
-                        add_prompt(s->cur_prompt, strbuf_to_str(sb), echo);
-                    }
-
-                    /*
-                     * Make the header strings. This includes the
-                     * 'name' (optional dialog-box title) and
-                     * 'instruction' from the server.
-                     *
-                     * First, display our disambiguating header line
-                     * if this is the first time round the loop -
-                     * _unless_ the server has sent a completely empty
-                     * k-i packet with no prompts _or_ text, which
-                     * apparently some do. In that situation there's
-                     * no need to alert the user that the following
-                     * text is server- supplied, because, well, _what_
-                     * text?
-                     *
-                     * We also only do this if we got a stripctrl,
-                     * because if we didn't, that suggests this is all
-                     * being done via dialog boxes anyway.
-                     */
-                    if (!s->ki_printed_header && s->ki_scc &&
-                        (s->num_prompts || name.len || inst.len)) {
-                        seat_antispoof_msg(
-                            ppl_get_iseat(&s->ppl), "Keyboard-interactive "
-                            "authentication prompts from server:");
-                        s->ki_printed_header = true;
-                        seat_set_trust_status(s->ppl.seat, false);
-                    }
-
-                    sb = strbuf_new();
-                    if (name.len) {
-                        if (s->ki_scc) {
-                            stripctrl_retarget(s->ki_scc,
-                                               BinarySink_UPCAST(sb));
-                            put_datapl(s->ki_scc, name);
-                            stripctrl_retarget(s->ki_scc, NULL);
-                        } else {
-                            put_datapl(sb, name);
-                        }
-                        s->cur_prompt->name_reqd = true;
-                    } else {
-                        put_datapl(sb, PTRLEN_LITERAL(
-                            "SSH server authentication"));
-                        s->cur_prompt->name_reqd = false;
-                    }
-                    s->cur_prompt->name = strbuf_to_str(sb);
-
-                    sb = strbuf_new();
-                    if (inst.len) {
-                        if (s->ki_scc) {
-                            stripctrl_retarget(s->ki_scc,
-                                               BinarySink_UPCAST(sb));
-                            put_datapl(s->ki_scc, inst);
-                            stripctrl_retarget(s->ki_scc, NULL);
-                        } else {
-                            put_datapl(sb, inst);
-                        }
-                        s->cur_prompt->instr_reqd = true;
-                    } else {
-                        s->cur_prompt->instr_reqd = false;
-                    }
-                    if (sb->len)
-                        s->cur_prompt->instruction = strbuf_to_str(sb);
-                    else
-                        strbuf_free(sb);
-
-                    /*
-                     * Our prompts_t is fully constructed now. Get the
-                     * user's response(s).
-                     */
-                    s->spr = seat_get_userpass_input(
-                        ppl_get_iseat(&s->ppl), s->cur_prompt);
-                    while (s->spr.kind == SPRK_INCOMPLETE) {
-                        crReturnV;
-                        s->spr = seat_get_userpass_input(
-                            ppl_get_iseat(&s->ppl), s->cur_prompt);
-                    }
                     if (spr_is_abort(s->spr)) {
                         /*
                          * Failed to get responses. Terminate.
@@ -1501,21 +1391,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                      */
                     s->pktout = ssh_bpp_new_pktout(
                         s->ppl.bpp, SSH2_MSG_USERAUTH_INFO_RESPONSE);
-                    put_uint32(s->pktout, s->num_prompts);
-                    for (uint32_t i = 0; i < s->num_prompts; i++) {
-                        put_stringz(s->pktout, prompt_get_result_ref(
-                                        s->cur_prompt->prompts[i]));
-                    }
+                    ssh2_userauth_ki_write_responses(
+                        s, BinarySink_UPCAST(s->pktout));
                     s->pktout->minlen = 256;
                     pq_push(s->ppl.out_pq, s->pktout);
-
-                    /*
-                     * Free the prompts structure from this iteration.
-                     * If there's another, a new one will be allocated
-                     * when we return to the top of this while loop.
-                     */
-                    free_prompts(s->cur_prompt);
-                    s->cur_prompt = NULL;
 
                     /*
                      * Get the next packet in case it's another
@@ -1813,6 +1692,134 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
     }
 
     crFinishV;
+}
+
+static bool ssh2_userauth_ki_setup_prompts(
+    struct ssh2_userauth_state *s, BinarySource *src)
+{
+    ptrlen name, inst;
+    strbuf *sb;
+
+    /*
+     * We've got a fresh USERAUTH_INFO_REQUEST. Get the preamble and
+     * start building a prompt.
+     */
+    name = get_string(src);
+    inst = get_string(src);
+    get_string(src); /* skip language tag */
+    s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
+    s->cur_prompt->to_server = true;
+    s->cur_prompt->from_server = true;
+
+    /*
+     * Get any prompt(s) from the packet.
+     */
+    s->num_prompts = get_uint32(src);
+    for (uint32_t i = 0; i < s->num_prompts; i++) {
+        s->is_trivial_auth = false;
+        ptrlen prompt = get_string(src);
+        bool echo = get_bool(src);
+
+        if (get_err(src)) {
+            ssh_proto_error(s->ppl.ssh, "Server sent truncated "
+                            "SSH_MSG_USERAUTH_INFO_REQUEST packet");
+            return false;
+        }
+
+        sb = strbuf_new();
+        if (!prompt.len) {
+            put_datapl(sb, PTRLEN_LITERAL("<server failed to send prompt>: "));
+        } else if (s->ki_scc) {
+            stripctrl_retarget(s->ki_scc, BinarySink_UPCAST(sb));
+            put_datapl(s->ki_scc, prompt);
+            stripctrl_retarget(s->ki_scc, NULL);
+        } else {
+            put_datapl(sb, prompt);
+        }
+        add_prompt(s->cur_prompt, strbuf_to_str(sb), echo);
+    }
+
+    /*
+     * Make the header strings. This includes the 'name' (optional
+     * dialog-box title) and 'instruction' from the server.
+     *
+     * First, display our disambiguating header line if this is the
+     * first time round the loop - _unless_ the server has sent a
+     * completely empty k-i packet with no prompts _or_ text, which
+     * apparently some do. In that situation there's no need to alert
+     * the user that the following text is server- supplied, because,
+     * well, _what_ text?
+     *
+     * We also only do this if we got a stripctrl, because if we
+     * didn't, that suggests this is all being done via dialog boxes
+     * anyway.
+     */
+    if (!s->ki_printed_header && s->ki_scc &&
+        (s->num_prompts || name.len || inst.len)) {
+        seat_antispoof_msg(ppl_get_iseat(&s->ppl), "Keyboard-interactive "
+                           "authentication prompts from server:");
+        s->ki_printed_header = true;
+        seat_set_trust_status(s->ppl.seat, false);
+    }
+
+    sb = strbuf_new();
+    if (name.len) {
+        if (s->ki_scc) {
+            stripctrl_retarget(s->ki_scc, BinarySink_UPCAST(sb));
+            put_datapl(s->ki_scc, name);
+            stripctrl_retarget(s->ki_scc, NULL);
+        } else {
+            put_datapl(sb, name);
+        }
+        s->cur_prompt->name_reqd = true;
+    } else {
+        put_datapl(sb, PTRLEN_LITERAL("SSH server authentication"));
+        s->cur_prompt->name_reqd = false;
+    }
+    s->cur_prompt->name = strbuf_to_str(sb);
+
+    sb = strbuf_new();
+    if (inst.len) {
+        if (s->ki_scc) {
+            stripctrl_retarget(s->ki_scc, BinarySink_UPCAST(sb));
+            put_datapl(s->ki_scc, inst);
+            stripctrl_retarget(s->ki_scc, NULL);
+        } else {
+            put_datapl(sb, inst);
+        }
+        s->cur_prompt->instr_reqd = true;
+    } else {
+        s->cur_prompt->instr_reqd = false;
+    }
+    if (sb->len)
+        s->cur_prompt->instruction = strbuf_to_str(sb);
+    else
+        strbuf_free(sb);
+
+    return true;
+}
+
+static bool ssh2_userauth_ki_run_prompts(struct ssh2_userauth_state *s)
+{
+    s->spr = seat_get_userpass_input(
+        ppl_get_iseat(&s->ppl), s->cur_prompt);
+    return s->spr.kind != SPRK_INCOMPLETE;
+}
+
+static void ssh2_userauth_ki_write_responses(
+    struct ssh2_userauth_state *s, BinarySink *bs)
+{
+    put_uint32(bs, s->num_prompts);
+    for (uint32_t i = 0; i < s->num_prompts; i++)
+        put_stringz(bs, prompt_get_result_ref(s->cur_prompt->prompts[i]));
+
+    /*
+     * Free the prompts structure from this iteration. If there's
+     * another, a new one will be allocated when we return to the top
+     * of this while loop.
+     */
+    free_prompts(s->cur_prompt);
+    s->cur_prompt = NULL;
 }
 
 static void ssh2_userauth_add_session_id(
