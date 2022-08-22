@@ -371,6 +371,13 @@ void setup_fd_socket(Socket *s, int infd, int outfd, int inerrfd)
     queue_toplevel_callback(fdsocket_connect_success_callback, fds);
 }
 
+void fd_socket_set_psb_prefix(Socket *s, const char *prefix)
+{
+    FdSocket *fds = container_of(s, FdSocket, sock);
+    assert(fds->sock.vt == &FdSocket_sockvt);
+    psb_set_prefix(&fds->psb, prefix);
+}
+
 static FdSocket *make_fd_socket_internal(SockAddr *addr, int port, Plug *plug)
 {
     FdSocket *fds;

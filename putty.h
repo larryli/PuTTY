@@ -2894,6 +2894,16 @@ void request_callback_notifications(toplevel_callback_notify_fn_t notify,
                                     void *ctx);
 
 /*
+ * Facility provided by the platform to spawn a parallel subprocess
+ * and present its stdio via a Socket.
+ *
+ * 'prefix' indicates the prefix that should appear on messages passed
+ * to plug_log to provide stderr output from the process.
+ */
+Socket *platform_start_subprocess(const char *cmd, Plug *plug,
+                                  const char *prefix);
+
+/*
  * Define no-op macros for the jump list functions, on platforms that
  * don't support them. (This is a bit of a hack, and it'd be nicer to
  * localise even the calls to those functions into the Windows front

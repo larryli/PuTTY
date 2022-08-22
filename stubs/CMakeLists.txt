@@ -26,5 +26,6 @@ add_sources_from_current_dir(utils
   null-cipher.c
   null-key.c
   null-mac.c
+  null-opener.c
   null-plug.c
   null-seat.c)
