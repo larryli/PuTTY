@@ -1,5 +1,5 @@
 /*
- * nocmdline.c - stubs in applications which don't do the
+ * no-cmdline.c - stubs in applications which don't do the
  * standard(ish) PuTTY tools' command-line parsing
  */
 

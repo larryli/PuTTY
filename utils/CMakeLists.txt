@@ -41,11 +41,6 @@ add_sources_from_current_dir(utils
   marshal.c
   memory.c
   memxor.c
-  null_lp.c
-  nullcipher.c
-  nullkey.c
-  nullmac.c
-  nullseat.c
   nullstrcmp.c
   out_of_memory.c
   parse_blocksize.c
