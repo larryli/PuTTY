@@ -112,7 +112,7 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
               HELPCTX(no_help));
     ctrl_editbox(s, "Horizontal offset for shadow bold:", 'z', 20,
                  HELPCTX(no_help), conf_editbox_handler,
-                 I(CONF_shadowboldoffset), I(-1));
+                 I(CONF_shadowboldoffset), ED_INT);
 
     /*
      * Markus Kuhn feels, not totally unreasonably, that it's good
@@ -155,6 +155,6 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
                         "X Window System settings");
         ctrl_editbox(s, "Window class name:", 'z', 50,
                      HELPCTX(no_help), conf_editbox_handler,
-                     I(CONF_winclass), I(1));
+                     I(CONF_winclass), ED_STR);
     }
 }

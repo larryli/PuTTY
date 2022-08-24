@@ -43,11 +43,12 @@ enum {
  * included with DEFINE_INTORPTR_FNS defined. This is a total pain,
  * but such is life.
  */
-typedef union { void *p; int i; } intorptr;
+typedef union { void *p; const void *cp; int i; } intorptr;
 
 #ifndef INLINE
 intorptr I(int i);
 intorptr P(void *p);
+intorptr CP(const void *p);
 #endif
 
 #if defined DEFINE_INTORPTR_FNS || defined INLINE
@@ -58,6 +59,7 @@ intorptr P(void *p);
 #endif
 PREFIX intorptr I(int i) { intorptr ret; ret.i = i; return ret; }
 PREFIX intorptr P(void *p) { intorptr ret; ret.p = p; return ret; }
+PREFIX intorptr CP(const void *p) { intorptr ret; ret.cp = p; return ret; }
 #undef PREFIX
 #endif
 

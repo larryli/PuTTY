@@ -104,27 +104,23 @@ void conf_checkbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
     }
 }
 
+const struct conf_editbox_handler_type conf_editbox_str = {.type = EDIT_STR};
+const struct conf_editbox_handler_type conf_editbox_int = {.type = EDIT_INT};
+
 void conf_editbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     /*
-     * The standard edit-box handler expects the main `context'
-     * field to contain the primary key. The secondary `context2'
-     * field indicates the type of this field:
-     *
-     *  - if context2 > 0, the field is a string.
-     *  - if context2 == -1, the field is an int and the edit box
-     *    is numeric.
-     *  - if context2 < -1, the field is an int and the edit box is
-     *    _floating_, and (-context2) gives the scale. (E.g. if
-     *    context2 == -1000, then typing 1.2 into the box will set
-     *    the field to 1200.)
+     * The standard edit-box handler expects the main `context' field
+     * to contain the primary key. The secondary `context2' field is a
+     * pointer to the struct conf_editbox_handler_type defined in
+     * putty.h.
      */
     int key = ctrl->context.i;
-    int length = ctrl->context2.i;
+    const struct conf_editbox_handler_type *type = ctrl->context2.cp;
     Conf *conf = (Conf *)data;
 
-    if (length > 0) {
+    if (type->type == EDIT_STR) {
         if (event == EVENT_REFRESH) {
             char *field = conf_get_str(conf, key);
             dlg_editbox_set(ctrl, dlg, field);
@@ -133,21 +129,21 @@ void conf_editbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
             conf_set_str(conf, key, field);
             sfree(field);
         }
-    } else if (length < 0) {
+    } else {
         if (event == EVENT_REFRESH) {
             char str[80];
             int value = conf_get_int(conf, key);
-            if (length == -1)
+            if (type->type == EDIT_INT)
                 sprintf(str, "%d", value);
             else
-                sprintf(str, "%g", (double)value / (double)(-length));
+                sprintf(str, "%g", (double)value / type->denominator);
             dlg_editbox_set(ctrl, dlg, str);
         } else if (event == EVENT_VALCHANGE) {
             char *str = dlg_editbox_get(ctrl, dlg);
-            if (length == -1)
+            if (type->type == EDIT_INT)
                 conf_set_int(conf, key, atoi(str));
             else
-                conf_set_int(conf, key, (int)((-length) * atof(str)));
+                conf_set_int(conf, key, (int)(type->denominator * atof(str)));
             sfree(str);
         }
     }
@@ -2039,7 +2035,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                   conf_checkbox_handler, I(CONF_blinktext));
     ctrl_editbox(s, "Answerback to ^E:", 's', 100,
                  HELPCTX(terminal_answerback),
-                 conf_editbox_handler, I(CONF_answerback), I(1));
+                 conf_editbox_handler, I(CONF_answerback), ED_STR);
 
     s = ctrl_getset(b, "Terminal", "ldisc", "Line discipline options");
     ctrl_radiobuttons(s, "Local echo:", 'l', 3,
@@ -2129,17 +2125,21 @@ void setup_config_box(struct controlbox *b, bool midsession,
                   conf_checkbox_handler, I(CONF_bellovl));
     ctrl_editbox(s, "Over-use means this many bells...", 'm', 20,
                  HELPCTX(bell_overload),
-                 conf_editbox_handler, I(CONF_bellovl_n), I(-1));
+                 conf_editbox_handler, I(CONF_bellovl_n), ED_INT);
+
+    static const struct conf_editbox_handler_type conf_editbox_tickspersec = {
+        .type = EDIT_FIXEDPOINT, .denominator = TICKSPERSEC};
+
     ctrl_editbox(s, "... in this many seconds", 't', 20,
                  HELPCTX(bell_overload),
                  conf_editbox_handler, I(CONF_bellovl_t),
-                 I(-TICKSPERSEC));
+                 CP(&conf_editbox_tickspersec));
     ctrl_text(s, "The bell is re-enabled after a few seconds of silence.",
               HELPCTX(bell_overload));
     ctrl_editbox(s, "Seconds of silence required", 's', 20,
                  HELPCTX(bell_overload),
                  conf_editbox_handler, I(CONF_bellovl_s),
-                 I(-TICKSPERSEC));
+                 CP(&conf_editbox_tickspersec));
 
     /*
      * The Terminal/Features panel.
@@ -2208,11 +2208,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
         ctrl_columns(s, 2, 50, 50);
         c = ctrl_editbox(s, "Columns", 'm', 100,
                          HELPCTX(window_size),
-                         conf_editbox_handler, I(CONF_width), I(-1));
+                         conf_editbox_handler, I(CONF_width), ED_INT);
         c->column = 0;
         c = ctrl_editbox(s, "Rows", 'r', 100,
                          HELPCTX(window_size),
-                         conf_editbox_handler, I(CONF_height),I(-1));
+                         conf_editbox_handler, I(CONF_height),ED_INT);
         c->column = 1;
         ctrl_columns(s, 1, 100);
     }
@@ -2221,7 +2221,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                     "Control the scrollback in the window");
     ctrl_editbox(s, "Lines of scrollback", 's', 50,
                  HELPCTX(window_scrollback),
-                 conf_editbox_handler, I(CONF_savelines), I(-1));
+                 conf_editbox_handler, I(CONF_savelines), ED_INT);
     ctrl_checkbox(s, "Display scrollbar", 'd',
                   HELPCTX(window_scrollback),
                   conf_checkbox_handler, I(CONF_scrollbar));
@@ -2273,7 +2273,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_editbox(s, "Gap between text and window edge:", 'e', 20,
                  HELPCTX(appearance_border),
                  conf_editbox_handler,
-                 I(CONF_window_border), I(-1));
+                 I(CONF_window_border), ED_INT);
 
     /*
      * The Window/Behaviour panel.
@@ -2286,7 +2286,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                     "Adjust the behaviour of the window title");
     ctrl_editbox(s, "Window title:", 't', 100,
                  HELPCTX(appearance_title),
-                 conf_editbox_handler, I(CONF_wintitle), I(1));
+                 conf_editbox_handler, I(CONF_wintitle), ED_STR);
     ctrl_checkbox(s, "Separate window and icon titles", 'i',
                   HELPCTX(appearance_title),
                   conf_checkbox_handler,
@@ -2465,8 +2465,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                         "Sending of null packets to keep session active");
         ctrl_editbox(s, "Seconds between keepalives (0 to turn off)", 'k', 20,
                      HELPCTX(connection_keepalive),
-                     conf_editbox_handler, I(CONF_ping_interval),
-                     I(-1));
+                     conf_editbox_handler, I(CONF_ping_interval), ED_INT);
 
         if (!midsession) {
             s = ctrl_getset(b, "Connection", "tcp",
@@ -2499,7 +2498,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                                 "Logical name of remote host");
                 ctrl_editbox(s, label, 'm', 100,
                              HELPCTX(connection_loghost),
-                             conf_editbox_handler, I(CONF_loghost), I(1));
+                             conf_editbox_handler, I(CONF_loghost), ED_STR);
             }
         }
 
@@ -2514,7 +2513,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                             "Login details");
             ctrl_editbox(s, "Auto-login username", 'u', 50,
                          HELPCTX(connection_username),
-                         conf_editbox_handler, I(CONF_username), I(1));
+                         conf_editbox_handler, I(CONF_username), ED_STR);
             {
                 /* We assume the local username is sufficiently stable
                  * to include on the dialog box. */
@@ -2535,10 +2534,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                             "Terminal details");
             ctrl_editbox(s, "Terminal-type string", 't', 50,
                          HELPCTX(connection_termtype),
-                         conf_editbox_handler, I(CONF_termtype), I(1));
+                         conf_editbox_handler, I(CONF_termtype), ED_STR);
             ctrl_editbox(s, "Terminal speeds", 's', 50,
                          HELPCTX(connection_termspeed),
-                         conf_editbox_handler, I(CONF_termspeed), I(1));
+                         conf_editbox_handler, I(CONF_termspeed), ED_STR);
 
             s = ctrl_getset(b, "Connection/Data", "env",
                             "Environment variables");
@@ -2588,19 +2587,19 @@ void setup_config_box(struct controlbox *b, bool midsession,
         c = ctrl_editbox(s, "Proxy hostname", 'y', 100,
                          HELPCTX(proxy_main),
                          conf_editbox_handler,
-                         I(CONF_proxy_host), I(1));
+                         I(CONF_proxy_host), ED_STR);
         c->column = 0;
         c = ctrl_editbox(s, "Port", 'p', 100,
                          HELPCTX(proxy_main),
                          conf_editbox_handler,
                          I(CONF_proxy_port),
-                         I(-1));
+                         ED_INT);
         c->column = 1;
         ctrl_columns(s, 1, 100);
         ctrl_editbox(s, "Exclude Hosts/IPs", 'e', 100,
                      HELPCTX(proxy_exclude),
                      conf_editbox_handler,
-                     I(CONF_proxy_exclude_list), I(1));
+                     I(CONF_proxy_exclude_list), ED_STR);
         ctrl_checkbox(s, "Consider proxying local host connections", 'x',
                       HELPCTX(proxy_exclude),
                       conf_checkbox_handler,
@@ -2615,16 +2614,16 @@ void setup_config_box(struct controlbox *b, bool midsession,
         ctrl_editbox(s, "Username", 'u', 60,
                      HELPCTX(proxy_auth),
                      conf_editbox_handler,
-                     I(CONF_proxy_username), I(1));
+                     I(CONF_proxy_username), ED_STR);
         c = ctrl_editbox(s, "Password", 'w', 60,
                          HELPCTX(proxy_auth),
                          conf_editbox_handler,
-                         I(CONF_proxy_password), I(1));
+                         I(CONF_proxy_password), ED_STR);
         c->editbox.password = true;
         ctrl_editbox(s, "Command to send to proxy (for some types)", 'm', 100,
                      HELPCTX(proxy_command),
                      conf_editbox_handler,
-                     I(CONF_proxy_telnet_command), I(1));
+                     I(CONF_proxy_telnet_command), ED_STR);
 
         ctrl_radiobuttons(s, "Print proxy diagnostics "
                           "in the terminal window", 'r', 5,
@@ -2674,7 +2673,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                             "Data to send to the server");
             ctrl_editbox(s, "Remote command:", 'r', 100,
                          HELPCTX(ssh_command),
-                         conf_editbox_handler, I(CONF_remote_cmd), I(1));
+                         conf_editbox_handler, I(CONF_remote_cmd), ED_STR);
 
             s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
             ctrl_checkbox(s, "Don't start a shell or command at all", 'n',
@@ -2753,19 +2752,19 @@ void setup_config_box(struct controlbox *b, bool midsession,
                          HELPCTX(ssh_kex_repeat),
                          conf_editbox_handler,
                          I(CONF_ssh_rekey_time),
-                         I(-1));
+                         ED_INT);
 #ifndef NO_GSSAPI
             ctrl_editbox(s, "Minutes between GSS checks (0 for never)", NO_SHORTCUT, 20,
                          HELPCTX(ssh_kex_repeat),
                          conf_editbox_handler,
                          I(CONF_gssapirekey),
-                         I(-1));
+                         ED_INT);
 #endif
             ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'x', 20,
                          HELPCTX(ssh_kex_repeat),
                          conf_editbox_handler,
                          I(CONF_ssh_rekey_data),
-                         I(16));
+                         ED_STR);
             ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
                       HELPCTX(ssh_kex_repeat));
         }
@@ -3044,7 +3043,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           conf_checkbox_handler,I(CONF_x11_forward));
             ctrl_editbox(s, "X display location", 'x', 50,
                          HELPCTX(ssh_tunnels_x11),
-                         conf_editbox_handler, I(CONF_x11_display), I(1));
+                         conf_editbox_handler, I(CONF_x11_display), ED_STR);
             ctrl_radiobuttons(s, "Remote X11 authentication protocol", 'u', 2,
                               HELPCTX(ssh_tunnels_x11auth),
                               conf_radiobutton_handler,
@@ -3210,22 +3209,26 @@ void setup_config_box(struct controlbox *b, bool midsession,
                             "Select a serial line");
             ctrl_editbox(s, "Serial line to connect to", 'l', 40,
                          HELPCTX(serial_line),
-                         conf_editbox_handler, I(CONF_serline), I(1));
+                         conf_editbox_handler, I(CONF_serline), ED_STR);
         }
 
         s = ctrl_getset(b, "Connection/Serial", "sercfg", "Configure the serial line");
         ctrl_editbox(s, "Speed (baud)", 's', 40,
                      HELPCTX(serial_speed),
-                     conf_editbox_handler, I(CONF_serspeed), I(-1));
+                     conf_editbox_handler, I(CONF_serspeed), ED_INT);
         ctrl_editbox(s, "Data bits", 'b', 40,
                      HELPCTX(serial_databits),
-                     conf_editbox_handler, I(CONF_serdatabits), I(-1));
+                     conf_editbox_handler, I(CONF_serdatabits), ED_INT);
         /*
          * Stop bits come in units of one half.
          */
+        static const struct conf_editbox_handler_type conf_editbox_stopbits = {
+            .type = EDIT_FIXEDPOINT, .denominator = 2};
+
         ctrl_editbox(s, "Stop bits", 't', 40,
                      HELPCTX(serial_stopbits),
-                     conf_editbox_handler, I(CONF_serstopbits), I(-2));
+                     conf_editbox_handler, I(CONF_serstopbits),
+                     CP(&conf_editbox_stopbits));
         ctrl_droplist(s, "Parity", 'p', 40,
                       HELPCTX(serial_parity), serial_parity_handler,
                       I(ser_vt->serial_parity_mask));
@@ -3279,7 +3282,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                         "Data to send to the server");
         ctrl_editbox(s, "Local username:", 'l', 50,
                      HELPCTX(rlogin_localuser),
-                     conf_editbox_handler, I(CONF_localusername), I(1));
+                     conf_editbox_handler, I(CONF_localusername), ED_STR);
 
     }
 
@@ -3295,7 +3298,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
         ctrl_editbox(s, "Location string", 'l', 70,
                      HELPCTX(supdup_location),
                      conf_editbox_handler, I(CONF_supdup_location),
-                     I(1));
+                     ED_STR);
 
         ctrl_radiobuttons(s, "Extended ASCII Character set:", 'e', 4,
                           HELPCTX(supdup_ascii),

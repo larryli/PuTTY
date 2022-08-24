@@ -2640,6 +2640,41 @@ void conf_filesel_handler(dlgcontrol *ctrl, dlgparam *dlg,
 void conf_fontsel_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event);
 
+struct conf_editbox_handler_type {
+    /* Structure passed as context2 to conf_editbox_handler */
+    enum { EDIT_STR, EDIT_INT, EDIT_FIXEDPOINT } type;
+    union {
+        /*
+         * EDIT_STR means the edit box is connected to a string
+         * field in Conf. No further parameters needed.
+         */
+
+        /*
+         * EDIT_INT means the edit box is connected to an int field in
+         * Conf, and the input string is interpreted as decimal. No
+         * further parameters needed. (But we could add one here later
+         * if for some reason we wanted int fields in hex.)
+         */
+
+        /*
+         * EDIT_FIXEDPOINT means the edit box is connected to an int
+         * field in Conf, but the input string is interpreted as
+         * _floating point_, and converted to/from the output int by
+         * means of a fixed denominator. That is,
+         *
+         *   (floating value in edit box) * denominator = value in Conf
+         */
+        struct {
+            double denominator;
+        };
+    };
+};
+
+extern const struct conf_editbox_handler_type conf_editbox_str;
+extern const struct conf_editbox_handler_type conf_editbox_int;
+#define ED_STR CP(&conf_editbox_str)
+#define ED_INT CP(&conf_editbox_int)
+
 void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo);
 
