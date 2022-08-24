@@ -109,7 +109,7 @@ PacketProtocolLayer *ssh2_transport_new(
     const SshServerConfig *ssc);
 PacketProtocolLayer *ssh2_userauth_new(
     PacketProtocolLayer *successor_layer,
-    const char *hostname, const char *fullhostname,
+    const char *hostname, int port, const char *fullhostname,
     Filename *keyfile, Filename *detached_cert,
     bool show_banner, bool tryagent, bool notrivialauth,
     const char *default_username, bool change_username,

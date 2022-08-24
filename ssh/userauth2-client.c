@@ -30,6 +30,7 @@ struct ssh2_userauth_state {
     Filename *keyfile, *detached_cert_file;
     bool show_banner, tryagent, notrivialauth, change_username;
     char *hostname, *fullhostname;
+    int port;
     char *default_username;
     bool try_ki_auth, try_gssapi_auth, try_gssapi_kex_auth, gssapi_fwd;
 
@@ -129,7 +130,7 @@ static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
 
 PacketProtocolLayer *ssh2_userauth_new(
     PacketProtocolLayer *successor_layer,
-    const char *hostname, const char *fullhostname,
+    const char *hostname, int port, const char *fullhostname,
     Filename *keyfile, Filename *detached_cert_file,
     bool show_banner, bool tryagent, bool notrivialauth,
     const char *default_username, bool change_username,
@@ -142,6 +143,7 @@ PacketProtocolLayer *ssh2_userauth_new(
 
     s->successor_layer = successor_layer;
     s->hostname = dupstr(hostname);
+    s->port = port;
     s->fullhostname = dupstr(fullhostname);
     s->keyfile = filename_copy(keyfile);
     s->detached_cert_file = filename_copy(detached_cert_file);

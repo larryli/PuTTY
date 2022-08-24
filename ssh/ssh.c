@@ -253,7 +253,8 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
                 char *username = get_remote_username(ssh->conf);
 
                 userauth_layer = ssh2_userauth_new(
-                    connection_layer, ssh->savedhost, ssh->fullhostname,
+                    connection_layer, ssh->savedhost, ssh->savedport,
+                    ssh->fullhostname,
                     conf_get_filename(ssh->conf, CONF_keyfile),
                     conf_get_filename(ssh->conf, CONF_detached_cert),
                     conf_get_bool(ssh->conf, CONF_ssh_show_banner),
