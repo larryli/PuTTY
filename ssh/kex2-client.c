@@ -193,11 +193,6 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_ECDHKEX;
 
         s->ecdh_key = ecdh_key_new(s->kex_alg, false);
-        if (!s->ecdh_key) {
-            ssh_sw_abort(s->ppl.ssh, "Unable to generate key for ECDH");
-            *aborted = true;
-            return;
-        }
 
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEX_ECDH_INIT);
         {
