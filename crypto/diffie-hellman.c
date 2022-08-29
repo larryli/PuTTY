@@ -223,20 +223,6 @@ static const ssh_kex *const gex_list[] = {
 
 const ssh_kexes ssh_diffiehellman_gex = { lenof(gex_list), gex_list };
 
-/*
- * Suffix on GSSAPI SSH protocol identifiers that indicates Kerberos 5
- * as the mechanism.
- *
- * This suffix is the base64-encoded MD5 hash of the byte sequence
- * 06 09 2A 86 48 86 F7 12 01 02 02, which in turn is the ASN.1 DER
- * encoding of the object ID 1.2.840.113554.1.2.2 which designates
- * Kerberos v5.
- *
- * (The same encoded OID, minus the two-byte DER header, is defined in
- * ssh/pgssapi.c as GSS_MECH_KRB5.)
- */
-#define GSS_KRB5_OID_HASH "toWM5Slw5Ew8Mqkay+al2g=="
-
 static const ssh_kex ssh_gssk5_diffiehellman_gex_sha1 = {
     .name = "gss-gex-sha1-" GSS_KRB5_OID_HASH,
     .groupname = NULL,

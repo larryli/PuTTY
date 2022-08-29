@@ -228,6 +228,8 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
     if (s->f) mp_free(s->f);
     if (s->p) mp_free(s->p);
     if (s->g) mp_free(s->g);
+    if (s->ebuf) strbuf_free(s->ebuf);
+    if (s->fbuf) strbuf_free(s->fbuf);
     if (s->kex_shared_secret) strbuf_free(s->kex_shared_secret);
     if (s->dh_ctx)
         dh_cleanup(s->dh_ctx);
@@ -508,7 +510,7 @@ static void ssh2_write_kexinit_lists(
     bool warn;
 
     int n_preferred_kex;
-    const ssh_kexes *preferred_kex[KEX_MAX + 2]; /* +2 for GSSAPI */
+    const ssh_kexes *preferred_kex[KEX_MAX + 3]; /* +3 for GSSAPI */
     int n_preferred_hk;
     int preferred_hk[HK_MAX];
     int n_preferred_ciphers;
@@ -524,6 +526,7 @@ static void ssh2_write_kexinit_lists(
      */
     n_preferred_kex = 0;
     if (can_gssapi_keyex) {
+        preferred_kex[n_preferred_kex++] = &ssh_gssk5_ecdh_kex;
         preferred_kex[n_preferred_kex++] = &ssh_gssk5_sha2_kex;
         preferred_kex[n_preferred_kex++] = &ssh_gssk5_sha1_kex;
     }

@@ -994,6 +994,20 @@ static inline char *ecdh_keyalg_description(const ssh_kex *kex)
 { return kex->ecdh_vt->description(kex); }
 
 /*
+ * Suffix on GSSAPI SSH protocol identifiers that indicates Kerberos 5
+ * as the mechanism.
+ *
+ * This suffix is the base64-encoded MD5 hash of the byte sequence
+ * 06 09 2A 86 48 86 F7 12 01 02 02, which in turn is the ASN.1 DER
+ * encoding of the object ID 1.2.840.113554.1.2.2 which designates
+ * Kerberos v5.
+ *
+ * (The same encoded OID, minus the two-byte DER header, is defined in
+ * ssh/pgssapi.c as GSS_MECH_KRB5.)
+ */
+#define GSS_KRB5_OID_HASH "toWM5Slw5Ew8Mqkay+al2g=="
+
+/*
  * Enumeration of signature flags from draft-miller-ssh-agent-02
  */
 #define SSH_AGENT_RSA_SHA2_256 2
@@ -1159,6 +1173,7 @@ extern const ssh_kex ssh_diffiehellman_group17_sha512;
 extern const ssh_kex ssh_diffiehellman_group18_sha512;
 extern const ssh_kexes ssh_gssk5_sha1_kex;
 extern const ssh_kexes ssh_gssk5_sha2_kex;
+extern const ssh_kexes ssh_gssk5_ecdh_kex;
 extern const ssh_kexes ssh_rsa_kex;
 extern const ssh_kex ssh_ec_kex_curve25519;
 extern const ssh_kex ssh_ec_kex_curve448;

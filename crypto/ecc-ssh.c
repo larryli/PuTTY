@@ -1644,6 +1644,14 @@ const ssh_kex ssh_ec_kex_curve25519_libssh = {
     .ecdh_vt = &ssh_ecdhkex_m_alg,
     .extra = &kex_extra_curve25519,
 };
+/* GSSAPI variant */
+static const ssh_kex ssh_ec_kex_curve25519_gss = {
+    .name = "gss-curve25519-sha256-" GSS_KRB5_OID_HASH,
+    .main_type = KEXTYPE_GSS_ECDH,
+    .hash = &ssh_sha256,
+    .ecdh_vt = &ssh_ecdhkex_m_alg,
+    .extra = &kex_extra_curve25519,
+};
 
 static const struct eckex_extra kex_extra_curve448 = { ec_curve448 };
 const ssh_kex ssh_ec_kex_curve448 = {
@@ -1669,6 +1677,14 @@ const ssh_kex ssh_ec_kex_nistp256 = {
     .ecdh_vt = &ssh_ecdhkex_w_alg,
     .extra = &kex_extra_nistp256,
 };
+/* GSSAPI variant */
+static const ssh_kex ssh_ec_kex_nistp256_gss = {
+    .name = "gss-nistp256-sha256-" GSS_KRB5_OID_HASH,
+    .main_type = KEXTYPE_GSS_ECDH,
+    .hash = &ssh_sha256,
+    .ecdh_vt = &ssh_ecdhkex_w_alg,
+    .extra = &kex_extra_nistp256,
+};
 
 static const struct eckex_extra kex_extra_nistp384 = { ec_p384 };
 const ssh_kex ssh_ec_kex_nistp384 = {
@@ -1678,11 +1694,27 @@ const ssh_kex ssh_ec_kex_nistp384 = {
     .ecdh_vt = &ssh_ecdhkex_w_alg,
     .extra = &kex_extra_nistp384,
 };
+/* GSSAPI variant */
+static const ssh_kex ssh_ec_kex_nistp384_gss = {
+    .name = "gss-nistp384-sha384-" GSS_KRB5_OID_HASH,
+    .main_type = KEXTYPE_GSS_ECDH,
+    .hash = &ssh_sha384,
+    .ecdh_vt = &ssh_ecdhkex_w_alg,
+    .extra = &kex_extra_nistp384,
+};
 
 static const struct eckex_extra kex_extra_nistp521 = { ec_p521 };
 const ssh_kex ssh_ec_kex_nistp521 = {
     .name = "ecdh-sha2-nistp521",
     .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha512,
+    .ecdh_vt = &ssh_ecdhkex_w_alg,
+    .extra = &kex_extra_nistp521,
+};
+/* GSSAPI variant */
+static const ssh_kex ssh_ec_kex_nistp521_gss = {
+    .name = "gss-nistp521-sha512-" GSS_KRB5_OID_HASH,
+    .main_type = KEXTYPE_GSS_ECDH,
     .hash = &ssh_sha512,
     .ecdh_vt = &ssh_ecdhkex_w_alg,
     .extra = &kex_extra_nistp521,
@@ -1698,6 +1730,17 @@ static const ssh_kex *const ec_kex_list[] = {
 };
 
 const ssh_kexes ssh_ecdh_kex = { lenof(ec_kex_list), ec_kex_list };
+
+static const ssh_kex *const ec_gss_kex_list[] = {
+    &ssh_ec_kex_curve25519_gss,
+    &ssh_ec_kex_nistp521_gss,
+    &ssh_ec_kex_nistp384_gss,
+    &ssh_ec_kex_nistp256_gss,
+};
+
+const ssh_kexes ssh_gssk5_ecdh_kex = {
+    lenof(ec_gss_kex_list), ec_gss_kex_list
+};
 
 /* ----------------------------------------------------------------------
  * Helper functions for finding key algorithms and returning auxiliary
