@@ -33,6 +33,10 @@ static const struct keyvalwhere kexnames[] = {
     { "ecdh",               KEX_ECDH,       -1, +1 },
     /* This name is misleading: it covers both SHA-256 and SHA-1 variants */
     { "dh-gex-sha1",        KEX_DHGEX,      -1, -1 },
+    { "dh-group18-sha512",  KEX_DHGROUP18,  -1, -1 },
+    { "dh-group17-sha512",  KEX_DHGROUP17,  -1, -1 },
+    { "dh-group16-sha512",  KEX_DHGROUP16,  -1, -1 },
+    { "dh-group15-sha512",  KEX_DHGROUP15,  -1, -1 },
     { "dh-group14-sha1",    KEX_DHGROUP14,  -1, -1 },
     { "dh-group1-sha1",     KEX_DHGROUP1,   KEX_WARN, +1 },
     { "rsa",                KEX_RSA,        KEX_WARN, -1 },
@@ -971,9 +975,9 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
          * a server which offered it then choked, but we never got
          * a server version string or any other reports. */
         const char *default_kexes,
-                   *normal_default = "ecdh,dh-gex-sha1,dh-group14-sha1,rsa,"
+                   *normal_default = "ecdh,dh-gex-sha1,dh-group18-sha512,dh-group17-sha512,dh-group16-sha512,dh-group15-sha512,dh-group14-sha1,rsa,"
                        "WARN,dh-group1-sha1",
-                   *bugdhgex2_default = "ecdh,dh-group14-sha1,rsa,"
+                   *bugdhgex2_default = "ecdh,dh-group18-sha512,dh-group17-sha512,dh-group16-sha512,dh-group15-sha512,dh-group14-sha1,rsa,"
                        "WARN,dh-group1-sha1,dh-gex-sha1";
         char *raw;
         i = 2 - gppi_raw(sesskey, "BugDHGEx2", 0);

@@ -820,13 +820,19 @@ void hash_simple(const ssh_hashalg *alg, ptrlen data, void *output);
 
 struct ssh_kex {
     const char *name, *groupname;
-    enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_ECDH, KEXTYPE_GSS } main_type;
+    enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_ECDH,
+           KEXTYPE_GSS, KEXTYPE_GSS_ECDH } main_type;
     const ssh_hashalg *hash;
     union {                  /* publicly visible data for each type */
-        const ecdh_keyalg *ecdh_vt;    /* for KEXTYPE_ECDH */
+        const ecdh_keyalg *ecdh_vt;    /* for KEXTYPE_ECDH, KEXTYPE_GSS_ECDH */
     };
     const void *extra;                 /* private to the kex methods */
 };
+
+static inline bool kex_is_gss(const struct ssh_kex *kex)
+{
+    return kex->main_type == KEXTYPE_GSS || kex->main_type == KEXTYPE_GSS_ECDH;
+}
 
 struct ssh_kexes {
     int nkexes;
@@ -1139,11 +1145,20 @@ extern const ssh_hashalg ssh_shake256_114bytes;
 extern const ssh_hashalg ssh_blake2b;
 extern const ssh_kexes ssh_diffiehellman_group1;
 extern const ssh_kexes ssh_diffiehellman_group14;
+extern const ssh_kexes ssh_diffiehellman_group15;
+extern const ssh_kexes ssh_diffiehellman_group16;
+extern const ssh_kexes ssh_diffiehellman_group17;
+extern const ssh_kexes ssh_diffiehellman_group18;
 extern const ssh_kexes ssh_diffiehellman_gex;
 extern const ssh_kex ssh_diffiehellman_group1_sha1;
 extern const ssh_kex ssh_diffiehellman_group14_sha256;
 extern const ssh_kex ssh_diffiehellman_group14_sha1;
+extern const ssh_kex ssh_diffiehellman_group15_sha512;
+extern const ssh_kex ssh_diffiehellman_group16_sha512;
+extern const ssh_kex ssh_diffiehellman_group17_sha512;
+extern const ssh_kex ssh_diffiehellman_group18_sha512;
 extern const ssh_kexes ssh_gssk5_sha1_kex;
+extern const ssh_kexes ssh_gssk5_sha2_kex;
 extern const ssh_kexes ssh_rsa_kex;
 extern const ssh_kex ssh_ec_kex_curve25519;
 extern const ssh_kex ssh_ec_kex_curve448;

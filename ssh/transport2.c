@@ -508,7 +508,7 @@ static void ssh2_write_kexinit_lists(
     bool warn;
 
     int n_preferred_kex;
-    const ssh_kexes *preferred_kex[KEX_MAX + 1]; /* +1 for GSSAPI */
+    const ssh_kexes *preferred_kex[KEX_MAX + 2]; /* +2 for GSSAPI */
     int n_preferred_hk;
     int preferred_hk[HK_MAX];
     int n_preferred_ciphers;
@@ -523,13 +523,31 @@ static void ssh2_write_kexinit_lists(
      * Set up the preferred key exchange. (NULL => warn below here)
      */
     n_preferred_kex = 0;
-    if (can_gssapi_keyex)
+    if (can_gssapi_keyex) {
+        preferred_kex[n_preferred_kex++] = &ssh_gssk5_sha2_kex;
         preferred_kex[n_preferred_kex++] = &ssh_gssk5_sha1_kex;
+    }
     for (i = 0; i < KEX_MAX; i++) {
         switch (conf_get_int_int(conf, CONF_ssh_kexlist, i)) {
           case KEX_DHGEX:
             preferred_kex[n_preferred_kex++] =
                 &ssh_diffiehellman_gex;
+            break;
+          case KEX_DHGROUP18:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_group18;
+            break;
+          case KEX_DHGROUP17:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_group17;
+            break;
+          case KEX_DHGROUP16:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_group16;
+            break;
+          case KEX_DHGROUP15:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_group15;
             break;
           case KEX_DHGROUP14:
             preferred_kex[n_preferred_kex++] =

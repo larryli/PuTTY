@@ -564,14 +564,18 @@ static void kexlist_handler(dlgcontrol *ctrl, dlgparam *dlg,
         int i;
 
         static const struct { const char *s; int k; } kexes[] = {
-            { "Diffie-Hellman group 1",         KEX_DHGROUP1 },
-            { "Diffie-Hellman group 14",        KEX_DHGROUP14 },
-            { "Diffie-Hellman group exchange",  KEX_DHGEX },
-            { "RSA-based key exchange",         KEX_RSA },
-            { "ECDH key exchange",              KEX_ECDH },
+            { "Diffie-Hellman group 1 (1024-bit)",  KEX_DHGROUP1 },
+            { "Diffie-Hellman group 14 (2048-bit)", KEX_DHGROUP14 },
+            { "Diffie-Hellman group 15 (3072-bit)", KEX_DHGROUP15 },
+            { "Diffie-Hellman group 16 (4096-bit)", KEX_DHGROUP16 },
+            { "Diffie-Hellman group 17 (6144-bit)", KEX_DHGROUP17 },
+            { "Diffie-Hellman group 18 (8192-bit)", KEX_DHGROUP18 },
+            { "Diffie-Hellman group exchange",      KEX_DHGEX },
+            { "RSA-based key exchange",             KEX_RSA },
+            { "ECDH key exchange",                  KEX_ECDH },
             { "NTRU Prime / Curve25519 hybrid kex"
-              " (quantum-resistant)",           KEX_NTRU_HYBRID },
-            { "-- warn below here --",          KEX_WARN }
+              " (quantum-resistant)",               KEX_NTRU_HYBRID },
+            { "-- warn below here --",              KEX_WARN }
         };
 
         /* Set up the "kex preference" box. */
