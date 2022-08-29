@@ -718,7 +718,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         }
     }
 
-    s->keystr = ssh_key_cache_str(s->hkey);
+    s->keystr = s->hkey ? ssh_key_cache_str(s->hkey) : NULL;
 #ifndef NO_GSSAPI
     if (s->gss_kex_used) {
         /*
