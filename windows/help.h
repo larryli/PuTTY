@@ -170,6 +170,7 @@ typedef const char *HelpCtx;
 #define WINHELP_CTX_ssh_bugs_chanreq "config-ssh-bug-chanreq"
 #define WINHELP_CTX_ssh_bugs_oldgex2 "config-ssh-bug-oldgex2"
 #define WINHELP_CTX_ssh_bugs_dropstart "config-ssh-bug-dropstart"
+#define WINHELP_CTX_ssh_bugs_filter_kexinit "config-ssh-bug-filter-kexinit"
 #define WINHELP_CTX_serial_line "config-serial-line"
 #define WINHELP_CTX_serial_speed "config-serial-speed"
 #define WINHELP_CTX_serial_databits "config-serial-databits"

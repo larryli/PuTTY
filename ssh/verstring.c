@@ -606,6 +606,12 @@ static void ssh_detect_bugs(struct ssh_verstring_state *s)
         bpp_logevent("We believe remote version has SSH-2 "
                      "channel request bug");
     }
+
+    if (conf_get_int(s->conf, CONF_sshbug_filter_kexinit) == FORCE_ON) {
+        s->remote_bugs |= BUG_REQUIRES_FILTERED_KEXINIT;
+        bpp_logevent("We believe remote version requires us to "
+                     "filter our KEXINIT");
+    }
 }
 
 const char *ssh_verstring_get_remote(BinaryPacketProtocol *bpp)

@@ -3573,6 +3573,32 @@ auto-detection relies on the version string in the server's greeting,
 and PuTTY has to decide whether to expect this bug \e{before} it sees
 the server's greeting. So this is a manual workaround only.
 
+\S{config-ssh-bug-filter-kexinit} \q{Chokes on PuTTY's full \cw{KEXINIT}}
+
+At the start of an SSH connection, the client and server exchange long
+messages of type \cw{SSH_MSG_KEXINIT}, containing lists of all the
+cryptographic algorithms they're prepared to use. This is used to
+negotiate a set of algorithms that both ends can speak.
+
+Occasionally, a badly written server might have a length limit on the
+list it's prepared to receive, and refuse to make a connection simply
+because PuTTY is giving it too many choices.
+
+A workaround is to enable this flag, which will make PuTTY wait to
+send \cw{KEXINIT} until after it receives the one from the server, and
+then filter its own \cw{KEXINIT} to leave out any algorithm the server
+doesn't also announce support for. This will generally make PuTTY's
+\cw{KEXINIT} at most the size of the server's, and will otherwise make
+no difference to the algorithm negotiation.
+
+This flag is a minor violation of the SSH protocol, because both sides
+are supposed to send \cw{KEXINIT} proactively. It still works provided
+\e{one} side sends its \cw{KEXINIT} without waiting, but if both
+client and server waited for the other one to speak first, the
+connection would deadlock. We don't know of any servers that do this,
+but if there is one, then this flag will make PuTTY unable to speak to
+them at all.
+
 \S{config-ssh-bug-sig} \q{Requires padding on SSH-2 \i{RSA} \i{signatures}}
 
 Versions below 3.3 of \i{OpenSSH} require SSH-2 RSA signatures to be

@@ -1196,6 +1196,75 @@ static bool ssh2_scan_kexinits(
     return true;
 }
 
+static strbuf *write_filtered_kexinit(struct ssh2_transport_state *s)
+{
+    strbuf *pktout = strbuf_new();
+    BinarySource osrc[1], isrc[1];
+    BinarySource_BARE_INIT(
+        osrc, s->outgoing_kexinit->u, s->outgoing_kexinit->len);
+    BinarySource_BARE_INIT(
+        isrc, s->incoming_kexinit->u, s->incoming_kexinit->len);
+
+    /* Skip the packet type bytes from both packets */
+    get_byte(osrc);
+    get_byte(isrc);
+
+    /* Copy our cookie into the real output packet; skip their cookie */
+    put_datapl(pktout, get_data(osrc, 16));
+    get_data(isrc, 16);
+
+    /*
+     * Now we expect NKEXLIST+2 name-lists. We write into the outgoing
+     * packet a subset of our intended outgoing one, containing only
+     * names mentioned in the incoming out.
+     *
+     * NKEXLIST+2 because for this purpose we treat the 'languages'
+     * lists the same as the rest. In the rest of this code base we
+     * ignore those.
+     */
+    strbuf *out = strbuf_new();
+    for (size_t i = 0; i < NKEXLIST+2; i++) {
+        strbuf_clear(out);
+        ptrlen olist = get_string(osrc), ilist = get_string(isrc);
+        for (ptrlen oword; get_commasep_word(&olist, &oword) ;) {
+            ptrlen ilist_copy = ilist;
+            bool add = false;
+            for (ptrlen iword; get_commasep_word(&ilist_copy, &iword) ;) {
+                if (ptrlen_eq_ptrlen(oword, iword)) {
+                    /* Found this word in the incoming list. */
+                    add = true;
+                    break;
+                }
+            }
+
+            if (i == KEXLIST_KEX && ptrlen_eq_string(oword, "ext-info-c")) {
+                /* Special case: this will _never_ match anything from the
+                 * server, and we need it to enable SHA-2 based RSA.
+                 *
+                 * If this ever turns out to confuse any server all by
+                 * itself then I suppose we'll need an even more
+                 * draconian bug flag to exclude that too. (Obv, such
+                 * a server wouldn't be able to speak SHA-2 RSA
+                 * anyway.) */
+                add = true;
+            }
+
+            if (add)
+                add_to_commasep_pl(out, oword);
+        }
+        put_stringpl(pktout, ptrlen_from_strbuf(out));
+    }
+    strbuf_free(out);
+
+    /*
+     * Finally, copy the remaining parts of our intended KEXINIT.
+     */
+    put_bool(pktout, get_bool(osrc));  /* first-kex-packet-follows */
+    put_uint32(pktout, get_uint32(osrc)); /* reserved word */
+
+    return pktout;
+}
+
 void ssh2transport_finalise_exhash(struct ssh2_transport_state *s)
 {
     put_datapl(s->exhash, ptrlen_from_strbuf(s->kex_shared_secret));
@@ -1304,12 +1373,14 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     put_uint32(s->outgoing_kexinit, 0);             /* reserved */
 
     /*
-     * Send our KEXINIT.
+     * Send our KEXINIT (in the normal case).
      */
-    pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
-    put_data(pktout, s->outgoing_kexinit->u + 1,
-             s->outgoing_kexinit->len - 1); /* omit initial packet type byte */
-    pq_push(s->ppl.out_pq, pktout);
+    if (!(s->ppl.remote_bugs & BUG_REQUIRES_FILTERED_KEXINIT)) {
+        pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
+        put_data(pktout, s->outgoing_kexinit->u + 1,
+                 s->outgoing_kexinit->len - 1); /* omit type byte */
+        pq_push(s->ppl.out_pq, pktout);
+    }
 
     /*
      * Flag that KEX is in progress.
@@ -1330,6 +1401,27 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     strbuf_clear(s->incoming_kexinit);
     put_byte(s->incoming_kexinit, SSH2_MSG_KEXINIT);
     put_data(s->incoming_kexinit, get_ptr(pktin), get_avail(pktin));
+
+    /*
+     * If we've delayed sending our KEXINIT so as to filter it down to
+     * only things the server won't choke on, send ours now.
+     */
+    if (s->ppl.remote_bugs & BUG_REQUIRES_FILTERED_KEXINIT) {
+        strbuf *sb = write_filtered_kexinit(s);
+
+        /* Send that data as a packet */
+        pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
+        put_datapl(pktout, ptrlen_from_strbuf(sb));
+        pq_push(s->ppl.out_pq, pktout);
+
+        /* And also replace our previous outgoing KEXINIT, since the
+         * host key signature will be validated against this reduced
+         * one. */
+        strbuf_shrink_to(s->outgoing_kexinit, 1); /* keep the type byte */
+        put_datapl(s->outgoing_kexinit, ptrlen_from_strbuf(sb));
+
+        strbuf_free(sb);
+    }
 
     /*
      * Work through the two KEXINIT packets in parallel to find the

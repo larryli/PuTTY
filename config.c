@@ -3154,6 +3154,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           HELPCTX(ssh_bugs_dropstart),
                           sshbug_handler_manual_only,
                           I(CONF_sshbug_dropstart));
+            ctrl_droplist(s, "Chokes on PuTTY's full KEXINIT", 'p', 20,
+                          HELPCTX(ssh_bugs_filter_kexinit),
+                          sshbug_handler_manual_only,
+                          I(CONF_sshbug_filter_kexinit));
 
             ctrl_settitle(b, "Connection/SSH/More bugs",
                           "Further workarounds for SSH server bugs");

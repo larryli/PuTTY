@@ -1880,6 +1880,7 @@ void old_keyfile_warning(void);
     X(BUG_CHOKES_ON_WINADJ)                     \
     X(BUG_SENDS_LATE_REQUEST_REPLY)             \
     X(BUG_SSH2_OLDGEX)                          \
+    X(BUG_REQUIRES_FILTERED_KEXINIT)            \
     /* end of list */
 #define TMP_DECLARE_LOG2_ENUM(thing) log2_##thing,
 enum { SSH_IMPL_BUG_LIST(TMP_DECLARE_LOG2_ENUM) };
