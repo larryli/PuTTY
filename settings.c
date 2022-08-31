@@ -37,7 +37,9 @@ static const struct keyvalwhere kexnames[] = {
     { "dh-group17-sha512",  KEX_DHGROUP17,  -1, -1 },
     { "dh-group16-sha512",  KEX_DHGROUP16,  -1, -1 },
     { "dh-group15-sha512",  KEX_DHGROUP15,  -1, -1 },
+    /* Again, this covers both SHA-256 and SHA-1, despite the name: */
     { "dh-group14-sha1",    KEX_DHGROUP14,  -1, -1 },
+    /* This one really is only SHA-1, though: */
     { "dh-group1-sha1",     KEX_DHGROUP1,   KEX_WARN, +1 },
     { "rsa",                KEX_RSA,        KEX_WARN, -1 },
     { "WARN",               KEX_WARN,       -1, -1 }
