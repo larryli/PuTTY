@@ -119,6 +119,18 @@ macro(register_manpage title section)
   endif()
 endmacro()
 
+if(NOT HALIBUT)
+  # If we don't have Halibut available to rebuild the man pages from
+  # source, we must check whether the build and source directories
+  # correspond, so as to suppress the build rules that copy them from
+  # the source dir to the build dir. (Otherwise, someone unpacking
+  # putty-src.zip and building on a system without Halibut will find
+  # that there's a circular dependency in the makefile, which at least
+  # Ninja complains about.)
+  get_filename_component(DOCBUILDDIR ${CMAKE_CURRENT_BINARY_DIR} REALPATH)
+  get_filename_component(DOCSRCDIR   ${CMAKE_CURRENT_SOURCE_DIR} REALPATH)
+endif()
+
 macro(manpage title section)
   if(HALIBUT)
     add_custom_command(OUTPUT ${title}.${section}
@@ -128,7 +140,8 @@ macro(manpage title section)
       DEPENDS
         mancfg.but man-${title}.but)
     register_manpage(${title} ${section})
-  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
+  elseif(NOT (DOCBUILDDIR STREQUAL DOCSRCDIR)
+         AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
     add_custom_command(OUTPUT ${title}.${section}
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section} ${title}.${section}
