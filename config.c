@@ -2899,8 +2899,8 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           conf_checkbox_handler,
                           I(CONF_try_ki_auth));
 
-            s = ctrl_getset(b, "Connection/SSH/Auth", "params",
-                            "Authentication parameters");
+            s = ctrl_getset(b, "Connection/SSH/Auth", "aux",
+                            "Other authentication-related options");
             ctrl_checkbox(s, "Allow agent forwarding", 'f',
                           HELPCTX(ssh_auth_agentfwd),
                           conf_checkbox_handler, I(CONF_agentfwd));
@@ -2908,6 +2908,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           HELPCTX(ssh_auth_changeuser),
                           conf_checkbox_handler,
                           I(CONF_change_username));
+
+            ctrl_settitle(b, "Connection/SSH/Auth/Credentials",
+                          "Credentials to authenticate with");
+
+            s = ctrl_getset(b, "Connection/SSH/Auth/Credentials", "publickey",
+                            "Public-key authentication");
             ctrl_filesel(s, "Private key file for authentication:", 'k',
                          FILTER_KEY_FILES, false, "Select private key file",
                          HELPCTX(ssh_auth_privkey),
@@ -2917,6 +2923,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
                          HELPCTX(ssh_auth_cert),
                          conf_filesel_handler, I(CONF_detached_cert));
 
+            s = ctrl_getset(b, "Connection/SSH/Auth/Credentials", "plugin",
+                            "Plugin to provide authentication responses");
+            ctrl_editbox(s, "Plugin command to run", NO_SHORTCUT, 100,
+                         HELPCTX(ssh_auth_plugin),
+                         conf_editbox_handler, I(CONF_auth_plugin), ED_STR);
 #ifndef NO_GSSAPI
             /*
              * Connection/SSH/Auth/GSSAPI, which sadly won't fit on

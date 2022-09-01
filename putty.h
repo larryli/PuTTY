@@ -1831,6 +1831,7 @@ NORETURN void cleanup_exit(int);
     X(INT, INT, ssh_cipherlist) \
     X(FILENAME, NONE, keyfile) \
     X(FILENAME, NONE, detached_cert) \
+    X(STR, NONE, auth_plugin) \
     /* \
      * Which SSH protocol to use. \
      * For historical reasons, the current legal values for CONF_sshprot \

@@ -1917,3 +1917,35 @@ bool ssh_transient_hostkey_cache_verify(
 bool ssh_transient_hostkey_cache_has(
     ssh_transient_hostkey_cache *thc, const ssh_keyalg *alg);
 bool ssh_transient_hostkey_cache_non_empty(ssh_transient_hostkey_cache *thc);
+
+/*
+ * Protocol definitions for authentication helper plugins
+ */
+
+#define AUTHPLUGIN_MSG_NAMES(X)                 \
+    X(PLUGIN_INIT, 1)                           \
+    X(PLUGIN_INIT_RESPONSE, 2)                  \
+    X(PLUGIN_PROTOCOL, 3)                       \
+    X(PLUGIN_PROTOCOL_ACCEPT, 4)                \
+    X(PLUGIN_PROTOCOL_REJECT, 5)                \
+    X(PLUGIN_AUTH_SUCCESS, 6)                   \
+    X(PLUGIN_AUTH_FAILURE, 7)                   \
+    X(PLUGIN_INIT_FAILURE, 8)                   \
+    X(PLUGIN_KI_SERVER_REQUEST, 20)             \
+    X(PLUGIN_KI_SERVER_RESPONSE, 21)            \
+    X(PLUGIN_KI_USER_REQUEST, 22)               \
+    X(PLUGIN_KI_USER_RESPONSE, 23)              \
+    /* end of list */
+
+#define PLUGIN_PROTOCOL_MAX_VERSION 2  /* the highest version we speak */
+
+enum {
+    #define ENUMDECL(name, value) name = value,
+    AUTHPLUGIN_MSG_NAMES(ENUMDECL)
+    #undef ENUMDECL
+
+    /* Error codes internal to this implementation, indicating failure
+     * to receive a meaningful packet at all */
+    PLUGIN_NOTYPE = 256, /* packet too short to have a type */
+    PLUGIN_EOF = 257 /* EOF from auth plugin */
+};

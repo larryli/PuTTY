@@ -120,6 +120,7 @@ typedef const char *HelpCtx;
 #define WINHELP_CTX_ssh_no_trivial_userauth "config-ssh-notrivialauth"
 #define WINHELP_CTX_ssh_auth_banner "config-ssh-banner"
 #define WINHELP_CTX_ssh_auth_privkey "config-ssh-privkey"
+#define WINHELP_CTX_ssh_auth_plugin "config-ssh-authplugin"
 #define WINHELP_CTX_ssh_auth_cert "config-ssh-cert"
 #define WINHELP_CTX_ssh_auth_agentfwd "config-ssh-agentfwd"
 #define WINHELP_CTX_ssh_auth_changeuser "config-ssh-changeuser"

@@ -2965,6 +2965,12 @@ username more than once, in case the server complains. If you know
 your server can cope with it, you can enable the \q{Allow attempted
 changes of username} option to modify PuTTY's behaviour.
 
+\H{config-ssh-auth-creds} The Credentials panel
+
+This subpane of the Auth panel contains configuration options that
+specify actual \e{credentials} to present to the server: key files and
+certificates.
+
 \S{config-ssh-privkey} \q{\ii{Private key} file for authentication}
 
 This box is where you enter the name of your private key file if you
@@ -3013,6 +3019,26 @@ To do this, enter the pathname of the certificate file into the
 
 When this setting is configured, PuTTY will honour it no matter
 whether the private key is found in a file, or loaded into Pageant.
+
+\S{config-ssh-authplugin} \q{\ii{Plugin} to provide authentication responses}
+
+An SSH server can use the \q{keyboard-interactive} protocol to present
+a series of arbitrary questions and answers. Sometimes this is used
+for ordinary passwords, but sometimes the server will use the same
+mechanism for something more complicated, such as a one-time password
+system.
+
+Some of these systems can be automated. For this purpose, PuTTY allows
+you to provide a separate program to act as a \q{plugin} which will
+take over the authentication and send answers to the questions on your
+behalf.
+
+If you have been provided with a plugin of this type, you can
+configure it here, by entering a full command line in the \q{Plugin
+command to run} box.
+
+(If you want to \e{write} a plugin of this type, see \k{authplugin}
+for the full specification of how the plugin is expected to behave.)
 
 \H{config-ssh-auth-gssapi} The \i{GSSAPI} panel
 

@@ -633,6 +633,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_b(sesskey, "SSH2DES", conf_get_bool(conf, CONF_ssh2_des_cbc));
     write_setting_filename(sesskey, "PublicKeyFile", conf_get_filename(conf, CONF_keyfile));
     write_setting_filename(sesskey, "DetachedCertificate", conf_get_filename(conf, CONF_detached_cert));
+    write_setting_s(sesskey, "AuthPlugin", conf_get_str(conf, CONF_auth_plugin));
     write_setting_s(sesskey, "RemoteCommand", conf_get_str(conf, CONF_remote_cmd));
     write_setting_b(sesskey, "RFCEnviron", conf_get_bool(conf, CONF_rfc_environ));
     write_setting_b(sesskey, "PassiveTelnet", conf_get_bool(conf, CONF_passive_telnet));
@@ -1052,6 +1053,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "SshNoShell", false, conf, CONF_ssh_no_shell);
     gppfile(sesskey, "PublicKeyFile", conf, CONF_keyfile);
     gppfile(sesskey, "DetachedCertificate", conf, CONF_detached_cert);
+    gpps(sesskey, "AuthPlugin", "", conf, CONF_auth_plugin);
     gpps(sesskey, "RemoteCommand", "", conf, CONF_remote_cmd);
     gppb(sesskey, "RFCEnviron", false, conf, CONF_rfc_environ);
     gppb(sesskey, "PassiveTelnet", false, conf, CONF_passive_telnet);
