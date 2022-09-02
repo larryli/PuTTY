@@ -96,6 +96,7 @@ struct ssh2_userauth_state {
     Plug authplugin_plug;
     bufchain authplugin_bc;
     strbuf *authplugin_incoming_msg;
+    size_t authplugin_backlog;
     bool authplugin_eof;
     bool authplugin_ki_active;
 
@@ -335,11 +336,19 @@ static void authplugin_plug_receive(
     queue_idempotent_callback(&s->ppl.ic_process_queue);
 }
 
+static void authplugin_plug_sent(Plug *plug, size_t bufsize)
+{
+    struct ssh2_userauth_state *s = container_of(
+        plug, struct ssh2_userauth_state, authplugin_plug);
+    s->authplugin_backlog = bufsize;
+    queue_idempotent_callback(&s->ppl.ic_process_queue);
+}
+
 static const PlugVtable authplugin_plugvt = {
     .log = authplugin_plug_log,
     .closing = authplugin_plug_closing,
     .receive = authplugin_plug_receive,
-    .sent = nullplug_sent,
+    .sent = authplugin_plug_sent,
 };
 
 static strbuf *authplugin_newmsg(uint8_t type)
@@ -354,7 +363,7 @@ static void authplugin_send_free(struct ssh2_userauth_state *s, strbuf *amsg)
 {
     PUT_32BIT_MSB_FIRST(amsg->u, amsg->len - 4);
     assert(s->authplugin);
-    sk_write(s->authplugin, amsg->u, amsg->len);
+    s->authplugin_backlog = sk_write(s->authplugin, amsg->u, amsg->len);
     strbuf_free(amsg);
 }
 
@@ -1789,6 +1798,12 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     if (plugin_msg >= 0) {
                         strbuf *amsg = authplugin_newmsg(plugin_msg);
                         authplugin_send_free(s, amsg);
+
+                        /* Wait until we've actually sent it, in case
+                         * we close the connection to the plugin
+                         * before that outgoing message has left our
+                         * own buffers */
+                        crMaybeWaitUntilV(s->authplugin_backlog == 0);
                     }
                 }
             } else if (s->can_passwd) {
