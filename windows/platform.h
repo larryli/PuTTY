@@ -35,6 +35,14 @@
 #define BUILDINFO_PLATFORM "Windows"
 #endif
 
+#if defined __GNUC__ || defined __clang__
+#define THREADLOCAL __thread
+#elif defined _MSC_VER
+#define THREADLOCAL __declspec(thread)
+#else
+#error Do not know how to declare thread-local storage with this toolchain
+#endif
+
 /* Randomly-chosen dwData value identifying a WM_COPYDATA message as
  * being a Pageant transaction */
 #define AGENT_COPYDATA_ID 0x804e50ba

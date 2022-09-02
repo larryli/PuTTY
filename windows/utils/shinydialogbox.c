@@ -31,7 +31,7 @@ struct ShinyDialogBoxState {
  * threads at all, let alone concurrently, but just in case, declaring
  * sdb_tempstate as thread-local will protect against that possibility.
  */
-static __declspec(thread) struct ShinyDialogBoxState *sdb_tempstate;
+static THREADLOCAL struct ShinyDialogBoxState *sdb_tempstate;
 
 static inline struct ShinyDialogBoxState *ShinyDialogGetState(HWND hwnd)
 {
