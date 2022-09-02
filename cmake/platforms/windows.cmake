@@ -104,7 +104,7 @@ endif()
 
 if(STRICT AND (CMAKE_C_COMPILER_ID MATCHES "GNU" OR
                CMAKE_C_COMPILER_ID MATCHES "Clang"))
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wpointer-arith -Wvla")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wpointer-arith -Wvla")
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
