@@ -1540,6 +1540,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                 sfree(escaped);
                 sfree(wrapped);
             } else {
+                num_ids = 1;
                 editboxfw(&pos, false, true, NULL, 0, base_id);
                 SetDlgItemText(pos.hwnd, base_id, ctrl->label);
                 MakeDlgItemBorderless(pos.hwnd, base_id);
