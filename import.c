@@ -174,17 +174,6 @@ bool export_ssh2(const Filename *filename, int type,
     return false;
 }
 
-/*
- * Strip trailing CRs and LFs at the end of a line of text.
- */
-void strip_crlf(char *str)
-{
-    char *p = str + strlen(str);
-
-    while (p > str && (p[-1] == '\r' || p[-1] == '\n'))
-        *--p = '\0';
-}
-
 /* ----------------------------------------------------------------------
  * Helper routines. (The base64 ones are defined in sshpubk.c.)
  */
