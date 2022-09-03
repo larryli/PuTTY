@@ -110,6 +110,16 @@ if(STRICT)
   endif()
 endif()
 
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  # Switch back from MSVC-style error message format
+  # "file.c(line,col)" to clang's native style "file.c:line:col:". I
+  # find the latter more convenient because it matches other Unixy
+  # tools like grep, and I have tooling to parse that format and jump
+  # to the sites of error messages.
+  set(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} -Xclang -fdiagnostics-format -Xclang clang")
+endif()
+
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
   # Turn off some warnings that I've just found too noisy.
   #
