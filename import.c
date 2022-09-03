@@ -317,7 +317,7 @@ struct openssh_pem_key {
     strbuf *keyblob;
 };
 
-void BinarySink_put_mp_ssh2_from_string(BinarySink *bs, ptrlen str)
+static void BinarySink_put_mp_ssh2_from_string(BinarySink *bs, ptrlen str)
 {
     const unsigned char *bytes = (const unsigned char *)str.ptr;
     size_t nbytes = str.len;
@@ -1893,7 +1893,7 @@ static bool sshcom_encrypted(BinarySource *filesrc, char **comment)
     return answer;
 }
 
-void BinarySink_put_mp_sshcom_from_string(BinarySink *bs, ptrlen str)
+static void BinarySink_put_mp_sshcom_from_string(BinarySink *bs, ptrlen str)
 {
     const unsigned char *bytes = (const unsigned char *)str.ptr;
     size_t nbytes = str.len;

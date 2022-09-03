@@ -1124,8 +1124,9 @@ Socket *sk_new(SockAddr *addr, int port, bool privport, bool oobinline,
     return &ret->sock;
 }
 
-Socket *sk_newlistener_internal(const char *srcaddr, int port, Plug *plug,
-                                bool local_host_only, int orig_address_family)
+static Socket *sk_newlistener_internal(
+    const char *srcaddr, int port, Plug *plug,
+    bool local_host_only, int orig_address_family)
 {
     SOCKET s;
     SOCKADDR_IN a;
@@ -1413,7 +1414,7 @@ static void socket_error_callback(void *vs)
  * The function which tries to send on a socket once it's deemed
  * writable.
  */
-void try_send(NetSocket *s)
+static void try_send(NetSocket *s)
 {
     while (s->sending_oob || bufchain_size(&s->output_data) > 0) {
         int nsent;

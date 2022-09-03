@@ -93,35 +93,37 @@ typedef struct opensshcert_extra {
  * info appears at all, it's in the same order everywhere, and none of
  * it is repeated unnecessarily */
 enum { DSA_p, DSA_q, DSA_g, DSA_y, DSA_x };
-const unsigned dsa_pub_fmt[] = { DSA_p, DSA_q, DSA_g, DSA_y };
-const unsigned dsa_base_ossh_fmt[] = { DSA_p, DSA_q, DSA_g, DSA_y, DSA_x };
-const unsigned dsa_cert_ossh_fmt[] = { DSA_x };
+static const unsigned dsa_pub_fmt[] = { DSA_p, DSA_q, DSA_g, DSA_y };
+static const unsigned dsa_base_ossh_fmt[] = {
+    DSA_p, DSA_q, DSA_g, DSA_y, DSA_x };
+static const unsigned dsa_cert_ossh_fmt[] = { DSA_x };
 
 /* ECDSA is almost as nice, except that it pointlessly mentions the
  * curve name in the public data, which shouldn't be necessary given
  * that the SSH key id has already implied it. But at least that's
  * consistent everywhere. */
 enum { ECDSA_curve, ECDSA_point, ECDSA_exp };
-const unsigned ecdsa_pub_fmt[] = { ECDSA_curve, ECDSA_point };
-const unsigned ecdsa_base_ossh_fmt[] = { ECDSA_curve, ECDSA_point, ECDSA_exp };
-const unsigned ecdsa_cert_ossh_fmt[] = { ECDSA_exp };
+static const unsigned ecdsa_pub_fmt[] = { ECDSA_curve, ECDSA_point };
+static const unsigned ecdsa_base_ossh_fmt[] = {
+    ECDSA_curve, ECDSA_point, ECDSA_exp };
+static const unsigned ecdsa_cert_ossh_fmt[] = { ECDSA_exp };
 
 /* Ed25519 has the oddity that the private data following the
  * certificate in the OpenSSH blob is preceded by an extra copy of the
  * public data, for no obviously necessary reason since that doesn't
  * happen in any of the rest of these formats */
 enum { EDDSA_point, EDDSA_exp };
-const unsigned eddsa_pub_fmt[] = { EDDSA_point };
-const unsigned eddsa_base_ossh_fmt[] = { EDDSA_point, EDDSA_exp };
-const unsigned eddsa_cert_ossh_fmt[] = { EDDSA_point, EDDSA_exp };
+static const unsigned eddsa_pub_fmt[] = { EDDSA_point };
+static const unsigned eddsa_base_ossh_fmt[] = { EDDSA_point, EDDSA_exp };
+static const unsigned eddsa_cert_ossh_fmt[] = { EDDSA_point, EDDSA_exp };
 
 /* And RSA has the quirk that the modulus and exponent are reversed in
  * the base key type's OpenSSH blob! */
 enum { RSA_e, RSA_n, RSA_d, RSA_p, RSA_q, RSA_iqmp };
-const unsigned rsa_pub_fmt[] = { RSA_e, RSA_n };
-const unsigned rsa_base_ossh_fmt[] = {
+static const unsigned rsa_pub_fmt[] = { RSA_e, RSA_n };
+static const unsigned rsa_base_ossh_fmt[] = {
     RSA_n, RSA_e, RSA_d, RSA_p, RSA_q, RSA_iqmp };
-const unsigned rsa_cert_ossh_fmt[] = { RSA_d, RSA_p, RSA_q, RSA_iqmp };
+static const unsigned rsa_cert_ossh_fmt[] = { RSA_d, RSA_p, RSA_q, RSA_iqmp };
 
 /*
  * Routines to transform one kind of blob into another based on those
@@ -238,7 +240,7 @@ static const ssh_keyalg *opensshcert_related_alg(const ssh_keyalg *self,
     /* end of list */
 
 #define KEYALG_DEF(name, ssh_alg_id_prefix, ssh_key_id_prefix, fmt_prefix) \
-    const struct opensshcert_extra opensshcert_##name##_extra = {       \
+    static const struct opensshcert_extra opensshcert_##name##_extra = { \
         .pub_fmt = { .fmt = fmt_prefix ## _pub_fmt,                     \
                      .len = lenof(fmt_prefix ## _pub_fmt) },            \
         .base_ossh_fmt = { .fmt = fmt_prefix ## _base_ossh_fmt,         \

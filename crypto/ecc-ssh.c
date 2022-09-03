@@ -1444,7 +1444,7 @@ typedef struct ecdh_key_m {
     ecdh_key ek;
 } ecdh_key_m;
 
-ecdh_key *ssh_ecdhkex_w_new(const ssh_kex *kex, bool is_server)
+static ecdh_key *ssh_ecdhkex_w_new(const ssh_kex *kex, bool is_server)
 {
     const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
     const struct ec_curve *curve = extra->curve();
@@ -1463,7 +1463,7 @@ ecdh_key *ssh_ecdhkex_w_new(const ssh_kex *kex, bool is_server)
     return &dhw->ek;
 }
 
-ecdh_key *ssh_ecdhkex_m_new(const ssh_kex *kex, bool is_server)
+static ecdh_key *ssh_ecdhkex_m_new(const ssh_kex *kex, bool is_server)
 {
     const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
     const struct ec_curve *curve = extra->curve();
@@ -1637,7 +1637,7 @@ const ssh_kex ssh_ec_kex_curve25519 = {
     .extra = &kex_extra_curve25519,
 };
 /* Pre-RFC alias */
-const ssh_kex ssh_ec_kex_curve25519_libssh = {
+static const ssh_kex ssh_ec_kex_curve25519_libssh = {
     .name = "curve25519-sha256@libssh.org",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha256,

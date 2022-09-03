@@ -35,7 +35,7 @@ static void proxy_negotiator_cleanup(ProxySocket *ps)
  * Call this when proxy negotiation is complete, so that this
  * socket can begin working normally.
  */
-void proxy_activate(ProxySocket *ps)
+static void proxy_activate(ProxySocket *ps)
 {
     size_t output_before, output_after;
 

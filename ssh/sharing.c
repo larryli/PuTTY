@@ -987,8 +987,8 @@ static void share_xchannel_add_message(
     xc->msgtail = msg;
 }
 
-void share_dead_xchannel_respond(struct ssh_sharing_connstate *cs,
-                                 struct share_xchannel *xc)
+static void share_dead_xchannel_respond(struct ssh_sharing_connstate *cs,
+                                        struct share_xchannel *xc)
 {
     /*
      * Handle queued incoming messages from the server destined for an
@@ -1033,10 +1033,9 @@ void share_dead_xchannel_respond(struct ssh_sharing_connstate *cs,
     }
 }
 
-void share_xchannel_confirmation(struct ssh_sharing_connstate *cs,
-                                 struct share_xchannel *xc,
-                                 struct share_channel *chan,
-                                 unsigned downstream_window)
+static void share_xchannel_confirmation(
+    struct ssh_sharing_connstate *cs, struct share_xchannel *xc,
+    struct share_channel *chan, unsigned downstream_window)
 {
     strbuf *packet;
 
@@ -1070,8 +1069,8 @@ void share_xchannel_confirmation(struct ssh_sharing_connstate *cs,
     strbuf_free(packet);
 }
 
-void share_xchannel_failure(struct ssh_sharing_connstate *cs,
-                            struct share_xchannel *xc)
+static void share_xchannel_failure(struct ssh_sharing_connstate *cs,
+                                   struct share_xchannel *xc)
 {
     /*
      * If downstream refuses to open our X channel at all for some
@@ -1986,7 +1985,7 @@ static int share_listen_accepting(Plug *plug,
  * configurations which return the same string from this function will
  * be treated as potentially shareable with each other.
  */
-char *ssh_share_sockname(const char *host, int port, Conf *conf)
+static char *ssh_share_sockname(const char *host, int port, Conf *conf)
 {
     char *username = NULL;
     char *sockname;

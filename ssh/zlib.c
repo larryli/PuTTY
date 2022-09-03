@@ -573,7 +573,7 @@ struct ssh_zlib_compressor {
     ssh_compressor sc;
 };
 
-ssh_compressor *zlib_compress_init(void)
+static ssh_compressor *zlib_compress_init(void)
 {
     struct Outbuf *out;
     struct ssh_zlib_compressor *comp = snew(struct ssh_zlib_compressor);
@@ -592,7 +592,7 @@ ssh_compressor *zlib_compress_init(void)
     return &comp->sc;
 }
 
-void zlib_compress_cleanup(ssh_compressor *sc)
+static void zlib_compress_cleanup(ssh_compressor *sc)
 {
     struct ssh_zlib_compressor *comp =
         container_of(sc, struct ssh_zlib_compressor, sc);
@@ -604,10 +604,9 @@ void zlib_compress_cleanup(ssh_compressor *sc)
     sfree(comp);
 }
 
-void zlib_compress_block(ssh_compressor *sc,
-                         const unsigned char *block, int len,
-                         unsigned char **outblock, int *outlen,
-                         int minlen)
+static void zlib_compress_block(
+    ssh_compressor *sc, const unsigned char *block, int len,
+    unsigned char **outblock, int *outlen, int minlen)
 {
     struct ssh_zlib_compressor *comp =
         container_of(sc, struct ssh_zlib_compressor, sc);
@@ -904,7 +903,7 @@ struct zlib_decompress_ctx {
     ssh_decompressor dc;
 };
 
-ssh_decompressor *zlib_decompress_init(void)
+static ssh_decompressor *zlib_decompress_init(void)
 {
     struct zlib_decompress_ctx *dctx = snew(struct zlib_decompress_ctx);
     unsigned char lengths[288];
@@ -927,7 +926,7 @@ ssh_decompressor *zlib_decompress_init(void)
     return &dctx->dc;
 }
 
-void zlib_decompress_cleanup(ssh_decompressor *dc)
+static void zlib_decompress_cleanup(ssh_decompressor *dc)
 {
     struct zlib_decompress_ctx *dctx =
         container_of(dc, struct zlib_decompress_ctx, dc);
@@ -986,9 +985,9 @@ static void zlib_emit_char(struct zlib_decompress_ctx *dctx, int c)
 
 #define EATBITS(n) ( dctx->nbits -= (n), dctx->bits >>= (n) )
 
-bool zlib_decompress_block(ssh_decompressor *dc,
-                           const unsigned char *block, int len,
-                           unsigned char **outblock, int *outlen)
+static bool zlib_decompress_block(
+    ssh_decompressor *dc, const unsigned char *block, int len,
+    unsigned char **outblock, int *outlen)
 {
     struct zlib_decompress_ctx *dctx =
         container_of(dc, struct zlib_decompress_ctx, dc);

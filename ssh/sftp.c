@@ -21,7 +21,7 @@ static void fxp_internal_error(const char *msg);
  * Client-specific parts of the send- and receive-packet system.
  */
 
-bool sftp_send(struct sftp_packet *pkt)
+static bool sftp_send(struct sftp_packet *pkt)
 {
     bool ret;
     sftp_send_prepare(pkt);

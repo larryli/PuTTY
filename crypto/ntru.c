@@ -483,7 +483,8 @@ void ntru_scale(uint16_t *out, const uint16_t *in, uint16_t scale,
  * Given an array of values mod 3, convert them to values mod q in a
  * way that maps -1,0,+1 to -1,0,+1.
  */
-void ntru_expand(uint16_t *out, const uint16_t *in, unsigned p, unsigned q)
+static void ntru_expand(
+    uint16_t *out, const uint16_t *in, unsigned p, unsigned q)
 {
     for (size_t i = 0; i < p; i++) {
         uint16_t v = in[i];
@@ -1393,8 +1394,9 @@ void ntru_encode_plaintext(const uint16_t *plaintext, unsigned p,
  *
  * 'out' should therefore expect to receive 32 bytes of data.
  */
-void ntru_confirmation_hash(uint8_t *out, const uint16_t *plaintext,
-                            const uint16_t *pubkey, unsigned p, unsigned q)
+static void ntru_confirmation_hash(
+    uint8_t *out, const uint16_t *plaintext,
+    const uint16_t *pubkey, unsigned p, unsigned q)
 {
     /* The outer hash object */
     ssh_hash *hconfirm = ssh_hash_new(&ssh_sha512);
@@ -1450,8 +1452,9 @@ void ntru_confirmation_hash(uint8_t *out, const uint16_t *plaintext,
  *
  * The ciphertext is provided in already-encoded form.
  */
-void ntru_session_hash(uint8_t *out, unsigned ok, const uint16_t *plaintext,
-                       unsigned p, ptrlen ciphertext, ptrlen confirmation_hash)
+static void ntru_session_hash(
+    uint8_t *out, unsigned ok, const uint16_t *plaintext,
+    unsigned p, ptrlen ciphertext, ptrlen confirmation_hash)
 {
     /* The outer hash object */
     ssh_hash *hsession = ssh_hash_new(&ssh_sha512);
@@ -1866,7 +1869,7 @@ static const ecdh_keyalg ssh_ntru_selector_vt = {
     .description = ssh_ntru_description,
 };
 
-const ssh_kex ssh_ntru_curve25519 = {
+static const ssh_kex ssh_ntru_curve25519 = {
     .name = "sntrup761x25519-sha512@openssh.com",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha512,

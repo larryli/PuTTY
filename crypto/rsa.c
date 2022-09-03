@@ -865,7 +865,8 @@ static unsigned ssh_rsa_supported_flags(const ssh_keyalg *self)
     return SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512;
 }
 
-const char *ssh_rsa_alternate_ssh_id(const ssh_keyalg *self, unsigned flags)
+static const char *ssh_rsa_alternate_ssh_id(
+    const ssh_keyalg *self, unsigned flags)
 {
     if (flags & SSH_AGENT_RSA_SHA2_512)
         return ssh_rsa_sha512.ssh_id;

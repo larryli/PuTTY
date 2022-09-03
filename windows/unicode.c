@@ -728,7 +728,7 @@ wchar_t xlat_uskbd2cyrllic(int ch)
     return cyrtab[ch&0x7F];
 }
 
-int check_compose_internal(int first, int second, int recurse)
+static int check_compose_internal(int first, int second, int recurse)
 {
 
     static const struct {
