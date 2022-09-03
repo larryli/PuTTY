@@ -102,9 +102,12 @@ else()
   set(LFLAG_MANIFEST_NO "")
 endif()
 
-if(STRICT AND (CMAKE_C_COMPILER_ID MATCHES "GNU" OR
-               CMAKE_C_COMPILER_ID MATCHES "Clang"))
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wpointer-arith -Wvla")
+if(STRICT)
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wpointer-arith -Wvla")
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wpointer-arith -Wvla")
+  endif()
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
