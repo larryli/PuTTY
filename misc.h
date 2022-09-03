@@ -518,7 +518,7 @@ bool cert_expr_match_str(const char *expression,
  * to handle legacy configuration from early in development, when
  * multiple wildcards were stored separately in config, implicitly
  * ORed together. */
-CertExprBuilder *cert_expr_builder_new();
+CertExprBuilder *cert_expr_builder_new(void);
 void cert_expr_builder_free(CertExprBuilder *eb);
 void cert_expr_builder_add(CertExprBuilder *eb, const char *wildcard);
 char *cert_expr_expression(CertExprBuilder *eb);
