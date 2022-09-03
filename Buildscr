@@ -150,7 +150,7 @@ delegate -
 # library list), and no other Windows toolchain we build with is that
 # picky. So this ensures the Windows library structure continues to
 # work in the most difficult circumstance we expect it to encounter.
-in putty do cmake . -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw.cmake
+in putty do cmake . -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw.cmake -DSTRICT=ON
 in putty do make -j$(nproc) VERBOSE=1
 enddelegate
 
@@ -172,15 +172,15 @@ mkdir putty/windows/abuild64
 #
 # For the 32-bit ones, we set a subsystem version of 5.01, which
 # allows the resulting files to still run on Windows XP.
-in putty/windows/build32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/build32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/build32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/build64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/build64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/build64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
 # Build experimental Arm Windows binaries.
-in putty/windows/abuild32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/abuild32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/abuild32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/abuild64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/abuild64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/abuild64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
 # Make a list of the Windows binaries we're going to ship, so that we
@@ -245,7 +245,7 @@ in putty/windows/abuild64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 #
 # There's no installer to go with these, so they must also embed the
 # help file.
-in putty/windows/buildold with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32_2003) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON
+in putty/windows/buildold with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32_2003) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DSTRICT=ON
 in putty/windows/buildold with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
 # Regenerate to-sign.txt with the 'old' binaries included.
