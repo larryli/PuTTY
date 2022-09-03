@@ -39,7 +39,7 @@ static ssh_cipher *aes_select(const ssh_cipheralg *alg)
 #define IF_NEON(...)
 #endif
 
-#define AES_SELECTOR_VTABLE(mode_c, namemaker, mode_display, bits, ...) \
+#define AES_SELECTOR_VTABLE(mode_c, id, mode_display, bits, ...)        \
     static const ssh_cipheralg *                                        \
     ssh_aes ## bits ## _ ## mode_c ## _impls[] = {                      \
         IF_NI(&ssh_aes ## bits ## _ ## mode_c ## _ni,)                  \
@@ -49,7 +49,7 @@ static ssh_cipher *aes_select(const ssh_cipheralg *alg)
     };                                                                  \
     const ssh_cipheralg ssh_aes ## bits ## _ ## mode_c = {              \
         .new = aes_select,                                              \
-        .ssh2_id = namemaker(bits),                                     \
+        .ssh2_id = id,                                                  \
         .blksize = 16,                                                  \
         .real_keybits = bits,                                           \
         .padded_keybytes = bits/8,                                      \
@@ -59,27 +59,22 @@ static ssh_cipher *aes_select(const ssh_cipheralg *alg)
         __VA_ARGS__                                                     \
     }
 
-#define cbc_namemaker(bits) "aes" #bits "-cbc"
-#define ctr_namemaker(bits) "aes" #bits "-ctr"
-#define gcm_namemaker(bits) "aes" #bits "-gcm@openssh.com"
-
-AES_SELECTOR_VTABLE(cbc, cbc_namemaker, "CBC", 128);
-AES_SELECTOR_VTABLE(cbc, cbc_namemaker, "CBC", 192);
-AES_SELECTOR_VTABLE(cbc, cbc_namemaker, "CBC", 256);
-AES_SELECTOR_VTABLE(sdctr, ctr_namemaker, "SDCTR", 128);
-AES_SELECTOR_VTABLE(sdctr, ctr_namemaker, "SDCTR", 192);
-AES_SELECTOR_VTABLE(sdctr, ctr_namemaker, "SDCTR", 256);
-AES_SELECTOR_VTABLE(gcm, gcm_namemaker, "GCM", 128,
+AES_SELECTOR_VTABLE(cbc, "aes128-cbc", "CBC", 128, );
+AES_SELECTOR_VTABLE(cbc, "aes192-cbc", "CBC", 192, );
+AES_SELECTOR_VTABLE(cbc, "aes256-cbc", "CBC", 256, );
+AES_SELECTOR_VTABLE(sdctr, "aes128-ctr", "SDCTR", 128, );
+AES_SELECTOR_VTABLE(sdctr, "aes192-ctr", "SDCTR", 192, );
+AES_SELECTOR_VTABLE(sdctr, "aes256-ctr", "SDCTR", 256, );
+AES_SELECTOR_VTABLE(gcm, "aes128-gcm@openssh.com", "GCM", 128,
                     .required_mac = &ssh2_aesgcm_mac);
-AES_SELECTOR_VTABLE(gcm, gcm_namemaker, "GCM", 256,
+AES_SELECTOR_VTABLE(gcm, "aes256-gcm@openssh.com", "GCM", 256,
                     .required_mac = &ssh2_aesgcm_mac);
 
 /* 192-bit AES-GCM is included only so that testcrypt can run standard
  * test vectors against it. OpenSSH doesn't define a protocol id for
- * it. Hence the use of null_namemaker here to set its ssh2_id to NULL,
- * and more importantly, leaving it out of aesgcm_list[] below. */
-#define null_namemaker(bits) NULL
-AES_SELECTOR_VTABLE(gcm, null_namemaker, "GCM", 192,
+ * it. Hence setting its ssh2_id to NULL here, and more importantly,
+ * leaving it out of aesgcm_list[] below. */
+AES_SELECTOR_VTABLE(gcm, NULL, "GCM", 192,
                     .required_mac = &ssh2_aesgcm_mac);
 
 static const ssh_cipheralg ssh_rijndael_lysator = {
