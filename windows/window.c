@@ -14,6 +14,7 @@
 #define COMPILE_MULTIMON_STUBS
 
 #include "putty.h"
+#include "ssh.h"
 #include "terminal.h"
 #include "storage.h"
 #include "putty-rc.h"

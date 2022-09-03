@@ -7,6 +7,7 @@
 #include "puttymem.h"
 
 #include "mpint.h"
+#include "mpunsafe.h"
 #include "crypto/mpint_i.h"
 
 /*

@@ -7,6 +7,7 @@
 #include <errno.h>
 
 #include "putty.h"
+#include "storage.h"
 #include "misc.h"
 #include "ssh.h"
 #include "ssh/channel.h"

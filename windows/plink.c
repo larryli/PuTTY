@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 #include "putty.h"
+#include "ssh.h"
 #include "storage.h"
 #include "tree234.h"
 #include "security-api.h"
