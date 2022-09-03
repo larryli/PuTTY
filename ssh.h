@@ -939,9 +939,9 @@ static inline const char *ssh_key_ssh_id(ssh_key *key)
 { return key->vt->ssh_id; }
 static inline const char *ssh_key_cache_id(ssh_key *key)
 { return key->vt->cache_id; }
-static inline const unsigned ssh_key_supported_flags(ssh_key *key)
+static inline unsigned ssh_key_supported_flags(ssh_key *key)
 { return key->vt->supported_flags(key->vt); }
-static inline const unsigned ssh_keyalg_supported_flags(const ssh_keyalg *self)
+static inline unsigned ssh_keyalg_supported_flags(const ssh_keyalg *self)
 { return self->supported_flags(self); }
 static inline const char *ssh_keyalg_alternate_ssh_id(
     const ssh_keyalg *self, unsigned flags)
