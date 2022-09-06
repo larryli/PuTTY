@@ -918,6 +918,12 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
          children = children->next)
         child->visited = false;
 
+    /*
+     * Main layout loop. In this loop, vertically aligned controls are
+     * only half dealt with: we assign each one enough _height_ to
+     * match the others in its group, but we don't adjust its y
+     * coordinates yet.
+     */
     for (children = cols->children;
          children && (child = children->data);
          children = children->next) {
@@ -969,7 +975,7 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
                 if (topy < colypos[child->colstart+i])
                     topy = colypos[child->colstart+i];
             }
-            child->y = topy + fakeheight/2 - realheight/2;
+            child->y = topy;
             child->h = realheight;
             child->visited = true;
             boty = topy + fakeheight + cols->spacing;
@@ -977,6 +983,28 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
                 colypos[child->colstart+i] = boty;
             }
         }
+    }
+
+    /*
+     * Now make a separate pass that deals with vertical alignment by
+     * moving controls downwards based on the difference between their
+     * own height and the largest height of anything in their group.
+     */
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
+        if (!child->widget)
+            continue;
+        if (!gtk_widget_get_visible(child->widget))
+            continue;
+
+        fakeheight = realheight = child->h;
+        for (ColumnsChild *ch = child->valign_next; ch != child;
+             ch = ch->valign_next) {
+            if (fakeheight < ch->h)
+                fakeheight = ch->h;
+        }
+        child->y += fakeheight/2 - realheight/2;
     }
 
     g_free(colypos);
