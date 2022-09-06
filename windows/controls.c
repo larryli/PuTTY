@@ -1758,7 +1758,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                         continue;
 
                     LONG dy = (mid2 - (rect.top + rect.bottom)) / 2;
-                    move_windows(pos.hwnd, c->base_id, c->num_ids, dy);
+                    move_windows(pos.hwnd, thisc->base_id, thisc->num_ids, dy);
                 }
             }
         } else {
