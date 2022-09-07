@@ -39,7 +39,7 @@ SeatPromptResult console_confirm_ssh_host_key(
 {
     HANDLE hin;
     DWORD savemode, i;
-    const char *prompt;
+    const char *prompt = NULL;
 
     stdio_sink errsink[1];
     stdio_sink_init(errsink, stderr);
@@ -75,6 +75,7 @@ SeatPromptResult console_confirm_ssh_host_key(
             break;
         }
     }
+    assert(prompt); /* something in the SeatDialogText should have set this */
 
     while (true) {
         fprintf(stderr,
