@@ -375,7 +375,7 @@ static void keylist_update_callback(
         }
 
         ptrlen bits_word = ptrlen_get_word(&fingerprint, " ");
-        if (ssh_keyalg_variable_size(alg))
+        if (alg && ssh_keyalg_variable_size(alg))
             put_datapl(disp->bits, bits_word);
 
         put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
