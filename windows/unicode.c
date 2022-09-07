@@ -531,7 +531,7 @@ static reverse_mapping *get_reverse_mapping(int codepage)
 
     if (codepage < 65536)
         return NULL;
-    if (codepage > 65536 + lenof(cp_list))
+    if (codepage >= 65536 + lenof(cp_list))
         return NULL;
     const struct cp_list_item *cp = &cp_list[codepage - 65536];
     if (!cp->cp_table)
