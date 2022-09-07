@@ -347,7 +347,7 @@ typedef struct ParserState ParserState;
 struct ParserState {
     ptrlen currtext;
     Token tok;
-    ptrlen toktext, lasttoktext;
+    ptrlen toktext;
     char *err;
     ptrlen errloc;
 };
@@ -365,7 +365,6 @@ static void error(ParserState *ps, char *errtext, ptrlen errloc)
 static void advance(ParserState *ps)
 {
     char *err = NULL;
-    ps->lasttoktext = ps->toktext;
     ps->tok = lex(&ps->currtext, &ps->toktext, &err);
     if (ps->tok == TOK_ERROR)
         error(ps, err, ps->toktext);
@@ -542,7 +541,6 @@ static ExprNode *parse(ptrlen expr, char **error_msg, ptrlen *error_loc)
 {
     ParserState ps[1];
     ps->currtext = expr;
-    ps->lasttoktext = make_ptrlen(ps->currtext.ptr, 0);
     ps->err = NULL;
     advance(ps);
 
