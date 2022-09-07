@@ -1256,6 +1256,7 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
         message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
+        strbuf_free(pub);
         return;
     }
 

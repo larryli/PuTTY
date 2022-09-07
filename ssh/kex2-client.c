@@ -962,6 +962,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 } else {
                     ppl_logevent("Rejected host key certificate: %s",
                                  error->s);
+                    strbuf_free(error);
                     /* now fall through into normal host key checking */
                 }
             }

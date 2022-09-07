@@ -1242,12 +1242,12 @@ ptrlen ntru_decode_pubkey(uint16_t *pubkey, unsigned p, unsigned q,
     } else {
         /* Do the decoding */
         ntru_decode(sched, pubkey, encoded);
-        ntru_encode_schedule_free(sched);
 
         /* Unbias the coefficients */
         ntru_bias(pubkey, pubkey, q-q/2, p, q);
     }
 
+    ntru_encode_schedule_free(sched);
     return encoded;
 }
 
@@ -1328,13 +1328,13 @@ ptrlen ntru_decode_ciphertext(uint16_t *ct, NTRUKeyPair *keypair,
     } else {
         /* Do the decoding */
         ntru_decode(sched, ct, encoded);
-        ntru_encode_schedule_free(sched);
 
         /* Undo the scaling and bias */
         ntru_scale(ct, ct, 3, p, q);
         ntru_bias(ct, ct, q - 3 * ciphertext_bias(q), p, q);
     }
 
+    ntru_encode_schedule_free(sched);
     return encoded;        /* also useful to the caller, optionally */
 }
 
@@ -1649,6 +1649,7 @@ static bool ssh_ntru_client_getkey(ecdh_key *dh, ptrlen remoteKey,
         if (!ok) {
             ssh_hash_free(h);
             smemclr(hashdata, sizeof(hashdata));
+            strbuf_free(otherkey);
             return false;
         }
 
@@ -1778,6 +1779,7 @@ static bool ssh_ntru_server_getkey(ecdh_key *dh, ptrlen remoteKey,
         ntru_encrypt(ciphertext, nk->plaintext, pubkey, p_LIVE, q_LIVE);
         ntru_encode_ciphertext(ciphertext, p_LIVE, q_LIVE,
                                BinarySink_UPCAST(nk->ciphertext_encoded));
+        ring_free(ciphertext, p_LIVE);
 
         /* Compute the confirmation hash, and write it into another
          * strbuf. */
@@ -1793,6 +1795,9 @@ static bool ssh_ntru_server_getkey(ecdh_key *dh, ptrlen remoteKey,
 
         /* And put the NTRU session hash into the main hash object. */
         put_data(h, hashdata, 32);
+
+        /* Now we can free the public key */
+        ring_free(pubkey, p_LIVE);
     }
 
     /*
@@ -1809,6 +1814,7 @@ static bool ssh_ntru_server_getkey(ecdh_key *dh, ptrlen remoteKey,
         if (!ok) {
             ssh_hash_free(h);
             smemclr(hashdata, sizeof(hashdata));
+            strbuf_free(otherkey);
             return false;
         }
 

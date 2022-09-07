@@ -679,6 +679,8 @@ host_ca *host_ca_load(const char *name)
         sfree(line);
     }
 
+    fclose(fp);
+
     if (eb) {
         if (!hca->validity_expression) {
             hca->validity_expression = cert_expr_expression(eb);
