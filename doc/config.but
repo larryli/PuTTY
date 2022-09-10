@@ -2400,7 +2400,8 @@ support GSSAPI in the SSH user authentication phase. This will still
 let you log in using your Kerberos credentials, but will only allow
 you to delegate the credentials that are active at the beginning of
 the session; they can't be refreshed automatically later, in a
-long-running session.
+long-running session. See \k{config-ssh-auth-gssapi} for how to
+control GSSAPI user authentication in PuTTY.
 
 Another effect of GSSAPI key exchange is that it replaces the usual
 SSH mechanism of permanent host keys described in \k{gs-hostkey}.
