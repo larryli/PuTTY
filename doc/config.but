@@ -2347,24 +2347,45 @@ cipher selection (see \k{config-ssh-encryption}).
 
 PuTTY currently supports the following key exchange methods:
 
-\b \q{ECDH}: \i{elliptic curve} \i{Diffie-Hellman key exchange}.
+\b \q{ECDH}: \i{elliptic curve} \i{Diffie-Hellman key exchange},
+with a variety of standard curves and hash algorithms.
 
-\b \q{Group 14}: Diffie-Hellman key exchange with a well-known
-2048-bit group.
+\b \q{Diffie-Hellman} key exchange with a variety of well-known groups
+and hashes:
 
-\b \q{Group 1}: Diffie-Hellman key exchange with a well-known
-1024-bit group. We no longer recommend using this method, and it's
-not used by default in new installations; however, it may be the
-only method supported by very old server software.
+\lcont{
+\b \q{Group 18}, a well-known 8192-bit group, used with the SHA-512
+hash function.
+
+\b \q{Group 17}, a well-known 6144-bit group, used with the SHA-512
+hash function.
+
+\b \q{Group 16}, a well-known 4096-bit group, used with the SHA-512
+hash function.
+
+\b \q{Group 15}, a well-known 3072-bit group, used with the SHA-512
+hash function.
+
+\b \q{Group 14}: a well-known 2048-bit group, used with the SHA-256
+hash function or, if the server doesn't support that, SHA-1.
+
+\b \q{Group 1}: a well-known 1024-bit group, used with the SHA-1
+hash function. Neither we nor current SSH standards recommend using
+this method any longer, and it's not used by default in new
+installations; however, it may be the only method supported by very
+old server software.
+}
 
 \b \q{\ii{Group exchange}}: with this method, instead of using a fixed
 group, PuTTY requests that the server suggest a group to use for key
 exchange; the server can avoid groups known to be weak, and possibly
 invent new ones over time, without any changes required to PuTTY's
-configuration. We recommend use of this method instead of the
-well-known groups, if possible.
+configuration. This key exchange method uses the SHA-256 hash or,
+if the server doesn't support that, SHA-1. \#{FIXME: still true?:}
+We recommend use of this method instead of the well-known groups,
+if possible.
 
-\b \q{\i{RSA key exchange}}: this requires much less computational
+\b \q{\i{RSA-based key exchange}}: this requires much less computational
 effort on the part of the client, and somewhat less on the part of
 the server, than Diffie-Hellman key exchange.
 
@@ -2386,8 +2407,10 @@ when using Kerberos V5, and not other GSSAPI mechanisms. If the user
 running PuTTY has current Kerberos V5 credentials, then PuTTY will
 select the GSSAPI key exchange methods in preference to any of the
 ordinary SSH key exchange methods configured in the preference list.
-(PuTTY's preference order for GSSAPI-authenticated key exchange
-methods is fixed, not controlled by the preference list.)
+There's a GSSAPI-based equivalent to most of the ordinary methods
+listed in \k{config-ssh-kex-order}; server support determines which
+one will be used. (PuTTY's preference order for GSSAPI-authenticated
+key exchange methods is fixed, not controlled by the preference list.)
 
 The advantage of doing GSSAPI authentication as part of the SSH key
 exchange is apparent when you are using credential delegation (see
