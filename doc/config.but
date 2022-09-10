@@ -2386,6 +2386,8 @@ when using Kerberos V5, and not other GSSAPI mechanisms. If the user
 running PuTTY has current Kerberos V5 credentials, then PuTTY will
 select the GSSAPI key exchange methods in preference to any of the
 ordinary SSH key exchange methods configured in the preference list.
+(PuTTY's preference order for GSSAPI-authenticated key exchange
+methods is fixed, not controlled by the preference list.)
 
 The advantage of doing GSSAPI authentication as part of the SSH key
 exchange is apparent when you are using credential delegation (see
