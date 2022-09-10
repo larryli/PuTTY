@@ -153,7 +153,7 @@ struct ssh2_transport_state {
 
     char *client_greeting, *server_greeting;
 
-    bool kex_in_progress;
+    bool kex_in_progress, kexinit_delayed;
     unsigned long next_rekey, last_rekey;
     const char *deferred_rekey_reason;
     bool higher_layer_ok;

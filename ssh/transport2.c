@@ -1196,7 +1196,16 @@ static bool ssh2_scan_kexinits(
     return true;
 }
 
-static strbuf *write_filtered_kexinit(struct ssh2_transport_state *s)
+static inline bool delay_outgoing_kexinit(struct ssh2_transport_state *s)
+{
+    if (!(s->ppl.remote_bugs & BUG_REQUIRES_FILTERED_KEXINIT))
+        return false;   /* bug flag not enabled => no need to delay */
+    if (s->incoming_kexinit->len)
+        return false; /* already got a remote KEXINIT we can filter against */
+    return true;
+}
+
+static void filter_outgoing_kexinit(struct ssh2_transport_state *s)
 {
     strbuf *pktout = strbuf_new();
     BinarySource osrc[1], isrc[1];
@@ -1262,7 +1271,15 @@ static strbuf *write_filtered_kexinit(struct ssh2_transport_state *s)
     put_bool(pktout, get_bool(osrc));  /* first-kex-packet-follows */
     put_uint32(pktout, get_uint32(osrc)); /* reserved word */
 
-    return pktout;
+    /*
+     * Dump this data into s->outgoing_kexinit in place of what we had
+     * there before. We need to remember the KEXINIT we _really_ sent,
+     * not the one we'd have liked to send, since the host key
+     * signature will be validated against the former.
+     */
+    strbuf_shrink_to(s->outgoing_kexinit, 1); /* keep the type byte */
+    put_datapl(s->outgoing_kexinit, ptrlen_from_strbuf(pktout));
+    strbuf_free(pktout);
 }
 
 void ssh2transport_finalise_exhash(struct ssh2_transport_state *s)
@@ -1373,9 +1390,29 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     put_uint32(s->outgoing_kexinit, 0);             /* reserved */
 
     /*
-     * Send our KEXINIT (in the normal case).
+     * Send our KEXINIT, most of the time.
+     *
+     * An exception: in BUG_REQUIRES_FILTERED_KEXINIT mode, we have to
+     * have seen at least one KEXINIT from the server first, so that
+     * we can filter our own KEXINIT down to contain only algorithms
+     * the server mentioned.
+     *
+     * But we only need to do this on the _first_ key exchange, when
+     * we've never seen a KEXINIT from the server before. In rekeys,
+     * we still have the server's previous KEXINIT lying around, so we
+     * can filter based on that.
+     *
+     * (And a good thing too, since the way you _initiate_ a rekey is
+     * by sending your KEXINIT, so we'd have no way to prod the server
+     * into sending its first!)
      */
-    if (!(s->ppl.remote_bugs & BUG_REQUIRES_FILTERED_KEXINIT)) {
+    s->kexinit_delayed = delay_outgoing_kexinit(s);
+    if (!s->kexinit_delayed) {
+        if (s->ppl.remote_bugs & BUG_REQUIRES_FILTERED_KEXINIT) {
+            /* Filter based on the KEXINIT from the previous exchange */
+            filter_outgoing_kexinit(s);
+        }
+
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
         put_data(pktout, s->outgoing_kexinit->u + 1,
                  s->outgoing_kexinit->len - 1); /* omit type byte */
@@ -1406,21 +1443,12 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * If we've delayed sending our KEXINIT so as to filter it down to
      * only things the server won't choke on, send ours now.
      */
-    if (s->ppl.remote_bugs & BUG_REQUIRES_FILTERED_KEXINIT) {
-        strbuf *sb = write_filtered_kexinit(s);
-
-        /* Send that data as a packet */
+    if (s->kexinit_delayed) {
+        filter_outgoing_kexinit(s);
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
-        put_datapl(pktout, ptrlen_from_strbuf(sb));
+        put_data(pktout, s->outgoing_kexinit->u + 1,
+                 s->outgoing_kexinit->len - 1); /* omit type byte */
         pq_push(s->ppl.out_pq, pktout);
-
-        /* And also replace our previous outgoing KEXINIT, since the
-         * host key signature will be validated against this reduced
-         * one. */
-        strbuf_shrink_to(s->outgoing_kexinit, 1); /* keep the type byte */
-        put_datapl(s->outgoing_kexinit, ptrlen_from_strbuf(sb));
-
-        strbuf_free(sb);
     }
 
     /*
