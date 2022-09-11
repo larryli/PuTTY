@@ -6,7 +6,7 @@
  * References:
  *
  * Elliptic curves in SSH are specified in RFC 5656:
- *   http://tools.ietf.org/html/rfc5656
+ *   https://www.rfc-editor.org/rfc/rfc5656
  *
  * That specification delegates details of public key formatting and a
  * lot of underlying mechanism to SEC 1:

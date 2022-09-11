@@ -721,7 +721,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
          * If this the first KEX, save the GSS context for "gssapi-keyex"
          * authentication.
          *
-         * http://tools.ietf.org/html/rfc4462#section-4
+         * https://www.rfc-editor.org/rfc/rfc4462#section-4
          *
          * This method may be used only if the initial key exchange was
          * performed using a GSS-API-based key exchange method defined in

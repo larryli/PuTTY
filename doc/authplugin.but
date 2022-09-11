@@ -500,14 +500,14 @@ cases) after \cw{PLUGIN_PROTOCOL_ACCEPT}
 
 \H{authplugin-refs} References
 
-\B{authplugin-ref-arch} \W{https://datatracker.ietf.org/doc/html/rfc4251}{RFC 4251}, \q{The Secure Shell (SSH) Protocol
+\B{authplugin-ref-arch} \W{https://www.rfc-editor.org/rfc/rfc4251}{RFC 4251}, \q{The Secure Shell (SSH) Protocol
 Architecture}.
 
-\B{authplugin-ref-userauth} \W{https://datatracker.ietf.org/doc/html/rfc4252}{RFC
+\B{authplugin-ref-userauth} \W{https://www.rfc-editor.org/rfc/rfc4252}{RFC
 4252}, \q{The Secure Shell (SSH) Authentication Protocol}.
 
 \B{authplugin-ref-ki}
-\W{https://datatracker.ietf.org/doc/html/rfc4256}{RFC 4256},
+\W{https://www.rfc-editor.org/rfc/rfc4256}{RFC 4256},
 \q{Generic Message Exchange Authentication for the Secure Shell
 Protocol (SSH)} (better known by its wire id
 \q{keyboard-interactive}).

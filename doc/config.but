@@ -1950,7 +1950,7 @@ connection.
 
 \b Selecting \I{HTTP proxy}\q{HTTP CONNECT} allows you to proxy your
 connections through a web server supporting the HTTP \cw{CONNECT} command,
-as documented in \W{http://www.ietf.org/rfc/rfc2817.txt}{RFC 2817}.
+as documented in \W{https://www.rfc-editor.org/rfc/rfc2817}{RFC 2817}.
 
 \b Selecting \q{SOCKS 4} or \q{SOCKS 5} allows you to proxy your
 connections through a \i{SOCKS server}.
