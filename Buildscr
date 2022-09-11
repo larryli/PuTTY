@@ -172,10 +172,20 @@ mkdir putty/windows/abuild64
 #
 # For the 32-bit ones, we set a subsystem version of 5.01, which
 # allows the resulting files to still run on Windows XP.
-in putty/windows/build32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
+in putty/windows/build32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DPUTTY_SUBSYSTEM_VERSION=5.01 -DSTRICT=ON
 in putty/windows/build32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 in putty/windows/build64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/build64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
+
+# The cmake mechanism used to set the subsystem version is a bit of a
+# bodge (it depends on knowing how cmake set up all its build command
+# variables), so just in case it breaks in future, double-check we
+# really did get the subsystem version we wanted.
+in putty/windows/build32 do objdump -x putty.exe > exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MajorOSystemVersion[[:space:]]+5' exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MinorOSystemVersion[[:space:]]+1' exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MajorSubsystemVersion[[:space:]]+5' exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MinorSubsystemVersion[[:space:]]+1' exe-headers.txt
 
 # Build experimental Arm Windows binaries.
 in putty/windows/abuild32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON

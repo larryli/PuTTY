@@ -7,6 +7,15 @@ set(PUTTY_LINK_MAPS OFF
 set(PUTTY_EMBEDDED_CHM_FILE ""
   CACHE FILEPATH "Path to a .chm help file to embed in the binaries")
 
+if(PUTTY_SUBSYSTEM_VERSION)
+  string(REPLACE
+    "subsystem:windows" "subsystem:windows,${PUTTY_SUBSYSTEM_VERSION}"
+    CMAKE_C_CREATE_WIN32_EXE ${CMAKE_C_CREATE_WIN32_EXE})
+  string(REPLACE
+    "subsystem:console" "subsystem:console,${PUTTY_SUBSYSTEM_VERSION}"
+    CMAKE_C_CREATE_CONSOLE_EXE ${CMAKE_C_CREATE_CONSOLE_EXE})
+endif()
+
 function(define_negation newvar oldvar)
   if(${oldvar})
     set(${newvar} OFF PARENT_SCOPE)
