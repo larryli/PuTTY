@@ -2357,8 +2357,8 @@ hopefully also resistant to a new class of attacks.
 \b \q{ECDH}: \i{elliptic curve} \i{Diffie-Hellman key exchange},
 with a variety of standard curves and hash algorithms.
 
-\b \q{Diffie-Hellman} key exchange with a variety of well-known groups
-and hashes:
+\b The original form of \q{Diffie-Hellman} key exchange, with a
+variety of well-known groups and hashes:
 
 \lcont{
 \b \q{Group 18}, a well-known 8192-bit group, used with the SHA-512
@@ -2383,14 +2383,13 @@ installations; however, it may be the only method supported by very
 old server software.
 }
 
-\b \q{\ii{Group exchange}}: with this method, instead of using a fixed
-group, PuTTY requests that the server suggest a group to use for key
-exchange; the server can avoid groups known to be weak, and possibly
-invent new ones over time, without any changes required to PuTTY's
-configuration. This key exchange method uses the SHA-256 hash or,
-if the server doesn't support that, SHA-1. \#{FIXME: still true?:}
-We recommend use of this method instead of the well-known groups,
-if possible.
+\b \q{Diffie-Hellman \i{group exchange}}: with this method, instead
+of using a fixed group, PuTTY requests that the server suggest a group
+to use for a subsequent Diffie-Hellman key exchange; the server can
+avoid groups known to be weak, and possibly invent new ones over time,
+without any changes required to PuTTY's configuration. This key
+exchange method uses the SHA-256 hash or, if the server doesn't
+support that, SHA-1.
 
 \b \q{\i{RSA-based key exchange}}: this requires much less computational
 effort on the part of the client, and somewhat less on the part of
