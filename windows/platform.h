@@ -793,4 +793,6 @@ bool aux_match_done(AuxMatchOpt *amo);
 char *save_screenshot(HWND hwnd, const char *outfile);
 void gui_terminal_ready(HWND hwnd, Seat *seat, Backend *backend);
 
+void setup_gui_timing(void);
+
 #endif /* PUTTY_WINDOWS_PLATFORM_H */
