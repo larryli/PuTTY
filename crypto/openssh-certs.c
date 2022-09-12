@@ -583,7 +583,7 @@ static void opensshcert_time_to_iso8601(BinarySink *bs, uint64_t time)
     time_t t = time;
     char buf[256];
     put_data(bs, buf, strftime(buf, sizeof(buf),
-                               "%a %Y-%m-%d %H:%M:%S %Z", localtime(&t)));
+                               "%Y-%m-%d %H:%M:%S UTC", gmtime(&t)));
 }
 
 static void opensshcert_string_list_key_components(
