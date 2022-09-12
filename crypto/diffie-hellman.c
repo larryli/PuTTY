@@ -272,9 +272,9 @@ static const ssh_kex ssh_gssk5_diffiehellman_group14_sha256 = {
 };
 
 static const ssh_kex *const gssk5_sha2_kex_list[] = {
-    &ssh_gssk5_diffiehellman_group18_sha512,
-    &ssh_gssk5_diffiehellman_group17_sha512,
     &ssh_gssk5_diffiehellman_group16_sha512,
+    &ssh_gssk5_diffiehellman_group17_sha512,
+    &ssh_gssk5_diffiehellman_group18_sha512,
     &ssh_gssk5_diffiehellman_group15_sha512,
     &ssh_gssk5_diffiehellman_group14_sha256,
 };

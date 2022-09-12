@@ -33,15 +33,20 @@ static const struct keyvalwhere kexnames[] = {
     { "ecdh",               KEX_ECDH,       -1, +1 },
     /* This name is misleading: it covers both SHA-256 and SHA-1 variants */
     { "dh-gex-sha1",        KEX_DHGEX,      -1, -1 },
-    { "dh-group18-sha512",  KEX_DHGROUP18,  -1, -1 },
-    { "dh-group17-sha512",  KEX_DHGROUP17,  -1, -1 },
-    { "dh-group16-sha512",  KEX_DHGROUP16,  -1, -1 },
-    { "dh-group15-sha512",  KEX_DHGROUP15,  -1, -1 },
     /* Again, this covers both SHA-256 and SHA-1, despite the name: */
     { "dh-group14-sha1",    KEX_DHGROUP14,  -1, -1 },
     /* This one really is only SHA-1, though: */
     { "dh-group1-sha1",     KEX_DHGROUP1,   KEX_WARN, +1 },
     { "rsa",                KEX_RSA,        KEX_WARN, -1 },
+    /* Larger fixed DH groups: prefer the larger 15 and 16 over 14,
+     * but by default the even larger 17 and 18 go below 16.
+     * Rationale: diminishing returns of improving the DH strength are
+     * outweighed by increased CPU cost. Group 18 is painful on a slow
+     * machine. Users can override if they need to. */
+    { "dh-group15-sha512",  KEX_DHGROUP15,  KEX_DHGROUP14, -1 },
+    { "dh-group16-sha512",  KEX_DHGROUP16,  KEX_DHGROUP15, -1 },
+    { "dh-group17-sha512",  KEX_DHGROUP17,  KEX_DHGROUP16, +1 },
+    { "dh-group18-sha512",  KEX_DHGROUP18,  KEX_DHGROUP17, +1 },
     { "WARN",               KEX_WARN,       -1, -1 }
 };
 
