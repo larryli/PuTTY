@@ -249,7 +249,7 @@ const SeatDialogPromptDescriptions *win_seat_prompt_descriptions(Seat *seat);
  * which takes the data string in the system code page instead of
  * Unicode.
  */
-void write_aclip(int clipboard, char *, int, bool);
+void write_aclip(HWND hwnd, int clipboard, char *, int);
 
 #define WM_NETEVENT  (WM_APP + 5)
 

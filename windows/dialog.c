@@ -326,7 +326,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                             memcpy(p, sel_nl, sizeof(sel_nl));
                             p += sizeof(sel_nl);
                         }
-                        write_aclip(CLIP_SYSTEM, clipdata, size, true);
+                        write_aclip(hwnd, CLIP_SYSTEM, clipdata, size);
                         sfree(clipdata);
                     }
                     sfree(selitems);

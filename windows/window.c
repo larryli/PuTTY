@@ -4942,7 +4942,7 @@ static void wintw_palette_set(TermWin *win, unsigned start,
     }
 }
 
-void write_aclip(int clipboard, char *data, int len, bool must_deselect)
+void write_aclip(HWND hwnd, int clipboard, char *data, int len)
 {
     HGLOBAL clipdata;
     void *lock;
@@ -4960,18 +4960,12 @@ void write_aclip(int clipboard, char *data, int len, bool must_deselect)
     ((unsigned char *) lock)[len] = 0;
     GlobalUnlock(clipdata);
 
-    if (!must_deselect)
-        SendMessage(wgs.term_hwnd, WM_IGNORE_CLIP, true, 0);
-
-    if (OpenClipboard(wgs.term_hwnd)) {
+    if (OpenClipboard(hwnd)) {
         EmptyClipboard();
         SetClipboardData(CF_TEXT, clipdata);
         CloseClipboard();
     } else
         GlobalFree(clipdata);
-
-    if (!must_deselect)
-        SendMessage(wgs.term_hwnd, WM_IGNORE_CLIP, false, 0);
 }
 
 typedef struct _rgbindex {
