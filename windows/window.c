@@ -1018,9 +1018,7 @@ void cleanup_exit(int code)
         DeleteObject(pal);
     sk_cleanup();
 
-    if (conf_get_int(conf, CONF_protocol) == PROT_SSH) {
-        random_save_seed();
-    }
+    random_save_seed();
     shutdown_help();
 
     /* Clean up COM. */
