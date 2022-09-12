@@ -184,12 +184,9 @@ locally, this is the procedure for putting it up on the web.
 
  - Check that downloads via version-numbered URLs all work:
       ../putty/release.pl --version=X.YZ --precheck
-   If this has trouble accessing chiark's ftp server, that is
-   unfortunately normal; add --no-ftp and try again.
 
  - Switch the 'latest' links over to the new release:
     * Update the HTTP redirect at the:www/putty/htaccess .
-    * Update the FTP symlink at chiark:ftp/putty-latest .
 
  - Now verify that downloads via the 'latest' URLs are all redirected
    correctly and work:

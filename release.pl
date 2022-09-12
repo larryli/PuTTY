@@ -15,13 +15,11 @@ my $setver = 0;
 my $upload = 0;
 my $precheck = 0;
 my $postcheck = 0;
-my $skip_ftp = 0;
 GetOptions("version=s" => \$version,
            "setver" => \$setver,
            "upload" => \$upload,
            "precheck" => \$precheck,
-           "postcheck" => \$postcheck,
-           "no-ftp" => \$skip_ftp)
+           "postcheck" => \$postcheck)
     or &usage();
 
 # --setver: construct a local commit which updates the version
@@ -76,8 +74,7 @@ if ($upload) {
         or die "could not upload link maps";
 
     for my $location (["thyestes", "www/putty/$version"],
-                      ["the",      "www/putty/$version"],
-                      ["chiark",   "ftp/putty-$version"]) {
+                      ["the",      "www/putty/$version"]) {
         my ($host, $path) = @$location;
         0 == system("rsync", "-av", "putty/", "$host:$path")
             or die "could not upload release to $host";
@@ -109,7 +106,7 @@ if ($upload) {
 }
 
 # --precheck and --postcheck: attempt to download the release from its
-# various web and FTP locations.
+# various locations.
 if ($precheck || $postcheck) {
     defined $version or die "use --version";
 
@@ -118,7 +115,6 @@ if ($precheck || $postcheck) {
     -d "putty" or die "no putty directory in cwd";
 
     my $httpprefix = "https://the.earth.li/~sgtatham/putty/";
-    my $ftpprefix = "ftp://ftp.chiark.greenend.org.uk/users/sgtatham/putty-";
 
     # Go through all the files in build.out.
     find({ wanted => sub
@@ -140,35 +136,23 @@ if ($precheck || $postcheck) {
 
                    my $http_numbered = "${httpprefix}$version/$path";
                    my $http_latest   = "${httpprefix}latest/$path";
-                   my $ftp_numbered  = "${ftpprefix}$version/$path";
-                   my $ftp_latest    = "${ftpprefix}latest/$path";
 
-                   my ($http_uri, $ftp_uri);
+                   my $http_uri;
 
                    if ($precheck) {
                        # Before the 'latest' links/redirects update,
                        # we just download from explicitly version-
                        # numbered URLs.
                        $http_uri = $http_numbered;
-                       $ftp_uri = $ftp_numbered;
                    }
                    if ($postcheck) {
                        # After 'latest' is updated, we're testing that
                        # the redirects work, so we download from the
                        # URLs with 'latest' in them.
                        $http_uri = $http_latest;
-                       $ftp_uri = $ftp_latest;
                    }
 
                    # Now test-download the files themselves.
-                   unless ($skip_ftp) {
-                       my $ftpdata = `curl -s $ftp_uri`;
-                       printf "  got %d bytes via FTP", length $ftpdata;
-                       die "FTP download for $ftp_uri did not match"
-                           if $ftpdata ne $real_content;
-                       print ", ok\n";
-                   }
-
                    my $ua = LWP::UserAgent->new;
                    my $httpresponse = $ua->get($http_uri);
                    my $httpdata = $httpresponse->{_content};
