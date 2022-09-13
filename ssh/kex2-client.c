@@ -559,10 +559,10 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             dh_cleanup(s->dh_ctx);
             s->dh_ctx = NULL;
             mp_free(s->f); s->f = NULL;
-        }
-        if (dh_is_gex(s->kex_alg)) {
-            mp_free(s->g); s->g = NULL;
-            mp_free(s->p); s->p = NULL;
+            if (dh_is_gex(s->kex_alg)) {
+                mp_free(s->g); s->g = NULL;
+                mp_free(s->p); s->p = NULL;
+            }
         }
 #endif
     } else {
