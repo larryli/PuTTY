@@ -1680,8 +1680,10 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
 
     /* If the window is maximized suppress resizing attempts */
     if (IsZoomed(wgs.term_hwnd)) {
-        if (conf_get_int(conf, CONF_resize_action) == RESIZE_TERM)
+        if (conf_get_int(conf, CONF_resize_action) == RESIZE_TERM) {
+            term_resize_request_completed(term);
             return;
+        }
     }
 
     if (conf_get_int(conf, CONF_resize_action) == RESIZE_DISABLED) return;
@@ -1698,8 +1700,10 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
             width = (ss.right - ss.left - extra_width) / 4;
             height = (ss.bottom - ss.top - extra_height) / 6;
 
-            if (w > width || h > height)
+            if (w > width || h > height) {
+                term_resize_request_completed(term);
                 return;
+            }
             if (w < 15)
                 w = 15;
             if (h < 1)
