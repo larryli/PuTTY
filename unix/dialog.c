@@ -3529,7 +3529,8 @@ static void confirm_ssh_host_key_result_callback(void *vctx, int result)
          * doesn't care whether we saved the host key or not).
          */
         if (result == 2) {
-            store_host_key(ctx->host, ctx->port, ctx->keytype, ctx->keystr);
+            store_host_key(ctx->seat, ctx->host, ctx->port,
+                           ctx->keytype, ctx->keystr);
             logical_result = SPR_OK;
         } else if (result == 1) {
             logical_result = SPR_OK;

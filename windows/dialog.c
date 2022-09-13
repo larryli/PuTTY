@@ -1155,7 +1155,7 @@ SeatPromptResult win_seat_confirm_ssh_host_key(
         wgs->term_hwnd, HostKeyDialogProc, ctx);
     assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
     if (mbret == IDC_HK_ACCEPT) {
-        store_host_key(host, port, keytype, keystr);
+        store_host_key(seat, host, port, keytype, keystr);
         return SPR_OK;
     } else if (mbret == IDC_HK_ONCE) {
         return SPR_OK;

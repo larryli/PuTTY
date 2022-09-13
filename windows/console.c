@@ -119,7 +119,7 @@ SeatPromptResult console_confirm_ssh_host_key(
     if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n' &&
         line[0] != 'q' && line[0] != 'Q') {
         if (line[0] == 'y' || line[0] == 'Y')
-            store_host_key(host, port, keytype, keystr);
+            store_host_key(seat, host, port, keytype, keystr);
         return SPR_OK;
     } else {
         fputs(console_abandoned_msg, stderr);

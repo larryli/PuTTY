@@ -290,6 +290,12 @@ static void gtk_seat_connection_fatal(Seat *seat, const char *msg)
     queue_toplevel_callback(connection_fatal_callback, inst);
 }
 
+static void gtk_seat_nonfatal(Seat *seat, const char *msg)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    nonfatal_message_box(inst->window, msg);
+}
+
 /*
  * Default settings that are specific to pterm.
  */
@@ -423,6 +429,7 @@ static const SeatVtable gtk_seat_vt = {
     .notify_remote_exit = gtk_seat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = gtk_seat_connection_fatal,
+    .nonfatal = gtk_seat_nonfatal,
     .update_specials_menu = gtk_seat_update_specials_menu,
     .get_ttymode = gtk_seat_get_ttymode,
     .set_busy_status = gtk_seat_set_busy_status,

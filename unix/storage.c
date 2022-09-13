@@ -828,7 +828,7 @@ bool have_ssh_host_key(const char *hostname, int port,
     return check_stored_host_key(hostname, port, keytype, "") != 1;
 }
 
-void store_host_key(const char *hostname, int port,
+void store_host_key(Seat *seat, const char *hostname, int port,
                     const char *keytype, const char *key)
 {
     FILE *rfp, *wfp;
@@ -846,7 +846,7 @@ void store_host_key(const char *hostname, int port,
 
         dir = make_filename(INDEX_DIR, NULL);
         if ((errmsg = make_dir_path(dir, 0700)) != NULL) {
-            nonfatal("Unable to store host key: %s", errmsg);
+            seat_nonfatal(seat, "Unable to store host key: %s", errmsg);
             sfree(errmsg);
             sfree(dir);
             sfree(tmpfilename);
@@ -857,8 +857,8 @@ void store_host_key(const char *hostname, int port,
         wfp = fopen(tmpfilename, "w");
     }
     if (!wfp) {
-        nonfatal("Unable to store host key: open(\"%s\") "
-                 "returned '%s'", tmpfilename, strerror(errno));
+        seat_nonfatal(seat, "Unable to store host key: open(\"%s\") "
+                      "returned '%s'", tmpfilename, strerror(errno));
         sfree(tmpfilename);
         return;
     }
@@ -889,9 +889,9 @@ void store_host_key(const char *hostname, int port,
     fclose(wfp);
 
     if (rename(tmpfilename, filename) < 0) {
-        nonfatal("Unable to store host key: rename(\"%s\",\"%s\")"
-                 " returned '%s'", tmpfilename, filename,
-                 strerror(errno));
+        seat_nonfatal(seat, "Unable to store host key: rename(\"%s\",\"%s\")"
+                      " returned '%s'", tmpfilename, filename,
+                      strerror(errno));
     }
 
     sfree(tmpfilename);

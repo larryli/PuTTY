@@ -321,6 +321,7 @@ static bool win_seat_eof(Seat *seat);
 static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p);
 static void win_seat_notify_remote_exit(Seat *seat);
 static void win_seat_connection_fatal(Seat *seat, const char *msg);
+static void win_seat_nonfatal(Seat *seat, const char *msg);
 static void win_seat_update_specials_menu(Seat *seat);
 static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
 static void win_seat_set_trust_status(Seat *seat, bool trusted);
@@ -338,6 +339,7 @@ static const SeatVtable win_seat_vt = {
     .notify_remote_exit = win_seat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = win_seat_connection_fatal,
+    .nonfatal = win_seat_nonfatal,
     .update_specials_menu = win_seat_update_specials_menu,
     .get_ttymode = win_seat_get_ttymode,
     .set_busy_status = win_seat_set_busy_status,
@@ -1186,6 +1188,17 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg)
     else {
         queue_toplevel_callback(close_session, NULL);
     }
+}
+
+/*
+ * Print a message box and don't close the connection.
+ */
+static void win_seat_nonfatal(Seat *seat, const char *msg)
+{
+    char *title = dupprintf("%s Error", appname);
+    show_mouseptr(true);
+    MessageBox(wgs.term_hwnd, msg, title, MB_ICONERROR | MB_OK);
+    sfree(title);
 }
 
 /*

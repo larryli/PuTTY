@@ -79,6 +79,11 @@ void console_connection_fatal(Seat *seat, const char *msg)
     cleanup_exit(1);
 }
 
+void console_nonfatal(Seat *seat, const char *msg)
+{
+    console_print_error_msg("ERROR", msg);
+}
+
 /*
  * Console front ends redo their select() or equivalent every time, so
  * they don't need separate timer handling.

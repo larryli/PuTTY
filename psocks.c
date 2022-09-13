@@ -529,7 +529,7 @@ int check_stored_host_key(const char *hostname, int port,
     unreachable("host keys not handled in this tool");
 }
 
-void store_host_key(const char *hostname, int port,
+void store_host_key(Seat *seat, const char *hostname, int port,
                     const char *keytype, const char *key)
 {
     unreachable("host keys not handled in this tool");

@@ -1214,9 +1214,15 @@ struct SeatVtable {
     void (*notify_remote_disconnect)(Seat *seat);
 
     /*
-     * Notify the seat that the connection has suffered a fatal error.
+     * Notify the seat that the connection has suffered an error,
+     * either fatal to the whole connection or not.
+     *
+     * The latter kind of error is expected to be things along the
+     * lines of 'I/O error storing the new host key', which has
+     * traditionally been presented via a dialog box or similar.
      */
     void (*connection_fatal)(Seat *seat, const char *message);
+    void (*nonfatal)(Seat *seat, const char *message);
 
     /*
      * Notify the seat that the list of special commands available
@@ -1481,10 +1487,11 @@ static inline bool seat_interactive(Seat *seat)
 static inline bool seat_get_cursor_position(Seat *seat, int *x, int *y)
 { return  seat->vt->get_cursor_position(seat, x, y); }
 
-/* Unlike the seat's actual method, the public entry point
- * seat_connection_fatal is a wrapper function with a printf-like API,
- * defined in utils. */
+/* Unlike the seat's actual method, the public entry points
+ * seat_connection_fatal and seat_nonfatal are wrapper functions with
+ * a printf-like API, defined in utils. */
 void seat_connection_fatal(Seat *seat, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void seat_nonfatal(Seat *seat, const char *fmt, ...) PRINTF_LIKE(2, 3);
 
 /* Handy aliases for seat_output which set is_stderr to a fixed value. */
 static inline size_t seat_stdout(Seat *seat, const void *data, size_t len)
@@ -1528,6 +1535,7 @@ void nullseat_notify_session_started(Seat *seat);
 void nullseat_notify_remote_exit(Seat *seat);
 void nullseat_notify_remote_disconnect(Seat *seat);
 void nullseat_connection_fatal(Seat *seat, const char *message);
+void nullseat_nonfatal(Seat *seat, const char *message);
 void nullseat_update_specials_menu(Seat *seat);
 char *nullseat_get_ttymode(Seat *seat, const char *mode);
 void nullseat_set_busy_status(Seat *seat, BusyStatus status);
@@ -1567,6 +1575,7 @@ bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
  */
 
 void console_connection_fatal(Seat *seat, const char *message);
+void console_nonfatal(Seat *seat, const char *message);
 SeatPromptResult console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, SeatDialogText *text, HelpCtx helpctx,

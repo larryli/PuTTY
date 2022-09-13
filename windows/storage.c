@@ -357,7 +357,7 @@ bool have_ssh_host_key(const char *hostname, int port,
     return check_stored_host_key(hostname, port, keytype, "") != 1;
 }
 
-void store_host_key(const char *hostname, int port,
+void store_host_key(Seat *seat, const char *hostname, int port,
                     const char *keytype, const char *key)
 {
     strbuf *regname = strbuf_new();

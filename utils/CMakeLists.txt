@@ -51,6 +51,7 @@ add_sources_from_current_dir(utils
   read_file_into.c
   seat_connection_fatal.c
   seat_dialog_text.c
+  seat_nonfatal.c
   sessprep.c
   sk_free_peer_info.c
   smemclr.c

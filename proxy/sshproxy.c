@@ -405,6 +405,14 @@ static void sshproxy_connection_fatal(Seat *seat, const char *message)
     }
 }
 
+static void sshproxy_nonfatal(Seat *seat, const char *message)
+{
+    SshProxy *sp = container_of(seat, SshProxy, seat);
+    if (sp->clientseat)
+        seat_nonfatal(sp->clientseat, "error in proxy SSH connection: %s",
+                      message);
+}
+
 static SeatPromptResult sshproxy_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
     char *keystr, SeatDialogText *text, HelpCtx helpctx,
@@ -541,6 +549,7 @@ static const SeatVtable SshProxy_seat_vt = {
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = sshproxy_notify_remote_disconnect,
     .connection_fatal = sshproxy_connection_fatal,
+    .nonfatal = sshproxy_nonfatal,
     .update_specials_menu = nullseat_update_specials_menu,
     .get_ttymode = nullseat_get_ttymode,
     .set_busy_status = nullseat_set_busy_status,
