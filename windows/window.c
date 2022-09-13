@@ -1692,20 +1692,9 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
 
     /* Sanity checks ... */
     {
-        static int first_time = 1;
-        static RECT ss;
-
-        switch (first_time) {
-          case 1:
-            /* Get the size of the screen */
-            if (get_fullscreen_rect(&ss))
-                /* first_time = 0 */ ;
-            else {
-                first_time = 2;
-                break;
-            }
-          case 0:
-            /* Make sure the values are sane */
+        RECT ss;
+        if (get_fullscreen_rect(&ss)) {
+            /* Make sure the values aren't too big */
             width = (ss.right - ss.left - extra_width) / 4;
             height = (ss.bottom - ss.top - extra_height) / 6;
 
