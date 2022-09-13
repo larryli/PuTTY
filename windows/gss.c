@@ -118,7 +118,6 @@ static void add_library_to_never_unload_tree(HMODULE module)
 struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 {
     HMODULE module;
-    HKEY regkey;
     struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
     char *path;
     static HMODULE kernel32_module;
@@ -137,55 +136,47 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 
     /* MIT Kerberos GSSAPI implementation */
     module = NULL;
-    if (RegOpenKey(HKEY_LOCAL_MACHINE, "SOFTWARE\\MIT\\Kerberos", &regkey)
-        == ERROR_SUCCESS) {
-        DWORD type, size;
-        LONG ret;
-        char *buffer;
-
-        /* Find out the string length */
-        ret = RegQueryValueEx(regkey, "InstallDir", NULL, &type, NULL, &size);
-
-        if (ret == ERROR_SUCCESS && type == REG_SZ) {
-            buffer = snewn(size + 20, char);
-            ret = RegQueryValueEx(regkey, "InstallDir", NULL,
-                                  &type, (LPBYTE)buffer, &size);
-            if (ret == ERROR_SUCCESS && type == REG_SZ) {
-                strcat (buffer, "\\bin");
-                if(p_AddDllDirectory) {
-                    /* Add MIT Kerberos' path to the DLL search path,
-                     * it loads its own DLLs further down the road */
-                    wchar_t *dllPath =
-                        dup_mb_to_wc(DEFAULT_CODEPAGE, 0, buffer);
-                    p_AddDllDirectory(dllPath);
-                    sfree(dllPath);
-                }
-                strcat (buffer, "\\gssapi"MIT_KERB_SUFFIX".dll");
-                module = LoadLibraryEx (buffer, NULL,
-                                        LOAD_LIBRARY_SEARCH_SYSTEM32 |
-                                        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR |
-                                        LOAD_LIBRARY_SEARCH_USER_DIRS);
-
-                /*
-                 * The MIT Kerberos DLL suffers an internal segfault
-                 * for some reason if you unload and reload one within
-                 * the same process. So, make sure that after we load
-                 * this library, we never free it.
-                 *
-                 * Or rather: after we've loaded it once, if any
-                 * _further_ load returns the same module handle, we
-                 * immediately free it again (to prevent the Windows
-                 * API's internal reference count growing without
-                 * bound). But on the other hand we never free it in
-                 * ssh_gss_cleanup.
-                 */
-                if (library_is_in_never_unload_tree(module))
-                    FreeLibrary(module);
-                add_library_to_never_unload_tree(module);
+    HKEY regkey = open_regkey_ro(HKEY_LOCAL_MACHINE,
+                                 "SOFTWARE\\MIT\\Kerberos");
+    if (regkey) {
+        char *installdir = get_reg_sz(regkey, "InstallDir");
+        if (installdir) {
+            char *bindir = dupcat(installdir, "\\bin");
+            if(p_AddDllDirectory) {
+                /* Add MIT Kerberos' path to the DLL search path,
+                 * it loads its own DLLs further down the road */
+                wchar_t *dllPath = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, bindir);
+                p_AddDllDirectory(dllPath);
+                sfree(dllPath);
             }
-            sfree(buffer);
+
+            char *dllfile = dupcat(bindir, "\\gssapi"MIT_KERB_SUFFIX".dll");
+            module = LoadLibraryEx(dllfile, NULL,
+                                   LOAD_LIBRARY_SEARCH_SYSTEM32 |
+                                   LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR |
+                                   LOAD_LIBRARY_SEARCH_USER_DIRS);
+
+            /*
+             * The MIT Kerberos DLL suffers an internal segfault for
+             * some reason if you unload and reload one within the
+             * same process. So, make sure that after we load this
+             * library, we never free it.
+             *
+             * Or rather: after we've loaded it once, if any _further_
+             * load returns the same module handle, we immediately
+             * free it again (to prevent the Windows API's internal
+             * reference count growing without bound). But on the
+             * other hand we never free it in ssh_gss_cleanup.
+             */
+            if (library_is_in_never_unload_tree(module))
+                FreeLibrary(module);
+            add_library_to_never_unload_tree(module);
+
+            sfree(dllfile);
+            sfree(bindir);
+            sfree(installdir);
         }
-        RegCloseKey(regkey);
+        close_regkey(regkey);
     }
     if (module) {
         struct ssh_gss_library *lib =

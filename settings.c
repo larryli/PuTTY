@@ -267,19 +267,10 @@ static bool gppmap(settings_r *sesskey, const char *name,
 static void wmap(settings_w *sesskey, char const *outkey, Conf *conf,
                  int primary, bool include_values)
 {
-    char *buf, *p, *key, *realkey;
+    char *key, *realkey;
     const char *val, *q;
-    int len;
 
-    len = 1;                           /* allow for NUL */
-
-    for (val = conf_get_str_strs(conf, primary, NULL, &key);
-         val != NULL;
-         val = conf_get_str_strs(conf, primary, key, &key))
-        len += 2 + 2 * (strlen(key) + strlen(val));   /* allow for escaping */
-
-    buf = snewn(len, char);
-    p = buf;
+    strbuf *sb = strbuf_new();
 
     for (val = conf_get_str_strs(conf, primary, NULL, &key);
          val != NULL;
@@ -304,19 +295,19 @@ static void wmap(settings_w *sesskey, char const *outkey, Conf *conf,
             realkey = NULL;
         }
 
-        if (p != buf)
-            *p++ = ',';
+        if (sb->len)
+            put_byte(sb, ',');
         for (q = key; *q; q++) {
             if (*q == '=' || *q == ',' || *q == '\\')
-                *p++ = '\\';
-            *p++ = *q;
+                put_byte(sb, '\\');
+            put_byte(sb, *q);
         }
         if (include_values) {
-            *p++ = '=';
+            put_byte(sb, '=');
             for (q = val; *q; q++) {
                 if (*q == '=' || *q == ',' || *q == '\\')
-                    *p++ = '\\';
-                *p++ = *q;
+                    put_byte(sb, '\\');
+                put_byte(sb, *q);
             }
         }
 
@@ -325,9 +316,8 @@ static void wmap(settings_w *sesskey, char const *outkey, Conf *conf,
             key = realkey;
         }
     }
-    *p = '\0';
-    write_setting_s(sesskey, outkey, buf);
-    sfree(buf);
+    write_setting_s(sesskey, outkey, sb->s);
+    strbuf_free(sb);
 }
 
 static int key2val(const struct keyvalwhere *mapping,
@@ -456,34 +446,18 @@ static void wprefs(settings_w *sesskey, const char *name,
                    const struct keyvalwhere *mapping, int nvals,
                    Conf *conf, int primary)
 {
-    char *buf, *p;
-    int i, maxlen;
+    strbuf *sb = strbuf_new();
 
-    for (maxlen = i = 0; i < nvals; i++) {
+    for (int i = 0; i < nvals; i++) {
         const char *s = val2key(mapping, nvals,
                                 conf_get_int_int(conf, primary, i));
-        if (s) {
-            maxlen += (maxlen > 0 ? 1 : 0) + strlen(s);
-        }
+        if (s)
+            put_fmt(sb, "%s%s", (sb->len ? "," : ""), s);
     }
 
-    buf = snewn(maxlen + 1, char);
-    p = buf;
+    write_setting_s(sesskey, name, sb->s);
 
-    for (i = 0; i < nvals; i++) {
-        const char *s = val2key(mapping, nvals,
-                                conf_get_int_int(conf, primary, i));
-        if (s) {
-            p += sprintf(p, "%s%s", (p > buf ? "," : ""), s);
-        }
-    }
-
-    assert(p - buf == maxlen);
-    *p = '\0';
-
-    write_setting_s(sesskey, name, buf);
-
-    sfree(buf);
+    strbuf_free(sb);
 }
 
 static void write_setting_b(settings_w *handle, const char *key, bool value)

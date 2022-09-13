@@ -321,7 +321,6 @@ static int keycmp(void *av, void *bv)
 void provide_xrm_string(const char *string, const char *progname)
 {
     const char *p, *q;
-    char *key;
     struct skeyval *xrms, *ret;
 
     p = q = strchr(string, ':');
@@ -330,14 +329,13 @@ void provide_xrm_string(const char *string, const char *progname)
                 " \"%s\"\n", progname, string);
         return;
     }
-    q++;
+    xrms = snew(struct skeyval);
+
     while (p > string && p[-1] != '.' && p[-1] != '*')
         p--;
-    xrms = snew(struct skeyval);
-    key = snewn(q-p, char);
-    memcpy(key, p, q-p);
-    key[q-p-1] = '\0';
-    xrms->key = key;
+    xrms->key = mkstr(make_ptrlen(p, q-p));
+
+    q++;
     while (*q && isspace((unsigned char)*q))
         q++;
     xrms->value = dupstr(q);

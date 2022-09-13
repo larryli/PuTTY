@@ -300,35 +300,21 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                                                    LB_GETSELITEMS,
                                                    selcount,
                                                    (LPARAM) selitems);
-                    int i;
-                    int size;
-                    char *clipdata;
-                    static unsigned char sel_nl[] = SEL_NL;
+                    static const unsigned char sel_nl[] = SEL_NL;
 
                     if (count == 0) {  /* can't copy zero stuff */
                         MessageBeep(0);
                         break;
                     }
 
-                    size = 0;
-                    for (i = 0; i < count; i++)
-                        size +=
-                            strlen(getevent(selitems[i])) + sizeof(sel_nl);
-
-                    clipdata = snewn(size, char);
-                    if (clipdata) {
-                        char *p = clipdata;
-                        for (i = 0; i < count; i++) {
-                            char *q = getevent(selitems[i]);
-                            int qlen = strlen(q);
-                            memcpy(p, q, qlen);
-                            p += qlen;
-                            memcpy(p, sel_nl, sizeof(sel_nl));
-                            p += sizeof(sel_nl);
-                        }
-                        write_aclip(hwnd, CLIP_SYSTEM, clipdata, size);
-                        sfree(clipdata);
+                    strbuf *sb = strbuf_new();
+                    for (int i = 0; i < count; i++) {
+                        char *q = getevent(selitems[i]);
+                        put_datapl(sb, ptrlen_from_asciz(q));
+                        put_data(sb, sel_nl, sizeof(sel_nl));
                     }
+                    write_aclip(hwnd, CLIP_SYSTEM, sb->s, sb->len);
+                    strbuf_free(sb);
                     sfree(selitems);
 
                     for (i = 0; i < (ninitial + ncircular); i++)

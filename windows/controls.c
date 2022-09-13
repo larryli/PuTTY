@@ -393,13 +393,11 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
     INT *pwidths, nfit;
     SIZE size;
     const char *p;
-    char *ret, *q;
     RECT r;
     HFONT oldfont, newfont;
 
-    ret = snewn(1+strlen(text), char);
+    strbuf *sb = strbuf_new();
     p = text;
-    q = ret;
     pwidths = snewn(1+strlen(text), INT);
 
     /*
@@ -432,7 +430,7 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
              * Either way, we stop wrapping, copy the remainder of
              * the input string unchanged to the output, and leave.
              */
-            strcpy(q, p);
+            put_datapl(sb, ptrlen_from_asciz(p));
             break;
         }
 
@@ -449,9 +447,8 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
             }
         }
 
-        strncpy(q, p, nfit);
-        q[nfit] = '\n';
-        q += nfit+1;
+        put_data(sb, p, nfit);
+        put_byte(sb, '\n');
 
         p += nfit;
         while (*p && isspace((unsigned char)*p))
@@ -467,7 +464,7 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
 
     sfree(pwidths);
 
-    return ret;
+    return strbuf_to_str(sb);
 }
 
 /*
@@ -1181,30 +1178,24 @@ void progressbar(struct ctlpos *cp, int id)
  */
 static char *shortcut_escape(const char *text, char shortcut)
 {
-    char *ret;
-    char const *p;
-    char *q;
-
     if (!text)
         return NULL;                   /* sfree won't choke on this */
 
-    ret = snewn(2*strlen(text)+1, char);   /* size potentially doubles! */
+    strbuf *sb = strbuf_new();
     shortcut = tolower((unsigned char)shortcut);
 
-    p = text;
-    q = ret;
+    const char *p = text;
     while (*p) {
         if (shortcut != NO_SHORTCUT &&
             tolower((unsigned char)*p) == shortcut) {
-            *q++ = '&';
+            put_byte(sb, '&');
             shortcut = NO_SHORTCUT;    /* stop it happening twice */
         } else if (*p == '&') {
-            *q++ = '&';
+            put_byte(sb, '&');
         }
-        *q++ = *p++;
+        put_byte(sb, *p++);
     }
-    *q = '\0';
-    return ret;
+    return strbuf_to_str(sb);
 }
 
 void winctrl_add_shortcuts(struct dlgparam *dp, struct winctrl *c)

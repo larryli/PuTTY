@@ -1228,9 +1228,8 @@ Backend *pty_backend_create(
             char *shellname;
             if (conf_get_bool(conf, CONF_login_shell)) {
                 const char *p = strrchr(shell, '/');
-                shellname = snewn(2+strlen(shell), char);
                 p = p ? p+1 : shell;
-                sprintf(shellname, "-%s", p);
+                shellname = dupprintf("-%s", p);
             } else
                 shellname = (char *)shell;
             execl(shell, shellname, (void *)NULL);

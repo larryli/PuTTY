@@ -46,8 +46,7 @@ struct askpass_ctx {
     GdkColor cols[3];
 #endif
     char *error_message;               /* if we finish without a passphrase */
-    char *passphrase;                  /* if we finish with one */
-    int passlen, passsize;
+    strbuf *passphrase;                /* if we finish with one */
 #if GTK_CHECK_VERSION(3,20,0)
     GdkSeat *seat;                     /* for gdk_seat_grab */
 #elif GTK_CHECK_VERSION(3,0,0)
@@ -107,48 +106,30 @@ static void visually_acknowledge_keypress(struct askpass_ctx *ctx)
     ctx->active_area = new_active;
 }
 
-static int last_char_len(struct askpass_ctx *ctx)
+static size_t last_char_start(struct askpass_ctx *ctx)
 {
     /*
      * GTK always encodes in UTF-8, so we can do this in a fixed way.
      */
-    int i;
-    assert(ctx->passlen > 0);
-    i = ctx->passlen - 1;
-    while ((unsigned)((unsigned char)ctx->passphrase[i] - 0x80) < 0x40) {
+    assert(ctx->passphrase->len > 0);
+    size_t i = ctx->passphrase->len - 1;
+    while ((unsigned)(ctx->passphrase->u[i] - 0x80) < 0x40) {
         if (i == 0)
             break;
         i--;
     }
-    return ctx->passlen - i;
+    return i;
 }
 
 static void add_text_to_passphrase(struct askpass_ctx *ctx, gchar *str)
 {
-    int len = strlen(str);
-    if (ctx->passlen + len >= ctx->passsize) {
-        /* Take some care with buffer expansion, because there are
-         * pieces of passphrase in the old buffer so we should ensure
-         * realloc doesn't leave a copy lying around in the address
-         * space. */
-        int oldsize = ctx->passsize;
-        char *newbuf;
-
-        ctx->passsize = (ctx->passlen + len) * 5 / 4 + 1024;
-        newbuf = snewn(ctx->passsize, char);
-        memcpy(newbuf, ctx->passphrase, oldsize);
-        smemclr(ctx->passphrase, oldsize);
-        sfree(ctx->passphrase);
-        ctx->passphrase = newbuf;
-    }
-    strcpy(ctx->passphrase + ctx->passlen, str);
-    ctx->passlen += len;
+    put_datapl(ctx->passphrase, ptrlen_from_asciz(str));
     visually_acknowledge_keypress(ctx);
 }
 
 static void cancel_askpass(struct askpass_ctx *ctx, const char *msg)
 {
-    smemclr(ctx->passphrase, ctx->passsize);
+    strbuf_free(ctx->passphrase);
     ctx->passphrase = NULL;
     ctx->error_message = dupstr(msg);
     gtk_main_quit();
@@ -182,7 +163,7 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         if (event->type == GDK_KEY_PRESS) {
             if (!strcmp(event->string, "\x15")) {
                 /* Ctrl-U. Wipe out the whole line */
-                ctx->passlen = 0;
+                strbuf_clear(ctx->passphrase);
                 visually_acknowledge_keypress(ctx);
             } else if (!strcmp(event->string, "\x17")) {
                 /* Ctrl-W. Delete back to the last space->nonspace
@@ -190,20 +171,21 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                  * way (mimicking terminal drivers), and don't attempt
                  * to second-guess exciting Unicode space
                  * characters. */
-                while (ctx->passlen > 0) {
+                while (ctx->passphrase->len > 0) {
                     char deleted, prior;
-                    ctx->passlen -= last_char_len(ctx);
-                    deleted = ctx->passphrase[ctx->passlen];
-                    prior = (ctx->passlen == 0 ? ' ' :
-                             ctx->passphrase[ctx->passlen-1]);
+                    size_t newlen = last_char_start(ctx);
+                    deleted = ctx->passphrase->s[newlen];
+                    strbuf_shrink_to(ctx->passphrase, newlen);
+                    prior = (ctx->passphrase->len == 0 ? ' ' :
+                             ctx->passphrase->s[ctx->passphrase->len-1]);
                     if (!g_ascii_isspace(deleted) && g_ascii_isspace(prior))
                         break;
                 }
                 visually_acknowledge_keypress(ctx);
             } else if (event->keyval == GDK_KEY_BackSpace) {
                 /* Backspace. Delete one character. */
-                if (ctx->passlen > 0)
-                    ctx->passlen -= last_char_len(ctx);
+                if (ctx->passphrase->len > 0)
+                    strbuf_shrink_to(ctx->passphrase, last_char_start(ctx));
                 visually_acknowledge_keypress(ctx);
 #if !GTK_CHECK_VERSION(2,0,0)
             } else if (event->string[0]) {
@@ -427,9 +409,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     int i;
     GtkBox *action_area;
 
-    ctx->passlen = 0;
-    ctx->passsize = 2048;
-    ctx->passphrase = snewn(ctx->passsize, char);
+    ctx->passphrase = strbuf_new_nm();
 
     /*
      * Create widgets.
@@ -553,11 +533,6 @@ static void gtk_askpass_cleanup(struct askpass_ctx *ctx)
 #endif
     gtk_grab_remove(ctx->promptlabel);
 
-    if (ctx->passphrase) {
-        assert(ctx->passlen < ctx->passsize);
-        ctx->passphrase[ctx->passlen] = '\0';
-    }
-
     gtk_widget_destroy(ctx->dialog);
 }
 
@@ -612,7 +587,7 @@ char *gtk_askpass_main(const char *display, const char *wintitle,
 
     if (ctx->passphrase) {
         *success = true;
-        return ctx->passphrase;
+        return strbuf_to_str(ctx->passphrase);
     } else {
         *success = false;
         return ctx->error_message;

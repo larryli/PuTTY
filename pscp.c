@@ -2120,7 +2120,6 @@ static void get_dir_list(int argc, char *argv[])
 {
     char *wsrc, *host, *user;
     const char *src;
-    char *cmd, *p;
     const char *q;
     char c;
 
@@ -2150,24 +2149,18 @@ static void get_dir_list(int argc, char *argv[])
             user = NULL;
     }
 
-    cmd = snewn(4 * strlen(src) + 100, char);
-    strcpy(cmd, "ls -la '");
-    p = cmd + strlen(cmd);
+    strbuf *cmd = strbuf_new();
+    put_datalit(cmd, "ls -la '");
     for (q = src; *q; q++) {
-        if (*q == '\'') {
-            *p++ = '\'';
-            *p++ = '\\';
-            *p++ = '\'';
-            *p++ = '\'';
-        } else {
-            *p++ = *q;
-        }
+        if (*q == '\'')
+            put_datalit(cmd, "'\\''");
+        else
+            put_byte(cmd, *q);
     }
-    *p++ = '\'';
-    *p = '\0';
+    put_datalit(cmd, "'");
 
-    do_cmd(host, user, cmd);
-    sfree(cmd);
+    do_cmd(host, user, cmd->s);
+    strbuf_free(cmd);
 
     if (using_sftp) {
         scp_sftp_listdir(src);

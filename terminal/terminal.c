@@ -1588,19 +1588,17 @@ static void term_copy_stuff_from_conf(Terminal *term)
      */
     {
         char *answerback = conf_get_str(term->conf, CONF_answerback);
-        int maxlen = strlen(answerback);
 
-        term->answerback = snewn(maxlen, char);
-        term->answerbacklen = 0;
+        strbuf_clear(term->answerback);
 
         while (*answerback) {
             char *n;
             char c = ctrlparse(answerback, &n);
             if (n) {
-                term->answerback[term->answerbacklen++] = c;
+                put_byte(term->answerback, c);
                 answerback = n;
             } else {
-                term->answerback[term->answerbacklen++] = *answerback++;
+                put_byte(term->answerback, *answerback++);
             }
         }
     }
@@ -1980,6 +1978,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->termstate = TOPLEVEL;
     term->selstate = NO_SELECTION;
     term->curstype = 0;
+    term->answerback = strbuf_new();
 
     term_copy_stuff_from_conf(term);
 
@@ -2095,7 +2094,7 @@ void term_free(Terminal *term)
     sfree(term->ltemp);
     sfree(term->wcFrom);
     sfree(term->wcTo);
-    sfree(term->answerback);
+    strbuf_free(term->answerback);
 
     for (i = 0; i < term->bidi_cache_size; i++) {
         sfree(term->pre_bidi_cache[i].chars);
@@ -3807,7 +3806,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 if (term->ldisc) {
                     strbuf *buf = term_input_data_from_charset(
                         term, DEFAULT_CODEPAGE,
-                        term->answerback, term->answerbacklen);
+                        term->answerback->s, term->answerback->len);
                     ldisc_send(term->ldisc, buf->s, buf->len, false);
                     strbuf_free(buf);
                 }

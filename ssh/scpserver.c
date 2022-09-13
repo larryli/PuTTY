@@ -799,20 +799,17 @@ static void scp_source_process_stack(ScpSource *scp)
             scp->head = node;     /* put back the unfinished READDIR */
             node = NULL;          /* and prevent it being freed */
         } else {
-            ptrlen subpath;
-            subpath.len = node->pathname.len + 1 + scp->reply.name.len;
-            char *subpath_space = snewn(subpath.len, char);
-            subpath.ptr = subpath_space;
-            memcpy(subpath_space, node->pathname.ptr, node->pathname.len);
-            subpath_space[node->pathname.len] = '/';
-            memcpy(subpath_space + node->pathname.len + 1,
-                   scp->reply.name.ptr, scp->reply.name.len);
+            strbuf *subpath = strbuf_new();
+            put_datapl(subpath, node->pathname);
+            put_byte(subpath, '/');
+            put_datapl(subpath, scp->reply.name);
 
             scp->head = node;     /* put back the unfinished READDIR */
             node = NULL;          /* and prevent it being freed */
-            scp_source_push_name(scp, subpath, scp->reply.attrs, NULL);
+            scp_source_push_name(scp, ptrlen_from_strbuf(subpath),
+                                 scp->reply.attrs, NULL);
 
-            sfree(subpath_space);
+            strbuf_free(subpath);
         }
     } else if (node->attrs.permissions & PERMS_DIRECTORY) {
         assert(scp->recursive || node->wildcard);

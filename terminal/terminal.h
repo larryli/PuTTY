@@ -300,8 +300,7 @@ struct terminal_tag {
      * the former every time.
      */
     bool ansi_colour;
-    char *answerback;
-    int answerbacklen;
+    strbuf *answerback;
     bool no_arabicshaping;
     int beep;
     bool bellovl;

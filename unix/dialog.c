@@ -594,9 +594,7 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
         cols = cols ? cols : 1;
         for (i = 0; i < cols; i++) {
             int collen = strcspn(text, "\t");
-            char *tmpstr = snewn(collen+1, char);
-            memcpy(tmpstr, text, collen);
-            tmpstr[collen] = '\0';
+            char *tmpstr = mkstr(make_ptrlen(text, collen));
             gtk_list_store_set(uc->listmodel, &iter, i+1, tmpstr, -1);
             sfree(tmpstr);
             text += collen;
