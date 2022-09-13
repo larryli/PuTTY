@@ -1152,6 +1152,22 @@ running, but it doesn't stop the process's memory as a whole from
 being swapped completely out to disk when the process is long-term
 inactive. And Pageant spends most of its time inactive.
 
+\S{faq-windowsstore}{Question} Is the version of PuTTY in the
+\i{Microsoft Store} legit?
+
+The free-of-charge \q{PuTTY} application at
+\W{https://apps.microsoft.com/store/detail/putty/XPFNZKSKLBP7RJ}{this link}
+is published and maintained by us. The copy there is the latest
+release, usually updated within a few days of us publishing it on our
+own website.
+
+There have been other copies of PuTTY on the store, some looking quite
+similar, and some charging money. Those were uploaded by other people,
+and we can't guarantee anything about them.
+
+The first version we published to the Microsoft Store was 0.76 (some
+time after its initial release on our website).
+
 \H{faq-admin} Administrative questions
 
 \S{faq-putty-org}{Question} Is \cw{putty.org} your website?
