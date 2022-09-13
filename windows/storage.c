@@ -51,9 +51,9 @@ settings_w *open_settings_w(const char *sessionname, char **errmsg)
     }
     strbuf_free(sb);
 
-    settings_w *toret = snew(settings_w);
-    toret->sesskey = sesskey;
-    return toret;
+    settings_w *handle = snew(settings_w);
+    handle->sesskey = sesskey;
+    return handle;
 }
 
 void write_setting_s(settings_w *handle, const char *key, const char *value)
@@ -91,9 +91,9 @@ settings_r *open_settings_r(const char *sessionname)
     if (!sesskey)
         return NULL;
 
-    settings_r *toret = snew(settings_r);
-    toret->sesskey = sesskey;
-    return toret;
+    settings_r *handle = snew(settings_r);
+    handle->sesskey = sesskey;
+    return handle;
 }
 
 char *read_setting_s(settings_r *handle, const char *key)
@@ -221,13 +221,13 @@ settings_e *enum_settings_start(void)
     if (!key)
         return NULL;
 
-    settings_e *ret = snew(settings_e);
-    if (ret) {
-        ret->key = key;
-        ret->i = 0;
+    settings_e *e = snew(settings_e);
+    if (e) {
+        e->key = key;
+        e->i = 0;
     }
 
-    return ret;
+    return e;
 }
 
 bool enum_settings_next(settings_e *e, strbuf *sb)

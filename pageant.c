@@ -2673,14 +2673,14 @@ int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
     }
 }
 
-struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key)
+struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *orig)
 {
-    struct pageant_pubkey *ret = snew(struct pageant_pubkey);
-    ret->blob = strbuf_new();
-    put_data(ret->blob, key->blob->s, key->blob->len);
-    ret->comment = key->comment ? dupstr(key->comment) : NULL;
-    ret->ssh_version = key->ssh_version;
-    return ret;
+    struct pageant_pubkey *copy = snew(struct pageant_pubkey);
+    copy->blob = strbuf_new();
+    put_data(copy->blob, orig->blob->s, orig->blob->len);
+    copy->comment = orig->comment ? dupstr(orig->comment) : NULL;
+    copy->ssh_version = orig->ssh_version;
+    return copy;
 }
 
 void pageant_pubkey_free(struct pageant_pubkey *key)

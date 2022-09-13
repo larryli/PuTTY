@@ -201,35 +201,35 @@ static const SocketVtable NamedPipeServerSocket_sockvt = {
 
 Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
 {
-    NamedPipeServerSocket *ret = snew(NamedPipeServerSocket);
-    ret->sock.vt = &NamedPipeServerSocket_sockvt;
-    ret->plug = plug;
-    ret->error = NULL;
-    ret->psd = NULL;
-    ret->pipename = dupstr(pipename);
-    ret->acl = NULL;
-    ret->callback_handle = NULL;
+    NamedPipeServerSocket *ps = snew(NamedPipeServerSocket);
+    ps->sock.vt = &NamedPipeServerSocket_sockvt;
+    ps->plug = plug;
+    ps->error = NULL;
+    ps->psd = NULL;
+    ps->pipename = dupstr(pipename);
+    ps->acl = NULL;
+    ps->callback_handle = NULL;
 
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);
 
     if (!make_private_security_descriptor(GENERIC_READ | GENERIC_WRITE,
-                                          &ret->psd, &ret->acl, &ret->error)) {
+                                          &ps->psd, &ps->acl, &ps->error)) {
         goto cleanup;
     }
 
-    if (!create_named_pipe(ret, true)) {
-        ret->error = dupprintf("unable to create named pipe '%s': %s",
+    if (!create_named_pipe(ps, true)) {
+        ps->error = dupprintf("unable to create named pipe '%s': %s",
                                pipename, win_strerror(GetLastError()));
         goto cleanup;
     }
 
-    memset(&ret->connect_ovl, 0, sizeof(ret->connect_ovl));
-    ret->connect_ovl.hEvent = CreateEvent(NULL, true, false, NULL);
-    ret->callback_handle = add_handle_wait(
-        ret->connect_ovl.hEvent, named_pipe_connect_callback, ret);
-    named_pipe_accept_loop(ret, false);
+    memset(&ps->connect_ovl, 0, sizeof(ps->connect_ovl));
+    ps->connect_ovl.hEvent = CreateEvent(NULL, true, false, NULL);
+    ps->callback_handle = add_handle_wait(
+        ps->connect_ovl.hEvent, named_pipe_connect_callback, ps);
+    named_pipe_accept_loop(ps, false);
 
   cleanup:
-    return &ret->sock;
+    return &ps->sock;
 }

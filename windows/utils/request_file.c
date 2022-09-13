@@ -60,9 +60,9 @@ bool request_file(filereq *state, OPENFILENAME *of, bool preserve, bool save)
 
 filereq *filereq_new(void)
 {
-    filereq *ret = snew(filereq);
-    ret->cwd[0] = '\0';
-    return ret;
+    filereq *state = snew(filereq);
+    state->cwd[0] = '\0';
+    return state;
 }
 
 void filereq_free(filereq *state)

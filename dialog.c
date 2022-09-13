@@ -41,15 +41,15 @@ int ctrl_path_compare(const char *p1, const char *p2)
 
 struct controlbox *ctrl_new_box(void)
 {
-    struct controlbox *ret = snew(struct controlbox);
+    struct controlbox *b = snew(struct controlbox);
 
-    ret->nctrlsets = ret->ctrlsetsize = 0;
-    ret->ctrlsets = NULL;
-    ret->nfrees = ret->freesize = 0;
-    ret->frees = NULL;
-    ret->freefuncs = NULL;
+    b->nctrlsets = b->ctrlsetsize = 0;
+    b->ctrlsets = NULL;
+    b->nfrees = b->freesize = 0;
+    b->frees = NULL;
+    b->freefuncs = NULL;
 
-    return ret;
+    return b;
 }
 
 void ctrl_free_box(struct controlbox *b)

@@ -340,11 +340,11 @@ char *rsa_ssh1_fingerprint(RSAKey *key)
  */
 char **rsa_ssh1_fake_all_fingerprints(RSAKey *key)
 {
-    char **ret = snewn(SSH_N_FPTYPES, char *);
+    char **fingerprints = snewn(SSH_N_FPTYPES, char *);
     for (unsigned i = 0; i < SSH_N_FPTYPES; i++)
-        ret[i] = NULL;
-    ret[SSH_FPTYPE_MD5] = rsa_ssh1_fingerprint(key);
-    return ret;
+        fingerprints[i] = NULL;
+    fingerprints[SSH_FPTYPE_MD5] = rsa_ssh1_fingerprint(key);
+    return fingerprints;
 }
 
 /*
