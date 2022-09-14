@@ -734,9 +734,13 @@ char *get_jumplist_registry_entries(void);
 #define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
 
 /* In utils */
-HKEY open_regkey_fn(bool create, HKEY base, const char *path, ...);
-#define open_regkey(create, base, ...) \
-    open_regkey_fn(create, base, __VA_ARGS__, (const char *)NULL)
+HKEY open_regkey_fn(bool create, bool write, HKEY base, const char *path, ...);
+#define open_regkey_ro(base, ...) \
+    open_regkey_fn(false, false, base, __VA_ARGS__, (const char *)NULL)
+#define open_regkey_rw(base, ...) \
+    open_regkey_fn(false, true, base, __VA_ARGS__, (const char *)NULL)
+#define create_regkey(base, ...) \
+    open_regkey_fn(true, true, base, __VA_ARGS__, (const char *)NULL)
 void close_regkey(HKEY key);
 void del_regkey(HKEY key, const char *name);
 char *enum_regkey(HKEY key, int index);
