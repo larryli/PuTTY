@@ -2073,7 +2073,7 @@ static void exit_callback(void *vctx)
             (close_on_exit == AUTO && exitcode != INT_MAX)) {
             PostQuitMessage(0);
         } else {
-            queue_toplevel_callback(close_session, NULL);
+            queue_toplevel_callback(close_session, wgs);
             wgs->session_closed = true;
             /* exitcode == INT_MAX indicates that the connection was closed
              * by a fatal error, so an error box will be coming our way and
