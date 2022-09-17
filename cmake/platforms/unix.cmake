@@ -108,16 +108,77 @@ if(PUTTY_GSSAPI STREQUAL DYNAMIC)
 endif()
 
 if(PUTTY_GSSAPI STREQUAL STATIC)
+  set(KRB5_CFLAGS)
+  set(KRB5_LDFLAGS)
+
+  # First try using pkg-config
   find_package(PkgConfig)
   pkg_check_modules(KRB5 krb5-gssapi)
+
+  # Failing that, try the dedicated krb5-config
+  if(NOT KRB5_FOUND)
+    find_program(KRB5_CONFIG krb5-config)
+    if(KRB5_CONFIG)
+      execute_process(COMMAND ${KRB5_CONFIG} --cflags gssapi
+        OUTPUT_VARIABLE krb5_config_cflags
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE krb5_config_cflags_result)
+      execute_process(COMMAND ${KRB5_CONFIG} --libs gssapi
+        OUTPUT_VARIABLE krb5_config_libs
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE krb5_config_libs_result)
+
+      if(krb5_config_cflags_result EQUAL 0 AND krb5_config_libs_result EQUAL 0)
+        set(KRB5_INCLUDE_DIRS)
+        set(KRB5_LIBRARY_DIRS)
+        set(KRB5_LIBRARIES)
+
+        # We can safely put krb5-config's cflags directly into cmake's
+        # cflags, without bothering to extract the include directories.
+        set(KRB5_CFLAGS ${krb5_config_cflags})
+
+        # But krb5-config --libs isn't so simple. It will actually
+        # deliver a mix of libraries and other linker options. We have
+        # to separate them for cmake purposes, because if we pass the
+        # whole lot to add_link_options then they'll appear too early
+        # in the command line (so that by the time our own code refers
+        # to GSSAPI functions it'll be too late to search these
+        # libraries for them), and if we pass the whole lot to
+        # link_libraries then it'll get confused about options that
+        # aren't libraries.
+        separate_arguments(krb5_config_libs NATIVE_COMMAND
+          ${krb5_config_libs})
+        foreach(opt ${krb5_config_libs})
+          string(REGEX MATCH "^-l" ok ${opt})
+          if(ok)
+            list(APPEND KRB5_LIBRARIES ${opt})
+            continue()
+          endif()
+          string(REGEX MATCH "^-L" ok ${opt})
+          if(ok)
+            string(REGEX REPLACE "^-L" "" optval ${opt})
+            list(APPEND KRB5_LIBRARY_DIRS ${optval})
+            continue()
+          endif()
+          list(APPEND KRB5_LDFLAGS ${opt})
+        endforeach()
+
+        message(STATUS "Found Kerberos via krb5-config")
+        set(KRB5_FOUND YES)
+      endif()
+    endif()
+  endif()
+
   if(KRB5_FOUND)
     include_directories(${KRB5_INCLUDE_DIRS})
     link_directories(${KRB5_LIBRARY_DIRS})
     link_libraries(${KRB5_LIBRARIES})
+    add_compile_options(${KRB5_CFLAGS})
+    add_link_options(${KRB5_LDFLAGS})
     set(STATIC_GSSAPI ON)
   else()
     message(WARNING
-      "Could not find krb5 via pkg-config -- \
+      "Could not find krb5 via pkg-config or krb5-config -- \
 cannot provide static GSSAPI support")
     set(NO_GSSAPI ON)
   endif()
