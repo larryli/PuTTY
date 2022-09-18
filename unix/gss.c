@@ -140,6 +140,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
     list->libraries = snew(struct ssh_gss_library);
     list->nlibraries = 1;
 
+    list->libraries[0].id = 0;
     list->libraries[0].gsslogmsg = "Using statically linked GSSAPI";
 
 #define BIND_GSS_FN(name) \
