@@ -51,6 +51,21 @@ int main(int argc, char **argv) {
            cr.pid + cr.uid + cr.gid;
 }" HAVE_SO_PEERCRED)
 
+check_c_source_compiles("
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(int argc, char **argv) {
+    setpgrp();
+}" HAVE_NULLARY_SETPGRP)
+check_c_source_compiles("
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(int argc, char **argv) {
+    setpgrp(0, 0);
+}" HAVE_BINARY_SETPGRP)
+
 if(HAVE_GETADDRINFO AND PUTTY_IPV6)
   set(NO_IPV6 OFF)
 else()

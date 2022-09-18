@@ -330,7 +330,11 @@ void pageant_fork_and_print_env(bool retain_tty)
         /* Get out of our previous process group, to avoid being
          * blasted by passing signals. But keep our controlling tty,
          * so we can keep checking to see if we still have one. */
+#if defined HAVE_NULLARY_SETPGRP
         setpgrp();
+#elif defined HAVE_BINARY_SETPGRP
+        setpgrp(0, 0);
+#endif
     } else {
         /* Do that, but also leave our entire session and detach from
          * the controlling tty (if any). */
