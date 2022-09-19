@@ -96,6 +96,10 @@ if(GTK_FOUND)
     endif()
   endfunction()
   check_x11()
+else()
+  # If we didn't even have GTK, behave as if X11 is not available.
+  # (There's nothing useful we could do with it even if there was.)
+  set(NOT_X_WINDOWS ON)
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/charset ${GTK_INCLUDE_DIRS} ${X11_INCLUDE_DIR})
