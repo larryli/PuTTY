@@ -74,6 +74,7 @@ if(GTK_FOUND)
   # Check for some particular Pango functions.
   function(pango_check_subscope)
     set(CMAKE_REQUIRED_INCLUDES ${GTK_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_LINK_OPTIONS ${GTK_LDFLAGS})
     set(CMAKE_REQUIRED_LIBRARIES ${GTK_LIBRARIES})
     check_symbol_exists(pango_font_family_is_monospace "pango/pango.h"
       HAVE_PANGO_FONT_FAMILY_IS_MONOSPACE)
