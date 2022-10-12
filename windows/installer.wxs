@@ -121,12 +121,6 @@
       Language="1033" Codepage="1252" Version="$(var.Winver)">
 
     <!--
-        We force the install scope to perMachine, largely because I
-        don't really understand how to make it usefully switchable
-        between the two. If anyone is a WiX expert and does want to
-        install PuTTY locally in a user account, I hope they'll send a
-        well explained patch!
-
         $(var.Puttytextver) is again defined on the candle command
         line, and describes the version of PuTTY in human-readable
         form, e.g. "PuTTY 0.67" or "PuTTY development snapshot [foo]".
@@ -135,8 +129,7 @@
              Description="$(var.Puttytextver) installer"
              Manufacturer="Simon Tatham"
              InstallerVersion="$(var.InstallerVersion)" Languages="1033"
-             Compressed="yes" SummaryCodepage="1252"
-             InstallScope="perMachine" />
+             Compressed="yes" SummaryCodepage="1252" />
 
     <!--
         Permit installing an arbitrary one of these PuTTY installers
