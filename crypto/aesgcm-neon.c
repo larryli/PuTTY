@@ -87,6 +87,14 @@ static inline void store_p128_be(void *p, poly128_t v)
     vst1q_u8(p, vrev64q_u8(vreinterpretq_u8_p128(swapped)));
 }
 
+#if !HAVE_NEON_VADDQ_P128
+static inline poly128_t vaddq_p128(poly128_t a, poly128_t b)
+{
+    return vreinterpretq_p128_u32(veorq_u32(
+        vreinterpretq_u32_p128(a), vreinterpretq_u32_p128(b)));
+}
+#endif
+
 /*
  * Key setup is just like in aesgcm-ref-poly.c. There's no point using
  * vector registers to accelerate this, because it happens rarely.

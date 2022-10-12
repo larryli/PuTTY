@@ -195,6 +195,14 @@ if(neon)
       int main(void) { r = vmull_p64(a, b); r = vmull_high_p64(u, v); }"
     ADD_SOURCES_IF_SUCCESSFUL aesgcm-neon.c)
 
+  test_compile_with_flags(HAVE_NEON_VADDQ_P128
+    GNU_FLAGS -march=armv8-a+crypto
+    MSVC_FLAGS -D_ARM_USE_NEW_NEON_INTRINSICS
+    TEST_SOURCE "
+      #include <${neon_header}>
+      volatile poly128_t r;
+      int main(void) { r = vaddq_p128(r, r); }")
+
   # The 'sha3' architecture extension, despite the name, includes
   # support for SHA-512 (from the SHA-2 standard) as well as SHA-3
   # proper.

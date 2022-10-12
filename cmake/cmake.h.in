@@ -54,6 +54,7 @@
 #cmakedefine01 HAVE_CLMUL
 #cmakedefine01 HAVE_NEON_CRYPTO
 #cmakedefine01 HAVE_NEON_PMULL
+#cmakedefine01 HAVE_NEON_VADDQ_P128
 #cmakedefine01 HAVE_NEON_SHA512
 #cmakedefine01 HAVE_NEON_SHA512_INTRINSICS
 #cmakedefine01 USE_ARM64_NEON_H
