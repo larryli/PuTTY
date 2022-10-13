@@ -1,4 +1,4 @@
-/*
+﻿/*
  * PuTTY key generation front end (Windows).
  */
 
@@ -41,7 +41,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     stuff = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(NULL, stuff, "PuTTYgen Fatal Error",
+    MessageBox(NULL, stuff, "PuTTYgen 致命错误",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(stuff);
     exit(1);
@@ -58,7 +58,7 @@ void nonfatal(const char *fmt, ...)
     va_start(ap, fmt);
     stuff = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(NULL, stuff, "PuTTYgen Error",
+    MessageBox(NULL, stuff, "PuTTYgen 错误",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(stuff);
 }
@@ -462,11 +462,11 @@ static bool prompt_keyfile(HWND hwnd, char *dlgtitle,
     memset(&of, 0, sizeof(of));
     of.hwndOwner = hwnd;
     if (ppk) {
-        of.lpstrFilter = "PuTTY Private Key Files (*.ppk)\0*.ppk\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = "PuTTY 私钥文件 (*.ppk)\0*.ppk\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = ".ppk";
     } else {
-        of.lpstrFilter = "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = "所有文件 (*.*)\0*\0\0\0";
     }
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
@@ -546,7 +546,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             char *text = dupprintf
                 ("PuTTYgen\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
                  ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
             MakeDlgItemBorderless(hwnd, 1000);
@@ -692,7 +692,7 @@ static void setupbigedit1(HWND hwnd, int id, int idstatic, RSAKey *key)
     char *buffer = ssh1_pubkey_str(key);
     SetDlgItemText(hwnd, id, buffer);
     SetDlgItemText(hwnd, idstatic,
-                   "&Public key for pasting into authorized_keys file:");
+                   "可粘贴到 authorized_keys 文件中的公钥内容(&P)：");
     sfree(buffer);
 }
 
@@ -701,8 +701,8 @@ static void setupbigedit2(HWND hwnd, int id, int idstatic,
 {
     char *buffer = ssh2_pubkey_openssh_str(key);
     SetDlgItemText(hwnd, id, buffer);
-    SetDlgItemText(hwnd, idstatic, "&Public key for pasting into "
-                   "OpenSSH authorized_keys file:");
+    SetDlgItemText(hwnd, idstatic, "可粘贴到 "
+                   "OpenSSH authorized_keys 文件中的公钥内容(&P)：");
     sfree(buffer);
 }
 
@@ -711,7 +711,7 @@ static void setupbigedit2(HWND hwnd, int id, int idstatic,
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char mbtitle[] = "PuTTY 密钥文件警告";
     static const char message[] =
         "You are loading an SSH-2 private key which has an\n"
         "old version of the file format. This means your key\n"
@@ -1069,9 +1069,9 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     if (type != SSH_KEYTYPE_SSH1 &&
         type != SSH_KEYTYPE_SSH2 &&
         !import_possible(type)) {
-        char *msg = dupprintf("Couldn't load private key (%s)",
+        char *msg = dupprintf("无法载入私钥 (%s)",
                               key_type_to_str(type));
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
@@ -1133,8 +1133,8 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     if (comment)
         sfree(comment);
     if (ret == 0) {
-        char *msg = dupprintf("Couldn't load private key (%s)", errmsg);
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        char *msg = dupprintf("无法载入私钥 (%s)", errmsg);
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
     } else if (ret == 1) {
@@ -1152,13 +1152,13 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
          */
         if (realtype != type && !was_import_cmd) {
             char msg[512];
-            sprintf(msg, "Successfully imported foreign key\n"
+            sprintf(msg, "成功导入外部密钥\n"
                     "(%s).\n"
                     "To use this key with PuTTY, you need to\n"
                     "use the \"Save private key\" command to\n"
                     "save it in PuTTY's own format.",
                     key_type_to_str(realtype));
-            MessageBox(NULL, msg, "PuTTYgen Notice",
+            MessageBox(NULL, msg, "PuTTYgen 通知",
                        MB_OK | MB_ICONINFORMATION);
         }
     }
@@ -1168,7 +1168,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 static void start_generating_key(HWND hwnd, struct MainDlgState *state)
 {
     static const char generating_msg[] =
-        "Please wait while a key is generated...";
+        "正在生成密钥，请稍候...";
 
     struct rsa_key_thread_params *params;
     DWORD threadid;
@@ -1192,8 +1192,8 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
     HANDLE hThread = CreateThread(NULL, 0, generate_key_thread,
                                   params, 0, &threadid);
     if (!hThread) {
-        MessageBox(hwnd, "Out of thread resources",
-                   "Key generation error",
+        MessageBox(hwnd, "线程资源不足",
+                   "密钥生成错误",
                    MB_OK | MB_ICONERROR);
         sfree(params);
     } else {
@@ -1210,7 +1210,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 {
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     static const char entropy_msg[] =
-        "Please generate some randomness by moving the mouse over the blank area.";
+        "请在空白区域上随意移动鼠标来制造随机。";
     struct MainDlgState *state;
 
     switch (msg) {
@@ -1239,61 +1239,61 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             menu = CreateMenu();
 
             menu1 = CreateMenu();
-            AppendMenu(menu1, MF_ENABLED, IDC_LOAD, "&Load private key");
-            AppendMenu(menu1, MF_ENABLED, IDC_SAVEPUB, "Save p&ublic key");
-            AppendMenu(menu1, MF_ENABLED, IDC_SAVE, "&Save private key");
+            AppendMenu(menu1, MF_ENABLED, IDC_LOAD, "载入私钥(&L)");
+            AppendMenu(menu1, MF_ENABLED, IDC_SAVEPUB, "保存公钥(&U)");
+            AppendMenu(menu1, MF_ENABLED, IDC_SAVE, "保存私钥(&S)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
-            AppendMenu(menu1, MF_ENABLED, IDC_QUIT, "E&xit");
-            AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&File");
+            AppendMenu(menu1, MF_ENABLED, IDC_QUIT, "退出(&X)");
+            AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "文件(&F)");
             state->filemenu = menu1;
 
             menu1 = CreateMenu();
-            AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "&Generate key pair");
+            AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "生成密钥对(&G)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH-&1 key (RSA)");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 &RSA key");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA key");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA key");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2EDDSA, "SSH-2 EdD&SA key");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH-&1 密钥 (RSA)");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 &RSA 密钥");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA 密钥");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA 密钥");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2EDDSA, "SSH-2 EdD&SA 密钥");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_PROB,
-                       "Use probable primes (fast)");
+                       "使用常规查找素数 (快)");
             AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_MAURER_SIMPLE,
-                       "Use proven primes (slower)");
+                       "使用已被证实的素数 (较慢)");
             AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_MAURER_COMPLEX,
-                       "Use proven primes with even distribution (slowest)");
+                       "使用尽量均匀分布已被证实的素数 (最慢)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_RSA_STRONG,
-                       "Use \"strong\" primes as RSA key factors");
+                       "使用 \"强\" 素数作为 RSA 密钥因素");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_PPK_PARAMS,
-                       "Parameters for saving key files...");
+                       "保存密钥文件时的参数设置...");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_FPTYPE_SHA256,
-                       "Show fingerprint as SHA256");
+                       "显示 SHA256 指纹");
             AppendMenu(menu1, MF_ENABLED, IDC_FPTYPE_MD5,
-                       "Show fingerprint as MD5");
-            AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Key");
+                       "显示 MD5 指纹");
+            AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "密钥(&K)");
             state->keymenu = menu1;
 
             menu1 = CreateMenu();
-            AppendMenu(menu1, MF_ENABLED, IDC_IMPORT, "&Import key");
+            AppendMenu(menu1, MF_ENABLED, IDC_IMPORT, "导入密钥(&I)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_AUTO,
-                       "Export &OpenSSH key");
+                       "导出 &OpenSSH 密钥");
             AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_NEW,
-                       "Export &OpenSSH key (force new file format)");
+                       "导出 &OpenSSH 密钥 (强制新文件格式)");
             AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
-                       "Export &ssh.com key");
+                       "导出 &ssh.com 密钥");
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1,
-                       "Con&versions");
+                       "转换(&V)");
             state->cvtmenu = menu1;
 
             menu1 = CreateMenu();
-            AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");
+            AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "关于(&A)");
             if (has_help())
-                AppendMenu(menu1, MF_ENABLED, IDC_GIVEHELP, "&Help");
-            AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Help");
+                AppendMenu(menu1, MF_ENABLED, IDC_GIVEHELP, "帮助(&H)");
+            AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "帮助(&H)");
 
             SetMenu(hwnd, menu);
         }
@@ -1320,38 +1320,38 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             /* Accelerators used: acglops1rbvde */
 
             ctlposinit(&cp, hwnd, 4, 4, 4);
-            beginbox(&cp, "Key", IDC_BOX_KEY);
+            beginbox(&cp, "密钥", IDC_BOX_KEY);
             cp2 = cp;
-            statictext(&cp2, "No key.", 1, IDC_NOKEY);
+            statictext(&cp2, "没有密钥。", 1, IDC_NOKEY);
             cp2 = cp;
             statictext(&cp2, "", 1, IDC_GENERATING);
             progressbar(&cp2, IDC_PROGRESS);
             bigeditctrl(&cp,
-                        "&Public key for pasting into authorized_keys file:",
+                        "可粘贴到 authorized_keys 文件中的公钥内容(&P)：",
                         IDC_PKSTATIC, IDC_KEYDISPLAY, 5);
             SendDlgItemMessage(hwnd, IDC_KEYDISPLAY, EM_SETREADONLY, 1, 0);
-            staticedit(&cp, "Key f&ingerprint:", IDC_FPSTATIC,
+            staticedit(&cp, "密钥指纹(&I)：", IDC_FPSTATIC,
                        IDC_FINGERPRINT, 82);
             SendDlgItemMessage(hwnd, IDC_FINGERPRINT, EM_SETREADONLY, 1,
                                0);
-            staticedit(&cp, "Key &comment:", IDC_COMMENTSTATIC,
+            staticedit(&cp, "密钥注释(&C)：", IDC_COMMENTSTATIC,
                        IDC_COMMENTEDIT, 82);
-            staticpassedit(&cp, "Key p&assphrase:", IDC_PASSPHRASE1STATIC,
+            staticpassedit(&cp, "密钥密码(&A)：", IDC_PASSPHRASE1STATIC,
                            IDC_PASSPHRASE1EDIT, 82);
-            staticpassedit(&cp, "C&onfirm passphrase:",
+            staticpassedit(&cp, "确认密码(&O)：",
                            IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 82);
             endbox(&cp);
-            beginbox(&cp, "Actions", IDC_BOX_ACTIONS);
-            staticbtn(&cp, "Generate a public/private key pair",
-                      IDC_GENSTATIC, "&Generate", IDC_GENERATE);
-            staticbtn(&cp, "Load an existing private key file",
-                      IDC_LOADSTATIC, "&Load", IDC_LOAD);
-            static2btn(&cp, "Save the generated key", IDC_SAVESTATIC,
-                       "Save p&ublic key", IDC_SAVEPUB,
-                       "&Save private key", IDC_SAVE);
+            beginbox(&cp, "操作", IDC_BOX_ACTIONS);
+            staticbtn(&cp, "生成公私密钥对",
+                      IDC_GENSTATIC, "生成(&G)", IDC_GENERATE);
+            staticbtn(&cp, "载入私钥文件",
+                      IDC_LOADSTATIC, "载入(&L)", IDC_LOAD);
+            static2btn(&cp, "保存生成的密钥", IDC_SAVESTATIC,
+                       "保存公钥(&U)", IDC_SAVEPUB,
+                       "保存私钥(&S)", IDC_SAVE);
             endbox(&cp);
-            beginbox(&cp, "Parameters", IDC_BOX_PARAMS);
-            radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 5,
+            beginbox(&cp, "参数", IDC_BOX_PARAMS);
+            radioline(&cp, "生成密钥类型：", IDC_TYPESTATIC, 5,
                       "&RSA", IDC_KEYSSH2RSA,
                       "&DSA", IDC_KEYSSH2DSA,
                       "&ECDSA", IDC_KEYSSH2ECDSA,
@@ -1359,11 +1359,11 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                       "SSH-&1 (RSA)", IDC_KEYSSH1,
                       NULL);
             cp2 = cp;
-            staticedit(&cp2, "Number of &bits in a generated key:",
+            staticedit(&cp2, "生成密钥的位数(&B)：",
                        IDC_BITSSTATIC, IDC_BITS, 20);
             ymax = cp2.ypos;
             cp2 = cp;
-            staticddl(&cp2, "Cur&ve to use for generating this key:",
+            staticddl(&cp2, "用于生成密钥的曲线(&V)：",
                       IDC_ECCURVESTATIC, IDC_ECCURVE, 30);
             SendDlgItemMessage(hwnd, IDC_ECCURVE, CB_RESETCONTENT, 0, 0);
             {
@@ -1380,7 +1380,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             }
             ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
             cp2 = cp;
-            staticddl(&cp2, "Cur&ve to use for generating this key:",
+            staticddl(&cp2, "用于生成密钥的曲线(&V)：",
                       IDC_EDCURVESTATIC, IDC_EDCURVE, 30);
             SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_RESETCONTENT, 0, 0);
             {
@@ -1391,7 +1391,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 for (i = 0; i < n_ec_ed_curve_lengths; i++) {
                     bits = ec_ed_curve_lengths[i];
                     ec_ed_alg_and_curve_by_bits(bits, &curve, &alg);
-                    char *desc = dupprintf("%s (%d bits)",
+                    char *desc = dupprintf("%s (%d 位)",
                                            curve->textname, bits);
                     SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_ADDSTRING, 0,
                                        (LPARAM)desc);
@@ -1400,7 +1400,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             }
             ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
             cp2 = cp;
-            statictext(&cp2, "(nothing to configure for this key type)",
+            statictext(&cp2, "(此密钥类型无需配置)",
                        1, IDC_NOTHINGSTATIC);
             ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
             cp.ypos = ymax;
@@ -1619,7 +1619,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                         ("PuTTYgen will not generate a key smaller than 256"
                          " bits.\nKey length reset to default %d. Continue?",
                          DEFAULT_KEY_BITS);
-                    int ret = MessageBox(hwnd, message, "PuTTYgen Warning",
+                    int ret = MessageBox(hwnd, message, "PuTTYgen 警告",
                                          MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);
                     if (ret != IDOK)
@@ -1631,7 +1631,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     char *message = dupprintf
                         ("Keys shorter than %d bits are not recommended. "
                          "Really generate this key?", DEFAULT_KEY_BITS);
-                    int ret = MessageBox(hwnd, message, "PuTTYgen Warning",
+                    int ret = MessageBox(hwnd, message, "PuTTYgen 警告",
                                          MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);
                     if (ret != IDOK)
@@ -1735,7 +1735,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                             " format", (state->ssh2 ? 2 : 1),
                             (state->ssh2 ? 1 : 2));
                     MessageBox(hwnd, msg,
-                               "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                               "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                     break;
                 }
 
@@ -1744,7 +1744,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 if (strcmp(passphrase, passphrase2)) {
                     MessageBox(hwnd,
                                "The two passphrases given do not match.",
-                               "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                               "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                     burnstr(passphrase);
                     burnstr(passphrase2);
                     break;
@@ -1755,7 +1755,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     ret = MessageBox(hwnd,
                                      "Are you sure you want to save this key\n"
                                      "without a passphrase to protect it?",
-                                     "PuTTYgen Warning",
+                                     "PuTTYgen 警告",
                                      MB_YESNO | MB_ICONWARNING);
                     if (ret != IDYES) {
                         burnstr(passphrase);
@@ -1771,7 +1771,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                         fclose(fp);
                         buffer = dupprintf("Overwrite existing file\n%s?",
                                            filename);
-                        ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
+                        ret = MessageBox(hwnd, buffer, "PuTTYgen 警告",
                                          MB_YESNO | MB_ICONWARNING);
                         sfree(buffer);
                         if (ret != IDYES) {
@@ -1802,7 +1802,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     }
                     if (ret <= 0) {
                         MessageBox(hwnd, "Unable to save key file",
-                                   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                                   "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                     }
                 }
                 burnstr(passphrase);
@@ -1833,7 +1833,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     fp = fopen(filename, "w");
                     if (!fp) {
                         MessageBox(hwnd, "Unable to open key file",
-                                   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                                   "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                     } else {
                         if (state->ssh2) {
                             strbuf *blob = strbuf_new();
@@ -1848,7 +1848,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                         }
                         if (fclose(fp) < 0) {
                             MessageBox(hwnd, "Unable to save key file",
-                                       "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                                       "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                         }
                     }
                 }
@@ -2038,7 +2038,7 @@ static NORETURN void opt_error(const char *fmt, ...)
     char *msg = dupvprintf(fmt, ap);
     va_end(ap);
 
-    MessageBox(NULL, msg, "PuTTYgen command line error", MB_ICONERROR | MB_OK);
+    MessageBox(NULL, msg, "PuTTYgen 命令行错误", MB_ICONERROR | MB_OK);
 
     exit(1);
 }

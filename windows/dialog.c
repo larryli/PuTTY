@@ -1,4 +1,4 @@
-/*
+﻿/*
  * dialog.c - dialogs for PuTTY(tel), including the configuration dialog.
  */
 
@@ -50,7 +50,7 @@ static char *events_initial[LOGEVENT_INITIAL_MAX];
 static char *events_circular[LOGEVENT_CIRCULAR_MAX];
 static int ninitial = 0, ncircular = 0, circular_first = 0;
 
-#define PRINTER_DISABLED_STRING "None (printing disabled)"
+#define PRINTER_DISABLED_STRING "无 (禁止打印)"
 
 void force_normal(HWND hwnd)
 {
@@ -89,7 +89,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
-        char *str = dupprintf("%s Event Log", appname);
+        char *str = dupprintf("%s 事件日志", appname);
         SetWindowText(hwnd, str);
         sfree(str);
 
@@ -184,7 +184,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG: {
-        char *str = dupprintf("%s Licence", appname);
+        char *str = dupprintf("%s 许可证", appname);
         SetWindowText(hwnd, str);
         sfree(str);
         SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
@@ -212,14 +212,14 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
-        str = dupprintf("About %s", appname);
+        str = dupprintf("关于 %s", appname);
         SetWindowText(hwnd, str);
         sfree(str);
         char *buildinfo_text = buildinfo("\r\n");
         char *text = dupprintf
             ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
              appname, ver, buildinfo_text,
-             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+             "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
         sfree(buildinfo_text);
         SetDlgItemText(hwnd, IDA_TEXT, text);
         MakeDlgItemBorderless(hwnd, IDA_TEXT);
@@ -447,7 +447,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
             r.top = 3;
             r.bottom = r.top + 10;
             MapDialogRect(hwnd, &r);
-            tvstatic = CreateWindowEx(0, "STATIC", "Cate&gory:",
+            tvstatic = CreateWindowEx(0, "STATIC", "分类(&G)：",
                                       WS_CHILD | WS_VISIBLE,
                                       r.left, r.top,
                                       r.right - r.left, r.bottom - r.top,
@@ -723,8 +723,8 @@ bool do_config(Conf *conf)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s Configuration", appname);
-    dp.errtitle = dupprintf("%s Error", appname);
+    dp.wintitle = dupprintf("%s 配置", appname);
+    dp.errtitle = dupprintf("%s 错误", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
@@ -758,8 +758,8 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s Reconfiguration", appname);
-    dp.errtitle = dupprintf("%s Error", appname);
+    dp.wintitle = dupprintf("%s 重新配置", appname);
+    dp.errtitle = dupprintf("%s 错误", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
@@ -1042,7 +1042,7 @@ SeatPromptResult win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    static const char mbtitle[] = "%s Security Alert";
+    static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
         "The first %s supported by the server\n"
         "is %s, which is below the configured\n"
@@ -1068,7 +1068,7 @@ SeatPromptResult win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    static const char mbtitle[] = "%s Security Alert";
+    static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
         "The first host key type we have stored for this server\n"
         "is %s, which is below the configured warning threshold.\n"
@@ -1149,7 +1149,7 @@ const LogPolicyVtable win_gui_logpolicy_vt = {
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "%s Key File Warning";
+    static const char mbtitle[] = "%s 密钥文件警告";
     static const char message[] =
         "You are loading an SSH-2 private key which has an\n"
         "old version of the file format. This means your key\n"

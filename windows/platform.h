@@ -1,4 +1,4 @@
-/*
+﻿/*
  * windows/platform.h: Windows-specific inter-module stuff.
  */
 
@@ -705,9 +705,9 @@ char *get_jumplist_registry_entries(void);
 /*
  * Windows clipboard-UI wording.
  */
-#define CLIPNAME_IMPLICIT "Last selected text"
-#define CLIPNAME_EXPLICIT "System clipboard"
-#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
+#define CLIPNAME_IMPLICIT "上次选择的文本"
+#define CLIPNAME_EXPLICIT "系统剪贴板"
+#define CLIPNAME_EXPLICIT_OBJECT "系统剪贴板"
 /* These defaults are the ones PuTTY has historically had */
 #define CLIPUI_DEFAULT_AUTOCOPY true
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_EXPLICIT
