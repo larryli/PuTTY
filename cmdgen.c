@@ -1,4 +1,4 @@
-﻿/*
+/*
  * cmdgen.c - command-line form of PuTTYgen
  */
 

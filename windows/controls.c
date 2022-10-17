@@ -1,4 +1,4 @@
-﻿/*
+/*
  * controls.c: routines to self-manage the controls in a dialog
  * box.
  */

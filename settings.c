@@ -1,4 +1,4 @@
-﻿/*
+/*
  * settings.c: read and write saved sessions. (platform-independent)
  */
 

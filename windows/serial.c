@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Serial back end (Windows-specific).
  */
 

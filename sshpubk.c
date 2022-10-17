@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Generic SSH public-key handling operations. In particular,
  * reading of SSH public-key files, and also the generic `sign'
  * operation for SSH-2 (which checks the type of the key and

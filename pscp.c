@@ -1,4 +1,4 @@
-﻿/*
+/*
  * pscp.c  -  Scp (Secure Copy) client for PuTTY.
  * Joris van Rantwijk, Simon Tatham
  *

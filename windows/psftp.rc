@@ -1,4 +1,4 @@
-﻿#include "rcstuff.h"
+#include "rcstuff.h"
 
 #define APPNAME "PSFTP"
 #define APPDESC "命令行交互 SFTP 客户端"

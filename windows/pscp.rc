@@ -1,4 +1,4 @@
-﻿#include "rcstuff.h"
+#include "rcstuff.h"
 
 #define APPNAME "PSCP"
 #define APPDESC "命令行 SCP/SFTP 客户端"

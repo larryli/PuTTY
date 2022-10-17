@@ -1,4 +1,4 @@
-﻿#include "rcstuff.h"
+#include "rcstuff.h"
 
 #define APPNAME "Plink"
 #define APPDESC "命令行 SSH、Telnet 和 Rlogin 客户端"

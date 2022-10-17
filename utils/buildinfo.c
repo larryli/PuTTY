@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Return a string describing everything we know about how this
  * particular binary was built: from what source, for what target
  * platform, using what tools, with what settings, etc.

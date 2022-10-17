@@ -1,17 +1,17 @@
 PuTTY is copyright 1997-2022 Simon Tatham.
 
-²¿·Ö°æÈ¨ÊôÓÚ Robert de Bath, Joris van Rantwijk, Delian
+éƒ¨åˆ†ç‰ˆæƒå±žäºŽ Robert de Bath, Joris van Rantwijk, Delian
 Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,
 Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, Markus
 Kuhn, Colin Watson, Christopher Staite, Lorenz Diener, Christian
 Brabandt, Jeff Smith, Pavel Kryukov, Maxim Kuznetsov, Svyatoslav
 Kuzmich, Nico Williams, Viktor Dukhovni, Josh Dersch, Lars Brinkhoff,
-ºÍ CORE SDI S.A¡£
+å’Œ CORE SDI S.Aã€‚
 
-ÕâÀïÒÔ´Ë·½Ê½Ðí¿ÉÈÎºÎÈË¿ÉÒÔÃâ·ÑµÃµ½¸ÃÈí¼þ¿½±´ÒÔ¼°¸½ÊôÎÄµµÎÄ¼þ (""Èí¼þ"")£¬²¢¿ÉÈÎÒâ´¦Àí¸ÃÈí¼þ£¬°üÀ¨ÎÞÏÞÖÆµÄÊ¹ÓÃ¡¢¸´ÖÆ¡¢ÐÞ¸Ä¡¢ºÏ²¢¡¢³ö°æ¡¢·Ö·¢¡¢×ªÈÃ¡¢ÊÚÈ¨ºÍ/»ò³öÊÛÈí¼þµÄÈ¨Àû£¬²¢ÔÊÐí¹ºÂò¸ÃÈí¼þµÄÈËÕâÑù×ö£¬Ö»Òª×ñ´ÓÒÔÏÂÌõ¼þ£º
+è¿™é‡Œä»¥æ­¤æ–¹å¼è®¸å¯ä»»ä½•äººå¯ä»¥å…è´¹å¾—åˆ°è¯¥è½¯ä»¶æ‹·è´ä»¥åŠé™„å±žæ–‡æ¡£æ–‡ä»¶ (""è½¯ä»¶"")ï¼Œå¹¶å¯ä»»æ„å¤„ç†è¯¥è½¯ä»¶ï¼ŒåŒ…æ‹¬æ— é™åˆ¶çš„ä½¿ç”¨ã€å¤åˆ¶ã€ä¿®æ”¹ã€åˆå¹¶ã€å‡ºç‰ˆã€åˆ†å‘ã€è½¬è®©ã€æŽˆæƒå’Œ/æˆ–å‡ºå”®è½¯ä»¶çš„æƒåˆ©ï¼Œå¹¶å…è®¸è´­ä¹°è¯¥è½¯ä»¶çš„äººè¿™æ ·åšï¼Œåªè¦éµä»Žä»¥ä¸‹æ¡ä»¶ï¼š
 
-ÒÔÉÏµÄ°æÈ¨ËµÃ÷ºÍÐí¿ÉËµÃ÷Ó¦±»°üº¬ÔÚ¸ÃÈí¼þÈÎºÎ²¿·ÖµÄËùÓÐ¿½±´ÖÐ¡£
+ä»¥ä¸Šçš„ç‰ˆæƒè¯´æ˜Žå’Œè®¸å¯è¯´æ˜Žåº”è¢«åŒ…å«åœ¨è¯¥è½¯ä»¶ä»»ä½•éƒ¨åˆ†çš„æ‰€æœ‰æ‹·è´ä¸­ã€‚
 
-¸ÃÈí¼þÊÇ×÷Îª "AS IS" Ìá¹©£¬Ã»ÓÐÈÎºÎ±£Ö¤¡¢±íÊ¾»ò°µÊ¾£¬°üÀ¨µ«²»ÏÞÓÚÊÊÏúÐÔ¡¢ÊÊÓÃÐÔºÍ²»ÇÖÈ¨¡£ÔÚÈÎºÎÇé¿öÏÂ×÷Õß²»¶ÔÈÎºÎÉùÃ÷¡¢Ëð»µ»òÆäËûÔðÈÎ¸ºÔð£¬ÎÞÂÛÊÇ·¢ÉúÔÚºÏÍ¬ÐÐÎª¡¢ÇÖÈ¨»òÆäËüÈÎºÎÀ´×ÔÈí¼þµÄ¡¢ÓëÈí¼þÏà¹Ø»òÎÞ¹ØµÄÒÔ¼°Èí¼þµÄÊ¹ÓÃ¡£
+è¯¥è½¯ä»¶æ˜¯ä½œä¸º "AS IS" æä¾›ï¼Œæ²¡æœ‰ä»»ä½•ä¿è¯ã€è¡¨ç¤ºæˆ–æš—ç¤ºï¼ŒåŒ…æ‹¬ä½†ä¸é™äºŽé€‚é”€æ€§ã€é€‚ç”¨æ€§å’Œä¸ä¾µæƒã€‚åœ¨ä»»ä½•æƒ…å†µä¸‹ä½œè€…ä¸å¯¹ä»»ä½•å£°æ˜Žã€æŸåæˆ–å…¶ä»–è´£ä»»è´Ÿè´£ï¼Œæ— è®ºæ˜¯å‘ç”Ÿåœ¨åˆåŒè¡Œä¸ºã€ä¾µæƒæˆ–å…¶å®ƒä»»ä½•æ¥è‡ªè½¯ä»¶çš„ã€ä¸Žè½¯ä»¶ç›¸å…³æˆ–æ— å…³çš„ä»¥åŠè½¯ä»¶çš„ä½¿ç”¨ã€‚
 
-PuTTY ÖÐÎÄ°æµÄ°æÈ¨ÊôÓÚ 2003-2022 Àî·å£¬±£ÁôËùÓÐÈ¨Àû¡£
+PuTTY ä¸­æ–‡ç‰ˆçš„ç‰ˆæƒå±žäºŽ 2003-2022 æŽå³°ï¼Œä¿ç•™æ‰€æœ‰æƒåˆ©ã€‚

@@ -1,4 +1,4 @@
-﻿#include "rcstuff.h"
+#include "rcstuff.h"
 #include "putty-rc.h"
 
 #define APPNAME "PuTTYtel"

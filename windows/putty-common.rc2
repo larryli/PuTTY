@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Windows resources shared between PuTTY and PuTTYtel, to be #include'd
  * after defining appropriate macros.
  *

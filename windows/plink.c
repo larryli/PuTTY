@@ -1,4 +1,4 @@
-﻿/*
+/*
  * PLink - a Windows command-line (stdin/stdout) variant of PuTTY.
  */
 

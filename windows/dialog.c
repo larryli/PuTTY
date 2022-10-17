@@ -1,4 +1,4 @@
-﻿/*
+/*
  * dialog.c - dialogs for PuTTY(tel), including the configuration dialog.
  */
 

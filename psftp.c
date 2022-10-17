@@ -1,4 +1,4 @@
-﻿/*
+/*
  * psftp.c: (platform-independent) front end for PSFTP.
  */
 

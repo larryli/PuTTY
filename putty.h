@@ -1,4 +1,4 @@
-﻿#ifndef PUTTY_PUTTY_H
+#ifndef PUTTY_PUTTY_H
 #define PUTTY_PUTTY_H
 
 #include <stddef.h>                    /* for wchar_t */

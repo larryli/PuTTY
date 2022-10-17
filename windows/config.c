@@ -1,4 +1,4 @@
-﻿/*
+/*
  * config.c - the Windows-specific parts of the PuTTY configuration
  * box.
  */

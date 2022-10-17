@@ -1,4 +1,4 @@
-﻿/*
+/*
  * windows/platform.h: Windows-specific inter-module stuff.
  */
 

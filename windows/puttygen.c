@@ -1,4 +1,4 @@
-﻿/*
+/*
  * PuTTY key generation front end (Windows).
  */
 
