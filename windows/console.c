@@ -239,10 +239,10 @@ int console_askappend(LogPolicy *lp, Filename *filename,
         "会话日志文件 \"%.*s\" 已经存在。\n"
         "可以使用新会话日志覆盖旧文件，\n"
         "或者在旧日志文件结尾增加新日志，\n"
-        "或在此会话中禁止日志记录。\n"
+        "或在此会话中禁用日志记录。\n"
         "输入 \"y\" 覆盖为新文件，\n"
         "\"n\" 附加到旧文件，\n"
-        "或者直接回车禁止日志记录。\n"
+        "或者直接回车禁用日志记录。\n"
         "擦除日志文件？ (y/n, 回车取消日志记录) ";
 
     static const char msgtemplate_batch[] =

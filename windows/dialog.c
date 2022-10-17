@@ -1103,9 +1103,9 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
         "会话日志文件 \"%.*s\" 已经存在。\n"
         "可以使用新会话日志覆盖旧文件，\n"
         "或者在旧日志文件结尾增加新日志，\n"
-        "或在此会话中禁止日志记录。\n"
-        "点击是覆盖为新文件，否附加到旧文件，\n"
-        "或者点击取消禁止日志记录。";
+        "或在此会话中禁用日志记录。\n"
+        "点击“是”覆盖为新文件，“否”附加到旧文件，\n"
+        "或者点击“取消”禁用日志记录。";
     char *message;
     char *mbtitle;
     int mbret;

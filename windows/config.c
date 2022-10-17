@@ -171,7 +171,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                       HELPCTX(bell_taskbar),
                       conf_radiobutton_handler,
                       I(CONF_beep_ind),
-                      "禁止", I(B_IND_DISABLED),
+                      "禁用", I(B_IND_DISABLED),
                       "闪烁", I(B_IND_FLASH),
                       "反显", I(B_IND_STEADY), NULL);
 
@@ -189,7 +189,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
      */
     s = ctrl_getset(b, "窗口/外观", "font",
                     "字体设置");
-    ctrl_checkbox(s, "允许选择可变间距字体", NO_SHORTCUT,
+    ctrl_checkbox(s, "启用可变间距字体", NO_SHORTCUT,
                   HELPCTX(appearance_font), variable_pitch_handler, I(0));
     ctrl_radiobuttons(s, "字体品质(Q)：", 'q', 2,
                       HELPCTX(appearance_font),
@@ -328,7 +328,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                           "改变行列数", I(RESIZE_TERM),
                           "改变字体大小", I(RESIZE_FONT),
                           "只在最大化时改变字体大小", I(RESIZE_EITHER),
-                          "完全禁止大小改变", I(RESIZE_DISABLED), NULL);
+                          "完全禁用窗口大小改变", I(RESIZE_DISABLED), NULL);
     }
 
     /*

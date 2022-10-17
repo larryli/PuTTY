@@ -77,7 +77,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                                "种子文件。（这只会影响到当前\n"
                                "登录的用户。）\n"
                                "\n"
-                               "此操作将会摧毁你保存的会话。\n"
+                               "此操作将会摧毁保存的会话。\n"
                                "真的确定要继续么？",
                                appname);
                 s2 = dupprintf("%s 警告", appname);

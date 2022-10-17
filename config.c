@@ -2052,13 +2052,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_radiobuttons(s, "发生响铃时动作(B)：", 'b', 1,
                       HELPCTX(bell_style),
                       conf_radiobutton_handler, I(CONF_beep),
-                      "无 (禁止响铃)", I(BELL_DISABLED),
+                      "无 (禁用响铃)", I(BELL_DISABLED),
                       "使用系统默认警告声音", I(BELL_DEFAULT),
                       "可视响铃 (闪动窗口)", I(BELL_VISUAL), NULL);
 
     s = ctrl_getset(b, "终端/响铃", "overload",
                     "设置重复响铃处理");
-    ctrl_checkbox(s, "大量重复响铃时临时禁止响铃(D)", 'd',
+    ctrl_checkbox(s, "大量重复响铃时临时禁用响铃(D)", 'd',
                   HELPCTX(bell_overload),
                   conf_checkbox_handler, I(CONF_bellovl));
     ctrl_editbox(s, "重复响铃最少数目(M)：", 'm', 20,
@@ -2068,9 +2068,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
                  HELPCTX(bell_overload),
                  conf_editbox_handler, I(CONF_bellovl_t),
                  I(-TICKSPERSEC));
-    ctrl_text(s, "响铃将在被禁止一段时间后重新被允许。",
+    ctrl_text(s, "响铃将在被禁用一段时间后重新被启用。",
               HELPCTX(bell_overload));
-    ctrl_editbox(s, "被禁止响铃的时间(秒)(S)：", 's', 20,
+    ctrl_editbox(s, "被禁用响铃的时间(秒)(S)：", 's', 20,
                  HELPCTX(bell_overload),
                  conf_editbox_handler, I(CONF_bellovl_s),
                  I(-TICKSPERSEC));
@@ -2079,26 +2079,26 @@ void setup_config_box(struct controlbox *b, bool midsession,
      * The Terminal/Features panel.
      */
     ctrl_settitle(b, "终端/特性",
-                  "允许或禁止高级终端特性");
+                  "启禁用高级终端特性");
 
     s = ctrl_getset(b, "终端/特性", "main", NULL);
-    ctrl_checkbox(s, "禁止应用光标键模式(U)", 'u',
+    ctrl_checkbox(s, "禁用应用光标键模式(U)", 'u',
                   HELPCTX(features_application),
                   conf_checkbox_handler, I(CONF_no_applic_c));
-    ctrl_checkbox(s, "禁止应用小键盘模式(K)", 'k',
+    ctrl_checkbox(s, "禁用应用小键盘模式(K)", 'k',
                   HELPCTX(features_application),
                   conf_checkbox_handler, I(CONF_no_applic_k));
-    ctrl_checkbox(s, "禁止 xterm 类型鼠标报告", 'x',
+    ctrl_checkbox(s, "禁用 xterm 类型鼠标报告", 'x',
                   HELPCTX(features_mouse),
                   conf_checkbox_handler, I(CONF_no_mouse_rep));
-    ctrl_checkbox(s, "禁止改变远程控制终端大小(S)", 's',
+    ctrl_checkbox(s, "禁用改变远程控制终端大小(S)", 's',
                   HELPCTX(features_resize),
                   conf_checkbox_handler,
                   I(CONF_no_remote_resize));
-    ctrl_checkbox(s, "禁止切换终端屏幕(W)", 'w',
+    ctrl_checkbox(s, "禁用切换终端屏幕(W)", 'w',
                   HELPCTX(features_altscreen),
                   conf_checkbox_handler, I(CONF_no_alt_screen));
-    ctrl_checkbox(s, "禁止改变远程控制窗口标题(T)", 't',
+    ctrl_checkbox(s, "禁用改变远程控制窗口标题(T)", 't',
                   HELPCTX(features_retitle),
                   conf_checkbox_handler,
                   I(CONF_no_remote_wintitle));
@@ -2109,20 +2109,20 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       "无", I(TITLE_NONE),
                       "空字符串", I(TITLE_EMPTY),
                       "窗口标题", I(TITLE_REAL), NULL);
-    ctrl_checkbox(s, "禁止远程控制清除回滚(E)", 'e',
+    ctrl_checkbox(s, "禁用远程控制清除回滚(E)", 'e',
                   HELPCTX(features_clearscroll),
                   conf_checkbox_handler,
                   I(CONF_no_remote_clearscroll));
-    ctrl_checkbox(s, "禁止服务器发送 ^? 时破坏性回退删除(B)",'b',
+    ctrl_checkbox(s, "禁用服务器发送 ^? 时破坏性回退删除(B)",'b',
                   HELPCTX(features_dbackspace),
                   conf_checkbox_handler, I(CONF_no_dbackspace));
-    ctrl_checkbox(s, "禁止远程控制字符集设置(R)",
+    ctrl_checkbox(s, "禁用远程控制字符集设置(R)",
                   'r', HELPCTX(features_charset), conf_checkbox_handler,
                   I(CONF_no_remote_charset));
-    ctrl_checkbox(s, "禁止修整阿拉伯文本(L)",
+    ctrl_checkbox(s, "禁用修整阿拉伯文本(L)",
                   'l', HELPCTX(features_arabicshaping), conf_checkbox_handler,
                   I(CONF_no_arabicshaping));
-    ctrl_checkbox(s, "禁止双向文本显示(D)",
+    ctrl_checkbox(s, "禁用双向文本显示(D)",
                   'd', HELPCTX(features_bidi), conf_checkbox_handler,
                   I(CONF_no_bidi));
 
@@ -2302,7 +2302,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
 
     s = ctrl_getset(b, "窗口/选择", "paste",
                     "设置从剪贴板粘贴文本到终端");
-    ctrl_checkbox(s, "允许粘贴文本含有控制字符",
+    ctrl_checkbox(s, "启用粘贴含有控制字符的文本",
                   NO_SHORTCUT, HELPCTX(selection_pastectrl),
                   conf_checkbox_handler, I(CONF_paste_controls));
 
@@ -2344,13 +2344,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
 
     s = ctrl_getset(b, "窗口/颜色", "general",
                     "颜色使用常规设置");
-    ctrl_checkbox(s, "允许终端指定 ANSI 颜色", 'i',
+    ctrl_checkbox(s, "启用终端指定 ANSI 颜色", 'i',
                   HELPCTX(colours_ansi),
                   conf_checkbox_handler, I(CONF_ansi_colour));
-    ctrl_checkbox(s, "允许终端使用 xterm 256 色模式", '2',
+    ctrl_checkbox(s, "启用终端使用 xterm 256 色模式", '2',
                   HELPCTX(colours_xterm256), conf_checkbox_handler,
                   I(CONF_xterm_256_colour));
-    ctrl_checkbox(s, "允许终端使用 24 位色", '4',
+    ctrl_checkbox(s, "启用终端使用 24 位色", '4',
                   HELPCTX(colours_truecolour), conf_checkbox_handler,
                   I(CONF_true_colour));
     ctrl_radiobuttons(s, "粗体文字表现(B)：", 'b', 3,
@@ -2407,11 +2407,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
         if (!midsession) {
             s = ctrl_getset(b, "连接", "tcp",
                             "底层 TCP 连接选项");
-            ctrl_checkbox(s, "禁止 Nagle 算法(TCP_NODELAY 参数)",
+            ctrl_checkbox(s, "禁用 Nagle 算法(TCP_NODELAY 参数)",
                           'n', HELPCTX(connection_nodelay),
                           conf_checkbox_handler,
                           I(CONF_tcp_nodelay));
-            ctrl_checkbox(s, "允许 TCP 保持活动连接(SO_KEEPALIVE 参数)",
+            ctrl_checkbox(s, "启用 TCP 保持活动连接(SO_KEEPALIVE 参数)",
                           'p', HELPCTX(connection_tcpkeepalive),
                           conf_checkbox_handler,
                           I(CONF_tcp_keepalives));
@@ -2656,7 +2656,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           conf_checkbox_handler,
                           I(CONF_ssh_connection_sharing));
 
-            ctrl_text(s, "共享连接中允许角色：",
+            ctrl_text(s, "共享连接中启用角色：",
                       HELPCTX(ssh_share));
             ctrl_checkbox(s, "上游 (连接到真实服务器)(U)", 'u',
                           HELPCTX(ssh_share),
@@ -2802,7 +2802,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               cipherlist_handler, P(NULL));
             c->listbox.height = 6;
 
-            ctrl_checkbox(s, "允许 SSH-2 兼容使用单一 DES 算法(I)", 'i',
+            ctrl_checkbox(s, "启用 SSH-2 兼容使用单一 DES 算法(I)", 'i',
                           HELPCTX(ssh_ciphers),
                           conf_checkbox_handler,
                           I(CONF_ssh2_des_cbc));
@@ -2847,10 +2847,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
 
             s = ctrl_getset(b, "连接/SSH/认证", "params",
                             "认证参数");
-            ctrl_checkbox(s, "允许代理转发(F)", 'f',
+            ctrl_checkbox(s, "启用代理转发(F)", 'f',
                           HELPCTX(ssh_auth_agentfwd),
                           conf_checkbox_handler, I(CONF_agentfwd));
-            ctrl_checkbox(s, "允许尝试在 SSH-2 中修改用户名", NO_SHORTCUT,
+            ctrl_checkbox(s, "启用尝试在 SSH-2 中修改用户名", NO_SHORTCUT,
                           HELPCTX(ssh_auth_changeuser),
                           conf_checkbox_handler,
                           I(CONF_change_username));
@@ -2873,12 +2873,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           conf_checkbox_handler,
                           I(CONF_try_gssapi_auth));
 
-            ctrl_checkbox(s, "允许 GSSAPI 密钥交换，只限于 SSH-2(K)",
+            ctrl_checkbox(s, "启用 GSSAPI 密钥交换，只限于 SSH-2(K)",
                           'k', HELPCTX(ssh_gssapi),
                           conf_checkbox_handler,
                           I(CONF_try_gssapi_kex));
 
-            ctrl_checkbox(s, "允许 GSSAPI 凭据委托(L)", 'l',
+            ctrl_checkbox(s, "启用 GSSAPI 凭据委托(L)", 'l',
                           HELPCTX(ssh_gssapi_delegation),
                           conf_checkbox_handler,
                           I(CONF_gssapifwd));
@@ -2981,7 +2981,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           "SSH X11 转发设置");
 
             s = ctrl_getset(b, "连接/SSH/X11", "x11", "X11 转发");
-            ctrl_checkbox(s, "允许 X11 转发(E)", 'e',
+            ctrl_checkbox(s, "启用 X11 转发(E)", 'e',
                           HELPCTX(ssh_tunnels_x11),
                           conf_checkbox_handler,I(CONF_x11_forward));
             ctrl_editbox(s, "X 显示位置：", 'x', 50,

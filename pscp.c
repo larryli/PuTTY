@@ -2206,7 +2206,7 @@ static void usage(void)
     printf("  -ssh -ssh-connection\n");
     printf("            强制使用特定的 SSH 协议变体\n");
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
-    printf("  -C        允许压缩\n");
+    printf("  -C        启用压缩\n");
     printf("  -i 密钥   认证使用的密钥文件\n");
     printf("  -noagent  禁用 Pageant 认证代理\n");
     printf("  -agent    启用 Pageant 认证代理\n");
@@ -2214,11 +2214,11 @@ static void usage(void)
     printf("            断开过于迅速的 SSH 认证连接\n");
     printf("  -hostkey 密钥ID\n");
     printf("            手动指定主机密钥(可能重复)\n");
-    printf("  -batch    禁止所有交互提示\n");
+    printf("  -batch    禁用所有交互提示\n");
     printf("  -no-sanitise-stderr  不删除标准错误中控制字符\n");
     printf("  -proxycmd 命令\n");
     printf("            使用 '命令' 作为本地代理\n");
-    printf("  -unsafe   允许服务端通配符(危险操作)\n");
+    printf("  -unsafe   启用服务端通配符(危险操作)\n");
     printf("  -sftp     强制使用 SFTP 协议\n");
     printf("  -scp      强制使用 SCP 协议\n");
     printf("  -sshlog 文件\n");

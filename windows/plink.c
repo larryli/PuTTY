@@ -157,7 +157,7 @@ static void usage(void)
     printf("  -t -T     启禁用 pty 分配\n");
     printf("  -1 -2     强制使用 SSH 协议版本\n");
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
-    printf("  -C        允许压缩\n");
+    printf("  -C        启用压缩\n");
     printf("  -i 密钥   认证使用的密钥文件\n");
     printf("  -noagent  禁用 Pageant 认证代理\n");
     printf("  -agent    启用 Pageant 认证代理\n");

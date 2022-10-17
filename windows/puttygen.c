@@ -718,7 +718,7 @@ void old_keyfile_warning(void)
         "性。未来版本的 %s 可能会停止支持\n"
         "此私钥格式，建议将其转换为新的格式。\n"
         "\n"
-        "一旦密钥被载入到 PuTTYgen，你可以简\n"
+        "一旦密钥被载入到 PuTTYgen，可以简\n"
         "单的使用保存文件来进行转换。";
 
     MessageBox(NULL, message, mbtitle, MB_OK);
