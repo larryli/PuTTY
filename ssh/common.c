@@ -938,7 +938,7 @@ bool ssh1_common_get_specials(
      * asked anyway.
      */
     if (!(ppl->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE)) {
-        add_special(ctx, "IGNORE message", SS_NOP, 0);
+        add_special(ctx, "IGNORE 消息", SS_NOP, 0);
         return true;
     }
 

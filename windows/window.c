@@ -775,7 +775,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "新会话(&W)...");
             AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "复制会话(&D)");
             AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR) savedsess_menu,
-                       "保存会话(&V)");
+                       "保存的会话(&V)");
             AppendMenu(m, MF_ENABLED, IDM_RECONF, "修改设置(&G)...");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             AppendMenu(m, MF_ENABLED, IDM_COPYALL, "复制所有内容到剪贴板(&O)");
