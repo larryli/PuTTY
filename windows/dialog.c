@@ -89,7 +89,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
-        char *str = dupprintf("%s 事件日志", appname);
+        char *str = dupprintf("%s 事件日志记录", appname);
         SetWindowText(hwnd, str);
         sfree(str);
 
@@ -1044,10 +1044,9 @@ SeatPromptResult win_seat_confirm_weak_crypto_primitive(
 {
     static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
-        "The first %s supported by the server\n"
-        "is %s, which is below the configured\n"
-        "warning threshold.\n"
-        "Do you want to continue with this connection?\n";
+        "服务器支持的第一个 %s\n"
+        "是 %s，其低于配置的警告阀值。\n"
+        "要继续连接么？\n";
     char *message, *title;
     int mbret;
 
@@ -1070,12 +1069,12 @@ SeatPromptResult win_seat_confirm_weak_cached_hostkey(
 {
     static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
-        "The first host key type we have stored for this server\n"
-        "is %s, which is below the configured warning threshold.\n"
-        "The server also provides the following types of host key\n"
-        "above the threshold, which we do not have stored:\n"
+        "此服务器要存储的第一个主机密钥类型\n"
+        "为 %s，其低于配置的警告阀值。\n"
+        "此服务器同时也提供有下列高于阀值的\n"
+        "主机密钥类型（不会存储）：\n"
         "%s\n"
-        "Do you want to continue with this connection?\n";
+        "要继续连接么？\n";
     char *message, *title;
     int mbret;
 
@@ -1101,18 +1100,18 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
                              void *ctx)
 {
     static const char msgtemplate[] =
-        "The session log file \"%.*s\" already exists.\n"
-        "You can overwrite it with a new session log,\n"
-        "append your session log to the end of it,\n"
-        "or disable session logging for this session.\n"
-        "Hit Yes to wipe the file, No to append to it,\n"
-        "or Cancel to disable logging.";
+        "会话日志文件 \"%.*s\" 已经存在。\n"
+        "可以使用新会话日志覆盖旧文件，\n"
+        "或者在旧日志文件结尾增加新日志，\n"
+        "或在此会话中禁止日志记录。\n"
+        "点击是覆盖为新文件，否附加到旧文件，\n"
+        "或者点击取消禁止日志记录。";
     char *message;
     char *mbtitle;
     int mbret;
 
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
-    mbtitle = dupprintf("%s Log to File", appname);
+    mbtitle = dupprintf("%s 日志记录到文件", appname);
 
     mbret = MessageBox(NULL, message, mbtitle,
                        MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON3);
@@ -1151,15 +1150,13 @@ void old_keyfile_warning(void)
 {
     static const char mbtitle[] = "%s 密钥文件警告";
     static const char message[] =
-        "You are loading an SSH-2 private key which has an\n"
-        "old version of the file format. This means your key\n"
-        "file is not fully tamperproof. Future versions of\n"
-        "%s may stop supporting this private key format,\n"
-        "so we recommend you convert your key to the new\n"
-        "format.\n"
+        "现在载入的是一个旧版本文件格式的 SSH2\n"
+        "私钥。这意味着该私钥文件没有足够的安全\n"
+        "性。未来版本的 %s 可能会停止支持\n"
+        "此私钥格式，建议将其转换为新的格式。\n"
         "\n"
-        "You can perform this conversion by loading the key\n"
-        "into PuTTYgen and then saving it again.";
+        "请使用 PuTTYgen 载入该密钥进行转换然\n"
+        "后保存。";
 
     char *msg, *title;
     msg = dupprintf(message, appname);

@@ -1951,10 +1951,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_settitle(b, "终端", "终端模拟设置");
 
     s = ctrl_getset(b, "终端", "general", "设置不同的终端选项");
-    ctrl_checkbox(s, "初始开启自动换行(W)", 'w',
+    ctrl_checkbox(s, "初始启用自动换行(W)", 'w',
                   HELPCTX(terminal_autowrap),
                   conf_checkbox_handler, I(CONF_wrap_mode));
-    ctrl_checkbox(s, "初始开启 DEC 原始模式", 'd',
+    ctrl_checkbox(s, "初始启用 DEC 原始模式", 'd',
                   HELPCTX(terminal_decom),
                   conf_checkbox_handler, I(CONF_dec_om));
     ctrl_checkbox(s, "在每个 LF 字符前增加 CR 字符", 'r',
@@ -1966,7 +1966,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_checkbox(s, "使用背景颜色清除屏幕(E)", 'e',
                   HELPCTX(terminal_bce),
                   conf_checkbox_handler, I(CONF_bce));
-    ctrl_checkbox(s, "开启闪烁字文本(N)", 'n',
+    ctrl_checkbox(s, "启用闪烁字文本(N)", 'n',
                   HELPCTX(terminal_blink),
                   conf_checkbox_handler, I(CONF_blinktext));
     ctrl_editbox(s, "^E 回应(S)：", 's', 100,
@@ -2642,7 +2642,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
         if (!midsession || !(protcfginfo == 1 || protcfginfo == -1)) {
             s = ctrl_getset(b, "连接/SSH", "protocol", "协议选项");
 
-            ctrl_checkbox(s, "开启压缩(E)", 'e',
+            ctrl_checkbox(s, "启用压缩(E)", 'e',
                           HELPCTX(ssh_compress),
                           conf_checkbox_handler,
                           I(CONF_compression));

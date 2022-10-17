@@ -2542,8 +2542,8 @@ static void usage(void)
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
     printf("  -C        允许压缩\n");
     printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  禁止使用 Pageant 认证代理\n");
-    printf("  -agent    开启使用 Pageant 认证代理\n");
+    printf("  -noagent  禁止 Pageant 认证代理\n");
+    printf("  -agent    启用 Pageant 认证代理\n");
     printf("  -no-trivial-auth\n");
     printf("            断开过于迅速的 SSH 认证连接\n");
     printf("  -hostkey 密钥ID\n");

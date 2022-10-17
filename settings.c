@@ -1259,7 +1259,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppfont(sesskey, "WideBoldFont", conf, CONF_wideboldfont);
     gppi(sesskey, "ShadowBoldOffset", 1, conf, CONF_shadowboldoffset);
     gpps(sesskey, "SerialLine", "", conf, CONF_serline);
-    gppi(sesskey, "SerialSpeed", 9600, conf, CONF_serspeed);
+    gppi(sesskey, "SerialSpeed", 115200, conf, CONF_serspeed);
     gppi(sesskey, "SerialDataBits", 8, conf, CONF_serdatabits);
     gppi(sesskey, "SerialStopHalfbits", 2, conf, CONF_serstopbits);
     gppi(sesskey, "SerialParity", SER_PAR_NONE, conf, CONF_serparity);

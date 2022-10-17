@@ -62,14 +62,14 @@ STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY 安全警告"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT "The host key is not cached for this server:", 100, 40, 20, 300, 8
-    LTEXT "You have no guarantee that the server is the computer you think it is.", 101, 40, 40, 300, 8
-    LTEXT "The server's {KEYTYPE} key fingerprint is:", 102, 40, 52, 300, 8
-    LTEXT "If you trust this host, press ""Accept"" to add the key to {APPNAME}'s", 103, 40, 72, 300, 8
-    LTEXT "cache and carry on connecting.", 104, 40, 80, 300, 8
-    LTEXT "If you want to carry on connecting just once, without adding the key", 105, 40, 92, 300, 8
-    LTEXT "to the cache, press ""Connect Once"".", 106, 40, 100, 300, 8
-    LTEXT "If you do not trust this host, press ""Cancel"" to abandon the connection.", 107, 40, 112, 300, 8
+    LTEXT "该服务器密钥未缓存:", 100, 40, 20, 300, 8
+    LTEXT "不能保证该服务器是能够正确访问的计算机。", 101, 40, 40, 300, 8
+    LTEXT "该服务器的 {KEYTYPE} 密钥指纹为:", 102, 40, 52, 300, 8
+    LTEXT "如果信任该主机，请点击 ""接受"" 增加密钥到 {APPNAME}", 103, 40, 72, 300, 8
+    LTEXT "缓存中并继续连接。", 104, 40, 80, 300, 8
+    LTEXT "如果仅仅只希望进行本次连接，而不", 105, 40, 92, 300, 8
+    LTEXT "将密钥储存，请点击 ""只连接一次""。", 106, 40, 100, 300, 8
+    LTEXT "如果不信任该主机，请点击 ""取消"" 放弃此连接。", 107, 40, 112, 300, 8
 
     ICON "", IDC_HK_ICON, 10, 18, 0, 0
 
@@ -89,19 +89,19 @@ STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY 安全警告"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT "WARNING - POTENTIAL SECURITY BREACH!", IDC_HK_TITLE, 40, 20, 300, 12
+    LTEXT "**警告** - 潜在安全隐患！", IDC_HK_TITLE, 40, 20, 300, 12
 
-    LTEXT "The host key does not match the one {APPNAME} has cached for this server:", 100, 40, 36, 300, 8
-    LTEXT "This means that either the server administrator has changed the", 101, 40, 56, 300, 8
-    LTEXT "host key, or you have actually connected to another computer", 102, 40, 64, 300, 8
-    LTEXT "pretending to be the server.", 103, 40, 72, 300, 8
-    LTEXT "The new {KEYTYPE} key fingerprint is:", 104, 40, 84, 300, 8
-    LTEXT "If you were expecting this change and trust the new key, press", 105, 40, 104, 300, 8
-    LTEXT """Accept"" to update {APPNAME}'s cache and continue connecting.", 106, 40, 112, 300, 8
-    LTEXT "If you want to carry on connecting but without updating the cache,", 107, 40, 124, 300, 8
-    LTEXT "press ""Connect Once"".", 108, 40, 132, 300, 8
-    LTEXT "If you want to abandon the connection completely, press ""Cancel"".", 109, 40, 144, 300, 8
-    LTEXT "Pressing ""Cancel"" is the ONLY guaranteed safe choice.", 110, 40, 152, 300, 8
+    LTEXT "在 {APPNAME} 缓存中不能匹配该服务器密钥:", 100, 40, 36, 300, 8
+    LTEXT "这说明可能该服务器管理员更新了主机密钥，", 101, 40, 56, 300, 8
+    LTEXT "或者更可能是连接到了一台伪装成该服务器的", 102, 40, 64, 300, 8
+    LTEXT "虚假计算机系统。", 103, 40, 72, 300, 8
+    LTEXT "新的 {KEYTYPE} 密钥指纹为:", 104, 40, 84, 300, 8
+    LTEXT "如果确信该密钥被更新并同意接受新的密钥，", 105, 40, 104, 300, 8
+    LTEXT "请点击 ""接受"" 更新 {APPNAME} 缓存并继续连接。", 106, 40, 112, 300, 8
+    LTEXT "如果仅仅只希望继续本次连接，而不更新系统", 107, 40, 124, 300, 8
+    LTEXT "缓存，请点击 ""只连接一次""。", 108, 40, 132, 300, 8
+    LTEXT "如果希望完全放弃本次连接，请点击 ""取消""。", 109, 40, 144, 300, 8
+    LTEXT "点击 ""取消"" 是**唯一**可以保证的安全选择。", 110, 40, 152, 300, 8
 
     ICON "", IDC_HK_ICON, 10, 16, 0, 0
 

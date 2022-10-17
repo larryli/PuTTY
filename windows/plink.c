@@ -152,9 +152,9 @@ static void usage(void)
     printf("            转发本地端口到远程地址\n");
     printf("  -R [监听IP:]监听端口:主机:端口\n");
     printf("            转发远程端口到本地地址\n");
-    printf("  -X -x     开启/禁用 X11 转发\n");
-    printf("  -A -a     开启/禁用代理转发\n");
-    printf("  -t -T     开启/禁用 pty 分配\n");
+    printf("  -X -x     启禁用 X11 转发\n");
+    printf("  -A -a     启禁用 agent 转发\n");
+    printf("  -t -T     启禁用 pty 分配\n");
     printf("  -1 -2     强制使用 SSH 协议版本\n");
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
     printf("  -C        允许压缩\n");
