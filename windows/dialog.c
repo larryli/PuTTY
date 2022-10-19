@@ -921,7 +921,7 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
         }
         strbuf_free(sb);
 
-        char *hostport = dupprintf("%s (port %d)", ctx->host, ctx->port);
+        char *hostport = dupprintf("%s (端口 %d)", ctx->host, ctx->port);
         SetDlgItemText(hwnd, IDC_HK_HOST, hostport);
         sfree(hostport);
         MakeDlgItemBorderless(hwnd, IDC_HK_HOST);
