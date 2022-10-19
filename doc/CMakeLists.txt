@@ -140,12 +140,17 @@ macro(manpage title section)
       DEPENDS
         mancfg.but man-${title}.but)
     register_manpage(${title} ${section})
-  elseif(NOT (DOCBUILDDIR STREQUAL DOCSRCDIR)
-         AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
-    add_custom_command(OUTPUT ${title}.${section}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section} ${title}.${section}
-      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
+  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
+    # Our tarballs include prebuilt man pages in the source tree, so
+    # they can be installed from there even if Halibut isn't available.
+    if(NOT (DOCBUILDDIR STREQUAL DOCSRCDIR))
+      # Iff the build tree isn't the source tree, they'll need copying
+      # to the build tree first.
+      add_custom_command(OUTPUT ${title}.${section}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section} ${title}.${section}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${title}.${section})
+    endif()
     register_manpage(${title} ${section})
   endif()
 endmacro()
