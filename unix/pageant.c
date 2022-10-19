@@ -111,9 +111,9 @@ static bool uxpgnt_ask_passphrase(
     assert(!upc->dlgid); /* Pageant core should be serialising requests */
 
     char *msg = dupprintf(
-        "A client of Pageant wants to use the following encrypted key:\n"
+        "有 Pageant 客户端想要使用以下加密密钥：\n"
         "%s\n"
-        "If you intended this, enter the passphrase to decrypt the key.",
+        "如果确定是本人操作，请输入密码以解密密钥。",
         comment);
 
     switch (upc->prompt_type) {
@@ -181,42 +181,42 @@ char *x_get_default(const char *key) { return NULL; }
  */
 static void usage(void)
 {
-    printf("Pageant: SSH agent\n");
+    printf("Pageant: SSH 代理\n");
     printf("%s\n", ver);
-    printf("Usage: pageant <lifetime> [[--encrypted] key files]\n");
-    printf("       pageant [[--encrypted] key files] --exec <command> [args]\n");
-    printf("       pageant -a [--encrypted] [key files]\n");
-    printf("       pageant -d [key identifiers]\n");
-    printf("       pageant -D\n");
-    printf("       pageant -r [key identifiers]\n");
-    printf("       pageant -R\n");
-    printf("       pageant --public [key identifiers]\n");
-    printf("       pageant ( --public-openssh | -L ) [key identifiers]\n");
-    printf("       pageant -l [-E fptype]\n");
-    printf("Lifetime options, for running Pageant as an agent:\n");
-    printf("  -X           run with the lifetime of the X server\n");
-    printf("  -T           run with the lifetime of the controlling tty\n");
-    printf("  --permanent  run permanently\n");
-    printf("  --debug      run in debugging mode, without forking\n");
-    printf("  --exec <command>   run with the lifetime of that command\n");
-    printf("Client options, for talking to an existing agent:\n");
-    printf("  -a           add key(s) to the existing agent\n");
-    printf("  -l           list currently loaded key fingerprints and comments\n");
-    printf("  --public     print public keys in RFC 4716 format\n");
-    printf("  --public-openssh, -L   print public keys in OpenSSH format\n");
-    printf("  -d           delete key(s) from the agent\n");
-    printf("  -D           delete all keys from the agent\n");
-    printf("  -r           re-encrypt keys in the agent (forget cleartext)\n");
-    printf("  -R           re-encrypt all possible keys in the agent\n");
-    printf("Other options:\n");
-    printf("  -v           verbose mode (in agent mode)\n");
-    printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
-    printf("  --symlink path   create symlink to socket (in agent mode)\n");
-    printf("  --encrypted  when adding keys, don't decrypt\n");
-    printf("  -E alg, --fptype alg   fingerprint type for -l (sha256, md5)\n");
-    printf("  --tty-prompt force tty-based passphrase prompt\n");
-    printf("  --gui-prompt force GUI-based passphrase prompt\n");
-    printf("  --askpass <prompt>   behave like a standalone askpass program\n");
+    printf("用法: pageant <有效时间> [[--encrypted] 密钥文件]\n");
+    printf("      pageant [[--encrypted] 密钥文件] --exec <命令> [参数]\n");
+    printf("      pageant -a [--encrypted] [密钥文件]\n");
+    printf("      pageant -d [密钥标识]\n");
+    printf("      pageant -D\n");
+    printf("      pageant -r [密钥标识]\n");
+    printf("      pageant -R\n");
+    printf("      pageant --public [密钥标识]\n");
+    printf("      pageant ( --public-openssh | -L ) [密钥标识]\n");
+    printf("      pageant -l [-E 指纹类型]\n");
+    printf("有效时间选项指定 Pageant 代理运行时间:\n");
+    printf("  -X           作用于 X server 代理运行有效时间\n");
+    printf("  -T           作用于 tty 控制台代理运行有效时间\n");
+    printf("  --permanent  永久运行\n");
+    printf("  --debug      调试模式，无 fork\n");
+    printf("  --exec <命令>   作用于指定命令的代理运行有效时间\n");
+    printf("客户端选项，用于与已运行代理通信:\n");
+    printf("  -a           增加密钥到已运行的代理\n");
+    printf("  -l           列出当前载入的密码指纹与注释\n");
+    printf("  --public     列出 RFC 4716 格式公钥\n");
+    printf("  --public-openssh, -L   列出 OpenSSH 格式公钥\n");
+    printf("  -d           从代理中删除密钥\n");
+    printf("  -D           从代理中删除所有密钥\n");
+    printf("  -r           在代理中重新加密密钥（忘记明文）\n");
+    printf("  -R           重新加密代理中所有可能的密钥\n");
+    printf("其他选项:\n");
+    printf("  -v           详细模式（在代理模式下）\n");
+    printf("  -s -c        强制 POSIX 或 C shell 语法（在代理模式下）\n");
+    printf("  --symlink 路径   创建到套接字的符号链接（在代理模式下）\n");
+    printf("  --encrypted  添加密钥时，不要解密\n");
+    printf("  -E 类型, --fptype 类型   -l 时指纹类型 (sha256, md5)\n");
+    printf("  --tty-prompt 强制基于 tty 的密码提示\n");
+    printf("  --gui-prompt 强制基于 GUI 的密码提示\n");
+    printf("  --askpass <提示>   作为独立程序提示输入密码\n");
     exit(1);
 }
 
@@ -440,7 +440,7 @@ static char *askpass_tty(const char *prompt)
     prompts_t *p = new_prompts();
     p->to_server = false;
     p->from_server = false;
-    p->name = dupstr("Pageant passphrase prompt");
+    p->name = dupstr("Pageant 密码提示");
     add_prompt(p, dupcat(prompt, ": "), false);
     SeatPromptResult spr = console_get_userpass_input(p);
     assert(spr.kind != SPRK_INCOMPLETE);
@@ -467,7 +467,7 @@ static char *askpass_gui(const char *prompt)
     bool success;
 
     passphrase = gtk_askpass_main(
-        display, "Pageant passphrase prompt", prompt, &success);
+        display, "Pageant 密码提示", prompt, &success);
     if (!success) {
         /* return value is error message */
         fprintf(stderr, "%s\n", passphrase);
@@ -534,7 +534,7 @@ static bool unix_add_keyfile(const char *filename_str, bool add_encrypted)
      */
     while (1) {
         char *prompt = dupprintf(
-            "Enter passphrase to load key '%s'", err);
+            "输入用于载入密钥 '%s' 的密码", err);
         char *passphrase = askpass(prompt);
         sfree(err);
         sfree(prompt);
@@ -569,9 +569,9 @@ void key_list_callback(void *ctx, char **fingerprints, const char *comment,
 {
     const char *mode = "";
     if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY)
-        mode = " (encrypted)";
+        mode = " (已加密)";
     else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
-        mode = " (re-encryptable)";
+        mode = " (可重新加密)";
 
     FingerprintType this_type =
         ssh2_pick_fingerprint(fingerprints, key_list_fptype);

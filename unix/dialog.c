@@ -1102,13 +1102,13 @@ void dlg_coloursel_start(union control *ctrl, dlgparam *dp, int r, int g, int b)
 
 #if GTK_CHECK_VERSION(3,0,0)
     GtkWidget *coloursel =
-        gtk_color_chooser_dialog_new("Select a colour",
+        gtk_color_chooser_dialog_new("选择颜色",
                                      GTK_WINDOW(dp->window));
     gtk_color_chooser_set_use_alpha(GTK_COLOR_CHOOSER(coloursel), false);
 #else
     GtkWidget *okbutton, *cancelbutton;
     GtkWidget *coloursel =
-        gtk_color_selection_dialog_new("Select a colour");
+        gtk_color_selection_dialog_new("选择颜色");
     GtkColorSelectionDialog *ccs = GTK_COLOR_SELECTION_DIALOG(coloursel);
     GtkColorSelection *cs = GTK_COLOR_SELECTION
         (gtk_color_selection_dialog_get_color_selection(ccs));
@@ -2106,7 +2106,7 @@ GtkWidget *layout_ctrls(
             GtkWidget *ww;
             const char *browsebtn =
                 (ctrl->generic.type == CTRL_FILESELECT ?
-                 "Browse..." : "Change...");
+                 "浏览..." : "修改...");
 
             gint percentages[] = { 75, 25 };
             w = columns_new(4);
@@ -2304,14 +2304,14 @@ GtkWidget *layout_ctrls(
                     columns_set_cols(COLUMNS(cols), 2, percentages);
                     columns_add(COLUMNS(cols), w, 0, 1);
                     gtk_widget_show(w);
-                    button = gtk_button_new_with_label("Up");
+                    button = gtk_button_new_with_label("上移");
                     columns_add(COLUMNS(cols), button, 1, 1);
                     gtk_widget_show(button);
                     g_signal_connect(G_OBJECT(button), "clicked",
                                      G_CALLBACK(draglist_up), dp);
                     g_signal_connect(G_OBJECT(button), "focus_in_event",
                                      G_CALLBACK(widget_focus), dp);
-                    button = gtk_button_new_with_label("Down");
+                    button = gtk_button_new_with_label("下移");
                     columns_add(COLUMNS(cols), button, 1, 1);
                     gtk_widget_show(button);
                     g_signal_connect(G_OBJECT(button), "clicked",
@@ -2977,7 +2977,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     cols = columns_new(4);
     gtk_box_pack_start(GTK_BOX(vbox), cols, false, false, 0);
     gtk_widget_show(cols);
-    label = gtk_label_new("Category:");
+    label = gtk_label_new("分类(G):");
     columns_add(COLUMNS(cols), label, 0, 1);
     columns_force_left_align(COLUMNS(cols), label);
     gtk_widget_show(label);
@@ -3291,14 +3291,14 @@ static void messagebox_handler(union control *ctrl, dlgparam *dp,
 }
 
 static const struct message_box_button button_array_yn[] = {
-    {"Yes", 'y', +1, 1},
-    {"No", 'n', -1, 0},
+    {"是(Y)", 'y', +1, 1},
+    {"否(N)", 'n', -1, 0},
 };
 const struct message_box_buttons buttons_yn = {
     button_array_yn, lenof(button_array_yn),
 };
 static const struct message_box_button button_array_ok[] = {
-    {"OK", 'o', 1, 1},
+    {"确定(O)", 'o', 1, 1},
 };
 const struct message_box_buttons buttons_ok = {
     button_array_ok, lenof(button_array_ok),
@@ -3509,7 +3509,7 @@ static GtkWidget *add_more_info_button(GtkWidget *w, void *vctx)
     GtkWidget *box = gtk_hbox_new(false, 10);
     gtk_widget_show(box);
     gtk_box_pack_end(GTK_BOX(box), w, false, true, 0);
-    GtkWidget *button = gtk_button_new_with_label("More info...");
+    GtkWidget *button = gtk_button_new_with_label("更多信息...");
     gtk_widget_show(button);
     gtk_box_pack_start(GTK_BOX(box), button, false, true, 0);
     *(GtkWidget **)vctx = button;
@@ -3533,8 +3533,8 @@ static void more_info_button_clicked(GtkButton *button, gpointer vctx)
         return;
 
     ctx->more_info_dialog = create_message_box(
-        ctx->main_dialog, "Host key information", ctx->more_info,
-        string_width("SHA256 fingerprint: ecdsa-sha2-nistp521 521 "
+        ctx->main_dialog, "主机密钥信息", ctx->more_info,
+        string_width("SHA256 指纹: ecdsa-sha2-nistp521 521 "
                      "abcdefghkmnopqrsuvwxyzABCDEFGHJKLMNOPQRSTUW"), true,
         &buttons_ok, more_info_closed, ctx);
 }
@@ -3545,39 +3545,34 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char absenttxt[] =
-        "The host key is not cached for this server:\n\n"
-        "%s (port %d)\n\n"
-        "You have no guarantee that the server is the computer "
-        "you think it is.\n"
-        "The server's %s key fingerprint is:\n\n"
+        "该服务器密钥未缓存:\n\n"
+        "%s (端口 %d)\n\n"
+        "不能保证该服务器是能够正确访问的计算机。\n"
+        "该服务器的 %s 密钥指纹为:\n\n"
         "%s\n\n"
-        "If you trust this host, press \"Accept\" to add the key to "
-        "PuTTY's cache and carry on connecting.\n"
-        "If you want to carry on connecting just once, without "
-        "adding the key to the cache, press \"Connect Once\".\n"
-        "If you do not trust this host, press \"Cancel\" to abandon the "
-        "connection.";
+        "如果信任该主机，请点击“接受”增加密钥到"
+        "PuTTY 缓存中，并继续连接。\n"
+        "如果仅仅只希望进行本次连接，而不将密钥储存，"
+        "请点击“只连接一次”。\n"
+        "如果不信任该主机，请点击“取消”放弃此连接。";
     static const char wrongtxt[] =
-        "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "The host key does not match the one PuTTY has cached "
-        "for this server:\n\n"
-        "%s (port %d)\n\n"
-        "This means that either the server administrator has "
-        "changed the host key, or you have actually connected "
-        "to another computer pretending to be the server.\n"
-        "The new %s key fingerprint is:\n\n"
+        "**警告** - 潜在安全隐患！\n"
+        "在 PuTTY 缓存中不能匹配该服务器密钥:\n\n"
+        "%s (端口 %d)\n\n"
+        "这说明可能该服务器管理员更新了主机密钥，"
+        "或者更可能是连接到了一台伪装成该服务器的虚假计算机系统。\n"
+        "新的 %s 密钥指纹为:\n\n"
         "%s\n\n"
-        "If you were expecting this change and trust the new key, "
-        "press \"Accept\" to update PuTTY's cache and continue connecting.\n"
-        "If you want to carry on connecting but without updating "
-        "the cache, press \"Connect Once\".\n"
-        "If you want to abandon the connection completely, press "
-        "\"Cancel\" to cancel. Pressing \"Cancel\" is the ONLY guaranteed "
-        "safe choice.";
+        "如果确信该密钥被更新并同意接受新的密钥，"
+        "请点击“接受”更新 PuTTY 缓存并继续连接。\n"
+        "如果仅仅只希望继续本次连接，而不更新系统缓存，"
+        "请点击“只连接一次”。\n"
+        "如果希望完全放弃本次连接，请点击“取消”。"
+        "点击“取消”是**唯一**可以保证的安全选择。";
     static const struct message_box_button button_array_hostkey[] = {
-        {"Accept", 'a', 0, 2},
-        {"Connect Once", 'o', 0, 1},
-        {"Cancel", 'c', -1, 0},
+        {"接受(A)", 'a', 0, 2},
+        {"只连接一次(O)", 'o', 0, 1},
+        {"取消(C)", 'c', -1, 0},
     };
     static const struct message_box_buttons buttons_hostkey = {
         button_array_hostkey, lenof(button_array_hostkey),
@@ -3605,7 +3600,7 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     GtkWidget *more_info_button = NULL;
     msgbox = create_message_box_general(
-        mainwin, "PuTTY Security Alert", text,
+        mainwin, "PuTTY 安全警告", text,
         string_width(fingerprints[fptype_default]), true,
         &buttons_hostkey, confirm_ssh_host_key_result_callback, result_ctx,
         add_more_info_button, &more_info_button);
@@ -3615,12 +3610,12 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
 
     strbuf *sb = strbuf_new();
     if (fingerprints[SSH_FPTYPE_SHA256])
-        put_fmt(sb, "SHA256 fingerprint: %s\n",
+        put_fmt(sb, "SHA256 指纹: %s\n",
                 fingerprints[SSH_FPTYPE_SHA256]);
     if (fingerprints[SSH_FPTYPE_MD5])
-        put_fmt(sb, "MD5 fingerprint: %s\n",
+        put_fmt(sb, "MD5 指纹: %s\n",
                 fingerprints[SSH_FPTYPE_MD5]);
-    put_fmt(sb, "Full text of host's public key:");
+    put_fmt(sb, "主机完整公钥文本:");
     /* We have to manually wrap the public key, or else the GtkLabel
      * will resize itself to accommodate the longest word, which will
      * lead to a hilariously wide message box. */
@@ -3680,9 +3675,9 @@ SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char msg[] =
-        "The first %s supported by the server is "
-        "%s, which is below the configured warning threshold.\n"
-        "Continue with connection?";
+        "服务器支持的第一个 %s "
+        "是 %s，其低于配置的警告阀值。\n"
+        "要继续连接么？";
 
     char *text;
     struct simple_prompt_result_spr_ctx *result_ctx;
@@ -3698,7 +3693,7 @@ SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
-        mainwin, "PuTTY Security Alert", text,
+        mainwin, "PuTTY 安全警告", text,
         string_width("Reasonably long line of text as a width template"),
         false, &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
     register_dialog(seat, result_ctx->dialog_slot, msgbox);
@@ -3713,12 +3708,12 @@ SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     static const char msg[] =
-        "The first host key type we have stored for this server\n"
-        "is %s, which is below the configured warning threshold.\n"
-        "The server also provides the following types of host key\n"
-        "above the threshold, which we do not have stored:\n"
+        "此服务器要存储的第一个主机密钥类型\n"
+        "为 %s，其低于配置的警告阀值。\n"
+        "此服务器同时也提供有下列高于阀值的\n"
+        "主机密钥类型（不会存储）：\n"
         "%s\n"
-        "Continue with connection?";
+        "要继续连接么？";
 
     char *text;
     struct simple_prompt_result_spr_ctx *result_ctx;
@@ -3734,7 +3729,7 @@ SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
-        mainwin, "PuTTY Security Alert", text,
+        mainwin, "PuTTY 安全警告", text,
         string_width("is ecdsa-nistp521, which is below the configured"
                      " warning threshold."),
         false, &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
@@ -3754,7 +3749,7 @@ void old_keyfile_warning(void)
 
 void nonfatal_message_box(void *window, const char *msg)
 {
-    char *title = dupcat(appname, " Error");
+    char *title = dupcat(appname, " 错误");
     create_message_box(
         window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
@@ -3799,7 +3794,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
 {
     char *title;
 
-    title = dupcat(appname, " Licence");
+    title = dupcat(appname, " 许可证");
     assert(aboutbox != NULL);
     create_message_box(aboutbox, title, LICENCE_TEXT("\n\n"),
                        string_width("LONGISH LINE OF TEXT SO THE LICENCE"
@@ -3821,14 +3816,14 @@ void about_box(void *window)
 
     aboutbox = our_dialog_new();
     gtk_container_set_border_width(GTK_CONTAINER(aboutbox), 10);
-    title = dupcat("About ", appname);
+    title = dupcat("关于 ", appname);
     gtk_window_set_title(GTK_WINDOW(aboutbox), title);
     sfree(title);
 
     g_signal_connect(G_OBJECT(aboutbox), "destroy",
                      G_CALLBACK(about_window_destroyed), NULL);
 
-    w = gtk_button_new_with_label("Close");
+    w = gtk_button_new_with_label("关闭");
     gtk_widget_set_can_default(w, true);
     gtk_window_set_default(GTK_WINDOW(aboutbox), w);
     action_area = our_dialog_make_action_hbox(GTK_WINDOW(aboutbox));
@@ -3837,7 +3832,7 @@ void about_box(void *window)
                      G_CALLBACK(about_close_clicked), NULL);
     gtk_widget_show(w);
 
-    w = gtk_button_new_with_label("View Licence");
+    w = gtk_button_new_with_label("查看许可证");
     gtk_widget_set_can_default(w, true);
     gtk_box_pack_end(action_area, w, false, false, 0);
     g_signal_connect(G_OBJECT(w), "clicked",
@@ -3849,7 +3844,7 @@ void about_box(void *window)
         char *label_text = dupprintf
             ("%s\n\n%s\n\n%s\n\n%s",
              appname, ver, buildinfo_text,
-             "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
+             "版权所有 " SHORT_COPYRIGHT_DETAILS ". 保留所有权利");
         w = gtk_label_new(label_text);
         gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);
 #if GTK_CHECK_VERSION(2,0,0)
@@ -4023,7 +4018,7 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
 
     s0 = ctrl_getset(es->eventbox, "", "", "");
     ctrl_columns(s0, 3, 33, 34, 33);
-    c = ctrl_pushbutton(s0, "Close", 'c', HELPCTX(no_help),
+    c = ctrl_pushbutton(s0, "关闭(C)", 'c', HELPCTX(no_help),
                         eventlog_ok_handler, P(NULL));
     c->button.column = 1;
     c->button.isdefault = true;
@@ -4040,7 +4035,7 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
     c->listbox.percentages[2] = 65;
 
     es->window = window = our_dialog_new();
-    title = dupcat(appname, " Event Log");
+    title = dupcat(appname, " 事件日志记录");
     gtk_window_set_title(GTK_WINDOW(window), title);
     sfree(title);
     w0 = layout_ctrls(&es->dp, NULL, &es->scs, s0, GTK_WINDOW(window));
@@ -4180,14 +4175,14 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
                      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
-        "The session log file \"%.*s\" already exists. "
-        "You can overwrite it with a new session log, "
-        "append your session log to the end of it, "
-        "or disable session logging for this session.";
+        "会话日志文件 \"%.*s\" 已经存在。"
+        "可以使用新会话日志覆盖旧文件，"
+        "或者在旧日志文件结尾增加新日志，"
+        "或者在旧日志文件结尾增加新日志，";
     static const struct message_box_button button_array_append[] = {
-        {"Overwrite", 'o', 1, 2},
-        {"Append", 'a', 0, 1},
-        {"Disable", 'd', -1, 0},
+        {"覆盖(O)", 'o', 1, 2},
+        {"附加(A)", 'a', 0, 1},
+        {"禁用(D)", 'd', -1, 0},
     };
     static const struct message_box_buttons buttons_append = {
         button_array_append, lenof(button_array_append),
@@ -4199,7 +4194,7 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
     GtkWidget *mainwin, *msgbox;
 
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
-    mbtitle = dupprintf("%s Log to File", appname);
+    mbtitle = dupprintf("%s 日志记录到文件", appname);
 
     result_ctx = snew(struct simple_prompt_result_int_ctx);
     result_ctx->callback = callback;

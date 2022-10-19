@@ -247,7 +247,7 @@ bool init_ucs(struct unicode_data *ucsdata, char *linecharset,
 const char *cp_name(int codepage)
 {
     if (codepage == CS_NONE)
-        return "Use font encoding";
+        return "使用字体编码";
     return charset_to_localenc(codepage);
 }
 
@@ -258,7 +258,7 @@ const char *cp_enumerate(int index)
     if (charset == CS_NONE) {
         /* "Use font encoding" comes after all the named charsets */
         if (charset_localenc_nth(index-1) != CS_NONE)
-            return "Use font encoding";
+            return "使用字体编码";
         return NULL;
     }
     return charset_to_localenc(charset);

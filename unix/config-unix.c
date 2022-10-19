@@ -27,7 +27,7 @@ void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
      * On Unix, we don't have a drop-down list for the printer
      * control.
      */
-    s = ctrl_getset(b, "Terminal", "printing", "Remote-controlled printing");
+    s = ctrl_getset(b, "终端", "printing", "远程控制打印");
     assert(s->ncontrols == 1 && s->ctrls[0]->generic.type == CTRL_EDITBOX);
     s->ctrls[0]->editbox.has_list = false;
 
@@ -37,7 +37,7 @@ void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
      */
     if (!midsession) {
         int i;
-        s = ctrl_getset(b, "Connection/Proxy", "basics", NULL);
+        s = ctrl_getset(b, "连接/代理", "basics", NULL);
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
             if (c->generic.type == CTRL_RADIO &&
@@ -47,7 +47,7 @@ void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
                 c->radio.buttons =
                     sresize(c->radio.buttons, c->radio.nbuttons, char *);
                 c->radio.buttons[c->radio.nbuttons-1] =
-                    dupstr("Local");
+                    dupstr("本地");
                 c->radio.buttondata =
                     sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
                 c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_CMD);
@@ -63,8 +63,8 @@ void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
                 c->generic.context.i == CONF_proxy_telnet_command) {
                 assert(c->generic.handler == conf_editbox_handler);
                 sfree(c->generic.label);
-                c->generic.label = dupstr("Telnet command, or local"
-                                          " proxy command");
+                c->generic.label = dupstr("Telnet 命令，或者本地"
+                                          "代理命令");
                 break;
             }
         }

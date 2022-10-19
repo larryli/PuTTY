@@ -95,43 +95,43 @@ static void startup(GApplication *app, gpointer user_data)
     menubar = g_menu_new();
 
     menu = g_menu_new();
-    g_menu_append_submenu(menubar, "File", G_MENU_MODEL(menu));
+    g_menu_append_submenu(menubar, "文件", G_MENU_MODEL(menu));
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
-    g_menu_append(section, "New Window", "app.newwin");
+    g_menu_append(section, "新窗口", "app.newwin");
 
     menu = g_menu_new();
     g_menu_append_submenu(menubar, "Edit", G_MENU_MODEL(menu));
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
-    g_menu_append(section, "Copy", "win.copy");
-    g_menu_append(section, "Paste", "win.paste");
-    g_menu_append(section, "Copy All", "win.copyall");
+    g_menu_append(section, "复制", "win.copy");
+    g_menu_append(section, "粘贴", "win.paste");
+    g_menu_append(section, "复制所有", "win.copyall");
 
     menu = g_menu_new();
-    g_menu_append_submenu(menubar, "Window", G_MENU_MODEL(menu));
+    g_menu_append_submenu(menubar, "窗口", G_MENU_MODEL(menu));
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
-    g_menu_append(section, "Restart Session", "win.restart");
-    g_menu_append(section, "Duplicate Session", "win.duplicate");
+    g_menu_append(section, "重启会话", "win.restart");
+    g_menu_append(section, "复制会话", "win.duplicate");
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
-    g_menu_append(section, "Change Settings", "win.changesettings");
+    g_menu_append(section, "修改设置", "win.changesettings");
 
     if (use_event_log) {
         section = g_menu_new();
         g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
-        g_menu_append(section, "Event Log", "win.eventlog");
+        g_menu_append(section, "事件日志记录", "win.eventlog");
     }
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
-    g_menu_append(section, "Clear Scrollback", "win.clearscrollback");
-    g_menu_append(section, "Reset Terminal", "win.resetterm");
+    g_menu_append(section, "清除回滚", "win.clearscrollback");
+    g_menu_append(section, "重置终端", "win.resetterm");
 
 #if GTK_CHECK_VERSION(3,12,0)
 #define SET_ACCEL(app, command, accel) do                       \

@@ -233,7 +233,7 @@ static void post_fatal_message_box(void *vctx, int result)
 static void common_connfatal_message_box(
     GtkFrontend *inst, const char *msg, post_dialog_fn_t postfn)
 {
-    char *title = dupcat(appname, " Fatal Error");
+    char *title = dupcat(appname, " 致命错误");
     GtkWidget *dialog = create_message_box(
         inst->window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
@@ -637,7 +637,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
          * case we'll just re-emphasise that one.
          */
         if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
-            char *title = dupcat(appname, " Exit Confirmation");
+            char *title = dupcat(appname, " 退出确认");
             char *msg, *additional = NULL;
             if (inst->backend && inst->backend->vt->close_warn_text) {
                 additional = inst->backend->vt->close_warn_text(inst->backend);

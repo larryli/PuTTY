@@ -36,7 +36,7 @@ static const char hex[16] = "0123456789ABCDEF";
 static void make_session_filename(const char *in, strbuf *out)
 {
     if (!in || !*in)
-        in = "Default Settings";
+        in = "默认设置";
 
     while (*in) {
         /*

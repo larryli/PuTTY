@@ -113,9 +113,9 @@ unsigned long getticks(void);
 /* OS X has no PRIMARY selection */
 #define MOUSE_SELECT_CLIPBOARD CLIP_NULL
 #define MOUSE_PASTE_CLIPBOARD CLIP_LOCAL
-#define CLIPNAME_IMPLICIT "Last selected text"
-#define CLIPNAME_EXPLICIT "System clipboard"
-#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
+#define CLIPNAME_IMPLICIT "上次选择的文本"
+#define CLIPNAME_EXPLICIT "系统剪贴板"
+#define CLIPNAME_EXPLICIT_OBJECT "系统剪贴板"
 /* These defaults are the ones that more or less comply with the OS X
  * Human Interface Guidelines, i.e. copy/paste to the system clipboard
  * is _not_ implicit but requires a specific UI action. This is at

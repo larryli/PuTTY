@@ -48,7 +48,7 @@ const struct BackendVtable *select_backend(Conf *conf)
 
 void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
 {
-    char *title = dupcat(appname, " Configuration");
+    char *title = dupcat(appname, " 配置");
     create_config_box(title, conf, false, 0, after, afterctx);
     sfree(title);
 }
