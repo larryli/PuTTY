@@ -535,7 +535,8 @@ The options supported on the command line are:
 \dt \cw{\-t} \e{keytype}
 
 \dd Type of key to generate. You can select \c{rsa}, \c{dsa},
-\c{ecdsa}, \c{eddsa} or \c{rsa1}. See \k{puttygen-keytype}.
+\c{ecdsa}, \c{eddsa}, \c{ed25519}, \c{ed448}, or \c{rsa1}.
+See \k{puttygen-keytype}.
 
 \dt \cw{\-b} \e{bits}
 

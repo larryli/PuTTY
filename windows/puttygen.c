@@ -1402,14 +1402,14 @@ static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
                     ES_AUTOHSCROLL | ES_READONLY;
                 if (item->type == SDT_MORE_INFO_VALUE_BLOB) {
                     rk.left = 12;
-                    rk.right = 426;
+                    rk.right = 286;
                     rk.top = y;
                     rk.bottom = 8;
                     y += 10;
 
                     editstyle |= ES_MULTILINE;
                     rv.left = 12;
-                    rv.right = 426;
+                    rv.right = 286;
                     rv.top = y;
                     rv.bottom = 64;
                     y += 68;
@@ -1420,7 +1420,7 @@ static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
                     rk.bottom = 8;
 
                     rv.left = 150;
-                    rv.right = 438;
+                    rv.right = 298;
                     rv.top = y;
                     rv.bottom = 12;
 
