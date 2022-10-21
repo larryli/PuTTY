@@ -62,9 +62,9 @@ The key types supported by PuTTY are described in \k{puttygen-keytype}.
 \H{pubkey-puttygen} Using \i{PuTTYgen}, the PuTTY key generator
 
 PuTTYgen is a key generator. It \I{generating keys}generates pairs of
-public and private keys to be used with PuTTY, PSCP, and Plink, as well
-as the PuTTY authentication agent, Pageant (see \k{pageant}).  PuTTYgen
-generates RSA, DSA, ECDSA, and EdDSA keys.
+public and private keys to be used with PuTTY, PSCP, PSFTP, and Plink,
+as well as the PuTTY authentication agent, Pageant (see \k{pageant}).
+PuTTYgen generates RSA, DSA, ECDSA, and EdDSA keys.
 
 When you run PuTTYgen you will see a window where you have two main
 choices: \q{Generate}, to generate a new public/private key pair, or
