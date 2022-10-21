@@ -78,16 +78,17 @@ configuration, or if your CA configuration involves two overlapping
 domains, or something similar.
 
 So, unfortunately, you'll have to work out what to do about it
-yourself: install a new CA key (if you're really sure you trust it),
-or edit your configuration in some other way, or abandon the
-connection.
+yourself: make an exception for this specific case, or abandon this
+connection and install a new CA key before trying again (if you're
+really sure you trust the CA), or edit your configuration in some
+other way, or just stop trying to use this server.
 
 If you're convinced that this particular server is legitimate even
 though the CA is not one you trust, PuTTY will let you cache the
-certified host key in the same way as an uncertified one. Then that
-particular certificate will be accepted on the next connection, even
-though other certificates signed by the same CA will still be
-rejected.
+certified host key, treating it in the same way as an uncertified one.
+Then that particular certificate will be accepted for future
+connections to this specific server, even though other certificates
+signed by the same CA will still be rejected.
 
 \H{errors-ssh-protocol} \q{SSH protocol version 2 required by our
 configuration but remote only provides (old, insecure) SSH-1}
