@@ -62,9 +62,9 @@ The key types supported by PuTTY are described in \k{puttygen-keytype}.
 \H{pubkey-puttygen} Using \i{PuTTYgen}, the PuTTY key generator
 
 PuTTYgen is a key generator. It \I{generating keys}generates pairs of
-public and private keys to be used with PuTTY, PSCP, and Plink, as well
-as the PuTTY authentication agent, Pageant (see \k{pageant}).  PuTTYgen
-generates RSA, DSA, ECDSA, and EdDSA keys.
+public and private keys to be used with PuTTY, PSCP, PSFTP, and Plink,
+as well as the PuTTY authentication agent, Pageant (see \k{pageant}).
+PuTTYgen generates RSA, DSA, ECDSA, and EdDSA keys.
 
 When you run PuTTYgen you will see a window where you have two main
 choices: \q{Generate}, to generate a new public/private key pair, or
@@ -132,10 +132,13 @@ The \q{Number of bits} input box allows you to choose the strength
 of the key PuTTYgen will generate.
 
 \b For RSA and DSA, 2048 bits should currently be sufficient for most
-purposes.
+purposes. (Smaller keys of these types are no longer considered
+secure, and PuTTYgen will warn if you try to generate them.)
 
-\b For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
-equivalent security to RSA with smaller key sizes.)
+\b For ECDSA, only 256, 384, and 521 bits are supported, corresponding
+to \i{NIST}-standardised elliptic curves. (Elliptic-curve keys do not
+need as many bits as RSA keys for equivalent security, so these numbers
+are smaller than the RSA recommendations.)
 
 \b For EdDSA, the only valid sizes are 255 bits (these keys are also
 known as \q{\i{Ed25519}} and are commonly used) and 448 bits
@@ -145,6 +148,9 @@ the same as 255.)
 
 \S{puttygen-primes} Selecting the \i{prime generation method}
 
+(This is entirely optional. Unless you know better, it's entirely
+sensible to skip this and use the default settings.)
+
 On the \q{Key} menu, you can also optionally change the method for
 generating the prime numbers used in the generated key. This is used
 for RSA and DSA keys only. (The other key types don't require
@@ -153,9 +159,6 @@ generating prime numbers at all.)
 The prime-generation method does not affect compatibility: a key
 generated with any of these methods will still work with all the same
 SSH servers.
-
-If you don't care about this, it's entirely sensible to leave it on the
-default setting.
 
 The available methods are:
 
@@ -239,9 +242,9 @@ a particular fingerprint. So some utilities, such as the Pageant key
 list box (see \k{pageant-mainwin-keylist}) and the Unix \c{ssh-add}
 utility, will list key fingerprints rather than the whole public key.
 
-By default, PuTTYgen will display fingerprints in the \q{SHA256}
-format. If you need to see the fingerprint in the older \q{MD5} format
-(which looks like \c{aa:bb:cc:...}), you can choose
+By default, PuTTYgen will display SSH-2 key fingerprints in the
+\q{SHA256} format. If you need to see the fingerprint in the older
+\q{MD5} format (which looks like \c{aa:bb:cc:...}), you can choose
 \q{Show fingerprint as MD5} from the \q{Key} menu, but bear in mind
 that this is less cryptographically secure; it may be feasible for
 an attacker to create a key with the same fingerprint as yours.

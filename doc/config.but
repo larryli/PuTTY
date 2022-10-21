@@ -2546,7 +2546,7 @@ larger elliptic curve with a 448-bit instead of 255-bit modulus (so it
 has a higher security level than Ed25519).
 
 \b \q{ECDSA}: \i{elliptic curve} \i{DSA} using one of the
-NIST-standardised elliptic curves.
+\i{NIST}-standardised elliptic curves.
 
 \b \q{DSA}: straightforward \i{DSA} using modular exponentiation.
 
