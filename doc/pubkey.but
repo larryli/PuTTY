@@ -135,8 +135,10 @@ of the key PuTTYgen will generate.
 purposes. (Smaller keys of these types are no longer considered
 secure, and PuTTYgen will warn if you try to generate them.)
 
-\b For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
-equivalent security to RSA with smaller key sizes.)
+\b For ECDSA, only 256, 384, and 521 bits are supported, corresponding
+to \i{NIST}-standardised elliptic curves. (Elliptic-curve keys do not
+need as many bits as RSA keys for equivalent security, so these numbers
+are smaller than the RSA recommendations.)
 
 \b For EdDSA, the only valid sizes are 255 bits (these keys are also
 known as \q{\i{Ed25519}} and are commonly used) and 448 bits

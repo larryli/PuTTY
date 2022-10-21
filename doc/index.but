@@ -822,6 +822,9 @@ saved sessions from
 \IM{ECDSA} ECDSA
 \IM{ECDSA} elliptic-curve DSA
 
+\IM{NIST} NIST-standardised elliptic curves
+\IM{NIST} elliptic curves, NIST-standardised
+
 \IM{EdDSA} EdDSA
 \IM{EdDSA} Edwards-curve DSA
 
