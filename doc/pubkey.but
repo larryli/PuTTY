@@ -146,6 +146,9 @@ the same as 255.)
 
 \S{puttygen-primes} Selecting the \i{prime generation method}
 
+(This is entirely optional. Unless you know better, it's entirely
+sensible to skip this and use the default settings.)
+
 On the \q{Key} menu, you can also optionally change the method for
 generating the prime numbers used in the generated key. This is used
 for RSA and DSA keys only. (The other key types don't require
@@ -154,9 +157,6 @@ generating prime numbers at all.)
 The prime-generation method does not affect compatibility: a key
 generated with any of these methods will still work with all the same
 SSH servers.
-
-If you don't care about this, it's entirely sensible to leave it on the
-default setting.
 
 The available methods are:
 
