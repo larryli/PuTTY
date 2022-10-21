@@ -65,7 +65,7 @@ that are currently loaded into Pageant. The list might look
 something like this:
 
 \c Ed25519    SHA256:TddlQk20DVs4LRcAsIfDN9pInKpY06D+h4kSHwWAj4w
-\c RSA  2028  SHA256:8DFtyHm3kQihgy52nzX96qMcEVOq7/yJmmwQQhBWYFg
+\c RSA  2048  SHA256:8DFtyHm3kQihgy52nzX96qMcEVOq7/yJmmwQQhBWYFg
 
 For each key, the list box will tell you:
 
