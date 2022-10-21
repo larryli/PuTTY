@@ -819,6 +819,9 @@ saved sessions from
 \IM{DSA} DSA
 \IM{DSA} Digital Signature Standard
 
+\IM{ECDSA} ECDSA
+\IM{ECDSA} elliptic-curve DSA
+
 \IM{EdDSA} EdDSA
 \IM{EdDSA} Edwards-curve DSA
 
