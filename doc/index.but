@@ -688,6 +688,16 @@ saved sessions from
 \IM{group exchange} Diffie-Hellman group exchange
 \IM{group exchange} group exchange, Diffie-Hellman
 
+\IM{ECDH} \q{ECDH} (elliptic-curve Diffie-Hellman)
+\IM{ECDH} elliptic-curve Diffie-Hellman key exchange
+\IM{ECDH} key exchange, elliptic-curve Diffie-Hellman
+\IM{ECDH} Diffie-Hellman key exchange, with elliptic curves
+
+\IM{Streamlined NTRU Prime} Streamlined NTRU Prime
+\IM{Streamlined NTRU Prime} NTRU Prime
+
+\IM{quantum attacks} quantum attacks, resistance to
+
 \IM{repeat key exchange} repeat key exchange
 \IM{repeat key exchange} key exchange, repeat
 
