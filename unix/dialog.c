@@ -3682,6 +3682,7 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
             /* We have to manually wrap the public key, or else the GtkLabel
              * will resize itself to accommodate the longest word, which will
              * lead to a hilariously wide message box. */
+            put_byte(moreinfo, ':');
             for (const char *p = item->text, *q = p + strlen(p); p < q ;) {
                 size_t linelen = q-p;
                 if (linelen > 72)
@@ -3690,6 +3691,7 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
                 put_data(moreinfo, p, linelen);
                 p += linelen;
             }
+            put_byte(moreinfo, '\n');
             break;
           default:
             break;
