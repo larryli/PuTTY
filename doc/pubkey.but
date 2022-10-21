@@ -132,7 +132,8 @@ The \q{Number of bits} input box allows you to choose the strength
 of the key PuTTYgen will generate.
 
 \b For RSA and DSA, 2048 bits should currently be sufficient for most
-purposes.
+purposes. (Smaller keys of these types are no longer considered
+secure, and PuTTYgen will warn if you try to generate them.)
 
 \b For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
 equivalent security to RSA with smaller key sizes.)
