@@ -240,9 +240,9 @@ a particular fingerprint. So some utilities, such as the Pageant key
 list box (see \k{pageant-mainwin-keylist}) and the Unix \c{ssh-add}
 utility, will list key fingerprints rather than the whole public key.
 
-By default, PuTTYgen will display fingerprints in the \q{SHA256}
-format. If you need to see the fingerprint in the older \q{MD5} format
-(which looks like \c{aa:bb:cc:...}), you can choose
+By default, PuTTYgen will display SSH-2 key fingerprints in the
+\q{SHA256} format. If you need to see the fingerprint in the older
+\q{MD5} format (which looks like \c{aa:bb:cc:...}), you can choose
 \q{Show fingerprint as MD5} from the \q{Key} menu, but bear in mind
 that this is less cryptographically secure; it may be feasible for
 an attacker to create a key with the same fingerprint as yours.

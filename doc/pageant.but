@@ -86,10 +86,11 @@ fingerprint shown by remote utilities such as \i\c{ssh-keygen} when
 applied to your \c{authorized_keys} file.
 
 \lcont{
-By default this is shown in the \q{SHA256} format. You can change to the
-older \q{MD5} format (which looks like \c{aa:bb:cc:...}) with the
-\q{Fingerprint type} drop-down, but bear in mind that this format is
-less secure and should be avoided for comparison purposes where possible.
+For SSH-2 keys, by default this is shown in the \q{SHA256} format. You
+can change to the older \q{MD5} format (which looks like \c{aa:bb:cc:...})
+with the \q{Fingerprint type} drop-down, but bear in mind that this
+format is less secure and should be avoided for comparison purposes
+where possible.
 
 If some of the keys loaded into Pageant have certificates attached,
 then Pageant will default to showing the fingerprint of the underlying
