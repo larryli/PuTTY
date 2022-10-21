@@ -2347,17 +2347,17 @@ cipher selection (see \k{config-ssh-encryption}).
 
 PuTTY currently supports the following key exchange methods:
 
-\b \q{NTRU Prime / Curve25519 hybrid}: NTRU Prime is a lattice-based
-algorithm intended to resist quantum attacks. In this key exchange
-method, it is run in parallel with a conventional Curve25519-based
-method (one of those included in \q{ECDH}), in such a way that it
-should be no \e{less} secure than that commonly-used method, and
-hopefully also resistant to a new class of attacks.
+\b \q{NTRU Prime / Curve25519 hybrid}: \q{\i{Streamlined NTRU Prime}}
+is a lattice-based algorithm intended to resist \i{quantum attacks}.
+In this key exchange method, it is run in parallel with a conventional
+Curve25519-based method (one of those included in \q{ECDH}), in such
+a way that it should be no \e{less} secure than that commonly-used
+method, and hopefully also resistant to a new class of attacks.
 
-\b \q{ECDH}: \i{elliptic curve} \i{Diffie-Hellman key exchange},
+\b \q{\i{ECDH}}: elliptic curve Diffie-Hellman key exchange,
 with a variety of standard curves and hash algorithms.
 
-\b The original form of \q{Diffie-Hellman} key exchange, with a
+\b The original form of \i{Diffie-Hellman key exchange}, with a
 variety of well-known groups and hashes:
 
 \lcont{
