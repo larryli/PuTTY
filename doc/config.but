@@ -2724,10 +2724,14 @@ hosts}
 
 The simplest thing you can enter in the \q{Valid hosts this key is
 trusted to certify} edit box is just a hostname wildcard such as
-\cq{*.example.com}. But you can also enter multiple host name
-wildcards, and port number ranges, and make complicated Boolean
-expressions out of them using the operators \cq{&&} for \q{and},
-\cq{||} for \q{or}, \cq{!} for \q{not}, and parentheses.
+\cq{*.example.com}. This matches any host in any subdomain, so
+both \cq{ssh.example.com} and \cq{login.dept.example.com} would
+match, but \cq{prod.example.net} would not.
+
+But you can also enter multiple host name wildcards, and port number
+ranges, and make complicated Boolean expressions out of them using the
+operators \cq{&&} for \q{and}, \cq{||} for \q{or}, \cq{!} for \q{not},
+and parentheses.
 
 For example, here are some other things you could enter.
 
