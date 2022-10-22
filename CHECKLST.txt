@@ -31,14 +31,26 @@ Things to do during the branch-stabilisation period:
    word XXX-REVIEW-BEFORE-RELEASE. (Any such comments should state
    clearly what needs to be done.)
 
- - Do some testing of the Windows version with Minefield (you can
-   build a Minefield version using 'bob . XFLAGS=-DMINEFIELD'), and of
-   the Unix version with valgrind and/or Address Sanitiser. In
-   particular, any headline features for the release should get a
-   workout with memory checking enabled!
+ - Test the Unix build with Address Sanitiser. In particular, any
+   headline features for the release should get a workout with memory
+   checking enabled!
 
- - Test the CMake build scripts with the oldest CMake they claim to
-   support, on both Unix and Windows.
+ - Test the Windows build with Address Sanitiser too (as of VS 2022).
+    + In the course of that, give a recent Windows pterm a try, to
+      make sure that still works.
+
+ - Test building and running on old platforms:
+    + build on Debian stretch (containing CMake 3.7, the earliest
+      CMake we claim support for)
+    + build with all three major versions of GTK
+    + build the old-Windows binaries and test-run them on Win95 (PuTTY
+      proper even without WinSock2)
+
+ - Check Coverity is happy.
+
+ - Check the side-channel tester is happy.
+
+ - Check all the non-SSH network backends still basically work.
 
 Making a release candidate build
 --------------------------------
