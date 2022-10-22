@@ -2557,8 +2557,10 @@ static void request_resize_internal(GtkFrontend *inst, bool from_terminal,
         GdkWindowState state = gdk_window_get_state(gdkwin);
         if (state & (GDK_WINDOW_STATE_MAXIMIZED |
                      GDK_WINDOW_STATE_FULLSCREEN |
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,10,0)
                      GDK_WINDOW_STATE_TILED |
+#endif
+#if GTK_CHECK_VERSION(3,22,23)
                      GDK_WINDOW_STATE_TOP_TILED |
                      GDK_WINDOW_STATE_RIGHT_TILED |
                      GDK_WINDOW_STATE_BOTTOM_TILED |
