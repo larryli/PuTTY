@@ -24,9 +24,9 @@ pterm will still work, but not update the user login databases.
 
 Documentation (in various formats including Windows Help and Unix
 `man' pages) is built from the Halibut (`.but') files in the `doc'
-subdirectory using `doc/Makefile'. If you aren't using one of our
-source snapshots, you'll need to do this yourself. Halibut can be
-found at <https://www.chiark.greenend.org.uk/~sgtatham/halibut/>.
+subdirectory. If you aren't using one of our source snapshots,
+you'll need to do this yourself. Halibut can be found at
+<https://www.chiark.greenend.org.uk/~sgtatham/halibut/>.
 
 The PuTTY home web site is
 
