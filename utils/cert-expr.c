@@ -41,7 +41,9 @@ Syntax layer: all of those types of atom are interpreted as predicates
 applied to the (hostname, port) data configured for the SSH connection
 for which the certificate is being validated.
 
-Wildcards are handled using the syntax in wildcard.c.
+Wildcards are handled using the syntax in wildcard.c. The dot-
+separated structure of hostnames is thus not special; the '*' in
+"*.example.com" will match any number of subdomains under example.com.
 
 More complex boolean expressions can be made by combining those
 predicates using the boolean operators and parentheses, in the obvious
@@ -778,6 +780,7 @@ static const struct EvalTest {
 
     T("*.example.com", "hostname.example.com", 22, true),
     T("*.example.com", "hostname.example.org", 22, false),
+    T("*.example.com", "hostname.dept.example.com", 22, true),
     T("*.example.com && port:22", "hostname.example.com", 21, false),
     T("*.example.com && port:22", "hostname.example.com", 22, true),
     T("*.example.com && port:22", "hostname.example.com", 23, false),
