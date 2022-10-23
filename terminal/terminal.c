@@ -4021,6 +4021,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     /* Compatibility is nasty here, xterm, linux, decterm yuk! */
                     compatibility(OTHER);
                     term->termstate = SEEN_OSC;
+                    term->osc_strlen = 0;
                     term->esc_args[0] = 0;
                     term->esc_nargs = 1;
                     break;
