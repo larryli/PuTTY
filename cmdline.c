@@ -87,9 +87,13 @@ SeatPromptResult cmdline_get_passwd_input(
     /*
      * We only handle prompts which don't echo (which we assume to be
      * passwords), and (currently) we only cope with a password prompt
-     * that comes in a prompt-set on its own.
+     * that comes in a prompt-set on its own. Also, we don't use a
+     * command-line password for any kind of prompt which is destined
+     * for local use rather than to be sent to the server: the idea is
+     * to pre-fill _passwords_, not private-key passphrases (for which
+     * there are better alternatives available).
      */
-    if (p->n_prompts != 1 || p->prompts[0]->echo) {
+    if (p->n_prompts != 1 || p->prompts[0]->echo || !p->to_server) {
         return SPR_INCOMPLETE;
     }
 

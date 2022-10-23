@@ -989,7 +989,7 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
      */
     if (ssh2_connection_need_antispoof_prompt(s)) {
         s->antispoof_prompt = ssh_ppl_new_prompts(&s->ppl);
-        s->antispoof_prompt->to_server = true;
+        s->antispoof_prompt->to_server = false;
         s->antispoof_prompt->from_server = false;
         s->antispoof_prompt->name = dupstr("Authentication successful");
         add_prompt(
