@@ -3,6 +3,8 @@
 # This is a demonstration example of how to write a
 # keyboard-interactive authentication helper plugin using PuTTY's
 # protocol for involving it in SSH connection setup.
+# The protocol, and the purpose of an authentication plugin, is
+# fully documented in an appendix to the PuTTY manual.
 
 import io
 import os
