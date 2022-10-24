@@ -136,7 +136,8 @@ def protocol():
     hostname = rd_string_utf8(msg)
     port = rd_uint32(msg)
     username = rd_string_utf8(msg)
-    print(f"Got hostname {hostname!r}, port {port!r}", file=sys.stderr)
+    print(f"Got hostname {hostname!r}, port {port!r}", file=sys.stderr,
+          flush=True)
 
     # Decide which protocol version we're speaking.
     version = min(their_version, our_max_version)
@@ -281,7 +282,7 @@ def protocol():
 
 # Demonstration write to stderr, to prove that it shows up in PuTTY's
 # Event Log.
-print("Hello from test plugin's stderr", file=sys.stderr)
+print("Hello from test plugin's stderr", file=sys.stderr, flush=True)
 
 try:
     protocol()
