@@ -2141,7 +2141,10 @@ GtkWidget *layout_ctrls(
           case CTRL_FONTSELECT: {
             GtkWidget *ww;
 
-            if (!ctrl->fileselect.just_button) {
+            bool just_button = (ctrl->type == CTRL_FILESELECT &&
+                                ctrl->fileselect.just_button);
+
+            if (!just_button) {
                 const char *browsebtn =
                     (ctrl->type == CTRL_FILESELECT ?
                      "Browse..." : "Change...");
