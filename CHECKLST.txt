@@ -247,9 +247,14 @@ locally, this is the procedure for putting it up on the web.
       automatically create a new submission
        * provide a new set of installer URLs, then click "save all"
          which actually uploads them
+          + be careful to use URLs without "latest" in the pathname!
+            Just copying from the links on the download page is wrong.
+            Change "latest" to the version number, and test-download
+            via those URLs to check you didn't make a typo.
        * change the "what's new in this release" text in the store
          listing
        * upload revised screenshots, if necessary
+       * update the URL in the "Applicable license terms" box
     + press Publish to submit that to the actual upload process
 
  - Announce the release!
