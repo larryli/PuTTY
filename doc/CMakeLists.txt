@@ -109,6 +109,13 @@ if(HALIBUT AND PERL_EXECUTABLE)
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     DEPENDS ${manual_sources} ${manual_dependencies})
   list(APPEND doc_outputs puttydoc.txt)
+
+  # PDF. (We don't ship this; so it's only built on explicit request.)
+  add_custom_command(OUTPUT putty.pdf
+    COMMAND ${HALIBUT} --pdf ${manual_sources}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${manual_sources} ${manual_dependencies})
+  add_custom_target(pdf DEPENDS putty.pdf)
 endif()
 
 macro(register_manpage title section)
