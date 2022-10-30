@@ -1613,13 +1613,8 @@ static void process_line(BinarySource *in, strbuf *out)
 
 #define FUNC_INNER(outtype, fname, realname, ...)       \
     DISPATCH_INTERNAL(#fname,handle_##fname);
-#define ARG1(type, arg)
-#define ARGN(type, arg)
-#define VOID
 #include "testcrypt-func.h"
 #undef FUNC_INNER
-#undef ARG
-#undef VOID
 
 #undef DISPATCH_INTERNAL
 
