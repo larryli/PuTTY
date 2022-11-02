@@ -1656,20 +1656,27 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
     WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
     const struct BackendVtable *vt;
     int width, height;
+    int resize_action = conf_get_int(wgs->conf, CONF_resize_action);
+    bool deny_resize = false;
 
-    /* If the window is maximized suppress resizing attempts */
-    if (IsZoomed(wgs->term_hwnd)) {
-        if (conf_get_int(wgs->conf, CONF_resize_action) == RESIZE_TERM) {
-            term_resize_request_completed(wgs->term);
-            return;
-        }
+    /* Suppress server-originated resizing attempts if local resizing
+     * is disabled entirely, or if it's supposed to change
+     * rows/columns but the window is maximised. */
+    if (resize_action == RESIZE_DISABLED
+        || (resize_action == RESIZE_TERM && IsZoomed(wgs->term_hwnd))) {
+        deny_resize = true;
     }
 
-    if (conf_get_int(wgs->conf, CONF_resize_action) == RESIZE_DISABLED) return;
     vt = backend_vt_from_proto(be_default_protocol);
     if (vt && vt->flags & BACKEND_RESIZE_FORBIDDEN)
+        deny_resize = true;
+    if (h == wgs->term->rows && w == wgs->term->cols) deny_resize = true;
+
+    /* We still need to acknowledge a suppressed resize attempt. */
+    if (deny_resize) {
+        term_resize_request_completed(wgs->term);
         return;
-    if (h == wgs->term->rows && w == wgs->term->cols) return;
+    }
 
     /* Sanity checks ... */
     {
@@ -1690,8 +1697,7 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
         }
     }
 
-    if (conf_get_int(wgs->conf, CONF_resize_action) != RESIZE_FONT &&
-        !IsZoomed(wgs->term_hwnd)) {
+    if (resize_action != RESIZE_FONT && !IsZoomed(wgs->term_hwnd)) {
         width = extra_width + font_width * w;
         height = extra_height + font_height * h;
 
