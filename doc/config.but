@@ -4071,7 +4071,7 @@ at the bottom of the screen, until a space is typed.
 
 \S{supdup-scroll} \q{Terminal scrolling}
 
-This controls whether the terminal will perform scrolling then the
+This controls whether the terminal will perform scrolling when the
 cursor goes below the last line, or if the cursor will return to the
 first line.
 
