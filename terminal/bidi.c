@@ -13,11 +13,11 @@
  * -----------------
  *
  * This algorithm is up to date with Unicode Standard Annex #9
- * revision 44:
+ * revision 46:
  *
- *   https://www.unicode.org/reports/tr9/tr9-44.html
+ *   https://www.unicode.org/reports/tr9/tr9-46.html
  *
- * and passes the full conformance test suite in Unicode 14.0.0.
+ * and passes the full conformance test suite in Unicode 15.0.0.
  *
  * Paragraph and line handling
  * ---------------------------
