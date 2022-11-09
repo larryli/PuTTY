@@ -109,6 +109,8 @@ class Main:
             self.write_wide_chars_list(fh)
         with open("ambiguous_wide_chars.h", "w") as fh:
             self.write_ambiguous_wide_chars_list(fh)
+        with open("known_chars.h", "w") as fh:
+            self.write_known_chars_table(fh)
         with open("combining_classes.h", "w") as fh:
             self.write_combining_class_table(fh)
         with open("canonical_decomp.h", "w") as fh:
@@ -416,6 +418,20 @@ Used by utils/wcwidth.c.
 
 """)
         self.write_width_table(fh, {'A'})
+
+    def write_known_chars_table(self, fh):
+        self.write_file_header_comment(fh, """
+
+List the Unicode code points that are known to this version of the
+standard at all.
+
+Used by utils/unicode-known.c.
+
+""")
+        chars = set(rec.c for rec in self.UnicodeData)
+
+        for start, end in set_to_ranges(chars):
+            print(f"{{0x{start:04x}, 0x{end:04x}}},", file=fh)
 
     def write_combining_class_table(self, fh):
         self.write_file_header_comment(fh, """
