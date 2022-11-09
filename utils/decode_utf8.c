@@ -128,7 +128,7 @@ int main(void)
 
     /* Endpoints of the surrogate range */
     DOTEST("\xED\x9F\xBF", 0xD7FF);
-    DOTEST("\xED\xA0\x00", 0xFFFD);    /* would be 0xD800 */
+    DOTEST("\xED\xA0\x80", 0xFFFD);    /* would be 0xD800 */
     DOTEST("\xED\xBF\xBF", 0xFFFD);    /* would be 0xDFFF */
     DOTEST("\xEE\x80\x80", 0xE000);
 
