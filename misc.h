@@ -248,11 +248,6 @@ void smemclr(void *b, size_t len);
  * by the 'eq' in the name. */
 unsigned smemeq(const void *av, const void *bv, size_t len);
 
-/* Encode a single UTF-8 character. Assumes that illegal characters
- * (such as things in the surrogate range, or > 0x10FFFF) have already
- * been removed. */
-size_t encode_utf8(void *output, unsigned long ch);
-
 /* Encode a wide-character string into UTF-8. Tolerates surrogates if
  * sizeof(wchar_t) == 2, assuming that in that case the wide string is
  * encoded in UTF-16. */

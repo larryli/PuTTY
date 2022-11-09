@@ -3398,8 +3398,7 @@ static strbuf *term_input_data_from_unicode(
                 }
             }
 
-            char utf8_chr[6];
-            put_data(buf, utf8_chr, encode_utf8(utf8_chr, ch));
+            put_utf8_char(buf, ch);
         }
     } else {
         /*

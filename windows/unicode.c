@@ -1290,8 +1290,8 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
          * the codepage is UTF-8, we can do the translation ourselves.
          */
         if (codepage == CP_UTF8 && mblen > 0 && wclen > 0) {
-            size_t remaining = mblen;
-            char *p = mbstr;
+            buffer_sink bs[1];
+            buffer_sink_init(bs, mbstr, mblen);
 
             while (wclen > 0) {
                 unsigned long wc = (wclen--, *wcstr++);
@@ -1300,18 +1300,13 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
                     wclen--, wcstr++;
                 }
 
-                char utfbuf[6];
-                size_t utflen = encode_utf8(utfbuf, wc);
-                if (utflen <= remaining) {
-                    memcpy(p, utfbuf, utflen);
-                    p += utflen;
-                    remaining -= utflen;
-                } else {
-                    return p - mbstr;
-                }
+                const char *prev_ptr = bs->out;
+                put_utf8_char(bs, wc);
+                if (bs->overflowed)
+                    return prev_ptr - mbstr;
             }
 
-            return p - mbstr;
+            return bs->out - mbstr;
         }
 #endif
 
