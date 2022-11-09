@@ -85,6 +85,11 @@ add_executable(test_decode_utf8
 target_compile_definitions(test_decode_utf8 PRIVATE TEST)
 target_link_libraries(test_decode_utf8 utils ${platform_libraries})
 
+add_executable(test_unicode_norm
+  utils/unicode-norm.c)
+target_compile_definitions(test_unicode_norm PRIVATE TEST)
+target_link_libraries(test_unicode_norm utils ${platform_libraries})
+
 add_executable(test_tree234
   utils/tree234.c)
 target_compile_definitions(test_tree234 PRIVATE TEST)

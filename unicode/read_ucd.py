@@ -20,7 +20,9 @@ import zipfile
 UCDRecord = collections.namedtuple('UCDRecord', [
     'c',
     'General_Category',
+    'Canonical_Combining_Class',
     'Bidi_Class',
+    'Decomposition_Type',
     'Decomposition_Mapping',
 ])
 
@@ -107,6 +109,12 @@ class Main:
             self.write_wide_chars_list(fh)
         with open("ambiguous_wide_chars.h", "w") as fh:
             self.write_ambiguous_wide_chars_list(fh)
+        with open("combining_classes.h", "w") as fh:
+            self.write_combining_class_table(fh)
+        with open("canonical_decomp.h", "w") as fh:
+            self.write_canonical_decomp_table(fh)
+        with open("canonical_comp.h", "w") as fh:
+            self.write_canonical_comp_table(fh)
 
     def find_unicode_version(self):
         """Find out the version of Unicode.
@@ -166,14 +174,21 @@ class Main:
 
                 # Decode some of the raw fields into more cooked
                 # forms.
+                cclass = int(cclass)
 
-                # For the moment, we only care about decomposition
-                # mappings that consist of a single hex number (i.e.
-                # are singletons and not compatibility mappings)
-                try:
-                    dm = [int(decomp, 16)]
-                except ValueError:
-                    dm = []
+                # Separate the decomposition field into decomposition
+                # type and mapping.
+                if decomp == "":
+                    dtype = decomp = None
+                elif "<" not in decomp:
+                    dtype = 'canonical'
+                else:
+                    assert decomp.startswith("<")
+                    dtype, decomp = decomp[1:].split(">", 1)
+                    decomp = decomp.lstrip(" ")
+                # And decode the mapping part from hex strings to integers.
+                if decomp is not None:
+                    decomp = [int(w, 16) for w in decomp.split(" ")]
 
                 # And yield a UCDRecord for each code point in our
                 # range.
@@ -181,8 +196,10 @@ class Main:
                     yield UCDRecord(
                         c=codepoint,
                         General_Category=category,
+                        Canonical_Combining_Class=cclass,
                         Bidi_Class=bidiclass,
-                        Decomposition_Mapping=dm,
+                        Decomposition_Type=dtype,
+                        Decomposition_Mapping=decomp,
                     )
 
     @property
@@ -230,6 +247,16 @@ class Main:
                     cs = [int(fields[0], 16)]
                 for c in cs:
                     yield c, fields[1]
+
+    @property
+    def CompositionExclusions(self):
+        """Composition exclusions from CompositionExclusions.txt.
+
+        Each yielded item is just a code point.
+        """
+        with self.open_ucd_file("CompositionExclusions.txt") as fh:
+            for line in lines(fh):
+                yield int(line, 16)
 
     def write_file_header_comment(self, fh, description):
         print("/*", file=fh)
@@ -311,7 +338,8 @@ Used by terminal/bidi.c.
 
         equivalents = {}
         for rec in self.UnicodeData:
-            if len(rec.Decomposition_Mapping) == 1:
+            if (rec.Decomposition_Type == 'canonical' and
+                len(rec.Decomposition_Mapping) == 1):
                 c = rec.c
                 c2 = rec.Decomposition_Mapping[0]
                 equivalents[c] = c2
@@ -388,6 +416,79 @@ Used by utils/wcwidth.c.
 
 """)
         self.write_width_table(fh, {'A'})
+
+    def write_combining_class_table(self, fh):
+        self.write_file_header_comment(fh, """
+
+List the canonical combining class of each Unicode character, if it is
+not zero. This controls how combining marks can be reordered by the
+Unicode normalisation algorithms.
+
+Used by utils/unicode-norm.c.
+
+""")
+        cclasses = {}
+
+        for rec in self.UnicodeData:
+            cc = rec.Canonical_Combining_Class
+            if cc != 0:
+                cclasses[rec.c] = cc
+
+        for (start, end), cclass in map_to_ranges(cclasses):
+            print(f"{{0x{start:04x}, 0x{end:04x}, {cclass:d}}},", file=fh)
+
+    def write_canonical_decomp_table(self, fh):
+        self.write_file_header_comment(fh, """
+
+List the canonical decomposition of every Unicode character that has
+one. This consists of up to two characters, but those may need
+decomposition in turn.
+
+Used by utils/unicode-norm.c.
+
+""")
+        decomps = {}
+
+        for rec in self.UnicodeData:
+            if rec.Decomposition_Type != 'canonical':
+                continue
+            # Fill in a zero code point as the second character, if
+            # it's only one character long
+            decomps[rec.c] = (rec.Decomposition_Mapping + [0])[:2]
+
+        for c, (d1, d2) in sorted(decomps.items()):
+            d2s = f"0x{d2:04x}" if d2 else "0"
+            print(f"{{0x{c:04x}, 0x{d1:04x}, {d2s}}},", file=fh)
+
+    def write_canonical_comp_table(self, fh):
+        self.write_file_header_comment(fh, """
+
+List the pairs of Unicode characters that canonically recompose to a
+single character in NFC.
+
+Used by utils/unicode-norm.c.
+
+""")
+        exclusions = set(self.CompositionExclusions)
+        nonstarters = set(rec.c for rec in self.UnicodeData
+                          if rec.Canonical_Combining_Class != 0)
+
+        decomps = {}
+
+        for rec in self.UnicodeData:
+            if rec.Decomposition_Type != 'canonical':
+                continue # we don't want compatibility decompositions
+            if len(rec.Decomposition_Mapping) != 2:
+                continue # we don't want singletons either
+            if rec.c in exclusions:
+                continue # we don't want anything explicitly excluded
+            if (rec.c in nonstarters or
+                rec.Decomposition_Mapping[0] in nonstarters):
+                continue # we don't want non-starter decompositions
+            decomps[tuple(rec.Decomposition_Mapping)] = rec.c
+
+        for (d0, d1), c in sorted(decomps.items()):
+            print(f"{{0x{d0:04x}, 0x{d1:04x}, 0x{c:04x}}},", file=fh)
 
 if __name__ == '__main__':
     Main().run()

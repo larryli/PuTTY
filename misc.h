@@ -265,6 +265,9 @@ unsigned decode_utf8(BinarySource *src);
  * number written. */
 size_t decode_utf8_to_wchar(BinarySource *src, wchar_t *out);
 
+/* Normalise a UTF-8 string into Normalisation Form C. */
+strbuf *utf8_to_nfc(ptrlen input);
+
 /* Write a string out in C string-literal format. */
 void write_c_string_literal(FILE *fp, ptrlen str);
 
