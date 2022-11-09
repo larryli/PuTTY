@@ -5,9 +5,11 @@
 #include "putty.h"
 #include "misc.h"
 
-unsigned long decode_utf8(const char **utf8)
+unsigned decode_utf8(BinarySource *src)
 {
-    unsigned char c = (unsigned char)*(*utf8)++;
+    /* If the source has no byte available, this will return 0, which
+     * we'll return immediately and is a reasonable error return anyway */
+    unsigned char c = get_byte(src);
 
     /* One-byte cases. */
     if (c < 0x80) {
@@ -33,10 +35,13 @@ unsigned long decode_utf8(const char **utf8)
     }
 
     while (ncont-- > 0) {
-        unsigned char cont = (unsigned char)**utf8;
-        if (!(0x80 <= cont && cont < 0xC0))
+        if (!get_avail(src))
+            return 0xFFFD;  /* sequence terminated by end of data */
+        unsigned char cont = get_byte(src);
+        if (!(0x80 <= cont && cont < 0xC0)) {
+            BinarySource_REWIND_TO(src, src->pos - 1);
             return 0xFFFD;             /* short sequence */
-        (*utf8)++;
+        }
 
         wc = (wc << 6) | (cont & 0x3F);
     }
@@ -54,23 +59,28 @@ unsigned long decode_utf8(const char **utf8)
 
 #include <stdio.h>
 
-bool dotest(const char *file, int line, const char *input,
+void out_of_memory(void)
+{
+    fprintf(stderr, "out of memory!\n");
+    exit(2);
+}
+
+bool dotest(const char *file, int line, const char *input, size_t ninput,
             const unsigned long *chars, size_t nchars)
 {
-    const char *start = input;
-    const char *end = input + strlen(input) + 1;
+    BinarySource src[1];
+    BinarySource_BARE_INIT(src, input, ninput);
     size_t noutput = 0;
 
     printf("%s:%d: test start\n", file, line);
 
-    while (input < end) {
-        const char *before = input;
-        unsigned long wc = decode_utf8(&input);
+    while (get_avail(src)) {
+        size_t before = src->pos;
+        unsigned long wc = decode_utf8(src);
 
-        printf("%s:%d in+%"SIZEu" out+%"SIZEu":",
-               file, line, (size_t)(before-start), noutput);
-        while (before < input)
-            printf(" %02x", (unsigned)(unsigned char)(*before++));
+        printf("%s:%d in+%"SIZEu" out+%"SIZEu":", file, line, before, noutput);
+        while (before < src->pos)
+            printf(" %02x", (unsigned)(unsigned char)(input[before++]));
         printf(" -> U-%08lx\n", wc);
 
         if (noutput >= nchars) {
@@ -97,9 +107,10 @@ bool dotest(const char *file, int line, const char *input,
 }
 
 #define DOTEST(input, ...) do {                                         \
-        static const unsigned long chars[] = { __VA_ARGS__, 0 };        \
+        static const unsigned long chars[] = { __VA_ARGS__ };           \
         ntest++;                                                        \
-        if (dotest(__FILE__, __LINE__, input, chars, lenof(chars)))     \
+        if (dotest(__FILE__, __LINE__, input, sizeof(input)-1,          \
+                   chars, lenof(chars)))                                \
             npass++;                                                    \
     } while (0)
 
@@ -110,8 +121,8 @@ int main(void)
     DOTEST("\xCE\xBA\xE1\xBD\xB9\xCF\x83\xCE\xBC\xCE\xB5",
            0x03BA, 0x1F79, 0x03C3, 0x03BC, 0x03B5);
 
-    /* First sequence of each length (not counting NUL, which is
-     * tested anyway by the string-termination handling in every test) */
+    /* First sequence of each length */
+    DOTEST("\x00", 0x0000);
     DOTEST("\xC2\x80", 0x0080);
     DOTEST("\xE0\xA0\x80", 0x0800);
     DOTEST("\xF0\x90\x80\x80", 0x00010000);

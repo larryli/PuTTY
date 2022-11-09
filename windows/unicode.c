@@ -1357,18 +1357,15 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
      * codepage is UTF-8, we can do the translation ourselves.
      */
     if (codepage == CP_UTF8 && mblen > 0 && wclen > 0) {
+        BinarySource src[1];
+        BinarySource_BARE_INIT(src, mbstr, mblen);
+
         size_t remaining = wclen;
         wchar_t *p = wcstr;
 
-        while (mblen > 0) {
-            char utfbuf[7];
-            int thissize = mblen < 6 ? mblen : 6;
-            memcpy(utfbuf, mbstr, thissize);
-            utfbuf[thissize] = '\0';
-
-            const char *utfptr = utfbuf;
+        while (get_avail(src)) {
             wchar_t wcbuf[2];
-            size_t nwc = decode_utf8_to_wchar(&utfptr, wcbuf);
+            size_t nwc = decode_utf8_to_wchar(src, wcbuf);
 
             for (size_t i = 0; i < nwc; i++) {
                 if (remaining > 0) {
@@ -1378,9 +1375,6 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
                     return p - wcstr;
                 }
             }
-
-            mbstr += (utfptr - utfbuf);
-            mblen -= (utfptr - utfbuf);
         }
 
         return p - wcstr;

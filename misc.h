@@ -254,15 +254,16 @@ unsigned smemeq(const void *av, const void *bv, size_t len);
 char *encode_wide_string_as_utf8(const wchar_t *wstr);
 
 /* Decode a single UTF-8 character. Returns U+FFFD for any of the
- * illegal cases. */
-unsigned long decode_utf8(const char **utf8);
+ * illegal cases. If the source is empty, returns L'\0' (and sets the
+ * error indicator on the source, of course). */
+unsigned decode_utf8(BinarySource *src);
 
 /* Decode a single UTF-8 character to an output buffer of the
  * platform's wchar_t. May write a pair of surrogates if
  * sizeof(wchar_t) == 2, assuming that in that case the wide string is
  * encoded in UTF-16. Otherwise, writes one character. Returns the
  * number written. */
-size_t decode_utf8_to_wchar(const char **utf8, wchar_t *out);
+size_t decode_utf8_to_wchar(BinarySource *src, wchar_t *out);
 
 /* Write a string out in C string-literal format. */
 void write_c_string_literal(FILE *fp, ptrlen str);
