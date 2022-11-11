@@ -40,10 +40,17 @@ static void ucharbuf_free(ucharbuf *ub)
  * Hangul to jamo, from section 3.12 of Unicode 15.0.0. The following
  * constant names match those in the spec.
  */
-static const uchar SBase = 0xAC00;
-static const uchar LBase = 0x1100, VBase = 0x1161, TBase = 0x11A7;
-static const uchar LCount = 19, VCount = 21, TCount = 28;
-static const uchar NCount = VCount * TCount, SCount = LCount * NCount;
+enum {
+    SBase = 0xAC00,  /* base index for precomposed Hangul */
+    LBase = 0x1100,  /* base index for L (leading consonant) jamo */
+    VBase = 0x1161,  /* base index for V (vowel) jamo */
+    TBase = 0x11A7,  /* base index for T (trailing consonant) jamo */
+    LCount = 19,     /* number of L jamo */
+    VCount = 21,     /* number of V jamo */
+    TCount = 28,     /* number of T jamo, including not having one at all */
+    NCount = VCount * TCount,   /* number of Hangul for each L jamo */
+    SCount = LCount * NCount,   /* number of Hangul in total */
+};
 
 static cclass_t combining_class(uchar c)
 {
