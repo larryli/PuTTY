@@ -781,10 +781,11 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     inst->drawing_area_setup_called = true;
     if (inst->term)
         term_size(inst->term, h, w, conf_get_int(inst->conf, CONF_savelines));
-    if (inst->term_resize_notification_required)
-        term_resize_request_completed(inst->term);
-    if (inst->win_resize_pending)
+    if (inst->win_resize_pending) {
+        if (inst->term_resize_notification_required)
+            term_resize_request_completed(inst->term);
         inst->win_resize_pending = false;
+    }
 
     if (!inst->drawing_area_setup_needed)
         return;
