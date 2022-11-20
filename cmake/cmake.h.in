@@ -1,6 +1,7 @@
 #cmakedefine NO_IPV6
 #cmakedefine NO_GSSAPI
 #cmakedefine STATIC_GSSAPI
+#cmakedefine NO_SCROLLBACK_COMPRESSION
 
 #cmakedefine NO_MULTIMON
 

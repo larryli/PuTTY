@@ -398,6 +398,8 @@ static void move_termchar(termline *line, termchar *dest, termchar *src)
 #endif
 }
 
+#ifndef NO_SCROLLBACK_COMPRESSION
+
 /*
  * Compress and decompress a termline into an RLE-based format for
  * storing in scrollback. (Since scrollback almost never needs to
@@ -688,11 +690,12 @@ static void makeliteral_cc(strbuf *b, termchar *c, unsigned long *state)
 
 typedef struct compressed_scrollback_line {
     size_t len;
+    /* compressed data follows after this */
 } compressed_scrollback_line;
 
-static termline *decompressline(compressed_scrollback_line *line);
+static termline *decompressline_no_free(compressed_scrollback_line *line);
 
-static compressed_scrollback_line *compressline(termline *ldata)
+static compressed_scrollback_line *compressline_no_free(termline *ldata)
 {
     strbuf *b = strbuf_new();
 
@@ -768,7 +771,7 @@ static compressed_scrollback_line *compressline(termline *ldata)
         printf("\n");
 #endif
 
-        dcl = decompressline(line);
+        dcl = decompressline_no_free(line);
         assert(ldata->cols == dcl->cols);
         assert(ldata->lattr == dcl->lattr);
         for (i = 0; i < ldata->cols; i++)
@@ -786,6 +789,13 @@ static compressed_scrollback_line *compressline(termline *ldata)
 #endif /* TERM_CC_DIAGS */
 
     return line;
+}
+
+static compressed_scrollback_line *compressline_and_free(termline *ldata)
+{
+    compressed_scrollback_line *cline = compressline_no_free(ldata);
+    freetermline(ldata);
+    return cline;
 }
 
 static void readrle(BinarySource *bs, termline *ldata,
@@ -921,7 +931,7 @@ static void readliteral_cc(BinarySource *bs, termchar *c, termline *ldata,
     }
 }
 
-static termline *decompressline(compressed_scrollback_line *line)
+static termline *decompressline_no_free(compressed_scrollback_line *line)
 {
     int ncols, byte, shift;
     BinarySource bs[1];
@@ -987,6 +997,66 @@ static termline *decompressline(compressed_scrollback_line *line)
 
     return ldata;
 }
+
+static inline void free_compressed_line(compressed_scrollback_line *cline)
+{
+    sfree(cline);
+}
+
+static termline *decompressline_and_free(compressed_scrollback_line *cline)
+{
+    termline *ldata = decompressline_no_free(cline);
+    free_compressed_line(cline);
+    return ldata;
+}
+
+#else /* NO_SCROLLBACK_COMPRESSION */
+
+static termline *duptermline(termline *oldline)
+{
+    termline *newline = snew(termline);
+    *newline = *oldline;               /* copy the POD structure fields */
+    newline->chars = snewn(newline->size, termchar);
+    for (int j = 0; j < newline->size; j++)
+        newline->chars[j] = oldline->chars[j];
+    return newline;
+}
+
+typedef termline compressed_scrollback_line;
+
+static inline compressed_scrollback_line *compressline_and_free(
+    termline *ldata)
+{
+    return ldata;
+}
+
+static inline compressed_scrollback_line *compressline_no_free(termline *ldata)
+{
+    return duptermline(ldata);
+}
+
+static inline termline *decompressline_no_free(
+    compressed_scrollback_line *line)
+{
+    /* This will return a line without the 'temporary' flag, which
+     * means that unlineptr() is already set up to avoid freeing it */
+    return line;
+}
+
+static inline termline *decompressline_and_free(
+    compressed_scrollback_line *line)
+{
+    /* Same as decompressline_no_free, because the caller will free
+     * our returned termline, and that does all the freeing necessary */
+    return line;
+}
+
+static inline void free_compressed_line(compressed_scrollback_line *line)
+{
+    freetermline(line);
+}
+
+#endif /* NO_SCROLLBACK_COMPRESSION */
 
 /*
  * Resize a line to make it `cols' columns wide.
@@ -1134,7 +1204,7 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
         compressed_scrollback_line *cline = index234(whichtree, treeindex);
         if (!cline)
             null_line_error(term, y, lineno, whichtree, treeindex, "cline");
-        line = decompressline(cline);
+        line = decompressline_no_free(cline);
     } else {
         line = index234(whichtree, treeindex);
     }
@@ -2065,12 +2135,13 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
 void term_free(Terminal *term)
 {
+    compressed_scrollback_line *cline;
     termline *line;
     struct beeptime *beep;
     int i;
 
-    while ((line = delpos234(term->scrollback, 0)) != NULL)
-        sfree(line);                   /* compressed data, not a termline */
+    while ((cline = delpos234(term->scrollback, 0)) != NULL)
+        free_compressed_line(cline);
     freetree234(term->scrollback);
     while ((line = delpos234(term->screen, 0)) != NULL)
         freetermline(line);
@@ -2194,8 +2265,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
             /* Insert a line from the scrollback at the top of the screen. */
             assert(sblen >= term->tempsblines);
             cline = delpos234(term->scrollback, --sblen);
-            line = decompressline(cline);
-            sfree(cline);
+            line = decompressline_and_free(cline);
             line->temporary = false;   /* reconstituted line is now real */
             term->tempsblines -= 1;
             addpos234(term->screen, line, 0);
@@ -2219,8 +2289,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
         } else {
             /* push top row to scrollback */
             line = delpos234(term->screen, 0);
-            addpos234(term->scrollback, compressline(line), sblen++);
-            freetermline(line);
+            addpos234(term->scrollback, compressline_and_free(line), sblen++);
             term->tempsblines += 1;
             term->curs.y -= 1;
             term->savecurs.y -= 1;
@@ -2596,15 +2665,15 @@ static void scroll(Terminal *term, int topline, int botline,
                  * the scrollback is full.
                  */
                 if (sblen == term->savelines) {
-                    unsigned char *cline;
+                    compressed_scrollback_line *cline;
 
                     sblen--;
                     cline = delpos234(term->scrollback, 0);
-                    sfree(cline);
+                    free_compressed_line(cline);
                 } else
                     term->tempsblines += 1;
 
-                addpos234(term->scrollback, compressline(line), sblen);
+                addpos234(term->scrollback, compressline_no_free(line), sblen);
 
                 /* now `line' itself can be reused as the bottom line */
 
