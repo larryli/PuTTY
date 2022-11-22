@@ -7221,6 +7221,14 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
                 encstate = 0x41;
                 wheel = true;
                 break;
+              case MBT_WHEEL_LEFT:
+                encstate = 0x42;
+                wheel = true;
+                break;
+              case MBT_WHEEL_RIGHT:
+                encstate = 0x43;
+                wheel = true;
+                break;
               case MBT_NOTHING:
                 assert( a == MA_MOVE );
                 encstate = 0x03; // release; no buttons pressed
