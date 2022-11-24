@@ -9,6 +9,7 @@ add_sources_from_current_dir(utils
   bufchain.c
   buildinfo.c
   burnstr.c
+  burnwcs.c
   cert-expr.c
   chomp.c
   cmdline_get_passwd_input_state_new.c

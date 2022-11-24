@@ -31,6 +31,7 @@ char *dupcat_fn(const char *s1, ...);
 char *dupprintf(const char *fmt, ...) PRINTF_LIKE(1, 2);
 char *dupvprintf(const char *fmt, va_list ap);
 void burnstr(char *string);
+void burnwcs(wchar_t *string);
 
 /*
  * The visible part of a strbuf structure. There's a surrounding
