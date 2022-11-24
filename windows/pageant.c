@@ -1598,7 +1598,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * started up the main agent. Details of keys to be added are
      * stored in the 'clkeys' array.
      */
-    split_into_argv(cmdline, &argc, &argv, &argstart);
+    split_into_argv(cmdline, false, &argc, &argv, &argstart);
     bool add_keys_encrypted = false;
     AuxMatchOpt amo = aux_match_opt_init(argc, argv, 0, opt_error);
     while (!aux_match_done(&amo)) {

@@ -51,7 +51,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
         int argc, i;
         char **argv;
 
-        split_into_argv(cmdline, &argc, &argv, NULL);
+        split_into_argv(cmdline, false, &argc, &argv, NULL);
 
         for (i = 0; i < argc; i++) {
             char *p = argv[i];

@@ -161,8 +161,8 @@
 #define MOD3 0
 #endif
 
-void split_into_argv(char *cmdline, int *argc, char ***argv,
-                     char ***argstart)
+void split_into_argv(char *cmdline, bool includes_program_name,
+                     int *argc, char ***argv, char ***argstart)
 {
     char *p;
     char *outputline, *q;
@@ -198,6 +198,40 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
         while (*p && isspace(*p)) p++;
         if (!*p) break;
 
+        /*
+         * Check if this argument is the program name. If so,
+         * different rules apply.
+         *
+         * In most arguments, the special characters are the double
+         * quote and the backslash. An exception is the program name
+         * at the start of the command line, in which backslashes are
+         * _not_ special - if one appears before a quote, it does not
+         * make the quote literal.
+         *
+         * The C library must implement this special rule, and we must
+         * follow suit here, in order to match the way CreateProcess
+         * scans the command line to determine the program name. It
+         * will consider that all these commands refer to the same
+         * file equally validly:
+         *
+         *   "C:\Program Files\Foo"\bar.exe
+         *   "C:\Program Files\Foo\"bar.exe
+         *   "C:\Program Files\Foo\bar.exe"
+         *
+         * Each one contains a quoted section that protects the space
+         * in "Program Files", and the closing quote takes effect the
+         * same in all cases - even though, in the middle case, it's
+         * immediately preceded by one of the path separators in the
+         * name. For CreateProcess, backslashes aren't special.
+         *
+         * So, if our caller told us that the input command line
+         * includes the program name (which it does if it came from
+         * GetCommandLine, but not if it was passed in to WinMain),
+         * then we must treat the 0th output argument specially, by
+         * not considering backslashes to affect the quoting.
+         */
+        bool backslash_special = !(outputargc == 0 && includes_program_name);
+
         /* We have an argument; start it. */
         outputargv[outputargc] = q;
         outputargstart[outputargc] = p;
@@ -209,7 +243,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
             if (!quote && isspace(*p))
                 break;                 /* argument is finished */
 
-            if (*p == '"' || *p == '\\') {
+            if (*p == '"' || (*p == '\\' && backslash_special)) {
                 /*
                  * We have a sequence of zero or more backslashes
                  * followed by a sequence of zero or more quotes.
@@ -273,6 +307,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
 const struct argv_test {
     const char *cmdline;
     const char *argv[10];
+    bool include_program_name;
 } argv_tests[] = {
     /*
      * We generate this set of tests by invoking ourself with
@@ -463,6 +498,9 @@ const struct argv_test {
     {"\"a\\\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"b", "c d", NULL}},
     {"\"a\\\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b", "c d", NULL}},
 #endif /* MOD3 */
+    /* Common tests that check the special program-name rule. */
+    {"\"a b\\\"c \"d e\" \"f g\"", {"a b\\c", "d e", "f g", NULL}, true},
+    {"\"a b\\\"c \"d e\" \"f g\"", {"a b\"c d", "e f", "g", NULL}, false},
 };
 
 void out_of_memory(void)
@@ -658,7 +696,8 @@ int main(int argc, char **argv)
         char **av;
         bool failed = false;
 
-        split_into_argv((char *)argv_tests[i].cmdline, &ac, &av, NULL);
+        split_into_argv((char *)argv_tests[i].cmdline,
+                        argv_tests[i].include_program_name, &ac, &av, NULL);
 
         for (j = 0; j < ac && argv_tests[i].argv[j]; j++) {
             if (strcmp(av[j], argv_tests[i].argv[j])) {

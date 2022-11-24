@@ -399,7 +399,8 @@ int message_box(HWND owner, LPCTSTR text, LPCTSTR caption,
                 DWORD style, DWORD helpctxid);
 void MakeDlgItemBorderless(HWND parent, int id);
 char *GetDlgItemText_alloc(HWND hwnd, int id);
-void split_into_argv(char *, int *, char ***, char ***);
+void split_into_argv(char *, bool includes_program_name,
+                     int *, char ***, char ***);
 
 /*
  * Private structure for prefslist state. Only in the header file

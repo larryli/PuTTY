@@ -2417,7 +2417,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     save_params = ppk_save_default_parameters;
 
-    split_into_argv(cmdline, &argc, &argv, NULL);
+    split_into_argv(cmdline, false, &argc, &argv, NULL);
 
     int argbits = -1;
     AuxMatchOpt amo = aux_match_opt_init(argc, argv, 0, opt_error);
