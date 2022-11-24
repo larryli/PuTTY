@@ -920,6 +920,16 @@ int cmdline_process_param(const char *p, char *value,
         }
     }
 
+    if (!strcmp(p, "-legacy-stdio-prompts") ||
+        !strcmp(p, "-legacy_stdio_prompts")) {
+        RETURN(1);
+        SAVEABLE(0);
+        if (!console_set_stdio_prompts(true)) {
+            cmdline_report_unavailable(p);
+            return ret;
+        }
+    }
+
 #ifdef _WINDOWS
     /*
      * Cross-tool options only available on Windows.

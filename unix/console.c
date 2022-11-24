@@ -570,6 +570,14 @@ bool is_interactive(void)
     return isatty(0);
 }
 
+bool console_set_stdio_prompts(bool newvalue)
+{
+    /* Sending prompts to stdio in place of /dev/tty is not supported
+     * in the Unix tools. It's only supported on Windows because of
+     * years of history making it likely someone was depending on it. */
+    return false;
+}
+
 /*
  * X11-forwarding-related things suitable for console.
  */

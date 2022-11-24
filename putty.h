@@ -2563,6 +2563,7 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
  */
 extern bool console_batch_mode, console_antispoof_prompt;
 extern bool console_set_batch_mode(bool);
+extern bool console_set_stdio_prompts(bool);
 SeatPromptResult console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
