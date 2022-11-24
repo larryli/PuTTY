@@ -340,8 +340,6 @@ int main(int argc, char **argv)
             --argc, ++argv;
         } else if (ret == 1) {
             continue;
-        } else if (!strcmp(p, "-batch")) {
-            console_batch_mode = true;
         } else if (!strcmp(p, "-s")) {
             /* Save status to write to conf later. */
             use_subsystem = true;

@@ -2562,6 +2562,7 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
  * that aren't equivalents to things in windlg.c et al.
  */
 extern bool console_batch_mode, console_antispoof_prompt;
+extern bool console_set_batch_mode(bool);
 SeatPromptResult console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
@@ -2627,6 +2628,7 @@ extern const unsigned cmdline_tooltype;
     X(TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD)   \
     X(TOOLTYPE_PORT_ARG)                        \
     X(TOOLTYPE_NO_VERBOSE_OPTION)               \
+    X(TOOLTYPE_GUI)                             \
     /* end of list */
 #define BITFLAG_INDEX(val) val ## _bitflag_index,
 enum { TOOLTYPE_LIST(BITFLAG_INDEX) };

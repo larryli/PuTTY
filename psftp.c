@@ -2836,8 +2836,6 @@ int psftp_main(int argc, char *argv[])
         } else if (strcmp(argv[i], "-V") == 0 ||
                    strcmp(argv[i], "--version") == 0) {
             version();
-        } else if (strcmp(argv[i], "-batch") == 0) {
-            console_batch_mode = true;
         } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
             mode = 1;
             batchfile = argv[++i];

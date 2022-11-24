@@ -137,6 +137,7 @@ if(GTK_FOUND)
     main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
     ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-console.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pty.c)
   be_list(pterm pterm)
@@ -152,6 +153,7 @@ if(GTK_FOUND)
       ${CMAKE_SOURCE_DIR}/stubs/no-cmdline.c
       ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
       ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+      ${CMAKE_SOURCE_DIR}/stubs/no-console.c
       ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
       pty.c)
     be_list(ptermapp pterm)
@@ -162,7 +164,8 @@ if(GTK_FOUND)
 
   add_executable(putty
     putty.c
-    main-gtk-simple.c)
+    main-gtk-simple.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-console.c)
   be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
   target_link_libraries(putty
     guiterminal eventloop sshclient otherbackends settings
@@ -176,7 +179,8 @@ if(GTK_FOUND)
     add_executable(puttyapp
       putty.c
       main-gtk-application.c
-      ${CMAKE_SOURCE_DIR}/stubs/no-cmdline.c)
+      ${CMAKE_SOURCE_DIR}/stubs/no-cmdline.c
+      ${CMAKE_SOURCE_DIR}/stubs/no-console.c)
     be_list(puttyapp PuTTY SSH SERIAL OTHERBACKENDS)
     target_link_libraries(puttyapp
       guiterminal eventloop sshclient otherbackends settings
@@ -189,6 +193,7 @@ if(GTK_FOUND)
     main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
     ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-console.c
     ${CMAKE_SOURCE_DIR}/stubs/no-rand.c
     ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c)

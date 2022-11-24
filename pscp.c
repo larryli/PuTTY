@@ -2298,8 +2298,6 @@ int psftp_main(int argc, char *argv[])
             version();
         } else if (strcmp(argv[i], "-ls") == 0) {
             list = true;
-        } else if (strcmp(argv[i], "-batch") == 0) {
-            console_batch_mode = true;
         } else if (strcmp(argv[i], "-unsafe") == 0) {
             scp_unsafe_mode = true;
         } else if (strcmp(argv[i], "-sftp") == 0) {
