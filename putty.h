@@ -997,6 +997,17 @@ struct prompts_t {
     SeatPromptResult spr; /* some implementations need to cache one of these */
 
     /*
+     * Set this flag to indicate that the caller has encoded the
+     * prompts in UTF-8, and expects the responses to be UTF-8 too.
+     *
+     * Ideally this flag would be unnecessary because it would always
+     * be true, but for legacy reasons, we have to switch over a bit
+     * at a time from the old behaviour, and may never manage to get
+     * rid of it completely.
+     */
+    bool utf8;
+
+    /*
      * Callback you can fill in to be notified when all the prompts'
      * responses are available. After you receive this notification, a
      * further call to the get_userpass_input function will return the
@@ -2564,6 +2575,7 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
 extern bool console_batch_mode, console_antispoof_prompt;
 extern bool console_set_batch_mode(bool);
 extern bool console_set_stdio_prompts(bool);
+extern bool console_set_legacy_charset_handling(bool);
 SeatPromptResult console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);

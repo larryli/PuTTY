@@ -578,6 +578,12 @@ bool console_set_stdio_prompts(bool newvalue)
     return false;
 }
 
+bool console_set_legacy_charset_handling(bool newvalue)
+{
+    /* This probably _will_ need to be supported, but isn't yet. */
+    return false;
+}
+
 /*
  * X11-forwarding-related things suitable for console.
  */

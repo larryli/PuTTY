@@ -13,3 +13,8 @@ bool console_set_stdio_prompts(bool newvalue)
 {
     return false;
 }
+
+bool console_set_legacy_charset_handling(bool newvalue)
+{
+    return false;
+}

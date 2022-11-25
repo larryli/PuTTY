@@ -39,7 +39,9 @@ void console_print_error_msg(const char *prefix, const char *msg)
  * In PuTTY 0.78 and before, these prompts used the standard I/O
  * handles. But this means you can't redirect Plink's actual stdin
  * from a sensible data channel without the responses to login prompts
- * unwantedly being read from it too.
+ * unwantedly being read from it too. Also, if you have a real
+ * console handle then you can read from it in Unicode mode, which is
+ * an option not available for any old file handle.
  *
  * However, many versions of PuTTY have worked the old way, so we need
  * a method of falling back to it for the sake of whoever's workflow
@@ -53,21 +55,30 @@ bool console_set_stdio_prompts(bool newvalue)
     return true;
 }
 
+static bool conio_use_utf8 = true;
+bool console_set_legacy_charset_handling(bool newvalue)
+{
+    conio_use_utf8 = !newvalue;
+    return true;
+}
+
 typedef struct ConsoleIO {
     HANDLE hin, hout;
     bool need_close_hin, need_close_hout;
     bool hin_is_console, hout_is_console;
+    bool utf8;
     BinarySink_IMPLEMENTATION;
 } ConsoleIO;
 
 static void console_write(BinarySink *bs, const void *data, size_t len);
 
-static ConsoleIO *conio_setup(void)
+static ConsoleIO *conio_setup(bool utf8)
 {
     ConsoleIO *conio = snew(ConsoleIO);
 
     conio->hin = conio->hout = INVALID_HANDLE_VALUE;
     conio->need_close_hin = conio->need_close_hout = false;
+    conio->utf8 = utf8 && conio_use_utf8;
 
     /*
      * First try opening the console itself, so that prompts will go
@@ -132,13 +143,56 @@ static void console_write(BinarySink *bs, const void *data, size_t len)
 {
     ConsoleIO *conio = BinarySink_DOWNCAST(bs, ConsoleIO);
 
-    const char *cdata = (const char *)data;
-    size_t pos = 0;
-    DWORD nwritten;
+    if (conio_use_utf8) {
+        /*
+         * Convert the UTF-8 input into a wide string.
+         */
+        size_t wlen;
+        wchar_t *wide = dup_mb_to_wc_c(CP_UTF8, 0, data, len, &wlen);
+        if (conio->hout_is_console) {
+            /*
+             * To write UTF-8 to a console, use WriteConsoleW on the
+             * wide string we've just made.
+             */
+            size_t pos = 0;
+            DWORD nwritten;
 
-    while (pos < len && WriteFile(conio->hout, cdata+pos, len-pos,
-                                  &nwritten, NULL))
-        pos += nwritten;
+            while (pos < wlen && WriteConsoleW(conio->hout, wide+pos, wlen-pos,
+                                               &nwritten, NULL))
+                pos += nwritten;
+        } else {
+            /*
+             * To write a string encoded in UTF-8 to any other file
+             * handle, the best we can do is to convert it into the
+             * system code page. This will lose some characters, but
+             * what else can you do?
+             */
+            size_t clen;
+            char *sys_cp = dup_wc_to_mb_c(CP_ACP, 0, wide, wlen, "?", &clen);
+            size_t pos = 0;
+            DWORD nwritten;
+
+            while (pos < clen && WriteFile(conio->hout, sys_cp+pos, clen-pos,
+                                           &nwritten, NULL))
+                pos += nwritten;
+
+            burnstr(sys_cp);
+        }
+
+        burnwcs(wide);
+    } else {
+        /*
+         * If we're in legacy non-UTF-8 mode, just send the bytes
+         * we're given to the file handle without trying to be clever.
+         */
+        const char *cdata = (const char *)data;
+        size_t pos = 0;
+        DWORD nwritten;
+
+        while (pos < len && WriteFile(conio->hout, cdata+pos, len-pos,
+                                      &nwritten, NULL))
+            pos += nwritten;
+    }
 }
 
 static bool console_read_line_to_strbuf(ConsoleIO *conio, bool echo,
@@ -166,13 +220,56 @@ static bool console_read_line_to_strbuf(ConsoleIO *conio, bool echo,
             goto out;
         }
 
-        char buf[4096];
-        DWORD nread;
-        if (!ReadFile(conio->hin, buf, lenof(buf), &nread, NULL))
-            goto out;
+        if (conio_use_utf8) {
+            wchar_t wbuf[4096];
+            size_t wlen;
 
-        put_data(sb, buf, nread);
-        smemclr(buf, sizeof(buf));
+            if (conio->hin_is_console) {
+                /*
+                 * To read UTF-8 from a console, read wide character data
+                 * via ReadConsoleW, and convert it to UTF-8.
+                 */
+                DWORD nread;
+                if (!ReadConsoleW(conio->hin, wbuf, lenof(wbuf), &nread, NULL))
+                    goto out;
+                wlen = nread;
+            } else {
+                /*
+                 * To read UTF-8 from an ordinary file handle, read it
+                 * as normal bytes and then convert from CP_ACP to
+                 * UTF-8, in the reverse of what we did above for
+                 * output.
+                 */
+                char buf[4096];
+                DWORD nread;
+                if (!ReadFile(conio->hin, buf, lenof(buf), &nread, NULL))
+                    goto out;
+
+                wlen = mb_to_wc(CP_ACP, 0, buf, nread, wbuf, lenof(wbuf));
+                smemclr(buf, sizeof(buf));
+            }
+
+            /* Allocate the maximum space in the strbuf that might be
+             * needed for this data */
+            size_t oldlen = sb->len, maxout = wlen * 4;
+            void *outptr = strbuf_append(sb, maxout);
+            size_t newlen = oldlen + wc_to_mb(CP_UTF8, 0, wbuf, wlen,
+                                              outptr, maxout, NULL);
+            strbuf_shrink_to(sb, newlen);
+            smemclr(wbuf, sizeof(wbuf));
+        } else {
+            /*
+             * If we're in legacy non-UTF-8 mode, just read bytes
+             * directly from the file handle into the output strbuf.
+             */
+            char buf[4096];
+            DWORD nread;
+            if (!ReadFile(conio->hin, buf, lenof(buf), &nread, NULL))
+                goto out;
+
+            put_data(sb, buf, nread);
+            smemclr(buf, sizeof(buf));
+        }
     }
 
   out:
@@ -245,7 +342,7 @@ SeatPromptResult console_confirm_ssh_host_key(
     char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    ConsoleIO *conio = conio_setup();
+    ConsoleIO *conio = conio_setup(false);
     const char *prompt = NULL;
     SeatPromptResult result;
 
@@ -328,7 +425,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    ConsoleIO *conio = conio_setup();
+    ConsoleIO *conio = conio_setup(false);
     SeatPromptResult result;
 
     put_fmt(conio, weakcrypto_msg_common_fmt, algtype, algname);
@@ -360,7 +457,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    ConsoleIO *conio = conio_setup();
+    ConsoleIO *conio = conio_setup(false);
     SeatPromptResult result;
 
     put_fmt(conio, weakhk_msg_common_fmt, algname, betteralgs);
@@ -390,7 +487,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
 
 bool is_interactive(void)
 {
-    ConsoleIO *conio = conio_setup();
+    ConsoleIO *conio = conio_setup(false);
     bool toret = conio->hin_is_console;
     conio_free(conio);
     return toret;
@@ -457,7 +554,7 @@ int console_askappend(LogPolicy *lp, Filename *filename,
         "The session log file \"%.*s\" already exists.\n"
         "Logging will not be enabled.\n";
 
-    ConsoleIO *conio = conio_setup();
+    ConsoleIO *conio = conio_setup(false);
     int result;
 
     if (console_batch_mode) {
@@ -549,7 +646,7 @@ StripCtrlChars *console_stripctrl_new(
 
 SeatPromptResult console_get_userpass_input(prompts_t *p)
 {
-    ConsoleIO *conio = conio_setup();
+    ConsoleIO *conio = conio_setup(p->utf8);
     SeatPromptResult result;
     size_t curr_prompt;
 
