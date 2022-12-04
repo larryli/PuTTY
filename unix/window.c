@@ -2609,7 +2609,8 @@ static void request_resize_internal(GtkFrontend *inst, bool from_terminal,
 #endif
                      0)) {
             queue_toplevel_callback(gtkwin_deny_term_resize, inst);
-            term_resize_request_completed(inst->term);
+            if (from_terminal)
+                term_resize_request_completed(inst->term);
             return;
         }
     }
