@@ -2816,8 +2816,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             p.rcPaint.left  < offset_width  ||
             p.rcPaint.top   < offset_height ||
             p.rcPaint.right >= offset_width + font_width*wgs->term->cols ||
-            p.rcPaint.bottom>= offset_height + font_height*wgs->term->rows)
-        {
+            p.rcPaint.bottom>= offset_height + font_height*wgs->term->rows) {
             HBRUSH fillcolour, oldbrush;
             HPEN   edge, oldpen;
             fillcolour = CreateSolidBrush (

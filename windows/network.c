@@ -1707,8 +1707,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
         memset(&isa, 0, sizeof(isa));
         err = 0;
         t = p_accept(s->s,(struct sockaddr *)&isa,&addrlen);
-        if (t == INVALID_SOCKET)
-        {
+        if (t == INVALID_SOCKET) {
             err = p_WSAGetLastError();
             if (err == WSATRY_AGAIN)
                 break;

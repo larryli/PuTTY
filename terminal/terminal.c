@@ -5841,8 +5841,7 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
                                      bidi_char);
             }
 
-            for (it=0; it<term->cols ; it++)
-            {
+            for (it=0; it<term->cols ; it++) {
                 unsigned long uc = (ldata->chars[it].chr);
 
                 switch (uc & CSET_MASK) {

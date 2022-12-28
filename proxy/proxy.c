@@ -499,8 +499,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
     int type = conf_get_int(conf, CONF_proxy_type);
 
     if (type != PROXY_NONE &&
-        proxy_for_destination(addr, hostname, port, conf))
-    {
+        proxy_for_destination(addr, hostname, port, conf)) {
         ProxySocket *ps;
         SockAddr *proxy_addr;
         char *proxy_canonical_name;

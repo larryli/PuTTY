@@ -669,8 +669,7 @@ void key_find_callback(void *vctx, char **fingerprints,
 
     if ((ctx->match_comment && !strcmp(ctx->string, comment)) ||
         (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprints,
-                                                   ctx)))
-    {
+                                                   ctx))) {
         if (!ctx->found)
             ctx->found = pageant_pubkey_copy(key);
         ctx->nfound++;
