@@ -4675,7 +4675,7 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
         /* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
         if(keystate[VK_CAPITAL] != 0 &&
            conf_get_bool(wgs->conf, CONF_xlat_capslockcyr)) {
-            capsOn= !left_alt;
+            capsOn = !left_alt;
             keystate[VK_CAPITAL] = 0;
         }
 

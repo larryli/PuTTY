@@ -1742,7 +1742,7 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
 #define crGetChar(c) do                                         \
     {                                                           \
         while (len == 0) {                                      \
-            *crLine =__LINE__; return; case __LINE__:;          \
+            *crLine = __LINE__; return; case __LINE__:;         \
         }                                                       \
         len--;                                                  \
         (c) = (unsigned char)*data++;                           \
