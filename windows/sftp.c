@@ -86,14 +86,14 @@ static inline uint64_t uint64_from_words(uint32_t hi, uint32_t lo)
     uli.QuadPart = ((ULONGLONG)(t) + 11644473600ull) * 10000000ull; \
     (ft).dwLowDateTime  = uli.LowPart; \
     (ft).dwHighDateTime = uli.HighPart; \
-} while(0)
+} while (0)
 #define TIME_WIN_TO_POSIX(ft, t) do { \
     ULARGE_INTEGER uli; \
     uli.LowPart  = (ft).dwLowDateTime; \
     uli.HighPart = (ft).dwHighDateTime; \
     uli.QuadPart = uli.QuadPart / 10000000ull - 11644473600ull; \
     (t) = (unsigned long) uli.QuadPart; \
-} while(0)
+} while (0)
 
 struct RFile {
     HANDLE h;

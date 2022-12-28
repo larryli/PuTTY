@@ -254,7 +254,7 @@ int read_dupsession_data(Conf *conf, char *arg)
 }
 
 static void help(FILE *fp) {
-    if(fprintf(fp,
+    if (fprintf(fp,
 "pterm option summary:\n"
 "\n"
 "  --display DISPLAY         Specify X display to use (note '--')\n"
@@ -282,8 +282,8 @@ static void help(FILE *fp) {
 
 static void version(FILE *fp) {
     char *buildinfo_text = buildinfo("\n");
-    if(fprintf(fp, "%s: %s\n%s\n", appname, ver, buildinfo_text) < 0 ||
-       fflush(fp) < 0) {
+    if (fprintf(fp, "%s: %s\n%s\n", appname, ver, buildinfo_text) < 0 ||
+        fflush(fp) < 0) {
         perror("output error");
         exit(1);
     }
@@ -520,11 +520,11 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             EXPECTS_ARG;
             provide_xrm_string(val, appname);
 
-        } else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
+        } else if (!strcmp(p, "-help") || !strcmp(p, "--help")) {
             help(stdout);
             exit(0);
 
-        } else if(!strcmp(p, "-version") || !strcmp(p, "--version")) {
+        } else if (!strcmp(p, "-version") || !strcmp(p, "--version")) {
             version(stdout);
             exit(0);
 

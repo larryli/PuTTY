@@ -149,7 +149,7 @@ static char *plink_get_ttymode(Seat *seat, const char *mode)
     do { \
         if (strcmp(mode, ourname) == 0) \
             return get_ttychar(&orig_termios, uxname); \
-    } while(0)
+    } while (0)
 #define GET_BOOL(ourname, uxname, uxmemb, transform) \
     do { \
         if (strcmp(mode, ourname) == 0) { \

@@ -2160,7 +2160,7 @@ void term_free(Terminal *term)
         sfree(beep);
     }
     bufchain_clear(&term->inbuf);
-    if(term->print_job)
+    if (term->print_job)
         printer_finish_job(term->print_job);
     bufchain_clear(&term->printer_buf);
     sfree(term->paste_buffer);
@@ -5037,7 +5037,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                         int i = def(term->esc_args[0], 1);
                         pos old_curs = term->curs;
 
-                        for(;i>0 && term->curs.x>0; i--) {
+                        for (; i>0 && term->curs.x>0; i--) {
                             do {
                                 term->curs.x--;
                             } while (term->curs.x >0 &&
@@ -5841,7 +5841,7 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
                                      bidi_char);
             }
 
-            for(it=0; it<term->cols ; it++)
+            for (it=0; it<term->cols ; it++)
             {
                 unsigned long uc = (ldata->chars[it].chr);
 
@@ -5896,10 +5896,10 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
                 nbc++;
             }
 
-            if(!term->no_bidi)
+            if (!term->no_bidi)
                 do_bidi(term->bidi_ctx, term->wcFrom, nbc);
 
-            if(!term->no_arabicshaping) {
+            if (!term->no_arabicshaping) {
                 do_shape(term->wcFrom, term->wcTo, nbc);
             } else {
                 /* If we're not calling do_shape, we must copy the

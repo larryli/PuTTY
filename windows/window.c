@@ -2550,7 +2550,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
              * `ready to appear' state.
              */
             show_mouseptr(wgs, true);    /* make sure pointer is visible */
-            if( lParam == 0 )
+            if (lParam == 0)
                 PostMessage(hwnd, WM_CHAR, ' ', 0);
             break;
           case IDM_FULLSCREEN:
@@ -3792,7 +3792,7 @@ static void do_text_internal(
                 uni_buf = snewn(uni_len, wchar_t);
             }
 
-            for(nlen = mptr = 0; mptr<len; mptr++) {
+            for (nlen = mptr = 0; mptr<len; mptr++) {
                 uni_buf[nlen] = 0xFFFD;
                 if (IsDBCSLeadByteEx(wgs->ucsdata.font_codepage,
                                      (BYTE) text[mptr])) {
@@ -4673,8 +4673,8 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
         bool capsOn = false;
 
         /* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
-        if(keystate[VK_CAPITAL] != 0 &&
-           conf_get_bool(wgs->conf, CONF_xlat_capslockcyr)) {
+        if (keystate[VK_CAPITAL] != 0 &&
+            conf_get_bool(wgs->conf, CONF_xlat_capslockcyr)) {
             capsOn = !left_alt;
             keystate[VK_CAPITAL] = 0;
         }
@@ -4778,7 +4778,7 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
                         term_keyinputw(wgs->term, &wch, 1);
                     }
                 } else {
-                    if(capsOn && wch < 0x80) {
+                    if (capsOn && wch < 0x80) {
                         WCHAR cbuf[2];
                         cbuf[0] = 27;
                         cbuf[1] = xlat_uskbd2cyrllic(wch);

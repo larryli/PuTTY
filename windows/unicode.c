@@ -682,7 +682,7 @@ void init_ucs(Conf *conf, struct unicode_data *ucsdata)
             if (!DIRECT_FONT(ucsdata->unitab_xterm[i]))
                 ucsdata->unitab_xterm[i] =
                     (WCHAR) (CSET_ACP + poorman_vt100[i - 96]);
-        for(i=128;i<256;i++)
+        for (i = 128; i < 256; i++)
             if (!DIRECT_FONT(ucsdata->unitab_scoacs[i]))
                 ucsdata->unitab_scoacs[i] =
                     (WCHAR) (CSET_ACP + poorman_scoacs[i - 128]);
@@ -695,7 +695,7 @@ static void link_font(WCHAR *line_tbl, WCHAR *font_tbl, WCHAR attr)
     for (line_index = 0; line_index < 256; line_index++) {
         if (DIRECT_FONT(line_tbl[line_index]))
             continue;
-        for(i = 0; i < 256; i++) {
+        for (i = 0; i < 256; i++) {
             font_index = ((32 + i) & 0xFF);
             if (line_tbl[line_index] == font_tbl[font_index]) {
                 line_tbl[line_index] = (WCHAR) (attr + font_index);

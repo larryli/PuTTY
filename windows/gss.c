@@ -26,7 +26,7 @@
     if (uli.QuadPart != 0) \
         uli.QuadPart = uli.QuadPart / CNS_PERSEC - UNIX_EPOCH; \
     (t) = (time_t) uli.QuadPart; \
-} while(0)
+} while (0)
 
 /* Windows code to set up the GSSAPI library list. */
 
@@ -142,7 +142,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
         char *installdir = get_reg_sz(regkey, "InstallDir");
         if (installdir) {
             char *bindir = dupcat(installdir, "\\bin");
-            if(p_AddDllDirectory) {
+            if (p_AddDllDirectory) {
                 /* Add MIT Kerberos' path to the DLL search path,
                  * it loads its own DLLs further down the road */
                 wchar_t *dllPath = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, bindir);
@@ -235,7 +235,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
     module = NULL;
     path = conf_get_filename(conf, CONF_ssh_gss_custom)->path;
     if (*path) {
-        if(p_AddDllDirectory) {
+        if (p_AddDllDirectory) {
             /* Add the custom directory as well in case it chainloads
              * some other DLLs (e.g a non-installed MIT Kerberos
              * instance) */
