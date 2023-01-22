@@ -1085,7 +1085,7 @@ sending of the \cw{IUTF8} mode: on the SSH / TTY panel, select
 not possible to disable sending this mode in 0.68.)
 
 \S{faq-privkey-control-moved}{Question} Since 0.78, I can't find where
-to configure my private key.
+to configure my SSH private key.
 
 In PuTTY 0.78, the \q{\ii{Private key} file for authentication} control,
 where you specify a \c{.\i{PPK}} file for SSH public key authentication,
