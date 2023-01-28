@@ -2492,9 +2492,6 @@ extern const char commitid[];
 /*
  * Exports from unicode.c in platform subdirs.
  */
-#ifndef CP_UTF8
-#define CP_UTF8 65001
-#endif
 /* void init_ucs(void); -- this is now in platform-specific headers */
 bool is_dbcs_leadbyte(int codepage, char byte);
 int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,

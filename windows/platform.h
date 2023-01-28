@@ -194,6 +194,7 @@ void centre_window(HWND hwnd);
 
 #define DEFAULT_CODEPAGE CP_ACP
 #define USES_VTLINE_HACK
+#define CP_UTF8 65001
 
 #ifndef NO_GSSAPI
 /*
