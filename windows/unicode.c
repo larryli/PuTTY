@@ -1365,7 +1365,7 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 
         while (get_avail(src)) {
             wchar_t wcbuf[2];
-            size_t nwc = decode_utf8_to_wchar(src, wcbuf);
+            size_t nwc = decode_utf8_to_wchar(src, wcbuf, NULL);
 
             for (size_t i = 0; i < nwc; i++) {
                 if (remaining > 0) {

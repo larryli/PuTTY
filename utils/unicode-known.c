@@ -40,7 +40,13 @@ char *utf8_unknown_char(ptrlen input)
     BinarySource_BARE_INIT_PL(src, input);
 
     for (size_t nchars = 0; get_avail(src); nchars++) {
-        unsigned c = decode_utf8(src);
+        DecodeUTF8Failure err;
+        unsigned c = decode_utf8(src, &err);
+        if (err != DUTF8_SUCCESS)
+            return dupprintf(
+                "cannot normalise this string: UTF-8 decoding error "
+                "at character position %"SIZEu", byte position %"SIZEu": %s",
+                nchars, src->pos, decode_utf8_error_strings[err]);
         if (!known(c))
             return dupprintf(
                 "cannot stably normalise this string: code point %04X "

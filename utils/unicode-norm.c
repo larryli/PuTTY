@@ -295,7 +295,7 @@ strbuf *utf8_to_nfc(ptrlen input)
 
     ucharbuf *inbuf = ucharbuf_new();
     while (get_avail(src))
-        ucharbuf_append(inbuf, decode_utf8(src));
+        ucharbuf_append(inbuf, decode_utf8(src, NULL));
 
     ucharbuf *outbuf = nfc(inbuf);
 
