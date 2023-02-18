@@ -689,6 +689,11 @@ void init_ucs(Conf *conf, struct unicode_data *ucsdata)
     }
 }
 
+void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata)
+{
+    init_ucs(conf, ucsdata);
+}
+
 static void link_font(WCHAR *line_tbl, WCHAR *font_tbl, WCHAR attr)
 {
     int font_index, line_index, i;

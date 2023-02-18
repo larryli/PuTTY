@@ -286,6 +286,11 @@ struct unicode_data {
 #define LGTYP_PACKETS 3                /* logmode: SSH data packets */
 #define LGTYP_SSHRAW 4                 /* logmode: SSH raw data */
 
+/* Platform-generic function to set up a struct unicode_data. This is
+ * only likely to be useful to test programs; real clients will want
+ * to use the more flexible per-platform setup functions. */
+void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata);
+
 /*
  * Enumeration of 'special commands' that can be sent during a
  * session, separately from the byte stream of ordinary session data.

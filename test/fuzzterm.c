@@ -21,9 +21,7 @@ int main(int argc, char **argv)
 
     conf = conf_new();
     do_defaults(NULL, conf);
-    init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
-             conf_get_bool(conf, CONF_utf8_override),
-             CS_NONE, conf_get_int(conf, CONF_vtmode));
+    init_ucs_generic(conf, &ucsdata);
 
     term = term_init(conf, &ucsdata, &termwin);
     term_size(term, 24, 80, 10000);

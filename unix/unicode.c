@@ -243,6 +243,13 @@ bool init_ucs(struct unicode_data *ucsdata, char *linecharset,
     return ret;
 }
 
+void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata)
+{
+    init_ucs(ucsdata, conf_get_str(conf, CONF_line_codepage),
+             conf_get_bool(conf, CONF_utf8_override),
+             CS_NONE, conf_get_int(conf, CONF_vtmode));
+}
+
 const char *cp_name(int codepage)
 {
     if (codepage == CS_NONE)
