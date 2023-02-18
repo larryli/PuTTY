@@ -18,7 +18,7 @@ add_subdirectory(utils)
 add_subdirectory(stubs)
 
 add_library(logging OBJECT
-  logging.c)
+  logging.c utils/logeventf.c)
 
 add_library(eventloop STATIC
   callback.c timing.c)
@@ -34,7 +34,8 @@ add_library(crypto STATIC
 add_subdirectory(crypto)
 
 add_library(network STATIC
-  errsock.c logging.c x11disp.c
+  errsock.c x11disp.c
+  $<TARGET_OBJECTS:logging>
   proxy/proxy.c
   proxy/http.c
   proxy/socks4.c

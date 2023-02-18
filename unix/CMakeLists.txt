@@ -52,10 +52,10 @@ add_sources_from_current_dir(agent
 
 add_executable(fuzzterm
   ${CMAKE_SOURCE_DIR}/test/fuzzterm.c
-  ${CMAKE_SOURCE_DIR}/logging.c
   ${CMAKE_SOURCE_DIR}/stubs/no-print.c
   unicode.c
-  no-gtk.c)
+  no-gtk.c
+  $<TARGET_OBJECTS:logging>)
 be_list(fuzzterm FuZZterm)
 add_dependencies(fuzzterm generated_licence_h)
 target_link_libraries(fuzzterm
