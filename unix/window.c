@@ -304,7 +304,7 @@ FontSpec *platform_default_fontspec(const char *name)
     if (!strcmp(name, "Font"))
         return fontspec_new(DEFAULT_GTK_FONT);
     else
-        return fontspec_new("");
+        return fontspec_new_default();
 }
 
 Filename *platform_default_filename(const char *name)

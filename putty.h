@@ -2118,7 +2118,15 @@ bool conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
  * Functions to copy, free, serialise and deserialise FontSpecs.
  * Provided per-platform, to go with the platform's idea of a
  * FontSpec's contents.
+ *
+ * The full fontspec_new is declared in the platform header, because
+ * each platform may need it to have a different prototype, due to
+ * constructing fonts in different ways. But fontspec_new_default()
+ * will at least produce _some_ kind of a FontSpec, for use in
+ * situations where one needs to exist (e.g. to put in a Conf) and be
+ * freeable but won't actually be used for anything important.
  */
+FontSpec *fontspec_new_default(void);
 FontSpec *fontspec_copy(const FontSpec *f);
 void fontspec_free(FontSpec *f);
 void fontspec_serialise(BinarySink *bs, FontSpec *f);

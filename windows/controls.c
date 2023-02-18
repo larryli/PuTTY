@@ -1683,7 +1683,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             shortcuts[nshortcuts++] = ctrl->fontselect.shortcut;
             statictext(&pos, escaped, 1, base_id);
             staticbtn(&pos, "", base_id+1, "Change...", base_id+2);
-            data = fontspec_new("", false, 0, 0);
+            data = fontspec_new_default();
             sfree(escaped);
             break;
           default:

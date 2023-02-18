@@ -78,7 +78,7 @@ int platform_default_i(const char *name, int def)
 
 FontSpec *platform_default_fontspec(const char *name)
 {
-    return fontspec_new("");
+    return fontspec_new_default();
 }
 
 Filename *platform_default_filename(const char *name)
