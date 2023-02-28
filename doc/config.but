@@ -3521,6 +3521,9 @@ not available for bugs that \e{cannot} be detected from the server
 version, e.g. because they must be acted on before the server version
 is known.)
 
+(The PuTTY project has a defined policy about when we're prepared to
+add auto-detection for a bug workaround. See \k{feedback-workarounds}.)
+
 \S{config-ssh-bug-ignore2} \q{Chokes on SSH-2 \i{ignore message}s}
 
 An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
