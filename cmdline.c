@@ -934,7 +934,7 @@ int cmdline_process_param(const char *p, char *value,
         !strcmp(p, "-legacy_charset_handling")) {
         RETURN(1);
         SAVEABLE(0);
-        if (!console_set_legacy_charset_handling(true)) {
+        if (!set_legacy_charset_handling(true)) {
             cmdline_report_unavailable(p);
             return ret;
         }

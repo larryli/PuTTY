@@ -433,14 +433,18 @@ struct terminal_tag {
 
     /*
      * Indicates whether term_get_userpass_input is currently using
-     * the terminal to present a password prompt or similar.
+     * the terminal to present a password prompt or similar, and if
+     * so, whether it's overridden the terminal into UTF-8 mode.
      */
     struct term_userpass_state *userpass_state;
+    bool userpass_utf8_override;
 };
 
 static inline bool in_utf(Terminal *term)
 {
-    return term->utf || term->ucsdata->line_codepage == CP_UTF8;
+    return (term->utf ||
+            term->ucsdata->line_codepage == CP_UTF8 ||
+            (term->userpass_state && term->userpass_utf8_override));
 }
 
 unsigned long term_translate(

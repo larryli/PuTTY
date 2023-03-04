@@ -56,7 +56,7 @@ bool console_set_stdio_prompts(bool newvalue)
 }
 
 static bool conio_use_utf8 = true;
-bool console_set_legacy_charset_handling(bool newvalue)
+bool set_legacy_charset_handling(bool newvalue)
 {
     conio_use_utf8 = !newvalue;
     return true;

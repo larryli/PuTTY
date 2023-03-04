@@ -7974,6 +7974,13 @@ static void term_userpass_next_prompt(struct term_userpass_state *s)
     }
 }
 
+static bool terminal_use_utf8 = true;
+bool set_legacy_charset_handling(bool newvalue)
+{
+    terminal_use_utf8 = !newvalue;
+    return true;
+}
+
 /*
  * Process some terminal data in the course of username/password
  * input.
@@ -8000,6 +8007,7 @@ SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p)
          */
         p->data = s = term_userpass_state_new(term, p);
         p->spr = SPR_INCOMPLETE;
+        term->userpass_utf8_override = p->utf8 && terminal_use_utf8;
         /* We only print the `name' caption if we have to... */
         if (p->name_reqd && p->name) {
             ptrlen plname = ptrlen_from_asciz(p->name);

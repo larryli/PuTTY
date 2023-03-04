@@ -2516,7 +2516,6 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
 extern bool console_batch_mode, console_antispoof_prompt;
 extern bool console_set_batch_mode(bool);
 extern bool console_set_stdio_prompts(bool);
-extern bool console_set_legacy_charset_handling(bool);
 SeatPromptResult console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
@@ -2524,6 +2523,11 @@ void console_print_error_msg_fmt_v(
     const char *prefix, const char *fmt, va_list ap);
 void console_print_error_msg_fmt(const char *prefix, const char *fmt, ...)
     PRINTF_LIKE(2, 3);
+
+/*
+ * Exports from either console frontends or terminal.c.
+ */
+extern bool set_legacy_charset_handling(bool);
 
 /*
  * Exports from printing.c in platform subdirs.
