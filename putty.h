@@ -296,59 +296,11 @@ void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata);
  * session, separately from the byte stream of ordinary session data.
  */
 typedef enum {
-    /*
-     * Commands that are generally useful in multiple backends.
-     */
-    SS_BRK,    /* serial-line break */
-    SS_EOF,    /* end-of-file on session input */
-    SS_NOP,    /* transmit data with no effect */
-    SS_PING,   /* try to keep the session alive (probably, but not
-                * necessarily, implemented as SS_NOP) */
-
-    /*
-     * Commands specific to Telnet.
-     */
-    SS_AYT,    /* Are You There */
-    SS_SYNCH,  /* Synch */
-    SS_EC,     /* Erase Character */
-    SS_EL,     /* Erase Line */
-    SS_GA,     /* Go Ahead */
-    SS_ABORT,  /* Abort Process */
-    SS_AO,     /* Abort Output */
-    SS_IP,     /* Interrupt Process */
-    SS_SUSP,   /* Suspend Process */
-    SS_EOR,    /* End Of Record */
-    SS_EOL,    /* Telnet end-of-line sequence (CRLF, as opposed to CR
-                * NUL that escapes a literal CR) */
-
-    /*
-     * Commands specific to SSH.
-     */
-    SS_REKEY,  /* trigger an immediate repeat key exchange */
-    SS_XCERT,  /* cross-certify another host key ('arg' indicates which) */
-
-    /*
-     * Send a POSIX-style signal. (Useful in SSH and also pterm.)
-     *
-     * We use the master list in ssh/signal-list.h to define these enum
-     * values, which will come out looking like names of the form
-     * SS_SIGABRT, SS_SIGINT etc.
-     */
-    #define SIGNAL_MAIN(name, text) SS_SIG ## name,
-    #define SIGNAL_SUB(name) SS_SIG ## name,
-    #include "ssh/signal-list.h"
-    #undef SIGNAL_MAIN
-    #undef SIGNAL_SUB
-
-    /*
-     * These aren't really special commands, but they appear in the
-     * enumeration because the list returned from
-     * backend_get_specials() will use them to specify the structure
-     * of the GUI specials menu.
-     */
-    SS_SEP,         /* Separator */
-    SS_SUBMENU,     /* Start a new submenu with specified name */
-    SS_EXITMENU,    /* Exit current submenu, or end of entire specials list */
+    /* The list of enum constants is defined in a separate header so
+     * they can be reused in other contexts */
+    #define SPECIAL(x) SS_ ## x,
+    #include "specials.h"
+    #undef SPECIAL
 } SessionSpecialCode;
 
 /*
