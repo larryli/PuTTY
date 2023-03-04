@@ -1,9 +1,6 @@
 /*
- * Internals of the Terminal structure, for those other modules
- * which need to look inside it. It would be nice if this could be
- * folded back into terminal.c in future, with an abstraction layer
- * to handle everything that other modules need to know about it;
- * but for the moment, this will do.
+ * Internals of the Terminal structure, used by other modules in the
+ * terminal subdirectory and by test suites.
  */
 
 #ifndef PUTTY_TERMINAL_H

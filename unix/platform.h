@@ -333,6 +333,7 @@ void gtk_setup_config_box(
 #define DEFAULT_CODEPAGE 0xFFFF
 #define CP_UTF8 CS_UTF8                /* from libcharset */
 #define CP_437 CS_CP437                /* used for test suites */
+#define CP_ISO8859_1 CS_ISO8859_1      /* used for test suites */
 
 #define strnicmp strncasecmp
 #define stricmp strcasecmp

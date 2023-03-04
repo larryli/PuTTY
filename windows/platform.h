@@ -196,6 +196,7 @@ void centre_window(HWND hwnd);
 #define USES_VTLINE_HACK
 #define CP_UTF8 65001
 #define CP_437 437                     /* used for test suites */
+#define CP_ISO8859_1 0x10001           /* used for test suites */
 
 #ifndef NO_GSSAPI
 /*
