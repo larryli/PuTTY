@@ -62,6 +62,9 @@ static const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
 static const wchar_t sel_nl[] = SEL_NL;
 
+/* forward declaration */
+static void term_userpass_state_free(struct term_userpass_state *s);
+
 /*
  * Fetch the character at a particular position in a line array,
  * for purposes of `wordtype'. The reason this isn't just a simple
@@ -2128,6 +2131,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->bidi_ctx = bidi_new_context();
 
+    term->userpass_state = NULL;
+
     palette_reset(term, false);
 
     return term;
@@ -2189,6 +2194,10 @@ void term_free(Terminal *term)
     sfree(term->icon_title);
 
     bidi_free_context(term->bidi_ctx);
+
+    /* In case a term_userpass_state is still around */
+    if (term->userpass_state)
+        term_userpass_state_free(term->userpass_state);
 
     sfree(term);
 }
@@ -7823,15 +7832,19 @@ char *term_get_ttymode(Terminal *term, const char *mode)
 }
 
 struct term_userpass_state {
+    prompts_t *prompts;
     size_t curr_prompt;
-    bool done_prompt;   /* printed out prompt yet? */
+    enum TermUserpassPromptState {
+        TUS_INITIAL,         /* haven't even printed the prompt yet */
+        TUS_ACTIVE,          /* prompt is currently receiving user input */
+        TUS_ABORTED,         /* user pressed ^C or ^D to cancel prompt */
+    } prompt_state;
+    Terminal *term;
+    TermLineEditor *le;
+    TermLineEditorCallbackReceiver le_rcv;
 };
 
-/* Tiny wrapper to make it easier to write lots of little strings */
-static inline void term_write(Terminal *term, ptrlen data)
-{
-    term_data(term, data.ptr, data.len);
-}
+static void term_userpass_next_prompt(struct term_userpass_state *s);
 
 /*
  * Signal that a prompts_t is done. This involves sending a
@@ -7844,9 +7857,121 @@ static inline SeatPromptResult signal_prompts_t(Terminal *term, prompts_t *p,
     assert(p->callback && "Asynchronous userpass input requires a callback");
     queue_toplevel_callback(p->callback, p->callback_ctx);
     if (term->ldisc)
-        ldisc_enable_prompt_callback(term->ldisc, NULL);
+        ldisc_provide_userpass_le(term->ldisc, NULL);
     p->spr = spr;
+    if (p->data) {
+        term_userpass_state_free(p->data);
+        p->data = NULL;
+    }
     return spr;
+}
+
+/* Tiny wrapper to make it easier to write lots of little strings */
+static inline void term_write(Terminal *term, ptrlen data)
+{
+    term_data(term, data.ptr, data.len);
+}
+
+static void term_lineedit_to_terminal(
+    TermLineEditorCallbackReceiver *rcv, ptrlen data)
+{
+    struct term_userpass_state *s = container_of(
+        rcv, struct term_userpass_state, le_rcv);
+    prompt_t *pr = s->prompts->prompts[s->curr_prompt];
+    if (pr->echo)
+        term_write(s->term, data);
+}
+
+static void term_lineedit_to_backend(
+    TermLineEditorCallbackReceiver *rcv, ptrlen data)
+{
+    struct term_userpass_state *s = container_of(
+        rcv, struct term_userpass_state, le_rcv);
+    prompt_t *pr = s->prompts->prompts[s->curr_prompt];
+    put_datapl(pr->result, data);
+}
+
+static void term_lineedit_newline(TermLineEditorCallbackReceiver *rcv)
+{
+    struct term_userpass_state *s = container_of(
+        rcv, struct term_userpass_state, le_rcv);
+
+    prompt_t *pr = s->prompts->prompts[s->curr_prompt];
+    if (!pr->echo) {
+        /* If echo is disabled, we won't have printed the newline in
+         * term_lineedit_to_terminal, so print it now */
+        term_write(s->term, PTRLEN_LITERAL("\x0D\x0A"));
+    }
+
+    ldisc_provide_userpass_le(s->term->ldisc, NULL);
+    s->curr_prompt++;
+    s->prompt_state = TUS_INITIAL;
+    term_userpass_next_prompt(s);
+}
+
+static void term_lineedit_special(
+    TermLineEditorCallbackReceiver *rcv, SessionSpecialCode code, int arg)
+{
+    struct term_userpass_state *s = container_of(
+        rcv, struct term_userpass_state, le_rcv);
+    switch (code) {
+      case SS_IP:
+      case SS_EOF:
+        ldisc_provide_userpass_le(s->term->ldisc, NULL);
+        s->prompt_state = TUS_ABORTED;
+        signal_prompts_t(s->term, s->prompts, SPR_USER_ABORT);
+      default:
+        break;
+    }
+}
+
+static const TermLineEditorCallbackReceiverVtable
+term_userpass_lineedit_receiver_vt = {
+    .to_terminal = term_lineedit_to_terminal,
+    .to_backend = term_lineedit_to_backend,
+    .special = term_lineedit_special,
+    .newline = term_lineedit_newline,
+};
+
+static struct term_userpass_state *term_userpass_state_new(
+    Terminal *term, prompts_t *prompts)
+{
+    struct term_userpass_state *s = snew(struct term_userpass_state);
+    s->prompts = prompts;
+    s->curr_prompt = 0;
+    s->prompt_state = TUS_INITIAL;
+    s->term = term;
+    s->le_rcv.vt = &term_userpass_lineedit_receiver_vt;
+    s->le = lineedit_new(term, LE_INTERRUPT | LE_EOF_ALWAYS | LE_ESC_ERASES,
+                         &s->le_rcv);
+    assert(!term->userpass_state);
+    term->userpass_state = s;
+    return s;
+}
+
+static void term_userpass_state_free(struct term_userpass_state *s)
+{
+    assert(s->term->userpass_state == s);
+    s->term->userpass_state = NULL;
+    lineedit_free(s->le);
+    sfree(s);
+}
+
+static void term_userpass_next_prompt(struct term_userpass_state *s)
+{
+    if (s->prompt_state != TUS_INITIAL)
+        return;
+    if (s->curr_prompt < s->prompts->n_prompts) {
+        prompt_t *pr = s->prompts->prompts[s->curr_prompt];
+        term_write(s->term, ptrlen_from_asciz(pr->prompt));
+        s->prompt_state = TUS_ACTIVE;
+        ldisc_provide_userpass_le(s->term->ldisc, s->le);
+    } else {
+        /* This triggers the callback provided by the userpass client,
+         * which will call term_userpass_state to fetch the result
+         * we're storing here */
+        signal_prompts_t(s->term, s->prompts, SPR_OK);
+    }
 }
 
 /*
@@ -7873,10 +7998,8 @@ SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p)
         /*
          * First call. Set some stuff up.
          */
-        p->data = s = snew(struct term_userpass_state);
+        p->data = s = term_userpass_state_new(term, p);
         p->spr = SPR_INCOMPLETE;
-        s->curr_prompt = 0;
-        s->done_prompt = false;
         /* We only print the `name' caption if we have to... */
         if (p->name_reqd && p->name) {
             ptrlen plname = ptrlen_from_asciz(p->name);
@@ -7899,98 +8022,11 @@ SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p)
             for (i = 0; i < (int)p->n_prompts; i++)
                 prompt_set_result(p->prompts[i], "");
         }
+        /* And print the first prompt. */
+        term_userpass_next_prompt(s);
     }
 
-    while (s->curr_prompt < p->n_prompts) {
-
-        prompt_t *pr = p->prompts[s->curr_prompt];
-        bool finished_prompt = false;
-
-        if (!s->done_prompt) {
-            term_write(term, ptrlen_from_asciz(pr->prompt));
-            s->done_prompt = true;
-        }
-
-        /* Breaking out here ensures that the prompt is printed even
-         * if we're now waiting for user data. */
-        if (!ldisc_has_input_buffered(term->ldisc))
-            break;
-
-        /* FIXME: should we be using local-line-editing code instead? */
-        while (!finished_prompt && ldisc_has_input_buffered(term->ldisc)) {
-            LdiscInputToken tok = ldisc_get_input_token(term->ldisc);
-
-            char c;
-            if (tok.is_special) {
-                switch (tok.code) {
-                  case SS_EOL: c = 13; break;
-                  case SS_EC: c = 8; break;
-                  case SS_IP: c = 3; break;
-                  case SS_EOF: c = 3; break;
-                  default: continue;
-                }
-            } else {
-                c = tok.chr;
-            }
-
-            switch (c) {
-              case 10:
-              case 13:
-                term_write(term, PTRLEN_LITERAL("\r\n"));
-                /* go to next prompt, if any */
-                s->curr_prompt++;
-                s->done_prompt = false;
-                finished_prompt = true; /* break out */
-                break;
-              case 8:
-              case 127:
-                if (pr->result->len > 0) {
-                    if (pr->echo)
-                        term_write(term, PTRLEN_LITERAL("\b \b"));
-                    strbuf_shrink_by(pr->result, 1);
-                }
-                break;
-              case 21:
-              case 27:
-                while (pr->result->len > 0) {
-                    if (pr->echo)
-                        term_write(term, PTRLEN_LITERAL("\b \b"));
-                    strbuf_shrink_by(pr->result, 1);
-                }
-                break;
-              case 3:
-              case 4:
-                /* Immediate abort. */
-                term_write(term, PTRLEN_LITERAL("\r\n"));
-                sfree(s);
-                p->data = NULL;
-                return signal_prompts_t(term, p, SPR_USER_ABORT);
-              default:
-                /*
-                 * This simplistic check for printability is disabled
-                 * when we're doing password input, because some people
-                 * have control characters in their passwords.
-                 */
-                if (!pr->echo || (c >= ' ' && c <= '~') ||
-                     ((unsigned char) c >= 160)) {
-                    put_byte(pr->result, c);
-                    if (pr->echo)
-                        term_write(term, make_ptrlen(&c, 1));
-                }
-                break;
-            }
-        }
-
-    }
-
-    if (s->curr_prompt < p->n_prompts) {
-        ldisc_enable_prompt_callback(term->ldisc, p);
-        return SPR_INCOMPLETE;
-    } else {
-        sfree(s);
-        p->data = NULL;
-        return signal_prompts_t(term, p, SPR_OK);
-    }
+    return SPR_INCOMPLETE;
 }
 
 void term_notify_minimised(Terminal *term, bool minimised)

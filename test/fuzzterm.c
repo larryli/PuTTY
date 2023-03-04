@@ -119,10 +119,7 @@ static const TermWinVtable fuzz_termwin_vt = {
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, bool interactive) {}
 void ldisc_echoedit_update(Ldisc *ldisc) {}
-bool ldisc_has_input_buffered(Ldisc *ldisc) { return false; }
-LdiscInputToken ldisc_get_input_token(Ldisc *ldisc)
-{ unreachable("This fake ldisc never has any buffered input"); }
-void ldisc_enable_prompt_callback(Ldisc *ldisc, prompts_t *p)
+void ldisc_provide_userpass_le(Ldisc *ldisc, TermLineEditor *le)
 { unreachable("This fake ldisc should never be used for user/pass prompts"); }
 void modalfatalbox(const char *fmt, ...) { exit(0); }
 void nonfatal(const char *fmt, ...) { }

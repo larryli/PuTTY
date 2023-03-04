@@ -656,9 +656,10 @@ static void test_edit(Mock *mk, bool echo)
     conf_set_bool(mk->conf, CONF_telnet_keyboard, false);
     ldisc_configure(mk->ldisc, mk->conf);
 
-    /* Test UTF-8 characters of various lengths and ensure deleting one
-     * deletes the whole character from the buffer (by pressing Return and
-     * seeing what gets sent) but only sends one BSB */
+    /* Test UTF-8 characters of various lengths and ensure deleting
+     * one deletes the whole character from the buffer (by pressing
+     * Return and seeing what gets sent) but sends a number of BSBs
+     * corresponding to the character's terminal width */
     mk->term->utf = true;
 
     ldisc_send(mk->ldisc, "\xC2\xA0\xC2\xA1", 4, false);
@@ -690,6 +691,29 @@ static void test_edit(Mock *mk, bool echo)
                                        "\x08 \x08"));
     ldisc_send(mk->ldisc, "\x0D", -1, false);
     EXPECT(mk, backend, PTRLEN_LITERAL("\xF0\x90\x80\x80\x0D\x0A"));
+    reset(mk);
+
+    /* Double-width characters (Hangul, as it happens) */
+    ldisc_send(mk->ldisc, "\xEA\xB0\x80\xEA\xB0\x81", 6, false);
+    EXPECT(mk, backend, PTRLEN_LITERAL(""));
+    EXPECT_TERMINAL(mk, PTRLEN_LITERAL("\xEA\xB0\x80\xEA\xB0\x81"));
+    ldisc_send(mk->ldisc, "\x08", -1, false);
+    EXPECT(mk, backend, PTRLEN_LITERAL(""));
+    EXPECT_TERMINAL(mk, PTRLEN_LITERAL("\xEA\xB0\x80\xEA\xB0\x81"
+                                       "\x08 \x08\x08 \x08"));
+    ldisc_send(mk->ldisc, "\x0D", -1, false);
+    EXPECT(mk, backend, PTRLEN_LITERAL("\xEA\xB0\x80\x0D\x0A"));
+    reset(mk);
+
+    /* Zero-width characters */
+    ldisc_send(mk->ldisc, "\xE2\x80\x8B\xE2\x80\x8B", 6, false);
+    EXPECT(mk, backend, PTRLEN_LITERAL(""));
+    EXPECT_TERMINAL(mk, PTRLEN_LITERAL("\xE2\x80\x8B\xE2\x80\x8B"));
+    ldisc_send(mk->ldisc, "\x08", -1, false);
+    EXPECT(mk, backend, PTRLEN_LITERAL(""));
+    EXPECT_TERMINAL(mk, PTRLEN_LITERAL("\xE2\x80\x8B\xE2\x80\x8B"));
+    ldisc_send(mk->ldisc, "\x0D", -1, false);
+    EXPECT(mk, backend, PTRLEN_LITERAL("\xE2\x80\x8B\x0D\x0A"));
     reset(mk);
 
     /* And reset back to non-UTF-8 mode and expect high-bit-set bytes

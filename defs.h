@@ -115,6 +115,11 @@ typedef struct LogContext LogContext;
 typedef struct LogPolicy LogPolicy;
 typedef struct LogPolicyVtable LogPolicyVtable;
 
+typedef struct TermLineEditor TermLineEditor;
+typedef struct TermLineEditorCallbackReceiver TermLineEditorCallbackReceiver;
+typedef struct TermLineEditorCallbackReceiverVtable
+    TermLineEditorCallbackReceiverVtable;
+
 typedef struct Seat Seat;
 typedef struct SeatVtable SeatVtable;
 typedef struct SeatDialogText SeatDialogText;

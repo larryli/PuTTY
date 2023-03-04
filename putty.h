@@ -2369,28 +2369,7 @@ void ldisc_configure(Ldisc *, Conf *);
 void ldisc_free(Ldisc *);
 void ldisc_send(Ldisc *, const void *buf, int len, bool interactive);
 void ldisc_echoedit_update(Ldisc *);
-typedef struct LdiscInputToken {
-    /*
-     * Structure that encodes any single item of data that Ldisc can
-     * buffer: either a single character of raw data, or a session
-     * special.
-     */
-    bool is_special;
-    union {
-        struct {
-            /* if is_special == false */
-            char chr;
-        };
-        struct {
-            /* if is_special == true */
-            SessionSpecialCode code;
-            int arg;
-        };
-    };
-} LdiscInputToken;
-bool ldisc_has_input_buffered(Ldisc *);
-LdiscInputToken ldisc_get_input_token(Ldisc *); /* asserts there is input */
-void ldisc_enable_prompt_callback(Ldisc *, prompts_t *);
+void ldisc_provide_userpass_le(Ldisc *, TermLineEditor *);
 void ldisc_check_sendok(Ldisc *);
 
 /*

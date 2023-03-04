@@ -74,6 +74,8 @@ struct term_utf8_decode {
     int size;                          /* The size of the UTF character. */
 };
 
+struct term_userpass_state;
+
 struct terminal_tag {
 
     int compatibility_level;
@@ -428,6 +430,12 @@ struct terminal_tag {
         WIN_RESIZE_NO, WIN_RESIZE_NEED_SEND, WIN_RESIZE_AWAIT_REPLY
     } win_resize_pending;
     int win_resize_pending_w, win_resize_pending_h;
+
+    /*
+     * Indicates whether term_get_userpass_input is currently using
+     * the terminal to present a password prompt or similar.
+     */
+    struct term_userpass_state *userpass_state;
 };
 
 static inline bool in_utf(Terminal *term)
@@ -560,5 +568,45 @@ static inline bool decpos_fn(pos *p, int cols)
  * site. */
 #define incpos(p) incpos_fn(&(p), GET_TERM_COLS)
 #define decpos(p) decpos_fn(&(p), GET_TERM_COLS)
+
+struct TermLineEditorCallbackReceiverVtable {
+    void (*to_terminal)(TermLineEditorCallbackReceiver *rcv, ptrlen data);
+    void (*to_backend)(TermLineEditorCallbackReceiver *rcv, ptrlen data);
+    void (*special)(TermLineEditorCallbackReceiver *rcv,
+                    SessionSpecialCode code, int arg);
+    void (*newline)(TermLineEditorCallbackReceiver *rcv);
+};
+struct TermLineEditorCallbackReceiver {
+    const TermLineEditorCallbackReceiverVtable *vt;
+};
+TermLineEditor *lineedit_new(Terminal *term, unsigned flags,
+                             TermLineEditorCallbackReceiver *receiver);
+void lineedit_free(TermLineEditor *le);
+void lineedit_input(TermLineEditor *le, char ch, bool dedicated);
+void lineedit_modify_flags(TermLineEditor *le, unsigned clr, unsigned flip);
+void lineedit_send_line(TermLineEditor *le);
+
+/*
+ * Flags controlling the behaviour of TermLineEditor.
+ */
+#define LINEEDIT_FLAGS(X) \
+    X(LE_INTERRUPT)           /* pass SS_IP back to client on ^C */ \
+    X(LE_SUSPEND)             /* pass SS_SUSP back to client on ^Z */ \
+    X(LE_ABORT)               /* pass SS_ABORT back to client on ^\ */ \
+    X(LE_EOF_ALWAYS)          /* pass SS_EOF to client on *any* ^Z
+                               * (X(not)just if the line buffer is empty) */ \
+    X(LE_ESC_ERASES)          /* make ESC erase the line, as well as ^U */ \
+    X(LE_CRLF_NEWLINE)        /* interpret manual ^M^J the same as Return */ \
+    /* end of list */
+enum {
+    #define ALLOCATE_BIT_POSITION(flag) flag ## _bitpos,
+    LINEEDIT_FLAGS(ALLOCATE_BIT_POSITION)
+    #undef ALLOCATE_BIT_POSITION
+};
+enum {
+    #define DEFINE_FLAG_BIT(flag) flag = 1 << flag ## _bitpos,
+    LINEEDIT_FLAGS(DEFINE_FLAG_BIT)
+    #undef DEFINE_FLAG_BIT
+};
 
 #endif
