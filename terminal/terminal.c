@@ -89,7 +89,7 @@ static void term_userpass_state_free(struct term_userpass_state *s);
  * Internal prototypes.
  */
 static void resizeline(Terminal *, termline *, int);
-static termline *lineptr(Terminal *, int, int, int);
+static termline *lineptr(Terminal *, int, int);
 static void unlineptr(termline *);
 static void check_line_size(Terminal *, termline *);
 static void do_paint(Terminal *);
@@ -1171,12 +1171,19 @@ static void null_line_error(Terminal *term, int y, int lineno,
                   term->alt_sblines, whichtree, treeindex, commitid);
 }
 
+static inline int checkscr(int y, int lineno)
+{
+    if (y < 0)
+        modalfatalbox("screen line %d < 0 in terminal.c:%d", y, lineno);
+    return y;
+}
+
 /*
  * Retrieve a line of the screen or of the scrollback, according to
  * whether the y coordinate is non-negative or negative
  * (respectively).
  */
-static termline *lineptr(Terminal *term, int y, int lineno, int screen)
+static termline *lineptr(Terminal *term, int y, int lineno)
 {
     termline *line;
     tree234 *whichtree;
@@ -1187,8 +1194,6 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
         treeindex = y;
     } else {
         int altlines = 0;
-
-        assert(!screen);
 
         if (term->erase_to_scrollback &&
             term->alt_which && term->alt_screen) {
@@ -1240,8 +1245,25 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
     return line;
 }
 
-#define lineptr(x) (lineptr)(term,x,__LINE__,0)
-#define scrlineptr(x) (lineptr)(term,x,__LINE__,1)
+/*
+ * Macro wrappers for lineptr. The distinction between lineptr and
+ * scrlineptr is that lineptr can retrieve any line, from the screen
+ * _or_ from scrollback, and in return, you have to call unlineptr
+ * when you're done with it, in case it was a dynamically allocated
+ * line decompressed from scrollback that needs freeing. But
+ * scrlineptr will only retrieve lines from the active screen (and
+ * enforces this by an assertion), which means it's always just
+ * returning a pointer to an existing unpacked termline, and you don't
+ * have to call unlineptr afterwards. So drawing code (which might
+ * need the scrollback) will have to call lineptr/unlineptr, but
+ * update code during term_out can call scrlineptr.
+ *
+ * The 'assertion' in scrlineptr is done using a helper function that
+ * returns the input column number, which allows this macro to avoid
+ * double-evaluating its argument.
+ */
+#define lineptr(x) (lineptr)(term,x,__LINE__)
+#define scrlineptr(x) (lineptr)(term,checkscr(x,__LINE__),__LINE__)
 
 /*
  * Coerce a termline to the terminal's current width. Unlike the
