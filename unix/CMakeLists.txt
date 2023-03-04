@@ -226,3 +226,13 @@ target_link_libraries(pageant
   eventloop console agent settings network crypto utils
   ${pageant_libs})
 installed_program(pageant)
+
+add_executable(test_lineedit
+  ${CMAKE_SOURCE_DIR}/test/test_lineedit.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-logging.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-printing.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-storage.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-timing.c)
+target_link_libraries(test_lineedit
+  guiterminal settings eventloop charset utils ${platform_libraries})

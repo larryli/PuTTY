@@ -188,3 +188,14 @@ target_link_libraries(test_split_into_argv utils ${platform_libraries})
 add_executable(test_screenshot
   test_screenshot.c)
 target_link_libraries(test_screenshot utils ${platform_libraries})
+
+add_executable(test_lineedit
+  ${CMAKE_SOURCE_DIR}/test/test_lineedit.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-logging.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-printing.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-storage.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-timing.c
+  no-jump-list.c)
+target_link_libraries(test_lineedit
+  guiterminal settings eventloop utils ${platform_libraries})
