@@ -90,7 +90,6 @@ static void term_userpass_state_free(struct term_userpass_state *s);
  */
 static void resizeline(Terminal *, termline *, int);
 static termline *lineptr(Terminal *, int, int);
-static void unlineptr(termline *);
 static void check_line_size(Terminal *, termline *);
 static void do_paint(Terminal *);
 static void erase_lots(Terminal *, bool, bool, bool);
@@ -131,7 +130,7 @@ static void freetermline(termline *line)
     }
 }
 
-static void unlineptr(termline *line)
+void term_release_line(termline *line)
 {
     if (line->temporary)
         freetermline(line);
@@ -1264,6 +1263,10 @@ static termline *lineptr(Terminal *term, int y, int lineno)
  */
 #define lineptr(x) (lineptr)(term,x,__LINE__)
 #define scrlineptr(x) (lineptr)(term,checkscr(x,__LINE__),__LINE__)
+#define unlineptr(line) term_release_line(line)
+
+/* Wrapper for external use (e.g. tests), without the __LINE__ parameter */
+termline *term_get_line(Terminal *term, int y) { return lineptr(y); }
 
 /*
  * Coerce a termline to the terminal's current width. Unlike the

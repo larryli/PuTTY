@@ -613,4 +613,7 @@ enum {
     #undef DEFINE_FLAG_BIT
 };
 
+termline *term_get_line(Terminal *term, int y);
+void term_release_line(termline *line);
+
 #endif
