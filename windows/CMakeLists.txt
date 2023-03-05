@@ -199,3 +199,12 @@ add_executable(test_lineedit
   no-jump-list.c)
 target_link_libraries(test_lineedit
   guiterminal settings eventloop utils ${platform_libraries})
+
+add_executable(test_terminal
+  ${CMAKE_SOURCE_DIR}/test/test_terminal.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-storage.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-timing.c
+  no-jump-list.c)
+target_link_libraries(test_terminal
+  guiterminal settings eventloop utils ${platform_libraries})
