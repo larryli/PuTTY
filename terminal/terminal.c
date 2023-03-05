@@ -2053,111 +2053,49 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
      * that need it.
      */
     term = snew(Terminal);
+    memset(term, 0, sizeof(Terminal));
     term->win = win;
     term->ucsdata = ucsdata;
     term->conf = conf_copy(myconf);
-    term->logctx = NULL;
     term->compatibility_level = TM_PUTTY;
     strcpy(term->id_string, "\033[?6c");
-    term->cblink_pending = term->tblink_pending = false;
-    term->paste_buffer = NULL;
-    term->paste_len = 0;
     bufchain_init(&term->inbuf);
     bufchain_init(&term->printer_buf);
-    term->ldisc = NULL;
-    term->printing = term->only_printing = false;
-    term->print_job = NULL;
-    term->vt52_mode = false;
-    term->cr_lf_return = false;
-    term->seen_disp_event = false;
-    term->mouse_is_down = 0;
-    term->reset_132 = false;
-    term->cblinker = false;
-    term->tblinker = false;
     term->has_focus = true;
-    term->repeat_off = false;
     term->termstate = TOPLEVEL;
     term->selstate = NO_SELECTION;
-    term->curstype = 0;
     term->answerback = strbuf_new();
 
     term_copy_stuff_from_conf(term);
 
-    term->screen = term->alt_screen = term->scrollback = NULL;
-    term->tempsblines = 0;
-    term->alt_sblines = 0;
-    term->disptop = 0;
-    term->disptext = NULL;
     term->dispcursx = term->dispcursy = -1;
-    term->tabs = NULL;
     deselect(term);
     term->rows = term->cols = -1;
     power_on(term, true);
-    term->beephead = term->beeptail = NULL;
-    term->nbeeps = 0;
-    term->lastbeep = false;
-    term->beep_overloaded = false;
     term->attr_mask = 0xffffffff;
-    term->backend = NULL;
-    term->in_term_out = false;
-    term->ltemp = NULL;
-    term->ltemp_size = 0;
-    term->wcFrom = NULL;
-    term->wcTo = NULL;
-    term->wcFromTo_size = 0;
-
-    term->window_update_pending = false;
-    term->window_update_cooldown = false;
-
-    term->bidi_cache_size = 0;
-    term->pre_bidi_cache = term->post_bidi_cache = NULL;
 
     /* FULL-TERMCHAR */
     term->basic_erase_char.chr = CSET_ASCII | ' ';
     term->basic_erase_char.attr = ATTR_DEFAULT;
-    term->basic_erase_char.cc_next = 0;
     term->basic_erase_char.truecolour.fg = optionalrgb_none;
     term->basic_erase_char.truecolour.bg = optionalrgb_none;
     term->erase_char = term->basic_erase_char;
 
-    term->last_selected_text = NULL;
-    term->last_selected_attr = NULL;
-    term->last_selected_tc = NULL;
-    term->last_selected_len = 0;
     /* TermWin implementations will typically extend these with
      * clipboard ids they know about */
     term->mouse_select_clipboards[0] = CLIP_LOCAL;
     term->n_mouse_select_clipboards = 1;
     term->mouse_paste_clipboard = CLIP_NULL;
 
-    term->last_graphic_char = 0;
-
     term->trusted = true;
-
-    term->bracketed_paste_active = false;
 
     term->window_title = dupstr("");
     term->icon_title = dupstr("");
     term->wintitle_codepage = term->icontitle_codepage = DEFAULT_CODEPAGE;
-    term->minimised = false;
-    term->winpos_x = term->winpos_y = 0;
-    term->winpixsize_x = term->winpixsize_y = 0;
 
-    term->win_move_pending = false;
     term->win_resize_pending = WIN_RESIZE_NO;
-    term->win_zorder_pending = false;
-    term->win_minimise_pending = false;
-    term->win_maximise_pending = false;
-    term->win_title_pending = false;
-    term->win_icon_title_pending = false;
-    term->win_pointer_shape_pending = false;
-    term->win_refresh_pending = false;
-    term->win_scrollbar_update_pending = false;
-    term->win_palette_pending = false;
 
     term->bidi_ctx = bidi_new_context();
-
-    term->userpass_state = NULL;
 
     palette_reset(term, false);
 
