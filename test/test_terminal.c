@@ -326,6 +326,57 @@ static void test_wrap(Mock *mk)
     IEQUAL(mk->term->curs.x, 78);
     IEQUAL(mk->term->curs.y, 0);
     IEQUAL(mk->term->wrapnext, 0);
+
+    /*
+     * Now test the special cases that arise when the terminal is only
+     * one column wide!
+     */
+
+    reset(mk);
+    term_size(mk->term, 24, 1, 0);
+    mk->term->curs.x = 0;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* Printing a single-width character takes us into wrapnext immediately */
+    term_datapl(mk->term, PTRLEN_LITERAL("a"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, CSET_ASCII | 'a');
+    /* Printing a second one wraps, and takes us _back_ to wrapnext */
+    term_datapl(mk->term, PTRLEN_LITERAL("b"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), LATTR_WRAPPED);
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, CSET_ASCII | 'a');
+    IEQUAL(get_termchar(mk->term, 0, 1).chr, CSET_ASCII | 'b');
+    /* Backspacing once clears the wrapnext flag, putting us on the b */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    /* Backspacing again returns to the previous line, putting us on the a */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+
+    /* And now try with a double-width character */
+    reset(mk);
+    term_size(mk->term, 24, 1, 0);
+    mk->term->curs.x = 0;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* DW character won't fit at all, so it transforms into U+FFFD
+     * REPLACEMENT CHARACTER and then behaves like a SW char */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x80"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, 0xFFFD);
 }
 
 int main(void)

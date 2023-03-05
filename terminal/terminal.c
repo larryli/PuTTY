@@ -3997,7 +3997,10 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 break;
               }
               case '\b':              /* BS: Back space */
-                if (term->curs.x == 0 && (term->curs.y == 0 || !term->wrap)) {
+                if (term->wrapnext) {
+                    term->wrapnext = false;
+                } else if (term->curs.x == 0 &&
+                           (term->curs.y == 0 || !term->wrap)) {
                     /* do nothing */
                 } else if (term->curs.x == 0 && term->curs.y > 0) {
                     term->curs.x = term->cols - 1, term->curs.y--;
@@ -4021,8 +4024,6 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     termline *ldata = scrlineptr(term->curs.y);
                     if (term->curs.x > 0 && (ldata->lattr & LATTR_WRAPPED2))
                         term->curs.x--;
-                } else if (term->wrapnext) {
-                    term->wrapnext = false;
                 } else {
                     term->curs.x--;
                 }
