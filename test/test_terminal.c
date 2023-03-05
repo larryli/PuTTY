@@ -34,6 +34,8 @@ typedef struct Mock {
 
     strbuf *context;
 
+    bool any_test_failed;
+
     TermWin tw;
 } Mock;
 
@@ -118,6 +120,7 @@ static void report_fail(Mock *mk, const char *file, int line,
     vprintf(fmt, ap);
     va_end(ap);
     printf("\n");
+    mk->any_test_failed = true;
 }
 
 static inline void check_iequal(Mock *mk, const char *file, int line,
@@ -492,6 +495,14 @@ int main(void)
     test_wrap(mk);
     test_nonwrap(mk);
 
+    bool failed = mk->any_test_failed;
     mock_free(mk);
-    return 0;
+
+    if (failed) {
+        printf("Test suite FAILED!\n");
+        return 1;
+    } else {
+        printf("Test suite passed\n");
+        return 0;
+    }
 }

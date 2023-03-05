@@ -44,6 +44,8 @@ typedef struct Mock {
 
     strbuf *context;                   /* for printing in failed tests */
 
+    bool any_test_failed;
+
     TermWin tw;
     Seat seat;
     Backend backend;
@@ -193,6 +195,7 @@ static void expect_backend(Mock *mk, const char *file, int line,
         printf("\", got \"");
         write_c_string_literal(stdout, actual);
         printf("\"\n");
+        mk->any_test_failed = true;
     }
 }
 
@@ -207,6 +210,7 @@ static void expect_terminal(Mock *mk, const char *file, int line,
         printf("\", got \"");
         write_c_string_literal(stdout, actual);
         printf("\"\n");
+        mk->any_test_failed = true;
     }
 }
 
@@ -252,6 +256,7 @@ static void expect_specials(Mock *mk, const char *file, int line,
                    mk->specials[i].arg);
         }
         printf(" ]\n");
+        mk->any_test_failed = true;
     }
 }
 
@@ -754,6 +759,15 @@ int main(void)
     test_edit(mk, false);
 
     ldisc_free(ldisc);
+
+    bool failed = mk->any_test_failed;
     mock_free(mk);
-    return 0;
+
+    if (failed) {
+        printf("Test suite FAILED!\n");
+        return 1;
+    } else {
+        printf("Test suite passed\n");
+        return 0;
+    }
 }

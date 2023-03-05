@@ -140,6 +140,8 @@ delegate -
 in putty do cmake . -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak" -DSTRICT=ON
 in putty do make -j$(nproc) VERBOSE=1
 in putty do python3 test/cryptsuite.py
+in putty do ./test_lineedit
+in putty do ./test_terminal
 enddelegate
 
 delegate -
