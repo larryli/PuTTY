@@ -379,6 +379,110 @@ static void test_wrap(Mock *mk)
     IEQUAL(get_termchar(mk->term, 0, 0).chr, 0xFFFD);
 }
 
+static void test_nonwrap(Mock *mk)
+{
+    /* Test behaviour when printing characters hit end of line without wrap */
+    mk->ucsdata->line_codepage = CP_UTF8;
+
+    /* Print 'abc' without enough space for the c */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = false;
+    /* The 'a' prints without anything unusual happening */
+    term_datapl(mk->term, PTRLEN_LITERAL("a"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    /* The 'b' prints, leaving the cursor where it is with wrapnext set */
+    term_datapl(mk->term, PTRLEN_LITERAL("b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | 'b');
+    /* The 'c' overwrites the b, leaving wrapnext still set */
+    term_datapl(mk->term, PTRLEN_LITERAL("c"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | 'c');
+    /* So backspacing clears wrapnext, leaving us on the c */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+    /* And backspacing again returns the cursor to the a */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 78);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+
+    /* Now try it with a double-width character in place of ab */
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = false;
+    /* The DW character goes directly to the wrapnext state */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x80"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, 0xAC00);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, UCSWIDE);
+    /* The 'c' must overprint the RHS of the DW char, clearing the LHS */
+    term_datapl(mk->term, PTRLEN_LITERAL("c"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | ' ');
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | 'c');
+
+    /* Now put the DW char in place of the bc */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = false;
+    /* The 'a' prints as before */
+    term_datapl(mk->term, PTRLEN_LITERAL("a"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    /* The DW char won't fit, so turns into U+FFFD REPLACEMENT CHARACTER */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x80"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, 0xFFFD);
+
+    /* Just for completeness, try both of those together */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = false;
+    /* First DW character goes directly to the wrapnext state */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x80"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, 0xAC00);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, UCSWIDE);
+    /* Second DW char becomes U+FFFD, overwriting RHS of the first one */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x81"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | ' ');
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, 0xFFFD);
+}
+
 int main(void)
 {
     Mock *mk = mock_new();
@@ -386,6 +490,7 @@ int main(void)
 
     test_hello_world(mk);
     test_wrap(mk);
+    test_nonwrap(mk);
 
     mock_free(mk);
     return 0;
