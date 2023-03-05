@@ -147,6 +147,14 @@ static struct termchar get_termchar(Terminal *term, int x, int y)
     return tc;
 }
 
+static unsigned short get_lineattr(Terminal *term, int y)
+{
+    termline *tl = term_get_line(term, y);
+    unsigned short lattr = tl->lattr;
+    term_release_line(tl);
+    return lattr;
+}
+
 static void test_hello_world(Mock *mk)
 {
     /* A trivial test just to kick off this test framework */
@@ -170,12 +178,162 @@ static void test_hello_world(Mock *mk)
     IEQUAL(get_termchar(mk->term, 11, 0).chr, CSET_ASCII | 'd');
 }
 
+static void test_wrap(Mock *mk)
+{
+    /* Test behaviour when printing characters wrap to the next line */
+    mk->ucsdata->line_codepage = CP_UTF8;
+
+    /* Print 'abc' without enough space for the c, in wrapping mode */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* The 'a' prints without anything unusual happening */
+    term_datapl(mk->term, PTRLEN_LITERAL("a"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    /* The 'b' prints, leaving the cursor where it is with wrapnext set */
+    term_datapl(mk->term, PTRLEN_LITERAL("b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | 'b');
+    /* And now the 'c' causes a deferred wrap and goes to the next line */
+    term_datapl(mk->term, PTRLEN_LITERAL("c"));
+    IEQUAL(mk->term->curs.x, 1);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_lineattr(mk->term, 0), LATTR_WRAPPED);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | 'b');
+    IEQUAL(get_termchar(mk->term, 0, 1).chr, CSET_ASCII | 'c');
+    /* If we backspace once, the cursor moves back on to the c */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    /* Now backspace again, and the cursor returns to the b */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+
+    /* Now try it with a double-width character in place of ab */
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* The DW character goes directly to the wrapnext state */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x80"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, 0xAC00);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, UCSWIDE);
+    /* And the 'c' causes a deferred wrap as before */
+    term_datapl(mk->term, PTRLEN_LITERAL("c"));
+    IEQUAL(mk->term->curs.x, 1);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_lineattr(mk->term, 0), LATTR_WRAPPED);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, 0xAC00);
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, UCSWIDE);
+    IEQUAL(get_termchar(mk->term, 0, 1).chr, CSET_ASCII | 'c');
+    /* If we backspace once, the cursor moves back on to the c */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    /* Now backspace again, and the cursor goes to the RHS of the DW char */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+
+    /* Now put the DW character in place of bc */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* The 'a' prints as before */
+    term_datapl(mk->term, PTRLEN_LITERAL("a"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    /* The DW character wraps, setting LATTR_WRAPPED2 */
+    term_datapl(mk->term, PTRLEN_LITERAL("\xEA\xB0\x80"));
+    IEQUAL(mk->term->curs.x, 2);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_lineattr(mk->term, 0), LATTR_WRAPPED | LATTR_WRAPPED2);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | ' ');
+    IEQUAL(get_termchar(mk->term, 0, 1).chr, 0xAC00);
+    IEQUAL(get_termchar(mk->term, 1, 1).chr, UCSWIDE);
+    /* If we backspace once, cursor moves to the RHS of the DW char */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 1);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    /* Backspace again, and cursor moves from RHS to LHS of that char */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 0);
+    IEQUAL(mk->term->curs.y, 1);
+    IEQUAL(mk->term->wrapnext, 0);
+    /* Now backspace again, and the cursor goes to the empty column */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+
+    /* Print 'ab' up to the rightmost column, and then backspace */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* As before, the 'ab' put us in the rightmost column with wrapnext set */
+    term_datapl(mk->term, PTRLEN_LITERAL("ab"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 1);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    IEQUAL(get_termchar(mk->term, 79, 0).chr, CSET_ASCII | 'b');
+    /* Backspacing just clears the wrapnext flag, so we're logically
+     * back on the b again */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+
+    /* For completeness, the easy case: just print 'a' then backspace */
+    reset(mk);
+    mk->term->curs.x = 78;
+    mk->term->curs.y = 0;
+    mk->term->wrap = true;
+    /* 'a' printed in column n-1 takes us to column n */
+    term_datapl(mk->term, PTRLEN_LITERAL("a"));
+    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+    IEQUAL(get_lineattr(mk->term, 0), 0);
+    IEQUAL(get_termchar(mk->term, 78, 0).chr, CSET_ASCII | 'a');
+    /* Backspacing moves us back a space on to the a */
+    term_datapl(mk->term, PTRLEN_LITERAL("\b"));
+    IEQUAL(mk->term->curs.x, 78);
+    IEQUAL(mk->term->curs.y, 0);
+    IEQUAL(mk->term->wrapnext, 0);
+}
+
 int main(void)
 {
     Mock *mk = mock_new();
     mk->term = term_init(mk->conf, mk->ucsdata, &mk->tw);
 
     test_hello_world(mk);
+    test_wrap(mk);
 
     mock_free(mk);
     return 0;
