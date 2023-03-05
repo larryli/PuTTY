@@ -2064,6 +2064,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->paste_len = 0;
     bufchain_init(&term->inbuf);
     bufchain_init(&term->printer_buf);
+    term->ldisc = NULL;
     term->printing = term->only_printing = false;
     term->print_job = NULL;
     term->vt52_mode = false;
