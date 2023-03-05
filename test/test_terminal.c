@@ -282,9 +282,10 @@ static void test_wrap(Mock *mk)
     IEQUAL(mk->term->curs.x, 0);
     IEQUAL(mk->term->curs.y, 1);
     IEQUAL(mk->term->wrapnext, 0);
-    /* Now backspace again, and the cursor goes to the empty column */
+    /* Now backspace again, and the cursor skips the empty column so
+     * that it can return to the previous logical character, to wit, the a */
     term_datapl(mk->term, PTRLEN_LITERAL("\b"));
-    IEQUAL(mk->term->curs.x, 79);
+    IEQUAL(mk->term->curs.x, 78);
     IEQUAL(mk->term->curs.y, 0);
     IEQUAL(mk->term->wrapnext, 0);
 

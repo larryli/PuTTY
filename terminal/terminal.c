@@ -3997,14 +3997,35 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 break;
               }
               case '\b':              /* BS: Back space */
-                if (term->curs.x == 0 && (term->curs.y == 0 || !term->wrap))
-                    /* do nothing */ ;
-                else if (term->curs.x == 0 && term->curs.y > 0)
+                if (term->curs.x == 0 && (term->curs.y == 0 || !term->wrap)) {
+                    /* do nothing */
+                } else if (term->curs.x == 0 && term->curs.y > 0) {
                     term->curs.x = term->cols - 1, term->curs.y--;
-                else if (term->wrapnext)
+
+                    /*
+                     * If the line we've just wrapped back on to had the
+                     * LATTR_WRAPPED2 flag set, it means that the line wrapped
+                     * because a double-width character was printed with the
+                     * cursor in the rightmost column, and the best handling
+                     * available was to leave that column empty and move the
+                     * whole character to the next line. In that situation,
+                     * backspacing needs to put the cursor on the previous
+                     * _logical_ character, i.e. skip the empty space left by
+                     * the wrapping. This arranges that if an application
+                     * unaware of the terminal width or cursor position prints
+                     * a number of printing characters and then tries to return
+                     * to a particular one of them by emitting the right number
+                     * of backspaces, it's still the right number even if a
+                     * line break appeared in a maximally awkward position.
+                     */
+                    termline *ldata = scrlineptr(term->curs.y);
+                    if (term->curs.x > 0 && (ldata->lattr & LATTR_WRAPPED2))
+                        term->curs.x--;
+                } else if (term->wrapnext) {
                     term->wrapnext = false;
-                else
+                } else {
                     term->curs.x--;
+                }
                 seen_disp_event(term);
                 break;
               case '\016':            /* LS1: Locking-shift one */
