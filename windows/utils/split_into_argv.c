@@ -173,7 +173,7 @@ void split_into_argv(char *cmdline, bool includes_program_name,
      * First deal with the simplest of all special cases: if there
      * aren't any arguments, return 0,NULL,NULL.
      */
-    while (*cmdline && isspace(*cmdline)) cmdline++;
+    while (*cmdline && isspace((unsigned char)*cmdline)) cmdline++;
     if (!*cmdline) {
         if (argc) *argc = 0;
         if (argv) *argv = NULL;
@@ -195,7 +195,7 @@ void split_into_argv(char *cmdline, bool includes_program_name,
         bool quote;
 
         /* Skip whitespace searching for start of argument. */
-        while (*p && isspace(*p)) p++;
+        while (*p && isspace((unsigned char)*p)) p++;
         if (!*p) break;
 
         /*
@@ -240,7 +240,7 @@ void split_into_argv(char *cmdline, bool includes_program_name,
 
         /* Copy data into the argument until it's finished. */
         while (*p) {
-            if (!quote && isspace(*p))
+            if (!quote && isspace((unsigned char)*p))
                 break;                 /* argument is finished */
 
             if (*p == '"' || (*p == '\\' && backslash_special)) {

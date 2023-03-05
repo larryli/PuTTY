@@ -863,7 +863,7 @@ char *handle_restrict_acl_cmdline_prefix(char *p)
      * pointer past the prefix. Returns the updated pointer (whether
      * it moved or not).
      */
-    while (*p && isspace(*p))
+    while (*p && isspace((unsigned char)*p))
         p++;
     if (*p == '&' && p[1] == 'R' &&
         (!p[2] || p[2] == '@' || p[2] == '&')) {
