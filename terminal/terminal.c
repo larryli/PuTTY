@@ -6761,68 +6761,39 @@ static int wordtype(Terminal *term, int uc)
         int start, end, ctype;
     };
     static const struct ucsword ucs_words[] = {
-        {
-        128, 160, 0}, {
-        161, 191, 1}, {
-        215, 215, 1}, {
-        247, 247, 1}, {
-        0x037e, 0x037e, 1},            /* Greek question mark */
-        {
-        0x0387, 0x0387, 1},            /* Greek ano teleia */
-        {
-        0x055a, 0x055f, 1},            /* Armenian punctuation */
-        {
-        0x0589, 0x0589, 1},            /* Armenian full stop */
-        {
-        0x0700, 0x070d, 1},            /* Syriac punctuation */
-        {
-        0x104a, 0x104f, 1},            /* Myanmar punctuation */
-        {
-        0x10fb, 0x10fb, 1},            /* Georgian punctuation */
-        {
-        0x1361, 0x1368, 1},            /* Ethiopic punctuation */
-        {
-        0x166d, 0x166e, 1},            /* Canadian Syl. punctuation */
-        {
-        0x17d4, 0x17dc, 1},            /* Khmer punctuation */
-        {
-        0x1800, 0x180a, 1},            /* Mongolian punctuation */
-        {
-        0x2000, 0x200a, 0},            /* Various spaces */
-        {
-        0x2070, 0x207f, 2},            /* superscript */
-        {
-        0x2080, 0x208f, 2},            /* subscript */
-        {
-        0x200b, 0x27ff, 1},            /* punctuation and symbols */
-        {
-        0x3000, 0x3000, 0},            /* ideographic space */
-        {
-        0x3001, 0x3020, 1},            /* ideographic punctuation */
-        {
-        0x303f, 0x309f, 3},            /* Hiragana */
-        {
-        0x30a0, 0x30ff, 3},            /* Katakana */
-        {
-        0x3300, 0x9fff, 3},            /* CJK Ideographs */
-        {
-        0xac00, 0xd7a3, 3},            /* Hangul Syllables */
-        {
-        0xf900, 0xfaff, 3},            /* CJK Ideographs */
-        {
-        0xfe30, 0xfe6b, 1},            /* punctuation forms */
-        {
-        0xff00, 0xff0f, 1},            /* half/fullwidth ASCII */
-        {
-        0xff1a, 0xff20, 1},            /* half/fullwidth ASCII */
-        {
-        0xff3b, 0xff40, 1},            /* half/fullwidth ASCII */
-        {
-        0xff5b, 0xff64, 1},            /* half/fullwidth ASCII */
-        {
-        0xfff0, 0xffff, 0},            /* half/fullwidth ASCII */
-        {
-        0, 0, 0}
+        {128, 160, 0},
+        {161, 191, 1},
+        {215, 215, 1},
+        {247, 247, 1},
+        {0x037e, 0x037e, 1},           /* Greek question mark */
+        {0x0387, 0x0387, 1},           /* Greek ano teleia */
+        {0x055a, 0x055f, 1},           /* Armenian punctuation */
+        {0x0589, 0x0589, 1},           /* Armenian full stop */
+        {0x0700, 0x070d, 1},           /* Syriac punctuation */
+        {0x104a, 0x104f, 1},           /* Myanmar punctuation */
+        {0x10fb, 0x10fb, 1},           /* Georgian punctuation */
+        {0x1361, 0x1368, 1},           /* Ethiopic punctuation */
+        {0x166d, 0x166e, 1},           /* Canadian Syl. punctuation */
+        {0x17d4, 0x17dc, 1},           /* Khmer punctuation */
+        {0x1800, 0x180a, 1},           /* Mongolian punctuation */
+        {0x2000, 0x200a, 0},           /* Various spaces */
+        {0x2070, 0x207f, 2},           /* superscript */
+        {0x2080, 0x208f, 2},           /* subscript */
+        {0x200b, 0x27ff, 1},           /* punctuation and symbols */
+        {0x3000, 0x3000, 0},           /* ideographic space */
+        {0x3001, 0x3020, 1},           /* ideographic punctuation */
+        {0x303f, 0x309f, 3},           /* Hiragana */
+        {0x30a0, 0x30ff, 3},           /* Katakana */
+        {0x3300, 0x9fff, 3},           /* CJK Ideographs */
+        {0xac00, 0xd7a3, 3},           /* Hangul Syllables */
+        {0xf900, 0xfaff, 3},           /* CJK Ideographs */
+        {0xfe30, 0xfe6b, 1},           /* punctuation forms */
+        {0xff00, 0xff0f, 1},           /* half/fullwidth ASCII */
+        {0xff1a, 0xff20, 1},           /* half/fullwidth ASCII */
+        {0xff3b, 0xff40, 1},           /* half/fullwidth ASCII */
+        {0xff5b, 0xff64, 1},           /* half/fullwidth ASCII */
+        {0xfff0, 0xffff, 0},           /* half/fullwidth ASCII */
+        {0, 0, 0}
     };
     const struct ucsword *wptr;
 
