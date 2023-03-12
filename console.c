@@ -10,26 +10,26 @@
 #include "console.h"
 
 const char weakcrypto_msg_common_fmt[] =
-    "The first %s supported by the server is\n"
-    "%s, which is below the configured warning threshold.\n";
+    "服务器支持的第一个 %s 为\n"
+    "%s，其低于配置的警告阀值。\n";
 
 const char weakhk_msg_common_fmt[] =
-    "The first host key type we have stored for this server\n"
-    "is %s, which is below the configured warning threshold.\n"
-    "The server also provides the following types of host key\n"
-    "above the threshold, which we do not have stored:\n"
+    "此服务器要存储的第一个主机密钥类型\n"
+    "为 %s，其低于配置的警告阀值。\n"
+    "此服务器同时也提供有下列高于阀值的\n"
+    "主机密钥类型（不会存储）：\n"
     "%s\n";
 
-const char console_continue_prompt[] = "Continue with connection? (y/n) ";
-const char console_abandoned_msg[] = "Connection abandoned.\n";
+const char console_continue_prompt[] = "是否继续连接? (y/n) ";
+const char console_abandoned_msg[] = "连接已放弃。\n";
 
 const SeatDialogPromptDescriptions *console_prompt_descriptions(Seat *seat)
 {
     static const SeatDialogPromptDescriptions descs = {
-        .hk_accept_action = "enter \"y\"",
-        .hk_connect_once_action = "enter \"n\"",
-        .hk_cancel_action = "press Return",
-        .hk_cancel_action_Participle = "Pressing Return",
+        .hk_accept_action = "输入 \"y\"",
+        .hk_connect_once_action = "输入 \"n\"",
+        .hk_cancel_action = "按回车",
+        .hk_cancel_action_Participle = "按回车",
     };
     return &descs;
 }
