@@ -83,6 +83,8 @@ dwmapi_test_wrapper()
 
 set(NO_SECURITY ${PUTTY_NO_SECURITY})
 
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/source-charset:utf-8>")
+
 add_compile_definitions(
   _WINDOWS
   _CRT_SECURE_NO_WARNINGS
@@ -104,10 +106,10 @@ if(WINELIB)
   set(LFLAG_MANIFEST_NO "")
 elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC" OR
        CMAKE_C_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")
-  set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} /nologo /C1252")
+  set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} /nologo /C65001")
   set(LFLAG_MANIFEST_NO "/manifest:no")
 else()
-  set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -c1252")
+  set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -c65001")
   set(LFLAG_MANIFEST_NO "")
 endif()
 

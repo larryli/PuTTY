@@ -10,23 +10,23 @@ char *buildinfo(const char *newline)
 {
     strbuf *buf = strbuf_new();
 
-    put_fmt(buf, "Build platform: %d-bit %s",
+    put_fmt(buf, "构建平台: %d-bit %s",
             (int)(CHAR_BIT * sizeof(void *)), BUILDINFO_PLATFORM);
 
 #ifdef __clang_version__
 #define FOUND_COMPILER
-    put_fmt(buf, "%sCompiler: clang %s", newline, __clang_version__);
+    put_fmt(buf, "%s编译器: clang %s", newline, __clang_version__);
 #elif defined __GNUC__ && defined __VERSION__
 #define FOUND_COMPILER
-    put_fmt(buf, "%sCompiler: gcc %s", newline, __VERSION__);
+    put_fmt(buf, "%s编译器: gcc %s", newline, __VERSION__);
 #endif
 
 #if defined _MSC_VER
 #ifndef FOUND_COMPILER
 #define FOUND_COMPILER
-    put_fmt(buf, "%sCompiler: ", newline);
+    put_fmt(buf, "%s编译器: ", newline);
 #else
-    put_fmt(buf, ", emulating ");
+    put_fmt(buf, ", 模拟 ");
 #endif
     put_fmt(buf, "Visual Studio");
 
@@ -109,7 +109,7 @@ char *buildinfo(const char *newline)
 #elif _MSC_VER == 1200
     put_fmt(buf, " 6.0");
 #else
-    put_fmt(buf, ", unrecognised version");
+    put_fmt(buf, ", 无法识别的版本");
 #endif
     put_fmt(buf, ", _MSC_VER=%d", (int)_MSC_VER);
 #ifdef _MSC_FULL_VER
@@ -121,7 +121,7 @@ char *buildinfo(const char *newline)
     {
         char *gtk_buildinfo = buildinfo_gtk_version();
         if (gtk_buildinfo) {
-            put_fmt(buf, "%sCompiled against GTK version %s",
+            put_fmt(buf, "%s编译的 GTK 版本 %s",
                     newline, gtk_buildinfo);
             sfree(gtk_buildinfo);
         }
@@ -131,34 +131,34 @@ char *buildinfo(const char *newline)
     {
         int echm = has_embedded_chm();
         if (echm >= 0)
-            put_fmt(buf, "%sEmbedded HTML Help file: %s", newline,
-                    echm ? "yes" : "no");
+            put_fmt(buf, "%s内置 HTML 帮助文件: %s", newline,
+                    echm ? "是" : "否");
     }
 #endif
 
 #if defined _WINDOWS && defined MINEFIELD
-    put_fmt(buf, "%sBuild option: MINEFIELD", newline);
+    put_fmt(buf, "%s构建选项: MINEFIELD", newline);
 #endif
 #ifdef NO_IPV6
-    put_fmt(buf, "%sBuild option: NO_IPV6", newline);
+    put_fmt(buf, "%s构建选项: NO_IPV6", newline);
 #endif
 #ifdef NO_GSSAPI
-    put_fmt(buf, "%sBuild option: NO_GSSAPI", newline);
+    put_fmt(buf, "%s构建选项: NO_GSSAPI", newline);
 #endif
 #ifdef STATIC_GSSAPI
-    put_fmt(buf, "%sBuild option: STATIC_GSSAPI", newline);
+    put_fmt(buf, "%s构建选项: STATIC_GSSAPI", newline);
 #endif
 #ifdef UNPROTECT
-    put_fmt(buf, "%sBuild option: UNPROTECT", newline);
+    put_fmt(buf, "%s构建选项: UNPROTECT", newline);
 #endif
 #ifdef FUZZING
-    put_fmt(buf, "%sBuild option: FUZZING", newline);
+    put_fmt(buf, "%s构建选项: FUZZING", newline);
 #endif
 #ifdef DEBUG
-    put_fmt(buf, "%sBuild option: DEBUG", newline);
+    put_fmt(buf, "%s构建选项: DEBUG", newline);
 #endif
 
-    put_fmt(buf, "%sSource commit: %s", newline, commitid);
+    put_fmt(buf, "%s源代码提交: %s", newline, commitid);
 
     return strbuf_to_str(buf);
 }

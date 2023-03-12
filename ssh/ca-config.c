@@ -118,32 +118,32 @@ static void ca_refresh_pubkey_info(struct ca_state *st, dlgparam *dp)
         BinarySource_BARE_INIT_PL(src, data);
         const char *error;
         if (!ppk_loadpub_s(src, NULL, BinarySink_UPCAST(blob), NULL, &error)) {
-            text = dupprintf("Cannot decode key: %s", error);
+            text = dupprintf("无法解码密钥: %s", error);
             goto out;
         }
     }
 
     ptrlen alg_name = pubkey_blob_to_alg_name(ptrlen_from_strbuf(blob));
     if (!alg_name.len) {
-        text = dupstr("Invalid key (no key type)");
+        text = dupstr("无效密钥（无密钥类型）");
         goto out;
     }
 
     const ssh_keyalg *alg = find_pubkey_alg_len(alg_name);
     if (!alg) {
-        text = dupprintf("Unrecognised key type '%.*s'",
+        text = dupprintf("无法识别的密钥类型 '%.*s'",
                          PTRLEN_PRINTF(alg_name));
         goto out;
     }
     if (alg->is_certificate) {
-        text = dupprintf("CA key may not be a certificate (type is '%.*s')",
+        text = dupprintf("CA 密钥可能不是证书 (类型是 '%.*s')",
                          PTRLEN_PRINTF(alg_name));
         goto out;
     }
 
     key = ssh_key_new_pub(alg, ptrlen_from_strbuf(blob));
     if (!key) {
-        text = dupprintf("Invalid '%.*s' key data", PTRLEN_PRINTF(alg_name));
+        text = dupprintf("无效的 '%.*s' 密钥数据", PTRLEN_PRINTF(alg_name));
         goto out;
     }
 
@@ -174,7 +174,7 @@ static void ca_load_selected_record(struct ca_state *st, dlgparam *dp)
     }
     host_ca *hca = host_ca_load(name);
     if (!hca) {
-        char *msg = dupprintf("Unable to load host CA record '%s'", name);
+        char *msg = dupprintf("无法载入主机 CA 记录 '%s'", name);
         dlg_error_msg(dp, msg);
         sfree(msg);
         return;
@@ -271,7 +271,7 @@ static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
         }
 
         if (!st->ca_pubkey_blob) {
-            dlg_error_msg(dp, "No valid CA public key entered");
+            dlg_error_msg(dp, "未输入有效的 CA 公钥");
             return;
         }
 
@@ -348,7 +348,7 @@ static void ca_pubkey_file_handler(dlgcontrol *ctrl, dlgparam *dp,
                                 NULL, &load_error);
         if (!ok) {
             char *message = dupprintf(
-                "Unable to load public key from '%s': %s",
+                "无法从 '%s' 载入公钥: %s",
                 filename_to_str(filename), load_error);
             dlg_error_msg(dp, message);
             sfree(message);
@@ -412,16 +412,16 @@ void setup_ca_config_box(struct controlbox *b)
     /* Action area, with the Done button in it */
     s = ctrl_getset(b, "", "", "");
     ctrl_columns(s, 5, 20, 20, 20, 20, 20);
-    c = ctrl_pushbutton(s, "Done", 'o', HELPCTX(ssh_kex_cert),
+    c = ctrl_pushbutton(s, "完成(O)", 'o', HELPCTX(ssh_kex_cert),
                         ca_ok_handler, P(st));
     c->button.iscancel = true;
     c->column = 4;
 
     /* Load/save box, as similar as possible to the main saved sessions one */
     s = ctrl_getset(b, "Main", "loadsave",
-                    "Load, save or delete a host CA record");
+                    "载入、保存或删除主机 CA 记录");
     ctrl_columns(s, 2, 75, 25);
-    c = ctrl_editbox(s, "Name for this CA (shown in log messages)",
+    c = ctrl_editbox(s, "此 CA 的名称（显示在日志消息中）(N)",
                      'n', 100, HELPCTX(ssh_kex_cert),
                      ca_name_handler, P(st), P(NULL));
     c->column = 0;
@@ -435,26 +435,26 @@ void setup_ca_config_box(struct controlbox *b)
     c->column = 0;
     c->listbox.height = 6;
     st->ca_reclist = c;
-    c = ctrl_pushbutton(s, "Load", 'l', HELPCTX(ssh_kex_cert),
+    c = ctrl_pushbutton(s, "载入(L)", 'l', HELPCTX(ssh_kex_cert),
                         ca_load_handler, P(st));
     c->column = 1;
-    c = ctrl_pushbutton(s, "Save", 'v', HELPCTX(ssh_kex_cert),
+    c = ctrl_pushbutton(s, "保存(V)", 'v', HELPCTX(ssh_kex_cert),
                         ca_save_handler, P(st));
     c->column = 1;
-    c = ctrl_pushbutton(s, "Delete", 'd', HELPCTX(ssh_kex_cert),
+    c = ctrl_pushbutton(s, "删除(D)", 'd', HELPCTX(ssh_kex_cert),
                         ca_delete_handler, P(st));
     c->column = 1;
 
-    s = ctrl_getset(b, "Main", "pubkey", "Public key for this CA record");
+    s = ctrl_getset(b, "Main", "pubkey", "此 CA 记录的公钥");
 
     ctrl_columns(s, 2, 75, 25);
-    c = ctrl_editbox(s, "Public key of certification authority", 'k', 100,
+    c = ctrl_editbox(s, "证书颁发机构的公钥(K)", 'k', 100,
                      HELPCTX(ssh_kex_cert), ca_pubkey_edit_handler,
                      P(st), P(NULL));
     c->column = 0;
     st->ca_pubkey_edit = c;
-    c = ctrl_filesel(s, "Read from file", NO_SHORTCUT, NULL, false,
-                     "Select public key file of certification authority",
+    c = ctrl_filesel(s, "从文件中读取", NO_SHORTCUT, NULL, false,
+                     "选择证书颁发机构的公钥文件",
                      HELPCTX(ssh_kex_cert), ca_pubkey_file_handler, P(st));
     c->fileselect.just_button = true;
     c->align_next_to = st->ca_pubkey_edit;
@@ -463,15 +463,15 @@ void setup_ca_config_box(struct controlbox *b)
     st->ca_pubkey_info = c = ctrl_text(s, " ", HELPCTX(ssh_kex_cert));
     c->text.wrap = false;
 
-    s = ctrl_getset(b, "Main", "options", "What this CA is trusted to do");
+    s = ctrl_getset(b, "Main", "options", "信任此 CA 执行的操作");
 
-    c = ctrl_editbox(s, "Valid hosts this key is trusted to certify", 'h', 100,
+    c = ctrl_editbox(s, "信任此密钥进行认证的有效主机(K)", 'h', 100,
                      HELPCTX(ssh_cert_valid_expr), ca_validity_handler,
                      P(st), P(NULL));
     st->ca_validity_edit = c;
 
     ctrl_columns(s, 4, 44, 18, 18, 18);
-    c = ctrl_text(s, "Signature types (RSA keys only):",
+    c = ctrl_text(s, "签名类型（仅限 RSA 密钥）：",
                   HELPCTX(ssh_cert_rsa_hash));
     c->column = 0;
     dlgcontrol *sigtypelabel = c;
