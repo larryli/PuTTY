@@ -2189,7 +2189,7 @@ static void usage(void)
     printf("PuTTY 安全拷贝客户端\n");
     printf("%s\n", ver);
     printf("用法: pscp [选项] [用户名@]主机:源 目标\n");
-    printf("       pscp [选项] 源 [其他源...] [用户名@]主机:ta目标rget\n");
+    printf("       pscp [选项] 源 [其他源...] [用户名@]主机:目标\n");
     printf("       pscp [选项] -ls [用户名@]主机:指定文件\n");
     printf("选项:\n");
     printf("  -V        显示版本信息后退出\n");

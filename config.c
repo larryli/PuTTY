@@ -2089,7 +2089,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       conf_radiobutton_handler,
                       I(CONF_sharrow_type),
                       "Ctrl 切换应用模式", I(SHARROW_APPLICATION),
-                      "xterm-style bitmap", I(SHARROW_BITMAP));
+                      "xterm 风格位图", I(SHARROW_BITMAP));
 
     s = ctrl_getset(b, "终端/键盘", "appkeypad",
                     "应用小键盘设置：");
