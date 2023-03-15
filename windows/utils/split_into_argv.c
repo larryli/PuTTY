@@ -161,17 +161,27 @@
 #define MOD3 0
 #endif
 
-static inline bool is_word_sep(char c)
+#ifdef SPLIT_INTO_ARGV_W
+#define FUNCTION split_into_argv_w
+#define CHAR wchar_t
+#define STRLEN wcslen
+#else
+#define FUNCTION split_into_argv
+#define CHAR char
+#define STRLEN strlen
+#endif
+
+static inline bool is_word_sep(CHAR c)
 {
     return c == ' ' || c == '\t';
 }
 
-void split_into_argv(char *cmdline, bool includes_program_name,
-                     int *argc, char ***argv, char ***argstart)
+void FUNCTION(CHAR *cmdline, bool includes_program_name,
+              int *argc, CHAR ***argv, CHAR ***argstart)
 {
-    char *p;
-    char *outputline, *q;
-    char **outputargv, **outputargstart;
+    CHAR *p;
+    CHAR *outputline, *q;
+    CHAR **outputargv, **outputargstart;
     int outputargc;
 
     /*
@@ -190,9 +200,9 @@ void split_into_argv(char *cmdline, bool includes_program_name,
      * This will guaranteeably be big enough; we can realloc it
      * down later.
      */
-    outputline = snewn(1+strlen(cmdline), char);
-    outputargv = snewn(strlen(cmdline)+1 / 2, char *);
-    outputargstart = snewn(strlen(cmdline)+1 / 2, char *);
+    outputline = snewn(1+STRLEN(cmdline), CHAR);
+    outputargv = snewn(STRLEN(cmdline)+1 / 2, CHAR *);
+    outputargstart = snewn(STRLEN(cmdline)+1 / 2, CHAR *);
 
     p = cmdline; q = outputline; outputargc = 0;
 
@@ -299,8 +309,8 @@ void split_into_argv(char *cmdline, bool includes_program_name,
         *q++ = '\0';
     }
 
-    outputargv = sresize(outputargv, outputargc, char *);
-    outputargstart = sresize(outputargstart, outputargc, char *);
+    outputargv = sresize(outputargv, outputargc, CHAR *);
+    outputargstart = sresize(outputargstart, outputargc, CHAR *);
 
     if (argc) *argc = outputargc;
     if (argv) *argv = outputargv; else sfree(outputargv);
