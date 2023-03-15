@@ -181,12 +181,12 @@ else()
 endif()
 
 add_executable(test_split_into_argv
-  utils/split_into_argv.c)
+  test/test_split_into_argv.c)
 target_compile_definitions(test_split_into_argv PRIVATE TEST)
 target_link_libraries(test_split_into_argv utils ${platform_libraries})
 
 add_executable(test_screenshot
-  test_screenshot.c)
+  test/test_screenshot.c)
 target_link_libraries(test_screenshot utils ${platform_libraries})
 
 add_executable(test_lineedit
