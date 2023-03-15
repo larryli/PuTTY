@@ -200,9 +200,12 @@ void FUNCTION(CHAR *cmdline, bool includes_program_name,
      * This will guaranteeably be big enough; we can realloc it
      * down later.
      */
-    outputline = snewn(1+STRLEN(cmdline), CHAR);
-    outputargv = snewn(STRLEN(cmdline)+1 / 2, CHAR *);
-    outputargstart = snewn(STRLEN(cmdline)+1 / 2, CHAR *);
+    {
+        size_t len = STRLEN(cmdline);
+        outputline = snewn(1+len, CHAR);
+        outputargv = snewn((len+1) / 2, CHAR *);
+        outputargstart = snewn((len+1) / 2, CHAR *);
+    }
 
     p = cmdline; q = outputline; outputargc = 0;
 
