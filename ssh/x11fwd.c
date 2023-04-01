@@ -231,22 +231,24 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
             return dupstr("cannot do XDM-AUTHORIZATION-1 without remote "
                           "address data");
         des_decrypt_xdmauth(auth->data+9, data, 24);
-        if (memcmp(auth->data, data, 8) != 0) {
-            /* cookie wrong */
-            return dupstr("XDM-AUTHORIZATION-1 data failed check");
-        }
-        if (GET_32BIT_MSB_FIRST(data+8) != peer_ip) {
-            /* IP wrong */
-            return dupstr("XDM-AUTHORIZATION-1 data failed check");
-        }
-        if ((int)GET_16BIT_MSB_FIRST(data+12) != peer_port) {
-            /* port wrong */
-            return dupstr("XDM-AUTHORIZATION-1 data failed check");
-        }
-        t = GET_32BIT_MSB_FIRST(data+14);
+
+        /* Bitwise-OR together any mismatches in the fixed parts of
+         * the data, to allow checking it all at once */
+        uint32_t mismatches = 0;
+        /* Check non-key half of auth cookie */
+        for (i = 0; i < 8; i++)
+            mismatches |= auth->data[i] ^ data[i];
+        /* Check IP address and port */
+        mismatches |= GET_32BIT_MSB_FIRST(data+8) ^ peer_ip;
+        mismatches |= (unsigned short)(GET_16BIT_MSB_FIRST(data+12) ^
+                                       peer_port);
+        /* Check zero padding */
         for (i = 18; i < 24; i++)
-            if (data[i] != 0)         /* zero padding wrong */
-                return dupstr("XDM-AUTHORIZATION-1 data failed check");
+            mismatches |= data[i];
+        if (mismatches)
+            return dupstr("XDM-AUTHORIZATION-1 data failed check");
+
+        t = GET_32BIT_MSB_FIRST(data+14);
         tim = time(NULL);
         if (((unsigned long)t - (unsigned long)tim
              + XDM_MAXSKEW) > 2*XDM_MAXSKEW)
