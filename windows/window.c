@@ -5048,7 +5048,7 @@ static void wintw_clip_write(
         unsigned char *tdata = (unsigned char *)lock2;
         wchar_t *udata = (wchar_t *)lock;
         int uindex = 0, tindex = 0;
-        int multilen, blen, alen, totallen, i;
+        int multilen, blen, alen, i;
         char before[16], after[4];
         int fgcolour,  lastfgcolour  = -1;
         int bgcolour,  lastbgcolour  = -1;
@@ -5338,19 +5338,6 @@ static void wintw_clip_write(
                 }
             }
             assert(tindex + multilen <= len2);
-            totallen = blen + alen;
-            for (i = 0; i < multilen; i++) {
-                if (tdata[tindex+i] == '\\' ||
-                    tdata[tindex+i] == '{' ||
-                    tdata[tindex+i] == '}')
-                    totallen += 2;
-                else if (tdata[tindex+i] == 0x0D || tdata[tindex+i] == 0x0A)
-                    totallen += 6;     /* \par\r\n */
-                else if (tdata[tindex+i] > 0x7E || tdata[tindex+i] < 0x20)
-                    totallen += 4;
-                else
-                    totallen++;
-            }
 
             put_data(rtf, before, blen);
             for (i = 0; i < multilen; i++) {
