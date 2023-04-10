@@ -1038,7 +1038,8 @@ static void ssh_reconfig(Backend *be, Conf *conf)
     if (ssh->pinger)
         pinger_reconfig(ssh->pinger, ssh->conf, conf);
 
-    ssh_ppl_reconfigure(ssh->base_layer, conf);
+    if (ssh->base_layer)
+        ssh_ppl_reconfigure(ssh->base_layer, conf);
 
     conf_free(ssh->conf);
     ssh->conf = conf_copy(conf);
