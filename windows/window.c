@@ -74,6 +74,9 @@
 #ifndef WM_MOUSEWHEEL
 #define WM_MOUSEWHEEL 0x020A           /* not defined in earlier SDKs */
 #endif
+#ifndef WM_MOUSEHWHEEL
+#define WM_MOUSEHWHEEL 0x020E          /* not defined in earlier SDKs */
+#endif
 #ifndef WHEEL_DELTA
 #define WHEEL_DELTA 120
 #endif
@@ -3403,10 +3406,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         process_clipdata((HGLOBAL)lParam, wParam);
         return 0;
       default:
-        if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
+        if (message == wm_mousewheel || message == WM_MOUSEWHEEL
+                                                || message == WM_MOUSEHWHEEL) {
             bool shift_pressed = false, control_pressed = false;
 
-            if (message == WM_MOUSEWHEEL) {
+            if (message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL) {
                 wheel_accumulator += (short)HIWORD(wParam);
                 shift_pressed=LOWORD(wParam) & MK_SHIFT;
                 control_pressed=LOWORD(wParam) & MK_CONTROL;
@@ -3425,10 +3429,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
                 /* reduce amount for next time */
                 if (wheel_accumulator > 0) {
-                    b = MBT_WHEEL_UP;
+                    b = message == WM_MOUSEHWHEEL ? MBT_WHEEL_RIGHT : MBT_WHEEL_UP;
                     wheel_accumulator -= WHEEL_DELTA;
                 } else if (wheel_accumulator < 0) {
-                    b = MBT_WHEEL_DOWN;
+                    b =  message == WM_MOUSEHWHEEL ? MBT_WHEEL_LEFT : MBT_WHEEL_DOWN;
                     wheel_accumulator += WHEEL_DELTA;
                 } else
                     break;
@@ -3448,7 +3452,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                                    TO_CHR_Y(p.y), shift_pressed,
                                    control_pressed, is_alt_pressed());
                     } /* else: not sure when this can fail */
-                } else {
+                } else if (message != WM_MOUSEHWHEEL) {
                     /* trigger a scroll */
                     term_scroll(term, 0,
                                 b == MBT_WHEEL_UP ?
