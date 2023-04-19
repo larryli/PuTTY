@@ -3331,34 +3331,43 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
         linecols -= TRUST_SIGIL_WIDTH;
 
     /*
-     * Preliminary check: if the terminal is only one character cell
-     * wide, then we cannot display any double-width character at all.
-     * Substitute single-width REPLACEMENT CHARACTER instead.
+     * Before we switch on the character width, do a preliminary check for
+     * cases where we might have no room at all to display a double-width
+     * character. Our fallback is to substitute REPLACEMENT CHARACTER,
+     * which is single-width, and it's easiest to do that _before_ having
+     * to 'goto' from one switch case to another.
      */
-    if (width == 2 && linecols < 2) {
-        width = 1;
-        c = 0xFFFD;
+    if (width == 2 && term->curs.x >= linecols-1) {
+        /*
+         * If we're in wrapping mode and the terminal is at least 2 cells
+         * wide, it's OK, we have a fallback. But otherwise, substitute.
+         */
+        if (linecols < 2 || !term->wrap) {
+            width = 1;
+            c = 0xFFFD;
+        }
     }
 
     switch (width) {
       case 2:
         /*
-         * If we're about to display a double-width character starting
-         * in the rightmost column, then we do something special
-         * instead. We must print a space in the last column of the
-         * screen, then wrap; and we also set LATTR_WRAPPED2 which
-         * instructs subsequent cut-and-pasting not only to splice
-         * this line to the one after it, but to ignore the space in
-         * the last character position as well. (Because what was
-         * actually output to the terminal was presumably just a
-         * sequence of CJK characters, and we don't want a space to be
-         * pasted in the middle of those just because they had the
-         * misfortune to start in the wrong parity column. xterm
-         * concurs.)
+         * If we're about to display a double-width character starting in
+         * the rightmost column (and we're in wrapping mode - the other
+         * case was disposed of above), then we do something special
+         * instead. We must print a space in the last column of the screen,
+         * then wrap; and we also set LATTR_WRAPPED2 which instructs
+         * subsequent cut-and-pasting not only to splice this line to the
+         * one after it, but to ignore the space in the last character
+         * position as well. (Because what was actually output to the
+         * terminal was presumably just a sequence of CJK characters, and
+         * we don't want a space to be pasted in the middle of those just
+         * because they had the misfortune to start in the wrong parity
+         * column. xterm concurs.)
          */
         check_boundary(term, term->curs.x, term->curs.y);
         check_boundary(term, term->curs.x+2, term->curs.y);
         if (term->curs.x >= linecols-1) {
+            assert(term->wrap);    /* we handled the non-wrapping case above */
             copy_termchar(cline, term->curs.x,
                           &term->erase_char);
             cline->lattr |= LATTR_WRAPPED | LATTR_WRAPPED2;
