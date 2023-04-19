@@ -425,7 +425,8 @@ bool sesschan_enable_x11_forwarding(
         const unsigned char *hex = authdata_hex.ptr;
         char hexbuf[3];
 
-        if (!isxdigit(hex[i]) || !isxdigit(hex[i+1])) {
+        if (!isxdigit((unsigned char)hex[i]) ||
+            !isxdigit((unsigned char)hex[i+1])) {
             strbuf_free(authdata_bin);
             return false;              /* not hex */
         }
