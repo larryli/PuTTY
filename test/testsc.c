@@ -339,6 +339,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_hmac_sha1_96)                      \
     X(Y, ssh_hmac_sha1_96_buggy)                \
     X(Y, ssh_hmac_sha256)                       \
+    X(Y, ssh_hmac_sha512)                       \
     /* end of list */
 
 #define ALL_MACS(X, Y)                                      \
