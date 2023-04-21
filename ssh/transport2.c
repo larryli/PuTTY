@@ -20,7 +20,7 @@ const struct ssh_signkey_with_user_pref_id ssh2_hostkey_algs[] = {
 };
 
 const static ssh2_macalg *const macs[] = {
-    &ssh_hmac_sha512, &ssh_hmac_sha256,
+    &ssh_hmac_sha256, &ssh_hmac_sha512,
     &ssh_hmac_sha1, &ssh_hmac_sha1_96, &ssh_hmac_md5
 };
 const static ssh2_macalg *const buggymacs[] = {
