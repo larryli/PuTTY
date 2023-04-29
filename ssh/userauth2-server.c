@@ -42,6 +42,7 @@ static const PacketProtocolLayerVtable ssh2_userauth_server_vtable = {
     .free = ssh2_userauth_server_free,
     .process_queue = ssh2_userauth_server_process_queue,
     .queued_data_size = ssh_ppl_default_queued_data_size,
+    .final_output = ssh_ppl_default_final_output,
     .name = "ssh-userauth",
     /* other methods are NULL */
 };

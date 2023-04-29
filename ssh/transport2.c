@@ -80,6 +80,7 @@ static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl);
 static void ssh2_transport_set_max_data_size(struct ssh2_transport_state *s);
 static unsigned long sanitise_rekey_time(int rekey_time, unsigned long def);
 static void ssh2_transport_higher_layer_packet_callback(void *context);
+static void ssh2_transport_final_output(PacketProtocolLayer *ppl);
 
 static const PacketProtocolLayerVtable ssh2_transport_vtable = {
     .free = ssh2_transport_free,
@@ -88,6 +89,7 @@ static const PacketProtocolLayerVtable ssh2_transport_vtable = {
     .special_cmd = ssh2_transport_special_cmd,
     .reconfigure = ssh2_transport_reconfigure,
     .queued_data_size = ssh2_transport_queued_data_size,
+    .final_output = ssh2_transport_final_output,
     .name = NULL, /* no protocol name for this layer */
 };
 
@@ -2405,4 +2407,12 @@ static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl)
 
     return (ssh_ppl_default_queued_data_size(ppl) +
             ssh_ppl_queued_data_size(s->higher_layer));
+}
+
+static void ssh2_transport_final_output(PacketProtocolLayer *ppl)
+{
+    struct ssh2_transport_state *s =
+        container_of(ppl, struct ssh2_transport_state, ppl);
+
+    ssh_ppl_final_output(s->higher_layer);
 }

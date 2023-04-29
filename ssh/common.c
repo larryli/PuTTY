@@ -742,6 +742,10 @@ size_t ssh_ppl_default_queued_data_size(PacketProtocolLayer *ppl)
     return ppl->out_pq->pqb.total_size;
 }
 
+void ssh_ppl_default_final_output(PacketProtocolLayer *ppl)
+{
+}
+
 static void ssh_ppl_prompts_callback(void *ctx)
 {
     ssh_ppl_process_queue((PacketProtocolLayer *)ctx);
