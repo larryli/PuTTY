@@ -502,6 +502,7 @@ void ssh_sw_abort(Ssh *ssh, const char *fmt, ...)
 void ssh_user_close(Ssh *ssh, const char *fmt, ...)
 {
     server *srv = container_of(ssh, server, ssh);
+    ssh_bpp_handle_output(srv->bpp);
     LOG_FORMATTED_MSG(srv->logctx, fmt);
     queue_toplevel_callback(ssh_server_free_callback, srv);
 }

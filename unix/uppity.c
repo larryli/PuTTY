@@ -924,6 +924,8 @@ int main(int argc, char **argv)
             ci->ssc.stunt_allow_trivial_ki_auth = true;
         } else if (!strcmp(arg, "--return-success-to-pubkey-offer")) {
             ci->ssc.stunt_return_success_to_pubkey_offer = true;
+        } else if (!strcmp(arg, "--close-after-banner")) {
+            ci->ssc.stunt_close_after_banner = true;
         } else {
             fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);
