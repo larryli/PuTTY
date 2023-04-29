@@ -140,6 +140,7 @@ static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
     .special_cmd = ssh2_userauth_special_cmd,
     .reconfigure = ssh2_userauth_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
+    .final_output = ssh_ppl_default_final_output,
     .name = "ssh-userauth",
 };
 
