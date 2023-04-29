@@ -133,6 +133,8 @@ static bool ssh2_userauth_ki_run_prompts(struct ssh2_userauth_state *s);
 static void ssh2_userauth_ki_write_responses(
     struct ssh2_userauth_state *s, BinarySink *bs);
 
+static void ssh2_userauth_print_banner(struct ssh2_userauth_state *s);
+
 static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
     .free = ssh2_userauth_free,
     .process_queue = ssh2_userauth_process_queue,
@@ -241,33 +243,38 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     sfree(s);
 }
 
+static void ssh2_userauth_handle_banner_packet(struct ssh2_userauth_state *s,
+                                               PktIn *pktin)
+{
+    if (!s->show_banner)
+        return;
+
+    ptrlen string = get_string(pktin);
+    if (string.len > BANNER_LIMIT - bufchain_size(&s->banner))
+        string.len = BANNER_LIMIT - bufchain_size(&s->banner);
+
+    if (!s->banner_scc_initialised) {
+        s->banner_scc = seat_stripctrl_new(
+            s->ppl.seat, BinarySink_UPCAST(&s->banner_bs), SIC_BANNER);
+        if (s->banner_scc)
+            stripctrl_enable_line_limiting(s->banner_scc);
+        s->banner_scc_initialised = true;
+    }
+
+    if (s->banner_scc)
+        put_datapl(s->banner_scc, string);
+    else
+        put_datapl(&s->banner_bs, string);
+}
+
 static void ssh2_userauth_filter_queue(struct ssh2_userauth_state *s)
 {
     PktIn *pktin;
-    ptrlen string;
 
     while ((pktin = pq_peek(s->ppl.in_pq)) != NULL) {
         switch (pktin->type) {
           case SSH2_MSG_USERAUTH_BANNER:
-            if (!s->show_banner) {
-                pq_pop(s->ppl.in_pq);
-                break;
-            }
-
-            string = get_string(pktin);
-            if (string.len > BANNER_LIMIT - bufchain_size(&s->banner))
-                string.len = BANNER_LIMIT - bufchain_size(&s->banner);
-            if (!s->banner_scc_initialised) {
-                s->banner_scc = seat_stripctrl_new(
-                    s->ppl.seat, BinarySink_UPCAST(&s->banner_bs), SIC_BANNER);
-                if (s->banner_scc)
-                    stripctrl_enable_line_limiting(s->banner_scc);
-                s->banner_scc_initialised = true;
-            }
-            if (s->banner_scc)
-                put_datapl(s->banner_scc, string);
-            else
-                put_datapl(&s->banner_bs, string);
+            ssh2_userauth_handle_banner_packet(s, pktin);
             pq_pop(s->ppl.in_pq);
             break;
 
@@ -833,35 +840,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              * point, but we still need to precede and follow it with
              * anti-spoofing header lines.
              */
-            if (bufchain_size(&s->banner) &&
-                (seat_verbose(s->ppl.seat) || seat_interactive(s->ppl.seat))) {
-                if (s->banner_scc) {
-                    seat_antispoof_msg(
-                        ppl_get_iseat(&s->ppl),
-                        "Pre-authentication banner message from server:");
-                    seat_set_trust_status(s->ppl.seat, false);
-                }
-
-                bool mid_line = false;
-                while (bufchain_size(&s->banner) > 0) {
-                    ptrlen data = bufchain_prefix(&s->banner);
-                    seat_banner_pl(ppl_get_iseat(&s->ppl), data);
-                    mid_line =
-                        (((const char *)data.ptr)[data.len-1] != '\n');
-                    bufchain_consume(&s->banner, data.len);
-                }
-                bufchain_clear(&s->banner);
-
-                if (mid_line)
-                    seat_banner_pl(ppl_get_iseat(&s->ppl),
-                                   PTRLEN_LITERAL("\r\n"));
-
-                if (s->banner_scc) {
-                    seat_set_trust_status(s->ppl.seat, true);
-                    seat_antispoof_msg(ppl_get_iseat(&s->ppl),
-                                       "End of banner message from server");
-                }
-            }
+            ssh2_userauth_print_banner(s);
 
             if (pktin && pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
                 ppl_logevent("Access granted");
@@ -2083,6 +2062,39 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
     }
 
     crFinishV;
+}
+
+static void ssh2_userauth_print_banner(struct ssh2_userauth_state *s)
+{
+    if (bufchain_size(&s->banner) &&
+        (seat_verbose(s->ppl.seat) || seat_interactive(s->ppl.seat))) {
+        if (s->banner_scc) {
+            seat_antispoof_msg(
+                ppl_get_iseat(&s->ppl),
+                "Pre-authentication banner message from server:");
+            seat_set_trust_status(s->ppl.seat, false);
+        }
+
+        bool mid_line = false;
+        while (bufchain_size(&s->banner) > 0) {
+            ptrlen data = bufchain_prefix(&s->banner);
+            seat_banner_pl(ppl_get_iseat(&s->ppl), data);
+            mid_line =
+                (((const char *)data.ptr)[data.len-1] != '\n');
+            bufchain_consume(&s->banner, data.len);
+        }
+        bufchain_clear(&s->banner);
+
+        if (mid_line)
+            seat_banner_pl(ppl_get_iseat(&s->ppl),
+                           PTRLEN_LITERAL("\r\n"));
+
+        if (s->banner_scc) {
+            seat_set_trust_status(s->ppl.seat, true);
+            seat_antispoof_msg(ppl_get_iseat(&s->ppl),
+                               "End of banner message from server");
+        }
+    }
 }
 
 static bool ssh2_userauth_ki_setup_prompts(
