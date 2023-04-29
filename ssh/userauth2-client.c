@@ -132,6 +132,7 @@ static bool ssh2_userauth_ki_setup_prompts(
 static bool ssh2_userauth_ki_run_prompts(struct ssh2_userauth_state *s);
 static void ssh2_userauth_ki_write_responses(
     struct ssh2_userauth_state *s, BinarySink *bs);
+static void ssh2_userauth_final_output(PacketProtocolLayer *ppl);
 
 static void ssh2_userauth_print_banner(struct ssh2_userauth_state *s);
 
@@ -142,7 +143,7 @@ static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
     .special_cmd = ssh2_userauth_special_cmd,
     .reconfigure = ssh2_userauth_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
-    .final_output = ssh_ppl_default_final_output,
+    .final_output = ssh2_userauth_final_output,
     .name = "ssh-userauth",
 };
 
@@ -2550,4 +2551,24 @@ static void ssh2_userauth_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
     struct ssh2_userauth_state *s =
         container_of(ppl, struct ssh2_userauth_state, ppl);
     ssh_ppl_reconfigure(s->successor_layer, conf);
+}
+
+static void ssh2_userauth_final_output(PacketProtocolLayer *ppl)
+{
+    struct ssh2_userauth_state *s =
+        container_of(ppl, struct ssh2_userauth_state, ppl);
+
+    /*
+     * Check for any unconsumed banner packets that might have landed
+     * in our queue just before the server closed the connection, and
+     * add them to our banner buffer.
+     */
+    for (PktIn *pktin = pq_first(s->ppl.in_pq); pktin != NULL;
+         pktin = pq_next(s->ppl.in_pq, pktin)) {
+        if (pktin->type == SSH2_MSG_USERAUTH_BANNER)
+            ssh2_userauth_handle_banner_packet(s, pktin);
+    }
+
+    /* And now make sure we've shown the banner, before exiting */
+    ssh2_userauth_print_banner(s);
 }
