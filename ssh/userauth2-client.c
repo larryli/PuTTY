@@ -2373,7 +2373,18 @@ static void ssh2_userauth_add_alg_and_publickey(
             ppl_logevent("Sending public key with certificate from \"%s\"",
                          filename_to_str(s->detached_cert_file));
         }
-        put_stringz(pkt, ssh_keyalg_related_alg(certalg, pkalg)->ssh_id);
+        {
+            /* Strip off any existing certificate-nature from pkalg,
+             * for the case where we're replacing a cert embedded in
+             * the key with the detached one. The second argument of
+             * ssh_keyalg_related_alg is expected to be one of the
+             * bare key algorithms, or nothing useful will happen. */
+            const ssh_keyalg *pkalg_base =
+                pkalg->base_alg ? pkalg->base_alg : pkalg;
+            const ssh_keyalg *output_alg =
+                ssh_keyalg_related_alg(certalg, pkalg_base);
+            put_stringz(pkt, output_alg->ssh_id);
+        }
         put_stringpl(pkt, ptrlen_from_strbuf(s->detached_cert_blob));
         done = true;
         goto out;
