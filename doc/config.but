@@ -3664,6 +3664,23 @@ connection would deadlock. We don't know of any servers that do this,
 but if there is one, then this flag will make PuTTY unable to speak to
 them at all.
 
+\S{config-ssh-bug-rsa-sha2-cert-userauth} \q{Rejects
+\cw{rsa-sha2-*-cert*@openssh.com} in userauth}
+
+If PuTTY is trying to do SSH-2 user authentication using an RSA key,
+and the server is using one of the newer SHA-2 based versions of the
+SSH RSA protocol, and the user's key is also a certificate, then
+earlier versions of OpenSSH (up to 7.7) disagree with later versions
+about the right key algorithm string to send in the
+\cw{SSH2_MSG_USERAUTH_REQUEST} packet. Modern versions send a string
+that indicates both the SHA-2 nature and the certificate nature of the
+key, such as \cq{rsa-sha2-512-cert-v01@openssh.com}. Earlier versions
+would reject that, and insist on seeing
+\cq{ssh-rsa-cert-v01@openssh.com} followed by a SHA-2 based signature.
+
+PuTTY should auto-detect the presence of this bug in earlier OpenSSH
+and adjust to send the right string.
+
 \S{config-ssh-bug-sig} \q{Requires padding on SSH-2 \i{RSA} \i{signatures}}
 
 Versions below 3.3 of \i{OpenSSH} require SSH-2 RSA signatures to be

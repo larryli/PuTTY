@@ -474,7 +474,8 @@ void ssh_remote_error(Ssh *ssh, const char *fmt, ...)
     if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
-        ssh_ppl_final_output(ssh->base_layer);
+        if (ssh->base_layer)
+            ssh_ppl_final_output(ssh->base_layer);
 
         /* Error messages sent by the remote don't count as clean exits */
         ssh->exitcode = 128;
@@ -494,7 +495,8 @@ void ssh_remote_eof(Ssh *ssh, const char *fmt, ...)
     if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
-        ssh_ppl_final_output(ssh->base_layer);
+        if (ssh->base_layer)
+            ssh_ppl_final_output(ssh->base_layer);
 
         /* EOF from the remote, if we were expecting it, does count as
          * a clean exit */
@@ -519,7 +521,8 @@ void ssh_proto_error(Ssh *ssh, const char *fmt, ...)
     if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
-        ssh_ppl_final_output(ssh->base_layer);
+        if (ssh->base_layer)
+            ssh_ppl_final_output(ssh->base_layer);
 
         ssh->exitcode = 128;
 
@@ -538,7 +541,8 @@ void ssh_sw_abort(Ssh *ssh, const char *fmt, ...)
     if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
-        ssh_ppl_final_output(ssh->base_layer);
+        if (ssh->base_layer)
+            ssh_ppl_final_output(ssh->base_layer);
 
         ssh->exitcode = 128;
 
@@ -557,7 +561,8 @@ void ssh_user_close(Ssh *ssh, const char *fmt, ...)
     if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
-        ssh_ppl_final_output(ssh->base_layer);
+        if (ssh->base_layer)
+            ssh_ppl_final_output(ssh->base_layer);
 
         /* Closing the connection due to user action, even if the
          * action is the user aborting during authentication prompts,
