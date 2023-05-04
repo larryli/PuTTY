@@ -135,6 +135,8 @@ static void ssh2_userauth_ki_write_responses(
 static void ssh2_userauth_final_output(PacketProtocolLayer *ppl);
 
 static void ssh2_userauth_print_banner(struct ssh2_userauth_state *s);
+static ptrlen workaround_rsa_sha2_cert_userauth(
+    struct ssh2_userauth_state *s, ptrlen id);
 
 static const PacketProtocolLayerVtable ssh2_userauth_vtable = {
     .free = ssh2_userauth_free,
@@ -2381,9 +2383,19 @@ static void ssh2_userauth_add_alg_and_publickey(
              * bare key algorithms, or nothing useful will happen. */
             const ssh_keyalg *pkalg_base =
                 pkalg->base_alg ? pkalg->base_alg : pkalg;
+
+            /* Construct an algorithm string that includes both the
+             * signature subtype (e.g. rsa-sha2-512) and the
+             * certificate-ness. Exception: in earlier versions of
+             * OpenSSH we don't want to do that, and must send just
+             * ssh-rsa-cert-... even when we're delivering a non-SHA-1
+             * signature. */
             const ssh_keyalg *output_alg =
                 ssh_keyalg_related_alg(certalg, pkalg_base);
-            put_stringz(pkt, output_alg->ssh_id);
+            ptrlen output_id = ptrlen_from_asciz(output_alg->ssh_id);
+            output_id = workaround_rsa_sha2_cert_userauth(s, output_id);
+
+            put_stringpl(pkt, output_id);
         }
         put_stringpl(pkt, ptrlen_from_strbuf(s->detached_cert_blob));
         done = true;
@@ -2430,9 +2442,28 @@ static void ssh2_userauth_add_alg_and_publickey(
             return;
     }
 
-    /* In all other cases, just put in what we were given. */
+    /* In all other cases, basically just put in what we were given -
+     * except for the same bug workaround as above. */
+    alg = workaround_rsa_sha2_cert_userauth(s, alg);
     put_stringpl(pkt, alg);
     put_stringpl(pkt, pkblob);
+}
+
+static ptrlen workaround_rsa_sha2_cert_userauth(
+    struct ssh2_userauth_state *s, ptrlen id)
+{
+    if (!(s->ppl.remote_bugs & BUG_RSA_SHA2_CERT_USERAUTH))
+        return id;
+    /*
+     * No need to try to do this in a general way based on the
+     * relations between ssh_keyalgs; we know there are a limited
+     * number of affected versions of OpenSSH, so this doesn't have to
+     * be futureproof against later additions to the family.
+     */
+    if (ptrlen_eq_string(id, "rsa-sha2-256-cert-v01@openssh.com") ||
+        ptrlen_eq_string(id, "rsa-sha2-512-cert-v01@openssh.com"))
+        return PTRLEN_LITERAL("ssh-rsa-cert-v01@openssh.com");
+    return id;
 }
 
 /*
