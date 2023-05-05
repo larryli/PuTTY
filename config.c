@@ -3173,8 +3173,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
 
             s = ctrl_getset(b, "Connection/SSH/More bugs", "main",
                             "Detection of known bugs in SSH servers");
-            ctrl_droplist(s, "Rejects rsa-sha2-*-cert*@openssh.com in userauth",
-                          'j', 20,
+            ctrl_droplist(s, "Old RSA/SHA2 cert algorithm naming", 'l', 20,
                           HELPCTX(ssh_bugs_rsa_sha2_cert_userauth),
                           sshbug_handler,
                           I(CONF_sshbug_rsa_sha2_cert_userauth));
