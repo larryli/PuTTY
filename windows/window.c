@@ -1908,7 +1908,7 @@ static void reset_window(WinGuiSeat *wgs, int reinit)
         if (win_width != font_width*wgs->term->cols + offset_width*2 ||
             win_height != font_height*wgs->term->rows + offset_height*2) {
 
-            static RECT ss;
+            RECT ss;
             int width, height;
 
             get_fullscreen_rect(wgs, &ss);
@@ -3538,9 +3538,12 @@ static void do_text_internal(
     int maxlen, remaining;
     bool opaque;
     bool is_cursor = false;
-    static int *lpDx = NULL;
-    static size_t lpDx_len = 0;
+    int *lpDx = NULL;
+    size_t lpDx_len = 0;
     int *lpDx_maybe;
+    wchar_t *wbuf = NULL;
+    char *cbuf = NULL;
+    size_t wbuflen = 0, cbuflen = 0;
     int len2; /* for SURROGATE PAIR */
 
     lattr &= LATTR_MODE;
@@ -3782,17 +3785,11 @@ static void do_text_internal(
             (text[0] & CSET_MASK) == CSET_ACP) {
             /* Ho Hum, dbcs fonts are a PITA! */
             /* To display on W9x I have to convert to UCS */
-            static wchar_t *uni_buf = 0;
-            static int uni_len = 0;
             int nlen, mptr;
-            if (len > uni_len) {
-                sfree(uni_buf);
-                uni_len = len;
-                uni_buf = snewn(uni_len, wchar_t);
-            }
 
+            sgrowarray(wbuf, wbuflen, len);
             for (nlen = mptr = 0; mptr<len; mptr++) {
-                uni_buf[nlen] = 0xFFFD;
+                wbuf[nlen] = 0xFFFD;
                 if (IsDBCSLeadByteEx(wgs->ucsdata.font_codepage,
                                      (BYTE) text[mptr])) {
                     char dbcstext[2];
@@ -3801,19 +3798,19 @@ static void do_text_internal(
                     lpDx[nlen] += char_width;
                     MultiByteToWideChar(
                         wgs->ucsdata.font_codepage, MB_USEGLYPHCHARS,
-                        dbcstext, 2, uni_buf+nlen, 1);
+                        dbcstext, 2, wbuf+nlen, 1);
                     mptr++;
                 } else {
                     char dbcstext[1];
                     dbcstext[0] = text[mptr] & 0xFF;
                     MultiByteToWideChar(
                         wgs->ucsdata.font_codepage, MB_USEGLYPHCHARS,
-                        dbcstext, 1, uni_buf+nlen, 1);
+                        dbcstext, 1, wbuf+nlen, 1);
                 }
                 nlen++;
             }
             if (nlen <= 0)
-                return;                /* Eeek! */
+                goto out;                /* Eeek! */
 
             ExtTextOutW(wgs->wintw_hdc, x + xoffset,
                         y - font_height * (lattr == LATTR_BOT) + text_adjust,
@@ -3830,12 +3827,9 @@ static void do_text_internal(
 
             lpDx[0] = -1;
         } else if (DIRECT_FONT(text[0])) {
-            static char *directbuf = NULL;
-            static size_t directlen = 0;
-
-            sgrowarray(directbuf, directlen, len);
+            sgrowarray(cbuf, cbuflen, len);
             for (size_t i = 0; i < len; i++)
-                directbuf[i] = text[i] & 0xFF;
+                cbuf[i] = text[i] & 0xFF;
 
             ExtTextOut(wgs->wintw_hdc, x + xoffset,
                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
@@ -3860,17 +3854,8 @@ static void do_text_internal(
             }
         } else {
             /* And 'normal' unicode characters */
-            static WCHAR *wbuf = NULL;
-            static int wlen = 0;
-            int i;
-
-            if (wlen < len) {
-                sfree(wbuf);
-                wlen = len;
-                wbuf = snewn(wlen, WCHAR);
-            }
-
-            for (i = 0; i < len; i++)
+            sgrowarray(wbuf, wbuflen, len);
+            for (int i = 0; i < len; i++)
                 wbuf[i] = text[i];
 
             /* print Glyphs as they are, without Windows' Shaping*/
@@ -3905,6 +3890,11 @@ static void do_text_internal(
     if (attr & ATTR_STRIKE)
         draw_horizontal_line_on_text(wgs, wgs->font_strikethrough_y, lattr,
                                      line_box, fg);
+
+  out:
+    sfree(lpDx);
+    sfree(wbuf);
+    sfree(cbuf);
 }
 
 /*
@@ -4155,7 +4145,6 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
-    static wchar_t keys_unicode[3];
     static int compose_char = 0;
     static WPARAM compose_keycode = 0;
 
@@ -4206,13 +4195,6 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
                     debug(", '%c'", ch);
                 else if (ch)
                     debug(", $%02x", ch);
-
-                if (keys_unicode[0])
-                    debug(", KB0=%04x", keys_unicode[0]);
-                if (keys_unicode[1])
-                    debug(", KB1=%04x", keys_unicode[1]);
-                if (keys_unicode[2])
-                    debug(", KB2=%04x", keys_unicode[2]);
 
                 if ((keystate[VK_SHIFT] & 0x80) != 0)
                     debug(", S");
@@ -4678,6 +4660,8 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
             keystate[VK_CAPITAL] = 0;
         }
 
+        wchar_t keys_unicode[3];
+
         /* XXX how do we know what the max size of the keys array should
          * be is? There's indication on MS' website of an Inquire/InquireEx
          * functioning returning a KBINFO structure which tells us. */
@@ -4696,8 +4680,8 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
              * See wishlist item `win-dead-keys' for more horrible detail
              * and speculations. */
             int i;
-            static WORD keys[3];
-            static BYTE keysb[3];
+            WORD keys[3];
+            BYTE keysb[3];
             r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
             if (r > 0) {
                 for (i = 0; i < r; i++) {
@@ -4794,18 +4778,8 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
                 show_mouseptr(wgs, false);
             }
 
-            /* This is so the ALT-Numpad and dead keys work correctly. */
-            keys_unicode[0] = 0;
-
             return p - output;
         }
-        /* If we're definitely not building up an ALT-54321 then clear it */
-        if (!left_alt)
-            keys_unicode[0] = 0;
-        /* If we will be using alt_sum fix the 256s */
-        else if (keys_unicode[0] && (in_utf(wgs->term) ||
-                                     wgs->ucsdata.dbcs_screenfont))
-            keys_unicode[0] = 10;
     }
 
     /*
