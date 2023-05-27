@@ -59,6 +59,14 @@ struct WinGuiSeat {
 
     HWND term_hwnd;
 
+    int extra_width, extra_height;
+    int font_width, font_height;
+    bool font_dualwidth, font_varpitch;
+    int offset_width, offset_height;
+    bool was_zoomed;
+    int prev_rows, prev_cols; // FIXME I don't think these are even used
+
+    HBITMAP caretbm;
     int caret_x, caret_y;
 
     int kbd_codepage;
@@ -115,14 +123,29 @@ struct WinGuiSeat {
 
     wchar_t *window_name, *icon_name;
 
+    int alt_numberpad_accumulator;
     int compose_state;
+    int compose_char;
+    WPARAM compose_keycode;
 
     HDC wintw_hdc;
 
     bool resizing;
+    bool need_backend_resize;
 
     long next_flash;
     bool flashing;
+
+    long last_beep_time;
+
+    bool ignore_clip;
+    bool fullscr_on_max;
+    bool processed_resize;
+    bool in_scrollbar_loop;
+    UINT last_mousemove;
+    WPARAM last_wm_mousemove_wParam, last_wm_ncmousemove_wParam;
+    LPARAM last_wm_mousemove_lParam, last_wm_ncmousemove_lParam;
+    wchar_t pending_surrogate;
 };
 
 extern const LogPolicyVtable win_gui_logpolicy_vt; /* in dialog.c */
