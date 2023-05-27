@@ -3540,7 +3540,7 @@ static void do_text_internal(
     bool is_cursor = false;
     int *lpDx = NULL;
     size_t lpDx_len = 0;
-    int *lpDx_maybe;
+    bool use_lpDx;
     wchar_t *wbuf = NULL;
     char *cbuf = NULL;
     size_t wbuflen = 0, cbuflen = 0;
@@ -3724,7 +3724,7 @@ static void do_text_internal(
          */
         xoffset = char_width / 2;
         SetTextAlign(wgs->wintw_hdc, TA_TOP | TA_CENTER | TA_NOUPDATECP);
-        lpDx_maybe = NULL;
+        use_lpDx = false;
         maxlen = 1;
     } else {
         /*
@@ -3733,7 +3733,7 @@ static void do_text_internal(
          */
         xoffset = 0;
         SetTextAlign(wgs->wintw_hdc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
-        lpDx_maybe = lpDx;
+        use_lpDx = true;
         maxlen = len;
     }
 
@@ -3753,10 +3753,8 @@ static void do_text_internal(
                 len += 2;
         }
 
-        if (len > lpDx_len) {
+        if (len > lpDx_len)
             sgrowarray(lpDx, lpDx_len, len);
-            if (lpDx_maybe) lpDx_maybe = lpDx;
-        }
 
         {
             int i;
@@ -3816,13 +3814,14 @@ static void do_text_internal(
                         y - font_height * (lattr == LATTR_BOT) + text_adjust,
                         ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
                         &line_box, uni_buf, nlen,
-                        lpDx_maybe);
+                        (use_lpDx ? lpDx : NULL));
             if (wgs->bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(wgs->wintw_hdc, TRANSPARENT);
                 ExtTextOutW(wgs->wintw_hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
                                                LATTR_BOT) + text_adjust,
-                            ETO_CLIPPED, &line_box, uni_buf, nlen, lpDx_maybe);
+                            ETO_CLIPPED, &line_box, uni_buf, nlen,
+                            (use_lpDx ? lpDx : NULL));
             }
 
             lpDx[0] = -1;
@@ -3834,7 +3833,7 @@ static void do_text_internal(
             ExtTextOut(wgs->wintw_hdc, x + xoffset,
                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
                        ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
-                       &line_box, directbuf, len, lpDx_maybe);
+                       &line_box, directbuf, len, (use_lpDx ? lpDx : NULL));
             if (wgs->bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(wgs->wintw_hdc, TRANSPARENT);
 
@@ -3850,7 +3849,8 @@ static void do_text_internal(
                 ExtTextOut(wgs->wintw_hdc, x + xoffset - 1,
                            y - font_height * (lattr ==
                                               LATTR_BOT) + text_adjust,
-                           ETO_CLIPPED, &line_box, directbuf, len, lpDx_maybe);
+                           ETO_CLIPPED, &line_box, directbuf, len,
+                           (use_lpDx ? lpDx : NULL));
             }
         } else {
             /* And 'normal' unicode characters */
@@ -3870,7 +3870,8 @@ static void do_text_internal(
                 ExtTextOutW(wgs->wintw_hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
                                                LATTR_BOT) + text_adjust,
-                            ETO_CLIPPED, &line_box, wbuf, len, lpDx_maybe);
+                            ETO_CLIPPED, &line_box, wbuf, len,
+                            (use_lpDx ? lpDx : NULL));
             }
         }
 
