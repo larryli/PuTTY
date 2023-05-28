@@ -26,6 +26,7 @@ char *host_strrchr(const char *s, int c);
 char *host_strduptrim(const char *s);
 
 char *dupstr(const char *s);
+wchar_t *dupwcs(const wchar_t *s);
 char *dupcat_fn(const char *s1, ...);
 #define dupcat(...) dupcat_fn(__VA_ARGS__, (const char *)NULL)
 char *dupprintf(const char *fmt, ...) PRINTF_LIKE(1, 2);

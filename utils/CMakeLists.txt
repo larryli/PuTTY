@@ -25,6 +25,7 @@ add_sources_from_current_dir(utils
   dupcat.c
   dupprintf.c
   dupstr.c
+  dupwcs.c
   dup_mb_to_wc.c
   dup_wc_to_mb.c
   encode_utf8.c
