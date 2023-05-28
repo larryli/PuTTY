@@ -1046,20 +1046,14 @@ NTRUKeyPair *ntru_keygen_attempt(unsigned p, unsigned q, unsigned w)
     ntru_scale(f3, f, 3, p, q);
 
     /*
-     * Try to invert 3*f over Z_q. This should be _almost_ guaranteed
-     * to succeed, since Z_q/<x^p-x-1> is a field, so the only
-     * non-invertible value is 0. Even so, there _is_ one, so check
-     * the return value!
+     * Invert 3*f over Z_q. This is guaranteed to succeed, since
+     * Z_q/<x^p-x-1> is a field, so the only non-invertible value is
+     * 0. And f is nonzero because it came from ntru_gen_short (hence,
+     * w of its components are nonzero), hence so is 3*f.
      */
     uint16_t *f3inv = snewn(p, uint16_t);
-    if (!ntru_ring_invert(f3inv, f3, p, q)) {
-        ring_free(f, p);
-        ring_free(f3, p);
-        ring_free(f3inv, p);
-        ring_free(g, p);
-        ring_free(ginv, p);
-        return NULL;
-    }
+    bool expect_always_success = ntru_ring_invert(f3inv, f3, p, q);
+    assert(expect_always_success);
 
     /*
      * Make the public key, by converting g to a polynomial over q and
