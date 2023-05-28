@@ -33,9 +33,12 @@ void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
     }
 
     if (xauthfile) {
-        x11_get_auth_from_authfile(disp, xauthfile);
+        Filename *xauthfn = filename_from_str(xauthfile);
         if (needs_free)
             sfree(xauthfile);
+
+        x11_get_auth_from_authfile(disp, xauthfn);
+        filename_free(xauthfn);
     }
 }
 

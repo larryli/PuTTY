@@ -1370,7 +1370,7 @@ char *platform_get_x_display(void);
  * calling this function to do the rest of the work.
  */
 void x11_get_auth_from_authfile(struct X11Display *display,
-                                const char *authfilename);
+                                Filename *authfilename);
 void x11_format_auth_for_authfile(
     BinarySink *bs, SockAddr *addr, int display_no,
     ptrlen authproto, ptrlen authdata);
