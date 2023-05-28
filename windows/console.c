@@ -143,7 +143,7 @@ static void console_write(BinarySink *bs, const void *data, size_t len)
 {
     ConsoleIO *conio = BinarySink_DOWNCAST(bs, ConsoleIO);
 
-    if (conio_use_utf8) {
+    if (conio->utf8) {
         /*
          * Convert the UTF-8 input into a wide string.
          */
@@ -220,7 +220,7 @@ static bool console_read_line_to_strbuf(ConsoleIO *conio, bool echo,
             goto out;
         }
 
-        if (conio_use_utf8) {
+        if (conio->utf8) {
             wchar_t wbuf[4096];
             size_t wlen;
 
