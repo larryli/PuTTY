@@ -119,7 +119,6 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 {
     HMODULE module;
     struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
-    char *path;
     static HMODULE kernel32_module;
     if (!kernel32_module) {
         kernel32_module = load_system32_dll("kernel32.dll");
@@ -233,34 +232,36 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
      * Custom GSSAPI DLL.
      */
     module = NULL;
-    path = conf_get_filename(conf, CONF_ssh_gss_custom)->path;
-    if (*path) {
+    Filename *customlib = conf_get_filename(conf, CONF_ssh_gss_custom);
+    if (!filename_is_null(customlib)) {
+        const wchar_t *path = customlib->wpath;
         if (p_AddDllDirectory) {
+
             /* Add the custom directory as well in case it chainloads
              * some other DLLs (e.g a non-installed MIT Kerberos
              * instance) */
-            int pathlen = strlen(path);
+            int pathlen = wcslen(path);
 
-            while (pathlen > 0 && path[pathlen-1] != ':' &&
-                   path[pathlen-1] != '\\')
+            while (pathlen > 0 && path[pathlen-1] != L':' &&
+                   path[pathlen-1] != L'\\')
                 pathlen--;
 
-            if (pathlen > 0 && path[pathlen-1] != '\\')
+            if (pathlen > 0 && path[pathlen-1] != L'\\')
                 pathlen--;
 
             if (pathlen > 0) {
-                char *dirpath = dupprintf("%.*s", pathlen, path);
-                wchar_t *dllPath = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, dirpath);
-                p_AddDllDirectory(dllPath);
-                sfree(dllPath);
+                wchar_t *dirpath = snewn(pathlen + 1, wchar_t);
+                memcpy(dirpath, path, pathlen * sizeof(wchar_t));
+                dirpath[pathlen] = L'\0';
+                p_AddDllDirectory(dirpath);
                 sfree(dirpath);
             }
         }
 
-        module = LoadLibraryEx(path, NULL,
-                               LOAD_LIBRARY_SEARCH_SYSTEM32 |
-                               LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR |
-                               LOAD_LIBRARY_SEARCH_USER_DIRS);
+        module = LoadLibraryExW(path, NULL,
+                                LOAD_LIBRARY_SEARCH_SYSTEM32 |
+                                LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR |
+                                LOAD_LIBRARY_SEARCH_USER_DIRS);
     }
     if (module) {
         struct ssh_gss_library *lib =
@@ -268,7 +269,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 
         lib->id = 2;
         lib->gsslogmsg = dupprintf("Using GSSAPI from user-specified"
-                                   " library '%s'", path);
+                                   " library '%s'", customlib->cpath);
         lib->handle = (void *)module;
 
 #define BIND_GSS_FN(name) \

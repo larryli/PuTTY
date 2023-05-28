@@ -4120,7 +4120,8 @@ static int wintw_char_width(TermWin *tw, int uc)
 DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 DECL_WINDOWS_FUNCTION(static, BOOL, ToUnicodeEx,
                       (UINT, UINT, const BYTE *, LPWSTR, int, UINT, HKL));
-DECL_WINDOWS_FUNCTION(static, BOOL, PlaySound, (LPCTSTR, HMODULE, DWORD));
+DECL_WINDOWS_FUNCTION(static, BOOL, PlaySoundW, (LPCWSTR, HMODULE, DWORD));
+DECL_WINDOWS_FUNCTION(static, BOOL, PlaySoundA, (LPCSTR, HMODULE, DWORD));
 
 static void init_winfuncs(void)
 {
@@ -4129,7 +4130,8 @@ static void init_winfuncs(void)
     HMODULE shcore_module = load_system32_dll("shcore.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
     GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
-    GET_WINDOWS_FUNCTION_PP(winmm_module, PlaySound);
+    GET_WINDOWS_FUNCTION(winmm_module, PlaySoundW);
+    GET_WINDOWS_FUNCTION(winmm_module, PlaySoundA);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, GetMonitorInfoA);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, MonitorFromPoint);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, MonitorFromWindow);
@@ -5610,16 +5612,20 @@ static void wintw_bell(TermWin *tw, int mode)
     } else if (mode == BELL_WAVEFILE) {
         Filename *bell_wavefile = conf_get_filename(
             wgs->conf, CONF_bell_wavefile);
-        if (!p_PlaySound || !p_PlaySound(bell_wavefile->path, NULL,
-                                         SND_ASYNC | SND_FILENAME)) {
+        bool success = (
+            p_PlaySoundW ? p_PlaySoundW(bell_wavefile->wpath, NULL,
+                                        SND_ASYNC | SND_FILENAME) :
+            p_PlaySoundA ? p_PlaySoundA(bell_wavefile->cpath, NULL,
+                                        SND_ASYNC | SND_FILENAME) : false);
+        if (!success) {
             char *buf, *otherbuf;
             show_mouseptr(wgs, true);
             buf = dupprintf(
                 "Unable to play sound file\n%s\nUsing default sound instead",
-                bell_wavefile->path);
+                bell_wavefile->utf8path);
             otherbuf = dupprintf("%s Sound Error", appname);
-            MessageBox(wgs->term_hwnd, buf, otherbuf,
-                       MB_OK | MB_ICONEXCLAMATION);
+            message_box(wgs->term_hwnd, buf, otherbuf,
+                        MB_OK | MB_ICONEXCLAMATION, true, 0);
             sfree(buf);
             sfree(otherbuf);
             conf_set_int(wgs->conf, CONF_beep, BELL_DEFAULT);

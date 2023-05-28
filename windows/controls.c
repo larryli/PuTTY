@@ -1988,32 +1988,36 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             (msg == WM_COMMAND &&
              (HIWORD(wParam) == BN_CLICKED ||
               HIWORD(wParam) == BN_DOUBLECLICKED))) {
-            OPENFILENAME of;
-            char filename[FILENAME_MAX];
+            OPENFILENAMEW of;
+            wchar_t filename[FILENAME_MAX];
+
+            wchar_t *title_to_free = NULL;
 
             memset(&of, 0, sizeof(of));
             of.hwndOwner = dp->hwnd;
             if (ctrl->fileselect.filter)
                 of.lpstrFilter = ctrl->fileselect.filter;
             else
-                of.lpstrFilter = "All Files (*.*)\0*\0\0\0";
+                of.lpstrFilter = L"All Files (*.*)\0*\0\0\0";
             of.lpstrCustomFilter = NULL;
             of.nFilterIndex = 1;
             of.lpstrFile = filename;
             if (!ctrl->fileselect.just_button) {
-                GetDlgItemText(dp->hwnd, c->base_id+1,
-                               filename, lenof(filename));
-                filename[lenof(filename)-1] = '\0';
+                GetDlgItemTextW(dp->hwnd, c->base_id+1,
+                                filename, lenof(filename));
+                filename[lenof(filename)-1] = L'\0';
             } else {
-                *filename = '\0';
+                *filename = L'\0';
             }
             of.nMaxFile = lenof(filename);
             of.lpstrFileTitle = NULL;
-            of.lpstrTitle = ctrl->fileselect.title;
+            of.lpstrTitle = title_to_free = dup_mb_to_wc(
+                DEFAULT_CODEPAGE, 0, ctrl->fileselect.title);
             of.Flags = 0;
-            if (request_file(NULL, &of, false, ctrl->fileselect.for_writing)) {
+            if (request_file_w(NULL, &of, false,
+                               ctrl->fileselect.for_writing)) {
                 if (!ctrl->fileselect.just_button) {
-                    SetDlgItemText(dp->hwnd, c->base_id + 1, filename);
+                    SetDlgItemTextW(dp->hwnd, c->base_id + 1, filename);
                     ctrl->handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
                 } else {
                     assert(!c->data);
@@ -2022,6 +2026,8 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
                     c->data = NULL;
                 }
             }
+
+            sfree(title_to_free);
         }
         break;
       case CTRL_FONTSELECT:
@@ -2394,19 +2400,17 @@ void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn)
     assert(c);
     assert(c->ctrl->type == CTRL_FILESELECT);
     assert(!c->ctrl->fileselect.just_button);
-    SetDlgItemText(dp->hwnd, c->base_id+1, fn->path);
+    SetDlgItemTextW(dp->hwnd, c->base_id+1, fn->wpath);
 }
 
 Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
-    char *tmp;
-    Filename *ret;
     assert(c);
     assert(c->ctrl->type == CTRL_FILESELECT);
     if (!c->ctrl->fileselect.just_button) {
-        tmp = GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
-        ret = filename_from_str(tmp);
+        wchar_t *tmp = GetDlgItemTextW_alloc(dp->hwnd, c->base_id+1);
+        Filename *ret = filename_from_wstr(tmp);
         sfree(tmp);
         return ret;
     } else {

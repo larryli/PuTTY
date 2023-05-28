@@ -549,7 +549,7 @@ static void prompt_add_keyfile(bool encrypted)
     if (!keypath) keypath = filereq_new();
     memset(&of, 0, sizeof(of));
     of.hwndOwner = traywindow;
-    of.lpstrFilter = FILTER_KEY_FILES;
+    of.lpstrFilter = FILTER_KEY_FILES_C;
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
     of.lpstrFile = filelist;

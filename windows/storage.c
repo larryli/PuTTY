@@ -183,7 +183,23 @@ Filename *read_setting_filename(settings_r *handle, const char *name)
 void write_setting_filename(settings_w *handle,
                             const char *name, Filename *result)
 {
-    write_setting_s(handle, name, result->path);
+    /*
+     * When saving a session involving a Filename, we use the 'cpath'
+     * member of the Filename structure, because otherwise we break
+     * backwards compatibility with existing saved sessions.
+     *
+     * This means that 'exotic' filenames - those including Unicode
+     * characters outside the host system's CP_ACP default code page -
+     * cannot be represented faithfully, and saving and reloading a
+     * Conf including one will break it.
+     *
+     * This can't be fixed without breaking backwards compatibility,
+     * and if we're going to break compatibility then we should break
+     * it good and hard (the Nanny Ogg principle), and devise a
+     * completely fresh storage representation that fixes as many
+     * other legacy problems as possible at the same time.
+     */
+    write_setting_s(handle, name, result->cpath); /* FIXME */
 }
 
 void close_settings_r(settings_r *handle)
