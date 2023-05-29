@@ -2046,10 +2046,10 @@ static Mouse_Button translate_button(WinGuiSeat *wgs, Mouse_Button button)
     if (button == MBT_LEFT)
         return MBT_SELECT;
     if (button == MBT_MIDDLE)
-        return conf_get_int(wgs->conf, CONF_mouse_is_xterm) == 1 ?
+        return conf_get_int(wgs->conf, CONF_mouse_is_xterm) == MOUSE_XTERM ?
             MBT_PASTE : MBT_EXTEND;
     if (button == MBT_RIGHT)
-        return conf_get_int(wgs->conf, CONF_mouse_is_xterm) == 1 ?
+        return conf_get_int(wgs->conf, CONF_mouse_is_xterm) == MOUSE_XTERM ?
             MBT_EXTEND : MBT_PASTE;
     return 0;                          /* shouldn't happen */
 }
@@ -2603,7 +2603,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_RBUTTONUP:
         if (message == WM_RBUTTONDOWN &&
             ((wParam & MK_CONTROL) ||
-             (conf_get_int(wgs->conf, CONF_mouse_is_xterm) == 2))) {
+             (conf_get_int(wgs->conf, CONF_mouse_is_xterm) == MOUSE_WINDOWS))) {
             POINT cursorpos;
 
             /* Just in case this happened in mid-select */
