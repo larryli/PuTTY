@@ -395,6 +395,8 @@ void init_common_controls(void);       /* also does some DLL-loading */
  */
 typedef struct filereq_tag filereq; /* cwd for file requester */
 bool request_file(filereq *state, OPENFILENAME *of, bool preserve, bool save);
+bool request_file_w(filereq *state, OPENFILENAMEW *of,
+                    bool preserve, bool save);
 filereq *filereq_new(void);
 void filereq_free(filereq *state);
 void pgp_fingerprints_msgbox(HWND owner);
