@@ -402,6 +402,7 @@ int message_box(HWND owner, LPCTSTR text, LPCTSTR caption, DWORD style,
                 bool utf8, DWORD helpctxid);
 void MakeDlgItemBorderless(HWND parent, int id);
 char *GetDlgItemText_alloc(HWND hwnd, int id);
+wchar_t *GetDlgItemTextW_alloc(HWND hwnd, int id);
 void split_into_argv(char *, bool includes_program_name,
                      int *, char ***, char ***);
 
