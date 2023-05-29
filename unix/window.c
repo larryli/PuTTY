@@ -3896,11 +3896,11 @@ static void do_text_internal(
         truecolour.fg = truecolour.bg;
         truecolour.bg = trgb;
     }
-    if ((inst->bold_style & 2) && (attr & ATTR_BOLD)) {
+    if ((inst->bold_style & BOLD_STYLE_COLOUR) && (attr & ATTR_BOLD)) {
         if (nfg < 16) nfg |= 8;
         else if (nfg >= 256) nfg |= 1;
     }
-    if ((inst->bold_style & 2) && (attr & ATTR_BLINK)) {
+    if ((inst->bold_style & BOLD_STYLE_COLOUR) && (attr & ATTR_BLINK)) {
         if (nbg < 16) nbg |= 8;
         else if (nbg >= 256) nbg |= 1;
     }
@@ -3920,7 +3920,7 @@ static void do_text_internal(
         widefactor = 1;
     }
 
-    if ((attr & ATTR_BOLD) && (inst->bold_style & 1)) {
+    if ((attr & ATTR_BOLD) && (inst->bold_style & BOLD_STYLE_FONT)) {
         bold = true;
         fontid |= 1;
     } else {

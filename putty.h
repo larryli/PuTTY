@@ -513,6 +513,12 @@ enum {
 };
 
 enum {
+    /* these are really bit flags */
+    BOLD_STYLE_FONT = 1,
+    BOLD_STYLE_COLOUR = 2,
+};
+
+enum {
     SER_PAR_NONE, SER_PAR_ODD, SER_PAR_EVEN, SER_PAR_MARK, SER_PAR_SPACE
 };
 

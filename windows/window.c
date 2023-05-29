@@ -1402,9 +1402,11 @@ static void init_fonts(WinGuiSeat *wgs, int pick_width, int pick_height)
     for (i = 0; i < FONT_MAXNO; i++)
         wgs->fonts[i] = NULL;
 
-    wgs->bold_font_mode = conf_get_int(wgs->conf, CONF_bold_style) & 1 ?
+    wgs->bold_font_mode =
+        conf_get_int(wgs->conf, CONF_bold_style) & BOLD_STYLE_FONT ?
         BOLD_FONT : BOLD_NONE;
-    wgs->bold_colours = conf_get_int(wgs->conf, CONF_bold_style) & 2 ?
+    wgs->bold_colours =
+        conf_get_int(wgs->conf, CONF_bold_style) & BOLD_STYLE_COLOUR ?
         true : false;
     wgs->und_mode = UND_FONT;
 
