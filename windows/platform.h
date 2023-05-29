@@ -398,8 +398,8 @@ bool request_file(filereq *state, OPENFILENAME *of, bool preserve, bool save);
 filereq *filereq_new(void);
 void filereq_free(filereq *state);
 void pgp_fingerprints_msgbox(HWND owner);
-int message_box(HWND owner, LPCTSTR text, LPCTSTR caption,
-                DWORD style, DWORD helpctxid);
+int message_box(HWND owner, LPCTSTR text, LPCTSTR caption, DWORD style,
+                bool utf8, DWORD helpctxid);
 void MakeDlgItemBorderless(HWND parent, int id);
 char *GetDlgItemText_alloc(HWND hwnd, int id);
 void split_into_argv(char *, bool includes_program_name,

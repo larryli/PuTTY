@@ -83,7 +83,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                 s2 = dupprintf("%s Warning", appname);
                 if (message_box(NULL, s1, s2,
                                 MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
-                                HELPCTXID(option_cleanup)) == IDYES) {
+                                false, HELPCTXID(option_cleanup)) == IDYES) {
                     cleanup_all();
                 }
                 sfree(s1);

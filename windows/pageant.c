@@ -531,7 +531,7 @@ static void win_add_keyfile(Filename *filename, bool encrypted)
     }
 
   error:
-    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
+    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR, false,
                 HELPCTXID(errors_cantloadkey));
   done:
     sfree(err);
