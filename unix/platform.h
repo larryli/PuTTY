@@ -81,6 +81,8 @@ extern const struct BackendVtable pty_backend;
 typedef void *HelpCtx;
 #define NULL_HELPCTX ((HelpCtx)NULL)
 #define HELPCTX(x) NULL
+
+typedef const char *FILESELECT_FILTER_TYPE;
 #define FILTER_KEY_FILES NULL          /* FIXME */
 #define FILTER_DYNLIB_FILES NULL       /* FIXME */
 

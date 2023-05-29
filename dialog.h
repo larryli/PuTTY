@@ -362,7 +362,7 @@ struct dlgcontrol {
              * particular platform might choose to cast integers into
              * this pointer type...
              */
-            char const *filter;
+            FILESELECT_FILTER_TYPE filter;
             /*
              * Some systems like to know whether a file selector is
              * choosing a file to read or one to write (and possibly
@@ -552,8 +552,8 @@ dlgcontrol *ctrl_draglist(struct controlset *, const char *label,
                           char shortcut, HelpCtx helpctx,
                           handler_fn handler, intorptr context);
 dlgcontrol *ctrl_filesel(struct controlset *, const char *label,
-                         char shortcut, const char *filter, bool write,
-                         const char *title, HelpCtx helpctx,
+                         char shortcut, FILESELECT_FILTER_TYPE filter,
+                         bool write, const char *title, HelpCtx helpctx,
                          handler_fn handler, intorptr context);
 dlgcontrol *ctrl_fontsel(struct controlset *, const char *label,
                          char shortcut, HelpCtx helpctx,
