@@ -3576,7 +3576,7 @@ static void do_text_internal(
     y += wgs->offset_height;
 
     if ((attr & TATTR_ACTCURS) &&
-        (wgs->cursor_type == 0 || wgs->term->big_cursor)) {
+        (wgs->cursor_type == CURSOR_BLOCK || wgs->term->big_cursor)) {
         truecolour.fg = truecolour.bg = optionalrgb_none;
         attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS|ATTR_DIM);
         /* cursor fg and bg */
@@ -3971,12 +3971,13 @@ static void wintw_draw_cursor(
 
     lattr &= LATTR_MODE;
 
-    if ((attr & TATTR_ACTCURS) && (ctype == 0 || wgs->term->big_cursor)) {
+    if ((attr & TATTR_ACTCURS) &&
+        (ctype == CURSOR_BLOCK || wgs->term->big_cursor)) {
         if (*text != UCSWIDE) {
             win_draw_text(tw, x, y, text, len, attr, lattr, truecolour);
             return;
         }
-        ctype = 2;
+        ctype = CURSOR_VERTICAL_LINE;
         attr |= TATTR_RIGHTCURS;
     }
 
@@ -3988,7 +3989,8 @@ static void wintw_draw_cursor(
     x += wgs->offset_width;
     y += wgs->offset_height;
 
-    if ((attr & TATTR_PASCURS) && (ctype == 0 || wgs->term->big_cursor)) {
+    if ((attr & TATTR_PASCURS) &&
+        (ctype == CURSOR_BLOCK || wgs->term->big_cursor)) {
         POINT pts[5];
         HPEN oldpen;
         pts[0].x = pts[1].x = pts[4].x = x;
@@ -4000,15 +4002,16 @@ static void wintw_draw_cursor(
         Polyline(wgs->wintw_hdc, pts, 5);
         oldpen = SelectObject(wgs->wintw_hdc, oldpen);
         DeleteObject(oldpen);
-    } else if ((attr & (TATTR_ACTCURS | TATTR_PASCURS)) && ctype != 0) {
+    } else if ((attr & (TATTR_ACTCURS | TATTR_PASCURS)) &&
+               ctype != CURSOR_BLOCK) {
         int startx, starty, dx, dy, length, i;
-        if (ctype == 1) {
+        if (ctype == CURSOR_UNDERLINE) {
             startx = x;
             starty = y + wgs->descent;
             dx = 1;
             dy = 0;
             length = char_width;
-        } else {
+        } else /* ctype == CURSOR_VERTICAL_LINE */ {
             int xadjust = 0;
             if (attr & TATTR_RIGHTCURS)
                 xadjust = char_width - 1;
