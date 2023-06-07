@@ -1024,7 +1024,7 @@ int sftp_cmd_close(struct sftp_command *cmd)
     }
     do_sftp_cleanup();
 
-    return 0;
+    return 1;
 }
 
 void list_directory_from_sftp_warn_unsorted(void)
