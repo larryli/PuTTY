@@ -2386,6 +2386,10 @@ static void do_sftp_cleanup(void)
         sfree(homedir);
         homedir = NULL;
     }
+    if (psftp_logctx) {
+        log_free(psftp_logctx);
+        psftp_logctx = NULL;
+    }
 }
 
 int do_sftp(int mode, int modeflags, char *batchfile)
