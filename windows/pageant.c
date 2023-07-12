@@ -1741,7 +1741,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                                MB_ICONERROR | MB_OK);
                     return 1;
                 }
-                fprintf(fp, "IdentityAgent %s\n", pipename);
+                fprintf(fp, "IdentityAgent \"%s\"\n", pipename);
                 fclose(fp);
             }
 
