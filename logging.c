@@ -22,8 +22,9 @@ struct LogContext {
     int logtype;                       /* cached out of conf */
 };
 
-static Filename *xlatlognam(Filename *s, char *hostname, int port,
-                            struct tm *tm);
+static Filename *xlatlognam(const Filename *s,
+                            const char *hostname, int port,
+                            const struct tm *tm);
 
 /*
  * Internal wrapper function which must be called for _all_ output
@@ -451,10 +452,12 @@ void log_reconfig(LogContext *ctx, Conf *conf)
  *
  * "&Y":YYYY   "&m":MM   "&d":DD   "&T":hhmmss   "&h":<hostname>   "&&":&
  */
-static Filename *xlatlognam(Filename *src, char *hostname, int port,
-                            struct tm *tm)
+static Filename *xlatlognam(const Filename *src,
+                            const char *hostname, int port,
+                            const struct tm *tm)
 {
-    char buf[32], *bufp;
+    char buf[32];
+    const char *bufp;
     int size;
     strbuf *buffer;
     const char *s;
