@@ -219,7 +219,9 @@ digits.
 \b \c{&P} will be replaced by the port number you are connecting to on
 the target host.
 
-For example, if you enter the host name
+(These are all case-insensitive.)
+
+For example, if you enter the file name
 \c{c:\\puttylogs\\log-&h-&y&m&d-&t.dat}, you will end up with files looking
 like
 
