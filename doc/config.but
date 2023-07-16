@@ -214,7 +214,8 @@ digits.
 \b \c{&T} will be replaced by the current time, as six digits
 (HHMMSS) with no punctuation.
 
-\b \c{&H} will be replaced by the host name you are connecting to.
+\b \c{&H} will be replaced by the host name you are connecting to
+(or the serial line, for a serial connection).
 
 \b \c{&P} will be replaced by the port number you are connecting to on
 the target host.

@@ -174,7 +174,7 @@ void logfopen(LogContext *ctx)
         filename_free(ctx->currlogfilename);
     ctx->currlogfilename =
         xlatlognam(conf_get_filename(ctx->conf, CONF_logfilename),
-                   conf_get_str(ctx->conf, CONF_host),
+                   conf_dest(ctx->conf),    /* hostname or serial line */
                    conf_get_int(ctx->conf, CONF_port), &tm);
 
     if (open_for_write_would_lose_data(ctx->currlogfilename)) {
