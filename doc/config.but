@@ -3033,6 +3033,9 @@ PuTTY can't fall back to using this file itself.
 
 \S{config-ssh-cert} \q{\ii{Certificate} to use with the private key}
 
+(This is optional. If you don't know you need it, you can leave this
+blank.)
+
 In some environments, user authentication keys can be signed in turn
 by a \q{certifying authority} (\q{CA} for short), and user accounts on
 an SSH server can be configured to automatically trust any key that's

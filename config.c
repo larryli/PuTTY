@@ -2917,7 +2917,8 @@ void setup_config_box(struct controlbox *b, bool midsession,
                          FILTER_KEY_FILES, false, "Select private key file",
                          HELPCTX(ssh_auth_privkey),
                          conf_filesel_handler, I(CONF_keyfile));
-            ctrl_filesel(s, "Certificate to use with the private key:", 'e',
+            ctrl_filesel(s, "Certificate to use with the private key "
+                         "(optional):", 'e',
                          NULL, false, "Select certificate file",
                          HELPCTX(ssh_auth_cert),
                          conf_filesel_handler, I(CONF_detached_cert));
