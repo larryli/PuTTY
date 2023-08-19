@@ -5,6 +5,7 @@
 # options that CMake gets wrong.
 
 init=true
+link=true
 for arg in init "$@"; do
     if $init; then
         set --
@@ -21,9 +22,18 @@ for arg in init "$@"; do
         # suffix.
         -l*.lib) set -- "$@" "${arg%.lib}";;
 
+        # Options that mean we're not linking.
+        -E | -S | -c) link=false  set -- "$@" "$arg";;
+
         # Anything else, we leave unchanged.
         *) set -- "$@" "$arg";;
     esac
 done
 
+if $link; then
+    # winegcc requires this library for _wfopen
+    set -- "$@" -lucrtbase
+fi
+
+echo "$@" >&2
 exec winegcc "$@"
