@@ -2946,8 +2946,9 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
 
         def aesgcm(key, iv, aes_impl, gcm_impl):
             c = ssh_cipher_new('aes{:d}_gcm_{}'.format(8*len(key), aes_impl))
+            if c is None: return None, None # skip test if HW AES not available
             m = ssh2_mac_new('aesgcm_{}'.format(gcm_impl), c)
-            if m is None: return # skip test if HW GCM not available
+            if m is None: return None, None # skip test if HW GCM not available
             c.setkey(key)
             c.setiv(iv + b'\0'*4)
             m.setkey(b'')
@@ -3001,6 +3002,7 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
                            '5b60142bfcf4e5b0a9ada3451799866e')
 
             c, m = aesgcm(key, iv, aes_impl, gcm_impl)
+            if c is None or m is None: return # skip if HW impl unavailable
             len_dec = c.decrypt_length(aad, 123)
             self.assertEqual(len_dec, aad) # length not actually encrypted
             m.start()
@@ -3098,9 +3100,11 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         for impl in get_aes_impls():
             with self.subTest(aes_impl=impl):
                 gcm = ssh_cipher_new('aes{:d}_gcm_{}'.format(8*len(key), impl))
+                if gcm is None: continue  # skip if HW AES unavailable
                 gcm.setkey(key)
 
                 cbc = ssh_cipher_new('aes{:d}_cbc_{}'.format(8*len(key), impl))
+                # assume if gcm_<impl> is available, cbc_<impl> will be too
                 cbc.setkey(key)
 
                 # A simple test to ensure the low word gets
