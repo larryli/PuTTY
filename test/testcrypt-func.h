@@ -269,7 +269,7 @@ FUNC(opt_val_hash, blake2b_new_general, ARG(uint, hashlen))
  * to ssh2_mac_new. Also, again, I've invented an ssh2_mac_update so
  * you can put data into the MAC.
  */
-FUNC(val_mac, ssh2_mac_new, ARG(macalg, alg), ARG(opt_val_cipher, cipher))
+FUNC(opt_val_mac, ssh2_mac_new, ARG(macalg, alg), ARG(opt_val_cipher, cipher))
 FUNC(void, ssh2_mac_setkey, ARG(val_mac, m), ARG(val_string_ptrlen, key))
 FUNC(void, ssh2_mac_start, ARG(val_mac, m))
 FUNC(void, ssh2_mac_update, ARG(val_mac, m), ARG(val_string_ptrlen, data))
