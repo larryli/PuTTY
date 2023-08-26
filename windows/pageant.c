@@ -1741,7 +1741,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                                MB_ICONERROR | MB_OK);
                     return 1;
                 }
-                fprintf(fp, "IdentityAgent \"%s\"\n", pipename);
+                fputs("IdentityAgent \"", fp);
+                /* Some versions of Windows OpenSSH prefer / to \ as the path
+                 * separator; others don't mind, but as far as we know, no
+                 * version _objects_ to /, so we use it unconditionally. */
+                for (const char *p = pipename; *p; p++) {
+                    char c = *p;
+                    if (c == '\\')
+                        c = '/';
+                    fputc(c, fp);
+                }
+                fputs("\"\n", fp);
                 fclose(fp);
             }
 
