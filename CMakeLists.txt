@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.7)
 project(putty LANGUAGES C)
 
+set(CMAKE_C_STANDARD 99)
+
 include(cmake/setup.cmake)
 
 # Scan the docs directory first, so that when we start calling
