@@ -160,9 +160,6 @@ static bool psocks_continue(void *ctx, bool found_any_fd,
     return still_running;
 }
 
-typedef bool (*cliloop_continue_t)(void *ctx, bool found_any_fd,
-                                   bool ran_any_callback);
-
 int main(int argc, char **argv)
 {
     psocks_state *ps = psocks_new(&platform);

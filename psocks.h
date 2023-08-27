@@ -6,10 +6,10 @@ typedef struct PsocksDataSink PsocksDataSink;
 /* indices into PsocksDataSink arrays */
 typedef enum PsocksDirection { UP, DN } PsocksDirection;
 
-typedef struct PsocksDataSink {
+struct PsocksDataSink {
     void (*free)(PsocksDataSink *);
     BinarySink *s[2];
-} PsocksDataSink;
+};
 static inline void pds_free(PsocksDataSink *pds)
 { pds->free(pds); }
 
