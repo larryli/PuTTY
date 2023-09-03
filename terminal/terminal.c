@@ -1314,12 +1314,21 @@ static void term_schedule_update(Terminal *term)
 }
 
 /*
- * Call this whenever the terminal window state changes, to queue
- * an update.
+ * Call this whenever the terminal window state changes, to queue an
+ * update. This also resets the phase of cursor blinking, so that the
+ * cursor remains visible as it moves with the output, and sets a flag
+ * to indicate that if we have the 'reset scrollback on display
+ * activity' setting enabled, then we should activate it.
  */
 static void seen_disp_event(Terminal *term)
 {
-    term->seen_disp_event = true;      /* for scrollback-reset-on-activity */
+    if (term->scroll_on_disp) {
+        term->disptop = 0;
+        term->win_scrollbar_update_pending = true;
+    }
+    term->cblinker = true;
+    term->cblink_pending = false;
+    term_schedule_cblink(term);
     term_schedule_update(term);
 }
 
@@ -1352,17 +1361,6 @@ static void term_schedule_cblink(Terminal *term)
         term->cblinker = true;         /* reset when not in use */
         term->cblink_pending = false;
     }
-}
-
-/*
- * Call to reset cursor blinking on new output.
- */
-static void term_reset_cblink(Terminal *term)
-{
-    seen_disp_event(term);
-    term->cblinker = true;
-    term->cblink_pending = false;
-    term_schedule_cblink(term);
 }
 
 /*
@@ -1531,17 +1529,10 @@ void term_update(Terminal *term)
     }
 
     if (win_setup_draw_ctx(term->win)) {
-        bool need_sbar_update = term->seen_disp_event ||
-            term->win_scrollbar_update_pending;
-        term->win_scrollbar_update_pending = false;
-        if (term->seen_disp_event && term->scroll_on_disp) {
-            term->disptop = 0;         /* return to main screen */
-            term->seen_disp_event = false;
-            need_sbar_update = true;
-        }
-
-        if (need_sbar_update)
+        if (term->win_scrollbar_update_pending) {
+            term->win_scrollbar_update_pending = false;
             update_sbar(term);
+        }
         do_paint(term);
         win_set_cursor_pos(
             term->win, term->curs.x, term->curs.y - term->disptop);
@@ -1574,9 +1565,10 @@ void term_seen_key_event(Terminal *term)
     /*
      * Reset the scrollback on keypress, if we're doing that.
      */
-    if (term->scroll_on_key) {
-        term->disptop = 0;             /* return to main screen */
-        seen_disp_event(term);
+    if (term->scroll_on_key && term->disptop != 0) {
+        term->disptop = 0;
+        term->win_scrollbar_update_pending = true;
+        term_schedule_update(term);
     }
 }
 
@@ -2042,7 +2034,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->print_job = NULL;
     term->vt52_mode = false;
     term->cr_lf_return = false;
-    term->seen_disp_event = false;
     term->mouse_is_down = 0;
     term->reset_132 = false;
     term->cblinker = false;
@@ -2694,6 +2685,12 @@ static void scroll(Terminal *term, int topline, int botline,
                  */
                 if (term->disptop > -term->savelines && term->disptop < 0)
                     term->disptop--;
+
+                /*
+                 * We've just modified the data that the terminal's
+                 * scrollbar is based on, so remember to update it.
+                 */
+                term->win_scrollbar_update_pending = true;
             }
             resizeline(term, line, term->cols);
             clear_line(term, line);
@@ -7815,7 +7812,6 @@ static void term_added_data(Terminal *term, bool called_from_term_data)
 {
     if (!term->in_term_out) {
         term->in_term_out = true;
-        term_reset_cblink(term);
         term_out(term, called_from_term_data);
         term->in_term_out = false;
     }
