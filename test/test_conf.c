@@ -766,8 +766,53 @@ void test_simple(void)
                         AUTO, 0, FORCE_OFF, 1, FORCE_ON, 2, -1);
 }
 
+void test_conf_key_info(void)
+{
+    struct test_data {
+        const char *name;
+        bool got_value_type : 1;
+        bool got_subkey_type : 1;
+        bool got_default_int : 1;
+        bool got_default_str : 1;
+        bool got_default_bool : 1;
+        bool got_save_keyword : 1;
+        bool got_storage_enum : 1;
+    };
+
+#define CONF_OPTION(id, ...) { .name = "CONF_" #id, __VA_ARGS__ },
+#define VALUE_TYPE(x) .got_value_type = true
+#define SUBKEY_TYPE(x) .got_subkey_type = true
+#define DEFAULT_INT(x) .got_default_int = true
+#define DEFAULT_STR(x) .got_default_str = true
+#define DEFAULT_BOOL(x) .got_default_bool = true
+#define SAVE_KEYWORD(x) .got_save_keyword = true
+#define STORAGE_ENUM(x) .got_storage_enum = true
+
+    static const struct test_data conf_key_test_data[] = {
+        #include "conf.h"
+    };
+
+    for (size_t key = 0; key < N_CONFIG_OPTIONS; key++) {
+        const ConfKeyInfo *info = &conf_key_info[key];
+        const struct test_data *td = &conf_key_test_data[key];
+
+        if (!td->got_value_type) {
+            fprintf(stderr, "%s: no value type\n", td->name);
+            nfails++;
+        }
+
+        if ((td->got_default_int && info->value_type != CONF_TYPE_INT) ||
+            (td->got_default_str && info->value_type != CONF_TYPE_STR) ||
+            (td->got_default_bool && info->value_type != CONF_TYPE_BOOL)) {
+            fprintf(stderr, "%s: default doesn't match type\n", td->name);
+            nfails++;
+        }
+    }
+}
+
 int main(void)
 {
     test_simple();
+    test_conf_key_info();
     return nfails != 0;
 }
