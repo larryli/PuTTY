@@ -769,5 +769,5 @@ void test_simple(void)
 int main(void)
 {
     test_simple();
-    return 0;
+    return nfails != 0;
 }
