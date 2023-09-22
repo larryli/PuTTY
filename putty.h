@@ -2056,6 +2056,7 @@ enum config_primary_key { CONFIG_OPTIONS(CONF_ENUM_DEF) N_CONFIG_OPTIONS };
 /* Functions handling configuration structures. */
 Conf *conf_new(void);                  /* create an empty configuration */
 void conf_free(Conf *conf);
+void conf_clear(Conf *conf);    /* likely only useful for test programs */
 Conf *conf_copy(Conf *oldconf);
 void conf_copy_into(Conf *dest, Conf *src);
 /* Mandatory accessor functions: enforce by assertion that keys exist. */
