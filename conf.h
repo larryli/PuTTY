@@ -497,7 +497,7 @@ CONF_OPTION(supdup_location,
 )
 CONF_OPTION(supdup_ascii_set,
     VALUE_TYPE(INT),
-    DEFAULT_BOOL(false),
+    DEFAULT_INT(SUPDUP_CHARSET_ASCII),
     SAVE_KEYWORD("SUPDUPCharset"),
     STORAGE_ENUM(supdup_charset),
 )
@@ -985,7 +985,8 @@ CONF_OPTION(mouseautocopy,
      * selected with the mouse.
      */
     VALUE_TYPE(BOOL),
-    DEFAULT_INT(CLIPUI_DEFAULT_AUTOCOPY),
+    DEFAULT_BOOL(CLIPUI_DEFAULT_AUTOCOPY), /* platform-dependent bool-valued
+                                            * macro */
     SAVE_KEYWORD("MouseAutocopy"),
 )
 CONF_OPTION(mousepaste, /* clipboard used by one-mouse-click paste actions */
