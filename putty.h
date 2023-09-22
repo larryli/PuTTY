@@ -2053,6 +2053,19 @@ NORETURN void cleanup_exit(int);
 enum config_primary_key { CONFIG_OPTIONS(CONF_ENUM_DEF) N_CONFIG_OPTIONS };
 #undef CONF_ENUM_DEF
 
+/* Types that appear in Conf keys and values. CONF_TYPE_NONE is used
+ * as the subkey type for options that don't have subkeys, and is also
+ * available as a placeholder value for other kinds of 'no type found'
+ * error. */
+enum {
+    CONF_TYPE_NONE,
+    CONF_TYPE_BOOL,
+    CONF_TYPE_INT,
+    CONF_TYPE_STR,
+    CONF_TYPE_FILENAME,
+    CONF_TYPE_FONT,
+};
+
 /* Functions handling configuration structures. */
 Conf *conf_new(void);                  /* create an empty configuration */
 void conf_free(Conf *conf);
