@@ -142,6 +142,7 @@ in putty do make -j$(nproc) VERBOSE=1
 in putty do python3 test/cryptsuite.py
 in putty do ./test_lineedit
 in putty do ./test_terminal
+in putty do ./test_conf
 enddelegate
 
 delegate -

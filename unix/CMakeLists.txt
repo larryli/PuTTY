@@ -244,3 +244,5 @@ target_link_libraries(pageant
   eventloop console agent settings network crypto utils
   ${pageant_libs})
 installed_program(pageant)
+
+add_sources_from_current_dir(test_conf stubs/no-uxsel.c)
