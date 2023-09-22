@@ -1,11 +1,11 @@
 #include "putty.h"
 
-#define CONF_ENUM(name, ...)                                    \
-    static const ConfSaveEnumValue enum_values_##name[] = {     \
-        __VA_ARGS__                                             \
-    }; static const ConfSaveEnumType enum_##name = {            \
-        .values = enum_values_##name,                           \
-        .nvalues = lenof(enum_values_##name),                   \
+#define CONF_ENUM(name, ...)                                            \
+    static const ConfSaveEnumValue conf_enum_values_##name[] = {        \
+        __VA_ARGS__                                                     \
+    }; const ConfSaveEnumType conf_enum_##name = {                      \
+        .values = conf_enum_values_##name,                              \
+        .nvalues = lenof(conf_enum_values_##name),                      \
     };
 
 #define VALUE(eval, sval) { eval, sval, false }
@@ -43,7 +43,10 @@ bool conf_enum_map_from_storage(const ConfSaveEnumType *etype,
 #define DEFAULT_STR(x) .default_value.sval = x
 #define DEFAULT_BOOL(x) .default_value.bval = x
 #define SAVE_KEYWORD(x) .save_keyword = x
-#define STORAGE_ENUM(x) .storage_enum = &enum_ ## x
+#define STORAGE_ENUM(x) .storage_enum = &conf_enum_ ## x
+#define SAVE_CUSTOM .save_custom = true
+#define LOAD_CUSTOM .load_custom = true
+#define NOT_SAVED .not_saved = true
 
 const ConfKeyInfo conf_key_info[] = {
     #include "conf.h"

@@ -81,6 +81,26 @@ CONF_ENUM(supdup_charset,
     VALUE(SUPDUP_CHARSET_WAITS, 2),
 )
 
+CONF_ENUM(proxy_type,
+    VALUE(PROXY_NONE, 0),
+    VALUE(PROXY_SOCKS4, 1),
+    VALUE(PROXY_SOCKS5, 2),
+    VALUE(PROXY_HTTP, 3),
+    VALUE(PROXY_TELNET, 4),
+    VALUE(PROXY_CMD, 5),
+    VALUE(PROXY_SSH_TCPIP, 6),
+    VALUE(PROXY_SSH_EXEC, 7),
+    VALUE(PROXY_SSH_SUBSYSTEM, 8),
+)
+
+CONF_ENUM(old_proxy_type,
+    VALUE(PROXY_NONE, 0),
+    VALUE(PROXY_HTTP, 1),
+    VALUE(PROXY_SOCKS5, 2), /* really, both SOCKS 4 and 5 */
+    VALUE(PROXY_TELNET, 3),
+    VALUE(PROXY_CMD, 4),
+)
+
 CONF_ENUM(funky_type,
     VALUE(FUNKY_TILDE, 0),
     VALUE(FUNKY_LINUX, 1),
@@ -94,6 +114,12 @@ CONF_ENUM(funky_type,
 CONF_ENUM(sharrow_type,
     VALUE(SHARROW_APPLICATION, 0),
     VALUE(SHARROW_BITMAP, 1),
+)
+
+CONF_ENUM(remote_qtitle_action,
+    VALUE(TITLE_NONE, 0),
+    VALUE(TITLE_EMPTY, 1),
+    VALUE(TITLE_REAL, 2),
 )
 
 CONF_ENUM(cursor_type,

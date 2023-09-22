@@ -1820,6 +1820,10 @@ struct ConfKeyInfo {
         const char *sval;
     } default_value;
 
+    bool save_custom : 1;
+    bool load_custom : 1;
+    bool not_saved : 1;
+
     const char *save_keyword;
     const ConfSaveEnumType *storage_enum;
 };

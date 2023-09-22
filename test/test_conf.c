@@ -323,7 +323,9 @@ void test_int_simple(int confid, const char *saveid, int defexp)
     conf_free(conf);
 }
 
-void test_int_translated(int confid, const char *saveid, int defexp, ...)
+void test_int_translated_internal(
+    int confid, const char *saveid, bool test_save, bool test_load,
+    void (*load_prepare)(settings_r *), int defexp, va_list ap)
 {
     Conf *conf = conf_new();
 
@@ -335,50 +337,74 @@ void test_int_translated(int confid, const char *saveid, int defexp, ...)
         nfails++;
     }
 
-    va_list ap;
-    va_start(ap, defexp);
     int confval = va_arg(ap, int);
     while (confval != -1) {
         int storageval = va_arg(ap, int);
-        settings_w sw = {
-            .n = 1,
-            .si[0].key = saveid,
-            .si[0].type = SAVE_UNSET,
-        };
-        conf_set_int(conf, confid, confval);
-        save_open_settings(&sw, conf);
-        if (sw.si[0].type != SAVE_I) {
-            printf("fail test_int_translated(%s): "
-                   "saved type = %d, expected %d\n",
-                   saveid, sw.si[0].type, SAVE_I);
-            nfails++;
-        } else if (sw.si[0].ival != storageval) {
-            printf("fail test_int_translated(%s.%d.%d): "
-                   "saved integer = %d, expected %d\n",
-                   saveid, confval, storageval, sw.si[0].ival, storageval);
-            nfails++;
+
+        if (test_save) {
+            settings_w sw = {
+                .n = 1,
+                .si[0].key = saveid,
+                .si[0].type = SAVE_UNSET,
+            };
+            conf_set_int(conf, confid, confval);
+            save_open_settings(&sw, conf);
+            if (sw.si[0].type != SAVE_I) {
+                printf("fail test_int_translated(%s): "
+                       "saved type = %d, expected %d\n",
+                       saveid, sw.si[0].type, SAVE_I);
+                nfails++;
+            } else if (sw.si[0].ival != storageval) {
+                printf("fail test_int_translated(%s.%d.%d): "
+                       "saved integer = %d, expected %d\n",
+                       saveid, confval, storageval, sw.si[0].ival, storageval);
+                nfails++;
+            }
         }
 
-        conf_clear(conf);
-        settings_r sr = {
-            .n = 1,
-            .si[0].key = saveid,
-            .si[0].type = SAVE_I,
-            .si[0].ival = storageval,
-        };
-        load_open_settings(&sr, conf);
-        int loaded = conf_get_int(conf, confid);
-        if (loaded != confval) {
-            printf("fail test_int_translated(%s.%d.%d): "
-                   "loaded integer = %d, expected %d\n",
-                   saveid, confval, storageval, loaded, confval);
-            nfails++;
+        if (test_load) {
+            conf_clear(conf);
+            settings_r sr = {
+                .n = 1,
+                .si[0].key = saveid,
+                .si[0].type = SAVE_I,
+                .si[0].ival = storageval,
+            };
+            if (load_prepare)
+                load_prepare(&sr);
+            load_open_settings(&sr, conf);
+            int loaded = conf_get_int(conf, confid);
+            if (loaded != confval) {
+                printf("fail test_int_translated(%s.%d.%d): "
+                       "loaded integer = %d, expected %d\n",
+                       saveid, confval, storageval, loaded, confval);
+                nfails++;
+            }
         }
+
         confval = va_arg(ap, int);
     }
-    va_end(ap);
             
     conf_free(conf);
+}
+
+void test_int_translated(int confid, const char *saveid, int defexp, ...)
+{
+    va_list ap;
+    va_start(ap, defexp);
+    test_int_translated_internal(confid, saveid, true, true, NULL, defexp, ap);
+    va_end(ap);
+}
+
+void test_int_translated_load_legacy(
+    int confid, const char *saveid, void (*load_prepare)(settings_r *),
+    int defexp, ...)
+{
+    va_list ap;
+    va_start(ap, defexp);
+    test_int_translated_internal(confid, saveid, false, true, load_prepare,
+                                 defexp, ap);
+    va_end(ap);
 }
 
 void test_bool_simple(int confid, const char *saveid, bool defexp)
@@ -530,6 +556,14 @@ void test_font_simple(int confid, const char *saveid)
     }
 
     conf_free(conf);
+}
+
+static void load_prepare_socks4(settings_r *sr)
+{
+    size_t pos = sr->n++;
+    sr->si[pos].key = "ProxySOCKSVersion";
+    sr->si[pos].type = SAVE_I;
+    sr->si[pos].ival = 4;
 }
 
 void test_simple(void)
@@ -764,6 +798,22 @@ void test_simple(void)
                         FORCE_OFF, 1, FORCE_ON, 2, -1);
     test_int_translated(CONF_sshbug_rsa_sha2_cert_userauth, "BugRSASHA2CertUserauth", AUTO,
                         AUTO, 0, FORCE_OFF, 1, FORCE_ON, 2, -1);
+    test_int_translated(CONF_proxy_type, "ProxyMethod", PROXY_NONE,
+                        PROXY_NONE, 0, PROXY_SOCKS4, 1, PROXY_SOCKS5, 2,
+                        PROXY_HTTP, 3, PROXY_TELNET, 4, PROXY_CMD, 5,
+                        PROXY_SSH_TCPIP, 6, PROXY_SSH_EXEC, 7,
+                        PROXY_SSH_SUBSYSTEM, 8, -1);
+    test_int_translated_load_legacy(
+        CONF_proxy_type, "ProxyType", NULL, PROXY_NONE,
+        PROXY_HTTP, 1, PROXY_SOCKS5, 2, PROXY_TELNET, 3, PROXY_CMD, 4, -1);
+    test_int_translated_load_legacy(
+        CONF_proxy_type, "ProxyType", load_prepare_socks4, PROXY_NONE,
+        PROXY_HTTP, 1, PROXY_SOCKS4, 2, PROXY_TELNET, 3, PROXY_CMD, 4, -1);
+    test_int_translated(CONF_remote_qtitle_action, "RemoteQTitleAction", TITLE_EMPTY,
+                        TITLE_NONE, 0, TITLE_EMPTY, 1, TITLE_REAL, 2, -1);
+    test_int_translated_load_legacy(
+        CONF_remote_qtitle_action, "NoRemoteQTitle", NULL, TITLE_EMPTY,
+        TITLE_REAL, 0, TITLE_EMPTY, 1, -1);
 }
 
 void test_conf_key_info(void)
@@ -777,6 +827,9 @@ void test_conf_key_info(void)
         bool got_default_bool : 1;
         bool got_save_keyword : 1;
         bool got_storage_enum : 1;
+        bool save_custom : 1;
+        bool load_custom : 1;
+        bool not_saved : 1;
     };
 
 #define CONF_OPTION(id, ...) { .name = "CONF_" #id, __VA_ARGS__ },
@@ -787,6 +840,9 @@ void test_conf_key_info(void)
 #define DEFAULT_BOOL(x) .got_default_bool = true
 #define SAVE_KEYWORD(x) .got_save_keyword = true
 #define STORAGE_ENUM(x) .got_storage_enum = true
+#define SAVE_CUSTOM .save_custom = true
+#define LOAD_CUSTOM .load_custom = true
+#define NOT_SAVED .not_saved = true
 
     static const struct test_data conf_key_test_data[] = {
         #include "conf.h"
@@ -807,12 +863,64 @@ void test_conf_key_info(void)
             fprintf(stderr, "%s: default doesn't match type\n", td->name);
             nfails++;
         }
+
+        if (td->got_storage_enum && info->value_type != CONF_TYPE_INT) {
+            fprintf(stderr, "%s: has STORAGE_ENUM but isn't an int\n",
+                    td->name);
+            nfails++;
+        }
+
+        if (td->not_saved) {
+            if (td->got_save_keyword) {
+                fprintf(stderr, "%s: not saved but has SAVE_KEYWORD\n",
+                        td->name);
+                nfails++;
+            }
+
+            if (td->save_custom) {
+                fprintf(stderr, "%s: not saved but has SAVE_CUSTOM\n",
+                        td->name);
+                nfails++;
+            }
+
+            if (td->load_custom) {
+                fprintf(stderr, "%s: not saved but has LOAD_CUSTOM\n",
+                        td->name);
+                nfails++;
+            }
+
+            if (td->got_storage_enum) {
+                fprintf(stderr, "%s: not saved but has STORAGE_ENUM\n",
+                        td->name);
+                nfails++;
+            }
+
+        } else {
+            if (td->load_custom && td->save_custom) {
+                if (td->got_save_keyword) {
+                    fprintf(stderr, "%s: no automatic save or load but has "
+                            "SAVE_KEYWORD\n", td->name);
+                    nfails++;
+                }
+
+                if (td->got_storage_enum) {
+                    fprintf(stderr, "%s: no automatic save or load but has "
+                            "STORAGE_ENUM\n", td->name);
+                    nfails++;
+                }
+            } else {
+                if (!td->got_save_keyword) {
+                    fprintf(stderr, "%s: missing SAVE_KEYWORD\n", td->name);
+                    nfails++;
+                }
+            }
+        }
     }
 }
 
 int main(void)
 {
-    test_simple();
     test_conf_key_info();
+    test_simple();
     return nfails != 0;
 }

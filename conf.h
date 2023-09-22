@@ -18,14 +18,12 @@ CONF_OPTION(host,
 )
 CONF_OPTION(port,
     VALUE_TYPE(INT),
-    /*
-     * Notionally SAVE_KEYWORD("PortNumber"), but saving/loading is
-     * handled by custom code because the default value depends on the
-     * value of CONF_protocol.
-     */
+    SAVE_KEYWORD("PortNumber"),
+    LOAD_CUSTOM, /* default value depends on the value of CONF_protocol */
 )
 CONF_OPTION(protocol,
     VALUE_TYPE(INT), /* PROT_SSH, PROT_TELNET etc */
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Notionally SAVE_KEYWORD("Protocol"), but saving/loading is handled by
      * custom code because the stored value is a string representation
@@ -51,6 +49,7 @@ CONF_OPTION(warn_on_close,
 )
 CONF_OPTION(ping_interval,
     VALUE_TYPE(INT), /* in seconds */
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Saving/loading is handled by custom code because for historical
      * reasons this value corresponds to two save keywords,
@@ -95,11 +94,14 @@ CONF_OPTION(even_proxy_localhost,
 )
 CONF_OPTION(proxy_type,
     VALUE_TYPE(INT), /* PROXY_NONE, PROXY_SOCKS4, ... */
+    STORAGE_ENUM(proxy_type),
+    SAVE_KEYWORD("ProxyMethod"),
+    LOAD_CUSTOM,
     /*
-     * SAVE_KEYWORD("ProxyMethod"), for the current configuration
-     * format. But there was an earlier keyword "ProxyType" using a
-     * different enumeration, in which SOCKS4 and SOCKS5 shared a
-     * value, and a second keyword "ProxySOCKSVersion" disambiguated.
+     * Custom load code: there was an earlier keyword "ProxyType"
+     * using a different enumeration, in which SOCKS4 and SOCKS5
+     * shared a value, and a second keyword "ProxySOCKSVersion"
+     * disambiguated.
      */
 )
 CONF_OPTION(proxy_host,
@@ -148,6 +150,7 @@ CONF_OPTION(remote_cmd2,
      * by user configuration, or loaded or saved.
      */
     VALUE_TYPE(STR),
+    NOT_SAVED,
 )
 CONF_OPTION(nopty,
     VALUE_TYPE(BOOL),
@@ -163,19 +166,13 @@ CONF_OPTION(ssh_kexlist,
     SUBKEY_TYPE(INT), /* indices in preference order: 0,...,KEX_MAX-1
                        * (lower is more preferred) */
     VALUE_TYPE(INT),  /* KEX_* enum values */
-    /*
-     * Loading and saving is done by custom code for all preference
-     * lists
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for preference lists */
 )
 CONF_OPTION(ssh_hklist,
     SUBKEY_TYPE(INT), /* indices in preference order: 0,...,HK_MAX-1
                        * (lower is more preferred) */
     VALUE_TYPE(INT),  /* HK_* enum values */
-    /*
-     * Loading and saving is done by custom code for all preference
-     * lists
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for preference lists */
 )
 CONF_OPTION(ssh_prefer_known_hostkeys,
     VALUE_TYPE(BOOL),
@@ -211,10 +208,7 @@ CONF_OPTION(ssh_cipherlist,
     SUBKEY_TYPE(INT), /* indices in preference order: 0,...,CIPHER_MAX-1
                        * (lower is more preferred) */
     VALUE_TYPE(INT),  /* CIPHER_* enum values */
-    /*
-     * Loading and saving is done by custom code for all preference
-     * lists
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for preference lists */
 )
 CONF_OPTION(keyfile,
     VALUE_TYPE(FILENAME),
@@ -261,6 +255,7 @@ CONF_OPTION(ssh_simple,
      * user configuration, or loaded or saved.
      */
     VALUE_TYPE(BOOL),
+    NOT_SAVED,
 )
 CONF_OPTION(ssh_connection_sharing,
     VALUE_TYPE(BOOL),
@@ -288,9 +283,7 @@ CONF_OPTION(ssh_manual_hostkeys,
      */
     SUBKEY_TYPE(STR),
     VALUE_TYPE(STR),
-    /*
-     * Loading and saving is done by custom code for all mappings
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 CONF_OPTION(ssh2_des_cbc, /* "des-cbc" unrecommended SSH-2 cipher */
     VALUE_TYPE(BOOL),
@@ -324,49 +317,31 @@ CONF_OPTION(try_ki_auth,
 )
 CONF_OPTION(try_gssapi_auth, /* attempt gssapi via ssh userauth */
     VALUE_TYPE(BOOL),
-    /*
-     * Loading and saving is done by custom code because it's under
-     * #ifndef NO_GSSAPI
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifndef NO_GSSAPI */
 )
 CONF_OPTION(try_gssapi_kex, /* attempt gssapi via ssh kex */
     VALUE_TYPE(BOOL),
-    /*
-     * Loading and saving is done by custom code because it's under
-     * #ifndef NO_GSSAPI
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifndef NO_GSSAPI */
 )
 CONF_OPTION(gssapifwd, /* forward tgt via gss */
     VALUE_TYPE(BOOL),
-    /*
-     * Loading and saving is done by custom code because it's under
-     * #ifndef NO_GSSAPI
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifndef NO_GSSAPI */
 )
 CONF_OPTION(gssapirekey, /* KEXGSS refresh interval (mins) */
     VALUE_TYPE(INT),
-    /*
-     * Loading and saving is done by custom code because it's under
-     * #ifndef NO_GSSAPI
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifndef NO_GSSAPI */
 )
 CONF_OPTION(ssh_gsslist,
     SUBKEY_TYPE(INT), /* indices in preference order: 0,...,ngsslibs
                        * (lower is more preferred; ngsslibs is a platform-
                        * dependent value) */
     VALUE_TYPE(INT),  /* indices of GSSAPI lib types (platform-dependent) */
-    /*
-     * Loading and saving is done by custom code because it's under
-     * #ifndef NO_GSSAPI, and also because all preference lists are
-     * handled by custom code
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for preference lists, also this
+                               * setting is under #ifndef NO_GSSAPI */
 )
 CONF_OPTION(ssh_gss_custom,
     VALUE_TYPE(FILENAME),
-    /*
-     * Loading and saving is done by custom code because it's under
-     * #ifndef NO_GSSAPI
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifndef NO_GSSAPI */
 )
 CONF_OPTION(ssh_subsys, /* run a subsystem rather than a command */
     /*
@@ -374,6 +349,7 @@ CONF_OPTION(ssh_subsys, /* run a subsystem rather than a command */
      * configuration, or loaded or saved.
      */
     VALUE_TYPE(BOOL),
+    NOT_SAVED,
 )
 CONF_OPTION(ssh_subsys2, /* fallback to go with remote_cmd_ptr2 */
     /*
@@ -381,6 +357,7 @@ CONF_OPTION(ssh_subsys2, /* fallback to go with remote_cmd_ptr2 */
      * configuration, or loaded or saved.
      */
     VALUE_TYPE(BOOL),
+    NOT_SAVED,
 )
 CONF_OPTION(ssh_no_shell, /* avoid running a shell */
     VALUE_TYPE(BOOL),
@@ -394,6 +371,7 @@ CONF_OPTION(ssh_nc_host, /* host to connect to in `nc' mode */
      * also never loaded or saved.
      */
     VALUE_TYPE(STR),
+    NOT_SAVED,
 )
 CONF_OPTION(ssh_nc_port, /* port to connect to in `nc' mode */
     /*
@@ -402,6 +380,7 @@ CONF_OPTION(ssh_nc_port, /* port to connect to in `nc' mode */
      * also never loaded or saved.
      */
     VALUE_TYPE(INT),
+    NOT_SAVED,
 )
 
 /* Telnet options */
@@ -418,16 +397,12 @@ CONF_OPTION(termspeed,
 CONF_OPTION(ttymodes,
     SUBKEY_TYPE(STR), /* subkeys are listed in ttymodes[] in settings.c */
     VALUE_TYPE(STR),  /* values are "Vvalue" or "A" */
-    /*
-     * Loading and saving is done by custom code for all mappings
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 CONF_OPTION(environmt,
     SUBKEY_TYPE(STR), /* environment variable name */
     VALUE_TYPE(STR),  /* environment variable value */
-    /*
-     * Loading and saving is done by custom code for all mappings
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 CONF_OPTION(username,
     VALUE_TYPE(STR),
@@ -582,11 +557,10 @@ CONF_OPTION(no_remote_charset, /* disable remote charset config */
 )
 CONF_OPTION(remote_qtitle_action, /* handling of remote window title queries */
     VALUE_TYPE(INT),
-    /*
-     * SAVE_KEYWORD("RemoteQTitleAction"), but loading and saving is
-     * done in custom code, because older versions had a boolean
-     * "NoRemoteQTitle" before we ended up with three options.
-     */
+    STORAGE_ENUM(remote_qtitle_action),
+    SAVE_KEYWORD("RemoteQTitleAction"),
+    LOAD_CUSTOM, /* older versions had a boolean "NoRemoteQTitle"
+                  * before we ended up with three options */
 )
 CONF_OPTION(app_cursor,
     VALUE_TYPE(BOOL),
@@ -677,17 +651,11 @@ CONF_OPTION(ctrlaltkeys,
 )
 CONF_OPTION(osx_option_meta,
     VALUE_TYPE(BOOL),
-    /*
-     * Loading and saving is done in custom code because this is under
-     * #ifdef OSX_META_KEY_CONFIG
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifdef OSX_META_KEY_CONFIG */
 )
 CONF_OPTION(osx_command_meta,
     VALUE_TYPE(BOOL),
-    /*
-     * Loading and saving is done in custom code because this is under
-     * #ifdef OSX_META_KEY_CONFIG
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* under #ifdef OSX_META_KEY_CONFIG */
 )
 CONF_OPTION(wintitle, /* initial window title */
     VALUE_TYPE(STR),
@@ -750,6 +718,7 @@ CONF_OPTION(bellovl_n, /* number of bells to cause overload */
 )
 CONF_OPTION(bellovl_t, /* time interval for overload (ticks) */
     VALUE_TYPE(INT),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Loading and saving is done in custom code because the format is
      * platform-dependent for historical reasons: on Unix, the stored
@@ -760,6 +729,7 @@ CONF_OPTION(bellovl_t, /* time interval for overload (ticks) */
 )
 CONF_OPTION(bellovl_s, /* period of silence to re-enable bell (s) */
     VALUE_TYPE(INT),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Loading and saving is done in custom code because the format is
      * platform-dependent for historical reasons: on Unix, the stored
@@ -930,9 +900,7 @@ CONF_OPTION(bold_style,
 CONF_OPTION(colours,
     SUBKEY_TYPE(INT), /* indexed by CONF_COLOUR_* enum encoding */
     VALUE_TYPE(INT),
-    /*
-     * Loading and saving is done by custom code for all mappings
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 
 /* Selection options */
@@ -975,9 +943,7 @@ CONF_OPTION(mouse_override,
 CONF_OPTION(wordness,
     SUBKEY_TYPE(INT), /* ASCII character codes (literally, just 00-7F) */
     VALUE_TYPE(INT),  /* arbitrary equivalence-class value for that char */
-    /*
-     * Loading and saving is done by custom code for all mappings
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 CONF_OPTION(mouseautocopy,
     /*
@@ -991,6 +957,7 @@ CONF_OPTION(mouseautocopy,
 )
 CONF_OPTION(mousepaste, /* clipboard used by one-mouse-click paste actions */
     VALUE_TYPE(INT),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * SAVE_KEYWORD("MousePaste"), but loading and saving is done by
      * custom code, because the saved value is a string, and also sets
@@ -999,6 +966,7 @@ CONF_OPTION(mousepaste, /* clipboard used by one-mouse-click paste actions */
 )
 CONF_OPTION(ctrlshiftins, /* clipboard used by Ctrl+Ins and Shift+Ins */
     VALUE_TYPE(INT),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * SAVE_KEYWORD("CtrlShiftIns"), but loading and saving is done by
      * custom code, because the saved value is a string, and also sets
@@ -1007,6 +975,7 @@ CONF_OPTION(ctrlshiftins, /* clipboard used by Ctrl+Ins and Shift+Ins */
 )
 CONF_OPTION(ctrlshiftcv, /* clipboard used by Ctrl+Shift+C and Ctrl+Shift+V */
     VALUE_TYPE(INT),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * SAVE_KEYWORD("CtrlShiftCV"), but loading and saving is done by
      * custom code, because the saved value is a string, and also sets
@@ -1016,6 +985,7 @@ CONF_OPTION(ctrlshiftcv, /* clipboard used by Ctrl+Shift+C and Ctrl+Shift+V */
 CONF_OPTION(mousepaste_custom,
     /* Custom clipboard name if CONF_mousepaste is set to CLIPUI_CUSTOM */
     VALUE_TYPE(STR),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Loading and saving is handled by custom code in conjunction
      * with CONF_mousepaste
@@ -1024,6 +994,7 @@ CONF_OPTION(mousepaste_custom,
 CONF_OPTION(ctrlshiftins_custom,
     /* Custom clipboard name if CONF_ctrlshiftins is set to CLIPUI_CUSTOM */
     VALUE_TYPE(STR),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Loading and saving is handled by custom code in conjunction
      * with CONF_ctrlshiftins
@@ -1032,6 +1003,7 @@ CONF_OPTION(ctrlshiftins_custom,
 CONF_OPTION(ctrlshiftcv_custom,
     /* Custom clipboard name if CONF_ctrlshiftcv is set to CLIPUI_CUSTOM */
     VALUE_TYPE(STR),
+    LOAD_CUSTOM, SAVE_CUSTOM,
     /*
      * Loading and saving is handled by custom code in conjunction
      * with CONF_ctrlshiftcv
@@ -1112,9 +1084,7 @@ CONF_OPTION(portfwd,
      */
     SUBKEY_TYPE(STR),
     VALUE_TYPE(STR),
-    /*
-     * Loading and saving is done by custom code for all mappings
-     */
+    LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 
 /* SSH bug compatibility modes. All FORCE_ON/FORCE_OFF/AUTO */
@@ -1210,11 +1180,10 @@ CONF_OPTION(sshbug_rsa_sha2_cert_userauth,
 )
 CONF_OPTION(sshbug_hmac2,
     VALUE_TYPE(INT),
+    DEFAULT_INT(AUTO),
+    SAVE_KEYWORD("BugHMAC2"),
     STORAGE_ENUM(auto_off_on),
-    /*
-     * Loading and saving is done by custom code because there was an
-     * earlier keyword called "BuggyMAC"
-     */
+    LOAD_CUSTOM, /* there was an earlier keyword called "BuggyMAC" */
 )
 
 /* Options for Unix. Should split out into platform-dependent part. */

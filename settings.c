@@ -525,6 +525,11 @@ char *save_settings(const char *section, Conf *conf)
     return NULL;
 }
 
+/* Declare extern references to conf_enum_* types */
+#define CONF_ENUM(name, ...) extern const ConfSaveEnumType conf_enum_##name;
+#include "conf-enums.h"
+#undef CONF_ENUM
+
 void save_open_settings(settings_w *sesskey, Conf *conf)
 {
     int i;
@@ -533,7 +538,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     /* Save the settings simple enough to handle automatically */
     for (size_t key = 0; key < N_CONFIG_OPTIONS; key++) {
         const ConfKeyInfo *info = &conf_key_info[key];
-        if (info->save_keyword) {
+        if (!info->save_custom && !info->not_saved) {
             /* Mappings are handled individually below */
             assert(info->subkey_type == CONF_TYPE_NONE);
             switch (info->value_type) {
@@ -578,13 +583,11 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
             p = vt->id;
     }
     write_setting_s(sesskey, "Protocol", p);
-    write_setting_i(sesskey, "PortNumber", conf_get_int(conf, CONF_port));
     write_setting_i(sesskey, "PingInterval", conf_get_int(conf, CONF_ping_interval) / 60);      /* minutes */
     write_setting_i(sesskey, "PingIntervalSecs", conf_get_int(conf, CONF_ping_interval) % 60);  /* seconds */
     wmap(sesskey, "TerminalModes", conf, CONF_ttymodes, true);
 
     /* proxy settings */
-    write_setting_i(sesskey, "ProxyMethod", conf_get_int(conf, CONF_proxy_type));
     wmap(sesskey, "Environment", conf, CONF_environmt, true);
 #ifndef NO_GSSAPI
     write_setting_b(sesskey, "GssapiFwd", conf_get_bool(conf, CONF_gssapifwd));
@@ -601,7 +604,6 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     wprefs(sesskey, "GSSLibs", gsslibkeywords, ngsslibs, conf, CONF_ssh_gsslist);
     write_setting_filename(sesskey, "GSSCustom", conf_get_filename(conf, CONF_ssh_gss_custom));
 #endif
-    write_setting_i(sesskey, "RemoteQTitleAction", conf_get_int(conf, CONF_remote_qtitle_action));
 #ifdef OSX_META_KEY_CONFIG
     write_setting_b(sesskey, "OSXOptionMeta", conf_get_bool(conf, CONF_osx_option_meta));
     write_setting_b(sesskey, "OSXCommandMeta", conf_get_bool(conf, CONF_osx_command_meta));
@@ -645,7 +647,6 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_clip_setting(sesskey, "CtrlShiftCV", conf,
                        CONF_ctrlshiftcv, CONF_ctrlshiftcv_custom);
     wmap(sesskey, "PortForwardings", conf, CONF_portfwd, true);
-    write_setting_i(sesskey, "BugHMAC2", 2-conf_get_int(conf, CONF_sshbug_hmac2));
     wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, false);
 }
 
@@ -677,7 +678,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     /* Load the settings simple enough to handle automatically */
     for (size_t key = 0; key < N_CONFIG_OPTIONS; key++) {
         const ConfKeyInfo *info = &conf_key_info[key];
-        if (info->save_keyword) {
+        if (!info->load_custom && !info->not_saved) {
             /* Mappings are handled individually below */
             assert(info->subkey_type == CONF_TYPE_NONE);
             switch (info->value_type) {
@@ -804,26 +805,25 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     }
 
     /* proxy settings */
-    gppi(sesskey, "ProxyMethod", -1, conf, CONF_proxy_type);
-    if (conf_get_int(conf, CONF_proxy_type) == -1) {
-        int i;
-        i = gppi_raw(sesskey, "ProxyType", 0);
-        if (i == 0)
-            conf_set_int(conf, CONF_proxy_type, PROXY_NONE);
-        else if (i == 1)
-            conf_set_int(conf, CONF_proxy_type, PROXY_HTTP);
-        else if (i == 3)
-            conf_set_int(conf, CONF_proxy_type, PROXY_TELNET);
-        else if (i == 4)
-            conf_set_int(conf, CONF_proxy_type, PROXY_CMD);
-        else {
-            i = gppi_raw(sesskey, "ProxySOCKSVersion", 5);
-            if (i == 5)
-                conf_set_int(conf, CONF_proxy_type, PROXY_SOCKS5);
-            else
-                conf_set_int(conf, CONF_proxy_type, PROXY_SOCKS4);
+    {
+        int storageval = gppi_raw(sesskey, "ProxyMethod", -1);
+        int confval;
+        if (!conf_enum_map_from_storage(&conf_enum_proxy_type,
+                                        storageval, &confval)) {
+            /*
+             * Fall back to older ProxyType and ProxySOCKSVersion format
+             */
+            storageval = gppi_raw(sesskey, "ProxyType", 0);
+            if (conf_enum_map_from_storage(&conf_enum_old_proxy_type,
+                                           storageval, &confval)) {
+                if (confval == PROXY_SOCKS5 &&
+                    gppi_raw(sesskey, "ProxySOCKSVersion", 5) == 4)
+                    confval = PROXY_SOCKS4;
+            }
         }
+        conf_set_int(conf, CONF_proxy_type, confval);
     }
+
     gppmap(sesskey, "Environment", conf, CONF_environmt);
 #ifndef NO_GSSAPI
     gppb(sesskey, "GssapiFwd", false, conf, CONF_gssapifwd);
@@ -881,8 +881,6 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
            hknames, HK_MAX, conf, CONF_ssh_hklist);
 #ifndef NO_GSSAPI
     gppi(sesskey, "GssapiRekey", GSS_DEF_REKEY_MINS, conf, CONF_gssapirekey);
-#endif
-#ifndef NO_GSSAPI
     gppb(sesskey, "AuthGSSAPI", true, conf, CONF_try_gssapi_auth);
     gppb(sesskey, "AuthGSSAPIKEX", true, conf, CONF_try_gssapi_kex);
     gprefs(sesskey, "GSSLibs", "\0",
@@ -890,14 +888,20 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppfile(sesskey, "GSSCustom", conf, CONF_ssh_gss_custom);
 #endif
     {
-        /* Backward compatibility */
-        int no_remote_qtitle = gppi_raw(sesskey, "NoRemoteQTitle", 1);
-        /* We deliberately interpret the old setting of "no response" as
-         * "empty string". This changes the behaviour, but hopefully for
-         * the better; the user can always recover the old behaviour. */
-        gppi(sesskey, "RemoteQTitleAction",
-             no_remote_qtitle ? TITLE_EMPTY : TITLE_REAL,
-             conf, CONF_remote_qtitle_action);
+        int storageval = gppi_raw(sesskey, "RemoteQTitleAction", -1);
+        int confval;
+        if (!conf_enum_map_from_storage(&conf_enum_remote_qtitle_action,
+                                        storageval, &confval)) {
+            /*
+             * Fall back to older NoRemoteQTitle format
+             */
+            storageval = gppi_raw(sesskey, "NoRemoteQTitle", 1);
+            /* We deliberately interpret the old setting of "no response" as
+             * "empty string". This changes the behaviour, but hopefully for
+             * the better; the user can always recover the old behaviour. */
+            confval = storageval ? TITLE_EMPTY : TITLE_REAL;
+        }
+        conf_set_int(conf, CONF_remote_qtitle_action, confval);
     }
 #ifdef OSX_META_KEY_CONFIG
     gppb(sesskey, "OSXOptionMeta", true, conf, CONF_osx_option_meta);
