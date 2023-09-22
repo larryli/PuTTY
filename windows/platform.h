@@ -68,6 +68,7 @@ struct Filename {
 Filename *filename_from_wstr(const wchar_t *str);
 FILE *f_open(const Filename *filename, const char *mode, bool isprivate);
 
+#ifndef SUPERSEDE_FONTSPEC_FOR_TESTING
 struct FontSpec {
     char *name;
     bool isbold;
@@ -76,6 +77,7 @@ struct FontSpec {
 };
 struct FontSpec *fontspec_new(
     const char *name, bool bold, int height, int charset);
+#endif
 
 #ifndef CLEARTYPE_QUALITY
 #define CLEARTYPE_QUALITY 5

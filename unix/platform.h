@@ -60,10 +60,12 @@ struct Filename {
 };
 FILE *f_open(const struct Filename *, char const *, bool);
 
+#ifndef SUPERSEDE_FONTSPEC_FOR_TESTING
 struct FontSpec {
     char *name;    /* may be "" to indicate no selected font at all */
 };
 struct FontSpec *fontspec_new(const char *name);
+#endif
 
 extern const struct BackendVtable pty_backend;
 
