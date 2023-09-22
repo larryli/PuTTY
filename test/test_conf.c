@@ -822,6 +822,7 @@ void test_conf_key_info(void)
         const char *name;
         bool got_value_type : 1;
         bool got_subkey_type : 1;
+        bool got_default : 1;
         bool got_default_int : 1;
         bool got_default_str : 1;
         bool got_default_bool : 1;
@@ -835,9 +836,9 @@ void test_conf_key_info(void)
 #define CONF_OPTION(id, ...) { .name = "CONF_" #id, __VA_ARGS__ },
 #define VALUE_TYPE(x) .got_value_type = true
 #define SUBKEY_TYPE(x) .got_subkey_type = true
-#define DEFAULT_INT(x) .got_default_int = true
-#define DEFAULT_STR(x) .got_default_str = true
-#define DEFAULT_BOOL(x) .got_default_bool = true
+#define DEFAULT_INT(x) .got_default_int = true, .got_default = true
+#define DEFAULT_STR(x) .got_default_str = true, .got_default = true
+#define DEFAULT_BOOL(x) .got_default_bool = true, .got_default = true
 #define SAVE_KEYWORD(x) .got_save_keyword = true
 #define STORAGE_ENUM(x) .got_storage_enum = true
 #define SAVE_CUSTOM .save_custom = true
@@ -857,6 +858,11 @@ void test_conf_key_info(void)
             nfails++;
         }
 
+        if (td->got_default && info->subkey_type != CONF_TYPE_NONE) {
+            fprintf(stderr, "%s: is a mapping but has a default\n", td->name);
+            nfails++;
+        }
+
         if ((td->got_default_int && info->value_type != CONF_TYPE_INT) ||
             (td->got_default_str && info->value_type != CONF_TYPE_STR) ||
             (td->got_default_bool && info->value_type != CONF_TYPE_BOOL)) {
@@ -871,6 +877,12 @@ void test_conf_key_info(void)
         }
 
         if (td->not_saved) {
+            if (!td->got_default && info->subkey_type == CONF_TYPE_NONE) {
+                fprintf(stderr, "%s: simple unsaved setting but has no "
+                        "default\n", td->name);
+                nfails++;
+            }
+
             if (td->got_save_keyword) {
                 fprintf(stderr, "%s: not saved but has SAVE_KEYWORD\n",
                         td->name);

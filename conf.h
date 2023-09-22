@@ -9,6 +9,22 @@
  *  - SUBKEY_TYPE: if the primary key goes with a subkey (that is, the
  *    primary key identifies some mapping from subkeys to values), the
  *    data type of the subkey
+ *  - DEFAULT_INT, DEFAULT_STR, DEFAULT_BOOL: the default value for
+ *    the key, if no save data is available. Must match VALUE_TYPE, if
+ *    the key has no subkey. Otherwise, no default is permitted, and
+ *    the default value of the mapping is assumed to be empty (and if
+ *    not, then LOAD_CUSTOM code must override that).
+ *  - SAVE_KEYWORD: the keyword used for the option in the Windows
+ *    registry or ~/.putty/sessions save files.
+ *  - STORAGE_ENUM: for int-typed settings with no subkeys, this
+ *    identifies an enumeration in conf-enums.h which maps internal
+ *    values of the setting in the Conf to values in the saved data.
+ *  - LOAD_CUSTOM, SAVE_CUSTOM: suppress automated loading or saving
+ *    (respectively) of this setting, in favour of manual code in
+ *    settings.c load_open_settings() or save_open_settings()
+ *    respectively.
+ *  - NOT_SAVED: indicate that this setting is not part of saved
+ *    session data at all.
  */
 
 CONF_OPTION(host,
@@ -150,6 +166,7 @@ CONF_OPTION(remote_cmd2,
      * by user configuration, or loaded or saved.
      */
     VALUE_TYPE(STR),
+    DEFAULT_STR(""),
     NOT_SAVED,
 )
 CONF_OPTION(nopty,
@@ -255,6 +272,7 @@ CONF_OPTION(ssh_simple,
      * user configuration, or loaded or saved.
      */
     VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(false),
     NOT_SAVED,
 )
 CONF_OPTION(ssh_connection_sharing,
@@ -349,14 +367,16 @@ CONF_OPTION(ssh_subsys, /* run a subsystem rather than a command */
      * configuration, or loaded or saved.
      */
     VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(false),
     NOT_SAVED,
 )
-CONF_OPTION(ssh_subsys2, /* fallback to go with remote_cmd_ptr2 */
+CONF_OPTION(ssh_subsys2, /* fallback to go with remote_cmd2 */
     /*
      * Only set internally by PSCP and PSFTP; never set by user
      * configuration, or loaded or saved.
      */
     VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(false),
     NOT_SAVED,
 )
 CONF_OPTION(ssh_no_shell, /* avoid running a shell */
@@ -371,6 +391,7 @@ CONF_OPTION(ssh_nc_host, /* host to connect to in `nc' mode */
      * also never loaded or saved.
      */
     VALUE_TYPE(STR),
+    DEFAULT_STR(""),
     NOT_SAVED,
 )
 CONF_OPTION(ssh_nc_port, /* port to connect to in `nc' mode */
@@ -380,6 +401,7 @@ CONF_OPTION(ssh_nc_port, /* port to connect to in `nc' mode */
      * also never loaded or saved.
      */
     VALUE_TYPE(INT),
+    DEFAULT_INT(0),
     NOT_SAVED,
 )
 

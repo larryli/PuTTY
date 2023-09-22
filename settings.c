@@ -670,15 +670,27 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     int i;
     char *prot;
 
-    conf_set_bool(conf, CONF_ssh_subsys, false); /* FIXME: load this properly */
-    conf_set_str(conf, CONF_remote_cmd, "");
-    conf_set_str(conf, CONF_remote_cmd2, "");
-    conf_set_str(conf, CONF_ssh_nc_host, "");
-
     /* Load the settings simple enough to handle automatically */
     for (size_t key = 0; key < N_CONFIG_OPTIONS; key++) {
         const ConfKeyInfo *info = &conf_key_info[key];
-        if (!info->load_custom && !info->not_saved) {
+        if (info->not_saved) {
+            /* Mappings are assumed to default to empty */
+            if (info->subkey_type == CONF_TYPE_NONE) {
+                switch (info->value_type) {
+                  case CONF_TYPE_STR:
+                    conf_set_str(conf, key, info->default_value.sval);
+                    break;
+                  case CONF_TYPE_INT:
+                    conf_set_int(conf, key, info->default_value.ival);
+                    break;
+                  case CONF_TYPE_BOOL:
+                    conf_set_bool(conf, key, info->default_value.bval);
+                    break;
+                  default:
+                    unreachable("bad key type in load_open_settings");
+                }
+            }
+        } else if (!info->load_custom) {
             /* Mappings are handled individually below */
             assert(info->subkey_type == CONF_TYPE_NONE);
             switch (info->value_type) {
@@ -994,7 +1006,6 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
                 conf_set_int(conf, CONF_sshbug_hmac2, FORCE_ON);
         }
     }
-    conf_set_bool(conf, CONF_ssh_simple, false);
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
 }
 
