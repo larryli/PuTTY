@@ -417,8 +417,25 @@ CONF_OPTION(termspeed,
     SAVE_KEYWORD("TerminalSpeed"),
 )
 CONF_OPTION(ttymodes,
-    SUBKEY_TYPE(STR), /* subkeys are listed in ttymodes[] in settings.c */
-    VALUE_TYPE(STR),  /* values are "Vvalue" or "A" */
+    /*
+     * The full set of permitted subkeys is listed in
+     * ssh/ttymode-list.h, as the first parameter of each TTYMODE_CHAR
+     * or TTYMODE_FLAG macro.
+     *
+     * The permitted value strings are:
+     *
+     *  - "N" means do not include a record for this mode at all in
+     *    the terminal mode data in the "pty-req" channel request.
+     *    Corresponds to setting the mode to 'Nothing' in the GUI.
+     *  - "A" means use PuTTY's automatic default, matching the
+     *    settings for GUI PuTTY's terminal window or Unix Plink's
+     *    controlling tty. Corresponds to setting 'Auto' in the GUI.
+     *  - "V" followed by further string data means send a custom
+     *    value to the SSH server. Values are as documented in the
+     *    manual.
+     */
+    SUBKEY_TYPE(STR),
+    VALUE_TYPE(STR),
     LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 CONF_OPTION(environmt,
@@ -920,7 +937,15 @@ CONF_OPTION(bold_style,
     STORAGE_ENUM(bold_style),
 )
 CONF_OPTION(colours,
-    SUBKEY_TYPE(INT), /* indexed by CONF_COLOUR_* enum encoding */
+    /*
+     * Subkeys in this setting are indexed based on the CONF_COLOUR_*
+     * enum values in putty.h. But each subkey identifies just one
+     * component of the RGB value. Subkey 3*a+b identifies colour #a,
+     * channel #b, where channels 0,1,2 mean R,G,B respectively.
+     *
+     * Values are 8-bit integers.
+     */
+    SUBKEY_TYPE(INT),
     VALUE_TYPE(INT),
     LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
