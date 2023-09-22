@@ -74,6 +74,8 @@ uintmax_t strtoumax(const char *nptr, char **endptr, int base);
 #endif /* __GNUC__ */
 
 typedef struct conf_tag Conf;
+typedef struct ConfKeyInfo ConfKeyInfo;
+
 typedef struct terminal_tag Terminal;
 typedef struct term_utf8_decode term_utf8_decode;
 

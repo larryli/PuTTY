@@ -14,6 +14,7 @@ add_sources_from_current_dir(utils
   chomp.c
   cmdline_get_passwd_input_state_new.c
   conf.c
+  conf_data.c
   conf_dest.c
   conf_launchable.c
   ctrlparse.c
