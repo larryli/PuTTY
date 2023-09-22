@@ -991,7 +991,6 @@ CONF_OPTION(mouseautocopy,
 )
 CONF_OPTION(mousepaste, /* clipboard used by one-mouse-click paste actions */
     VALUE_TYPE(INT),
-    STORAGE_ENUM(clipboard),
     /*
      * SAVE_KEYWORD("MousePaste"), but loading and saving is done by
      * custom code, because the saved value is a string, and also sets
@@ -1000,7 +999,6 @@ CONF_OPTION(mousepaste, /* clipboard used by one-mouse-click paste actions */
 )
 CONF_OPTION(ctrlshiftins, /* clipboard used by Ctrl+Ins and Shift+Ins */
     VALUE_TYPE(INT),
-    STORAGE_ENUM(clipboard),
     /*
      * SAVE_KEYWORD("CtrlShiftIns"), but loading and saving is done by
      * custom code, because the saved value is a string, and also sets
@@ -1009,7 +1007,6 @@ CONF_OPTION(ctrlshiftins, /* clipboard used by Ctrl+Ins and Shift+Ins */
 )
 CONF_OPTION(ctrlshiftcv, /* clipboard used by Ctrl+Shift+C and Ctrl+Shift+V */
     VALUE_TYPE(INT),
-    STORAGE_ENUM(clipboard),
     /*
      * SAVE_KEYWORD("CtrlShiftCV"), but loading and saving is done by
      * custom code, because the saved value is a string, and also sets
