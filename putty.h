@@ -1813,9 +1813,30 @@ enum {
 struct ConfKeyInfo {
     int subkey_type;
     int value_type;
+
+    union {
+        bool bval;
+        int ival;
+        const char *sval;
+    } default_value;
+
+    const char *save_keyword;
+    const ConfSaveEnumType *storage_enum;
+};
+struct ConfSaveEnumType {
+    const ConfSaveEnumValue *values;
+    size_t nvalues;
+};
+struct ConfSaveEnumValue {
+    int confval, storageval;
+    bool obsolete;
 };
 
 extern const ConfKeyInfo conf_key_info[];
+bool conf_enum_map_to_storage(const ConfSaveEnumType *etype,
+                              int confval, int *storageval_out);
+bool conf_enum_map_from_storage(const ConfSaveEnumType *etype,
+                                int storageval, int *confval_out);
 
 /* Functions handling configuration structures. */
 Conf *conf_new(void);                  /* create an empty configuration */
