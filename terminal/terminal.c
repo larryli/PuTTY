@@ -4251,6 +4251,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     check_line_size(term, ldata);
                     check_trust_status(term, ldata);
                     ldata->lattr = nlattr;
+                    seen_disp_event(term);
                     break;
                   }
                   /* GZD4: G0 designate 94-set */
