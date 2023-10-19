@@ -3179,6 +3179,13 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
  */
 static void do_osc(Terminal *term)
 {
+    if (term->osc_is_apc) {
+        /* This OSC was really an APC, and we don't support that
+         * sequence at all. We only recognise it in order to ignore it
+         * and filter it out of input. */
+        return;
+    }
+
     if (term->osc_w) {
         while (term->osc_strlen--)
             term->wordness[(unsigned char)term->osc_string[term->osc_strlen]] =
@@ -4106,6 +4113,21 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     /* Compatibility is nasty here, xterm, linux, decterm yuk! */
                     compatibility(OTHER);
                     term->termstate = SEEN_OSC;
+                    term->osc_is_apc = false;
+                    term->osc_strlen = 0;
+                    term->esc_args[0] = 0;
+                    term->esc_nargs = 1;
+                    break;
+                  case '_':             /* APC: application program command */
+                    /* APC sequences are just a string, terminated by
+                     * ST or (I've observed in practice) ^G. That is,
+                     * they have the same termination convention as
+                     * OSC. So we handle them by going straight into
+                     * OSC_STRING state and setting a flag indicating
+                     * that it's not really an OSC. */
+                    compatibility(OTHER);
+                    term->termstate = SEEN_OSC;
+                    term->osc_is_apc = true;
                     term->osc_strlen = 0;
                     term->esc_args[0] = 0;
                     term->esc_nargs = 1;
