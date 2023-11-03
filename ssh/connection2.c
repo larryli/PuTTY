@@ -1606,7 +1606,7 @@ static bool ssh2_connection_get_specials(
         if (toret)
             add_special(ctx, NULL, SS_SEP, 0);
 
-        add_special(ctx, "IGNORE message", SS_NOP, 0);
+        add_special(ctx, "IGNORE 消息", SS_NOP, 0);
         toret = true;
     }
 
