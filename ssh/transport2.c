@@ -1514,7 +1514,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
 
     if (s->warn_hk) {
         int j, k;
-        char *betteralgs;
+        const char **betteralgs = NULL;
+        size_t nbetter = 0, bettersize = 0;
 
         /*
          * Change warning box wording depending on why we chose a
@@ -1523,7 +1524,6 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
          * could usefully cross-certify. Otherwise, use the same
          * standard wording as any other weak crypto primitive.
          */
-        betteralgs = NULL;
         for (j = 0; j < s->n_uncert_hostkeys; j++) {
             const struct ssh_signkey_with_user_pref_id *hktype =
                 &ssh2_hostkey_algs[s->uncert_hostkeys[j]];
@@ -1538,19 +1538,16 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 }
             }
             if (better) {
-                if (betteralgs) {
-                    char *old_ba = betteralgs;
-                    betteralgs = dupcat(betteralgs, ",", hktype->alg->ssh_id);
-                    sfree(old_ba);
-                } else {
-                    betteralgs = dupstr(hktype->alg->ssh_id);
-                }
+                sgrowarray(betteralgs, bettersize, nbetter);
+                betteralgs[nbetter++] = hktype->alg->ssh_id;
             }
         }
         if (betteralgs) {
             /* Use the special warning prompt that lets us provide
              * a list of better algorithms */
-            s->spr = seat_confirm_weak_cached_hostkey(
+            sgrowarray(betteralgs, bettersize, nbetter);
+            betteralgs[nbetter] = NULL;
+            s->spr = confirm_weak_cached_hostkey(
                 ppl_get_iseat(&s->ppl), s->hostkey_alg->ssh_id, betteralgs,
                 ssh2_transport_dialog_callback, s);
             sfree(betteralgs);
@@ -2389,7 +2386,7 @@ static int ca_blob_compare(void *av, void *bv)
 }
 
 /*
- * Wrapper on seat_confirm_weak_crypto_primitive(), which uses the
+ * Wrapper on confirm_weak_crypto_primitive(), which uses the
  * tree234 s->weak_algorithms_consented_to to ensure we ask at most
  * once about any given crypto primitive.
  */
@@ -2401,7 +2398,7 @@ static SeatPromptResult ssh2_transport_confirm_weak_crypto_primitive(
         return SPR_OK;
     add234(s->weak_algorithms_consented_to, (void *)alg);
 
-    return seat_confirm_weak_crypto_primitive(
+    return confirm_weak_crypto_primitive(
         ppl_get_iseat(&s->ppl), type, name, ssh2_transport_dialog_callback, s);
 }
 

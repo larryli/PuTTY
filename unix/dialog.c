@@ -3609,8 +3609,52 @@ const SeatDialogPromptDescriptions *gtk_seat_prompt_descriptions(Seat *seat)
         .hk_connect_once_action = "press \"Connect Once\"",
         .hk_cancel_action = "press \"Cancel\"",
         .hk_cancel_action_Participle = "Pressing \"Cancel\"",
+        .weak_accept_action = "press \"Yes\"",
+        .weak_cancel_action = "press \"No\"",
     };
     return &descs;
+}
+
+/*
+ * Format a SeatDialogText into a strbuf, also adjusting the box width
+ * to cope with displayed text. Returns the dialog box title.
+ */
+static const char *gtk_format_seatdialogtext(
+    SeatDialogText *text, strbuf *dlg_text, int *width)
+{
+    const char *dlg_title = NULL;
+
+    for (SeatDialogTextItem *item = text->items,
+             *end = item + text->nitems; item < end; item++) {
+        switch (item->type) {
+          case SDT_PARA:
+            put_fmt(dlg_text, "%s\n\n", item->text);
+            break;
+          case SDT_DISPLAY: {
+            put_fmt(dlg_text, "%s\n\n", item->text);
+            int thiswidth = string_width(item->text);
+            if (*width < thiswidth)
+                *width = thiswidth;
+            break;
+          }
+          case SDT_SCARY_HEADING:
+            /* Can't change font size or weight in this context */
+            put_fmt(dlg_text, "%s\n\n", item->text);
+            break;
+          case SDT_TITLE:
+            dlg_title = item->text;
+            break;
+          default:
+            break;
+        }
+    }
+
+    /*
+     * Trim trailing newlines.
+     */
+    while (strbuf_chomp(dlg_text, '\n'));
+
+    return dlg_title;
 }
 
 SeatPromptResult gtk_seat_confirm_ssh_host_key(
@@ -3627,35 +3671,9 @@ SeatPromptResult gtk_seat_confirm_ssh_host_key(
         button_array_hostkey, lenof(button_array_hostkey),
     };
 
-    const char *dlg_title = NULL;
-    strbuf *dlg_text = strbuf_new();
     int width = string_width("default dialog width determination string");
-
-    for (SeatDialogTextItem *item = text->items,
-             *end = item + text->nitems; item < end; item++) {
-        switch (item->type) {
-          case SDT_PARA:
-            put_fmt(dlg_text, "%s\n\n", item->text);
-            break;
-          case SDT_DISPLAY: {
-            put_fmt(dlg_text, "%s\n\n", item->text);
-            int thiswidth = string_width(item->text);
-            if (width < thiswidth)
-                width = thiswidth;
-            break;
-          }
-          case SDT_SCARY_HEADING:
-            /* Can't change font size or weight in this context */
-            put_fmt(dlg_text, "%s\n\n", item->text);
-            break;
-          case SDT_TITLE:
-            dlg_title = item->text;
-            break;
-          default:
-            break;
-        }
-    }
-    while (strbuf_chomp(dlg_text, '\n'));
+    strbuf *dlg_text = strbuf_new();
+    const char *dlg_title = gtk_format_seatdialogtext(text, dlg_text, &width);
 
     GtkWidget *mainwin, *msgbox;
 
@@ -3752,19 +3770,16 @@ static void simple_prompt_result_spr_callback(void *vctx, int result)
  * below the configured 'warn' threshold).
  */
 SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
-    Seat *seat, const char *algtype, const char *algname,
+    Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    static const char msg[] =
-        "The first %s supported by the server is "
-        "%s, which is below the configured warning threshold.\n"
-        "Continue with connection?";
-
-    char *text;
     struct simple_prompt_result_spr_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
-    text = dupprintf(msg, algtype, algname);
+    int width = string_width("Reasonably long line of text "
+                             "as a width template");
+    strbuf *dlg_text = strbuf_new();
+    const char *dlg_title = gtk_format_seatdialogtext(text, dlg_text, &width);
 
     result_ctx = snew(struct simple_prompt_result_spr_ctx);
     result_ctx->callback = callback;
@@ -3774,33 +3789,26 @@ SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
-        mainwin, "PuTTY Security Alert", text,
-        string_width("Reasonably long line of text as a width template"),
-        false, &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
+        mainwin, dlg_title, dlg_text->s, width, false,
+        &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
     register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
-    sfree(text);
+    strbuf_free(dlg_text);
 
     return SPR_INCOMPLETE;
 }
 
 SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
-    Seat *seat, const char *algname, const char *betteralgs,
+    Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    static const char msg[] =
-        "The first host key type we have stored for this server\n"
-        "is %s, which is below the configured warning threshold.\n"
-        "The server also provides the following types of host key\n"
-        "above the threshold, which we do not have stored:\n"
-        "%s\n"
-        "Continue with connection?";
-
-    char *text;
     struct simple_prompt_result_spr_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
-    text = dupprintf(msg, algname, betteralgs);
+    int width = string_width("is ecdsa-nistp521, which is below the configured"
+                             " warning threshold.");
+    strbuf *dlg_text = strbuf_new();
+    const char *dlg_title = gtk_format_seatdialogtext(text, dlg_text, &width);
 
     result_ctx = snew(struct simple_prompt_result_spr_ctx);
     result_ctx->callback = callback;
@@ -3810,13 +3818,11 @@ SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
-        mainwin, "PuTTY Security Alert", text,
-        string_width("is ecdsa-nistp521, which is below the configured"
-                     " warning threshold."),
-        false, &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
+        mainwin, dlg_title, dlg_text->s, width, false,
+        &buttons_yn, simple_prompt_result_spr_callback, result_ctx);
     register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
-    sfree(text);
+    strbuf_free(dlg_text);
 
     return SPR_INCOMPLETE;
 }

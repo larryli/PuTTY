@@ -323,7 +323,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
         /* Warn about chosen cipher if necessary. */
         if (warn) {
-            s->spr = seat_confirm_weak_crypto_primitive(
+            s->spr = confirm_weak_crypto_primitive(
                 ppl_get_iseat(&s->ppl), "cipher", cipher_string,
                 ssh1_login_dialog_callback, s);
             crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);

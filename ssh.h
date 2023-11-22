@@ -1908,6 +1908,12 @@ SeatPromptResult verify_ssh_host_key(
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
     char **fingerprints, int ca_count,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult confirm_weak_crypto_primitive(
+    InteractionReadySeat iseat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+SeatPromptResult confirm_weak_cached_hostkey(
+    InteractionReadySeat iseat, const char *algname, const char **betteralgs,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 
 typedef struct ssh_transient_hostkey_cache ssh_transient_hostkey_cache;
 ssh_transient_hostkey_cache *ssh_transient_hostkey_cache_new(void);
