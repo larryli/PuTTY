@@ -1087,7 +1087,8 @@ SeatPromptResult verify_ssh_host_key(
 
 SeatPromptResult confirm_weak_crypto_primitive(
     InteractionReadySeat iseat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx,
+    WeakCryptoReason wcr)
 {
     SeatDialogText *text = seat_dialog_text_new();
     const SeatDialogPromptDescriptions *pds =
@@ -1095,11 +1096,30 @@ SeatPromptResult confirm_weak_crypto_primitive(
 
     seat_dialog_text_append(text, SDT_TITLE, "%s Security Alert", appname);
 
-    seat_dialog_text_append(
-        text, SDT_PARA,
-        "The first %s supported by the server is %s, "
-        "which is below the configured warning threshold.",
-        algtype, algname);
+    switch (wcr) {
+      case WCR_BELOW_THRESHOLD:
+        seat_dialog_text_append(
+            text, SDT_PARA,
+            "The first %s supported by the server is %s, "
+            "which is below the configured warning threshold.",
+            algtype, algname);
+        break;
+      case WCR_TERRAPIN:
+        seat_dialog_text_append(
+            text, SDT_PARA,
+            "The %s selected for this session is %s, "
+            "which, with this server, is vulnerable to the 'Terrapin' attack "
+            "CVE-2023-48795, potentially allowing an attacker to modify "
+            "the encrypted session.",
+            algtype, algname);
+        seat_dialog_text_append(
+            text, SDT_PARA,
+            "Upgrading, patching, or reconfiguring this SSH server is the "
+            "best way to avoid this vulnerability, if possible.");
+        break;
+      default:
+        unreachable("bad WeakCryptoReason");
+    }
 
     /* In batch mode, we print the above information and then this
      * abort message, and stop. */

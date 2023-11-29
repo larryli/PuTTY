@@ -180,6 +180,10 @@ struct ssh2_transport_state {
 
     int nbits, pbits;
     bool warn_kex, warn_hk, warn_cscipher, warn_sccipher;
+    struct {
+        const char *csvuln, *scvuln;
+        WeakCryptoReason wcr;
+    } terrapin;
     mp_int *p, *g, *e, *f;
     strbuf *ebuf, *fbuf;
     strbuf *kex_shared_secret;

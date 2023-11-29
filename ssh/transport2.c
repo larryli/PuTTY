@@ -34,6 +34,11 @@ const static ptrlen kex_strict_c =
 const static ptrlen kex_strict_s =
     PTRLEN_DECL_LITERAL("kex-strict-s-v00@openssh.com");
 
+/* Pointer value to store in s->weak_algorithms_consented_to to
+ * indicate that the user has accepted the risk of the Terrapin
+ * attack */
+static const char terrapin_weakness[1];
+
 static ssh_compressor *ssh_comp_none_init(void)
 {
     return NULL;
@@ -88,6 +93,8 @@ static void ssh2_transport_set_max_data_size(struct ssh2_transport_state *s);
 static unsigned long sanitise_rekey_time(int rekey_time, unsigned long def);
 static void ssh2_transport_higher_layer_packet_callback(void *context);
 static void ssh2_transport_final_output(PacketProtocolLayer *ppl);
+static const char *terrapin_vulnerable(
+    bool strict_kex, const transport_direction *d);
 
 static const PacketProtocolLayerVtable ssh2_transport_vtable = {
     .free = ssh2_transport_free,
@@ -109,7 +116,7 @@ static bool ssh2_transport_timer_update(struct ssh2_transport_state *s,
                                         unsigned long rekey_time);
 static SeatPromptResult ssh2_transport_confirm_weak_crypto_primitive(
     struct ssh2_transport_state *s, const char *type, const char *name,
-    const void *alg);
+    const void *alg, WeakCryptoReason wcr);
 
 static const char *const kexlist_descr[NKEXLIST] = {
     "key exchange algorithm",
@@ -1574,7 +1581,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
 
     if (s->warn_kex) {
         s->spr = ssh2_transport_confirm_weak_crypto_primitive(
-            s, "key-exchange algorithm", s->kex_alg->name, s->kex_alg);
+            s, "key-exchange algorithm", s->kex_alg->name, s->kex_alg,
+            WCR_BELOW_THRESHOLD);
         crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
         if (spr_is_abort(s->spr)) {
             ssh_spr_close(s->ppl.ssh, s->spr, "kex warning");
@@ -1626,7 +1634,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
              * warning prompt */
             s->spr = ssh2_transport_confirm_weak_crypto_primitive(
                 s, "host key type", s->hostkey_alg->ssh_id,
-                s->hostkey_alg);
+                s->hostkey_alg, WCR_BELOW_THRESHOLD);
         }
         crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
         if (spr_is_abort(s->spr)) {
@@ -1638,7 +1646,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     if (s->warn_cscipher) {
         s->spr = ssh2_transport_confirm_weak_crypto_primitive(
             s, "client-to-server cipher", s->out.cipher->ssh2_id,
-            s->out.cipher);
+            s->out.cipher, WCR_BELOW_THRESHOLD);
         crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
         if (spr_is_abort(s->spr)) {
             ssh_spr_close(s->ppl.ssh, s->spr, "cipher warning");
@@ -1649,11 +1657,49 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     if (s->warn_sccipher) {
         s->spr = ssh2_transport_confirm_weak_crypto_primitive(
             s, "server-to-client cipher", s->in.cipher->ssh2_id,
-            s->in.cipher);
+            s->in.cipher, WCR_BELOW_THRESHOLD);
         crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
         if (spr_is_abort(s->spr)) {
             ssh_spr_close(s->ppl.ssh, s->spr, "cipher warning");
             return;
+        }
+    }
+
+    {
+        s->terrapin.csvuln = terrapin_vulnerable(s->strict_kex, s->cstrans);
+        s->terrapin.scvuln = terrapin_vulnerable(s->strict_kex, s->sctrans);
+        s->terrapin.wcr = WCR_TERRAPIN;
+
+        if (s->terrapin.csvuln || s->terrapin.scvuln) {
+            ppl_logevent("SSH connection is vulnerable to 'Terrapin' attack "
+                         "(CVE-2023-48795)");
+        }
+
+        if (s->terrapin.csvuln) {
+            s->spr = ssh2_transport_confirm_weak_crypto_primitive(
+                s, "client-to-server cipher", s->terrapin.csvuln,
+                terrapin_weakness, s->terrapin.wcr);
+            crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+            if (spr_is_abort(s->spr)) {
+                ssh_spr_close(s->ppl.ssh, s->spr, "vulnerability warning");
+                return;
+            }
+        }
+
+        if (s->terrapin.scvuln) {
+            s->spr = ssh2_transport_confirm_weak_crypto_primitive(
+                s, "server-to-client cipher", s->terrapin.scvuln,
+                terrapin_weakness, s->terrapin.wcr);
+            crMaybeWaitUntilV(s->spr.kind != SPRK_INCOMPLETE);
+            if (spr_is_abort(s->spr)) {
+                ssh_spr_close(s->ppl.ssh, s->spr, "vulnerability warning");
+                return;
+            }
+        }
+
+        if (s->terrapin.csvuln || s->terrapin.scvuln) {
+            ppl_logevent("Continuing despite 'Terrapin' vulnerability, "
+                         "at user request");
         }
     }
 
@@ -2466,14 +2512,15 @@ static int ca_blob_compare(void *av, void *bv)
  */
 static SeatPromptResult ssh2_transport_confirm_weak_crypto_primitive(
     struct ssh2_transport_state *s, const char *type, const char *name,
-    const void *alg)
+    const void *alg, WeakCryptoReason wcr)
 {
     if (find234(s->weak_algorithms_consented_to, (void *)alg, NULL))
         return SPR_OK;
     add234(s->weak_algorithms_consented_to, (void *)alg);
 
     return confirm_weak_crypto_primitive(
-        ppl_get_iseat(&s->ppl), type, name, ssh2_transport_dialog_callback, s);
+        ppl_get_iseat(&s->ppl), type, name, ssh2_transport_dialog_callback,
+        s, wcr);
 }
 
 static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl)
@@ -2491,4 +2538,33 @@ static void ssh2_transport_final_output(PacketProtocolLayer *ppl)
         container_of(ppl, struct ssh2_transport_state, ppl);
 
     ssh_ppl_final_output(s->higher_layer);
+}
+
+/* Check the settings for a transport direction to see if they're
+ * vulnerable to the Terrapin attack, aka CVE-2023-48795. If so,
+ * return a string describing the vulnerable thing. */
+static const char *terrapin_vulnerable(
+    bool strict_kex, const transport_direction *d)
+{
+    /*
+     * Strict kex mode eliminates the vulnerability. (That's what it's
+     * for.)
+     */
+    if (strict_kex)
+        return NULL;
+
+    /*
+     * ChaCha20-Poly1305 is vulnerable and perfectly exploitable.
+     */
+    if (d->cipher == &ssh2_chacha20_poly1305)
+        return "ChaCha20-Poly1305";
+
+    /*
+     * CBC-mode ciphers with OpenSSH's ETM modification are vulnerable
+     * and probabilistically exploitable.
+     */
+    if (d->etm_mode && (d->cipher->flags & SSH_CIPHER_IS_CBC))
+        return "a CBC-mode cipher in OpenSSH ETM mode";
+
+    return NULL;
 }

@@ -1903,6 +1903,13 @@ void add_to_commasep(strbuf *buf, const char *data);
 void add_to_commasep_pl(strbuf *buf, ptrlen data);
 bool get_commasep_word(ptrlen *list, ptrlen *word);
 
+/* Reasons why something warned by confirm_weak_crypto_primitive might
+ * be considered weak */
+typedef enum WeakCryptoReason {
+    WCR_BELOW_THRESHOLD, /* user has told us to consider it weak */
+    WCR_TERRAPIN,        /* known vulnerability CVE-2023-48795 */
+} WeakCryptoReason;
+
 SeatPromptResult verify_ssh_host_key(
     InteractionReadySeat iseat, Conf *conf, const char *host, int port,
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
@@ -1910,7 +1917,8 @@ SeatPromptResult verify_ssh_host_key(
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 SeatPromptResult confirm_weak_crypto_primitive(
     InteractionReadySeat iseat, const char *algtype, const char *algname,
-    void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx,
+    WeakCryptoReason wcr);
 SeatPromptResult confirm_weak_cached_hostkey(
     InteractionReadySeat iseat, const char *algname, const char **betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
