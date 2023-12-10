@@ -95,6 +95,7 @@ static void ssh2_transport_higher_layer_packet_callback(void *context);
 static void ssh2_transport_final_output(PacketProtocolLayer *ppl);
 static const char *terrapin_vulnerable(
     bool strict_kex, const transport_direction *d);
+static bool try_to_avoid_terrapin(const struct ssh2_transport_state *s);
 
 static const PacketProtocolLayerVtable ssh2_transport_vtable = {
     .free = ssh2_transport_free,
@@ -1718,6 +1719,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         if (s->terrapin.csvuln || s->terrapin.scvuln) {
             ppl_logevent("SSH connection is vulnerable to 'Terrapin' attack "
                          "(CVE-2023-48795)");
+            if (try_to_avoid_terrapin(s))
+                s->terrapin.wcr = WCR_TERRAPIN_AVOIDABLE;
         }
 
         if (s->terrapin.csvuln) {
@@ -2612,4 +2615,139 @@ static const char *terrapin_vulnerable(
         return "a CBC-mode cipher in OpenSSH ETM mode";
 
     return NULL;
+}
+
+/*
+ * Called when we've detected that at least one transport direction
+ * has the Terrapin vulnerability.
+ *
+ * Before we report it, try to replay what would have happened if the
+ * user had reconfigured their cipher settings to demote
+ * ChaCha20+Poly1305 to below the warning threshold. If that would
+ * have avoided the vulnerability, we should say so in the dialog box.
+ *
+ * This is basically the only change in PuTTY's configuration that has
+ * a chance of avoiding the problem. Terrapin affects the modified
+ * binary packet protocol used with ChaCha20+Poly1305, and also
+ * CBC-mode ciphers in ETM mode. But PuTTY unconditionally offers the
+ * ETM mode of each MAC _after_ the non-ETM mode. So the latter case
+ * can only come up if the server has been configured to _only_ permit
+ * the ETM modes of those MACs, which means there's nothing we can do
+ * anyway.
+ */
+static bool try_to_avoid_terrapin(const struct ssh2_transport_state *s)
+{
+    bool avoidable = false;
+
+    strbuf *alt_client_kexinit = strbuf_new();
+    Conf *alt_conf = conf_copy(s->conf);
+    struct kexinit_algorithm_list alt_kexlists[NKEXLIST];
+    memset(alt_kexlists, 0, sizeof(alt_kexlists));
+
+    /*
+     * We only bother doing this if we're the client, because Uppity
+     * can't present a dialog box anyway.
+     */
+    if (s->ssc)
+        goto out;
+
+    /*
+     * Demote CIPHER_CHACHA20 to just below CIPHER_WARN, if it was
+     * previously above it. If not, don't do anything - we don't want
+     * to _promote_ it.
+     */
+    int ccp_pos_now = -1, ccp_pos_wanted = -1;
+    for (int i = 0; i < CIPHER_MAX; i++) {
+        switch (conf_get_int_int(alt_conf, CONF_ssh_cipherlist,
+                                 i)) {
+          case CIPHER_CHACHA20:
+            ccp_pos_now = i;
+            break;
+          case CIPHER_WARN:
+            ccp_pos_wanted = i;
+            break;
+        }
+    }
+    if (ccp_pos_now < 0 || ccp_pos_wanted < 0)
+        goto out; /* shouldn't ever happen: didn't find the two entries */
+    if (ccp_pos_now >= ccp_pos_wanted)
+        goto out; /* ChaCha20 is already demoted and it didn't help */
+    while (ccp_pos_now < ccp_pos_wanted) {
+        int cnext = conf_get_int_int(alt_conf, CONF_ssh_cipherlist,
+                                     ccp_pos_now + 1);
+        conf_set_int_int(alt_conf, CONF_ssh_cipherlist,
+                         ccp_pos_now, cnext);
+        ccp_pos_now++;
+    }
+    conf_set_int_int(alt_conf, CONF_ssh_cipherlist,
+                     ccp_pos_now + 1, CIPHER_CHACHA20);
+
+    /*
+     * Make the outgoing KEXINIT we would have made using this
+     * configuration.
+     */
+    put_byte(alt_client_kexinit, SSH2_MSG_KEXINIT);
+    put_padding(alt_client_kexinit, 16, 'x'); /* fake random padding */
+    ssh2_write_kexinit_lists(
+        BinarySink_UPCAST(alt_client_kexinit), alt_kexlists, alt_conf,
+        s->ssc, s->ppl.remote_bugs, s->savedhost, s->savedport, s->hostkey_alg,
+        s->thc, s->host_cas, s->hostkeys, s->nhostkeys, !s->got_session_id,
+        s->can_gssapi_keyex,
+        s->gss_kex_used && !s->need_gss_transient_hostkey);
+    put_bool(alt_client_kexinit, false); /* guess packet follows */
+    put_uint32(alt_client_kexinit, 0);   /* reserved */
+
+    /*
+     * Re-analyse the incoming KEXINIT with respect to this one, to
+     * see what we'd have decided on.
+     */
+    transport_direction cstrans, sctrans;
+    bool warn_kex, warn_hk, warn_cscipher, warn_sccipher;
+    bool can_send_ext_info = false, strict_kex = false;
+    unsigned hkflags;
+    const ssh_kex *kex_alg;
+    const ssh_keyalg *hostkey_alg;
+
+    ScanKexinitsResult skr = ssh2_scan_kexinits(
+        ptrlen_from_strbuf(alt_client_kexinit),
+        ptrlen_from_strbuf(s->server_kexinit),
+        s->ssc != NULL, alt_kexlists, &kex_alg, &hostkey_alg,
+        &cstrans, &sctrans,
+        &warn_kex, &warn_hk, &warn_cscipher, &warn_sccipher, NULL, NULL, NULL,
+        &hkflags, &can_send_ext_info, !s->got_session_id, &strict_kex);
+    if (!skr.success) /* something else would have gone wrong */
+        goto out;
+
+    /*
+     * Reject this as an alternative solution if any of the warn flags
+     * has got worse, or if there's still anything
+     * Terrapin-vulnerable.
+     */
+    if (warn_kex > s->warn_kex)
+        goto out;
+    if (warn_hk > s->warn_hk)
+        goto out;
+    if (warn_cscipher > s->warn_cscipher)
+        goto out;
+    if (warn_sccipher > s->warn_sccipher)
+        goto out;
+    if (terrapin_vulnerable(strict_kex, &cstrans))
+        goto out;
+    if (terrapin_vulnerable(strict_kex, &sctrans))
+        goto out;
+
+    /*
+     * Success! The vulnerability could have been avoided by this Conf
+     * tweak, and we should tell the user so.
+     */
+    avoidable = true;
+
+  out:
+
+    for (size_t i = 0; i < NKEXLIST; i++)
+        sfree(alt_kexlists[i].algs);
+    strbuf_free(alt_client_kexinit);
+    conf_free(alt_conf);
+
+    return avoidable;
 }

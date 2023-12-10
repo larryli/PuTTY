@@ -1908,6 +1908,7 @@ bool get_commasep_word(ptrlen *list, ptrlen *word);
 typedef enum WeakCryptoReason {
     WCR_BELOW_THRESHOLD, /* user has told us to consider it weak */
     WCR_TERRAPIN,        /* known vulnerability CVE-2023-48795 */
+    WCR_TERRAPIN_AVOIDABLE, /* same, but demoting ChaCha20 can avoid it */
 } WeakCryptoReason;
 
 SeatPromptResult verify_ssh_host_key(

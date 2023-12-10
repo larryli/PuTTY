@@ -1105,6 +1105,7 @@ SeatPromptResult confirm_weak_crypto_primitive(
             algtype, algname);
         break;
       case WCR_TERRAPIN:
+      case WCR_TERRAPIN_AVOIDABLE:
         seat_dialog_text_append(
             text, SDT_PARA,
             "The %s selected for this session is %s, "
@@ -1116,6 +1117,16 @@ SeatPromptResult confirm_weak_crypto_primitive(
             text, SDT_PARA,
             "Upgrading, patching, or reconfiguring this SSH server is the "
             "best way to avoid this vulnerability, if possible.");
+        if (wcr == WCR_TERRAPIN_AVOIDABLE) {
+            seat_dialog_text_append(
+                text, SDT_PARA,
+                "You can also avoid this vulnerability by abandoning "
+                "this connection, moving ChaCha20 to below the "
+                "'warn below here' line in PuTTY's SSH cipher "
+                "configuration (so that an algorithm without the "
+                "vulnerability will be selected), and starting a new "
+                "connection.");
+        }
         break;
       default:
         unreachable("bad WeakCryptoReason");
