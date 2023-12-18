@@ -102,19 +102,17 @@ static int block_and_read(int fd, void *buf, size_t len)
     return ret;
 }
 
-SeatPromptResult console_confirm_ssh_host_key(
-    Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, SeatDialogText *text, HelpCtx helpctx,
-    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
+/*
+ * Helper function to print the message from a SeatDialogText. Returns
+ * the final prompt to print on the input line, or NULL if a
+ * batch-mode abort is needed. In the latter case it will have printed
+ * the abort text already.
+ */
+static const char *console_print_seatdialogtext(SeatDialogText *text)
 {
-    char line[32];
-    struct termios cf;
     const char *prompt = NULL;
-
     stdio_sink errsink[1];
     stdio_sink_init(errsink, stderr);
-
-    premsg(&cf);
 
     for (SeatDialogTextItem *item = text->items,
              *end = item+text->nitems; item < end; item++) {
@@ -135,8 +133,7 @@ SeatPromptResult console_confirm_ssh_host_key(
             if (console_batch_mode) {
                 fprintf(stderr, "%s\n", item->text);
                 fflush(stderr);
-                postmsg(&cf);
-                return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+                return NULL;
             }
             break;
           case SDT_PROMPT:
@@ -146,7 +143,26 @@ SeatPromptResult console_confirm_ssh_host_key(
             break;
         }
     }
+
     assert(prompt); /* something in the SeatDialogText should have set this */
+    return prompt;
+}
+
+SeatPromptResult console_confirm_ssh_host_key(
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
+{
+    char line[32];
+    struct termios cf;
+
+    premsg(&cf);
+
+    const char *prompt = console_print_seatdialogtext(text);
+    if (!prompt) {
+        postmsg(&cf);
+        return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+    }
 
     while (true) {
         fprintf(stderr,
@@ -202,23 +218,22 @@ SeatPromptResult console_confirm_ssh_host_key(
 }
 
 SeatPromptResult console_confirm_weak_crypto_primitive(
-    Seat *seat, const char *algtype, const char *algname,
+    Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     char line[32];
     struct termios cf;
 
     premsg(&cf);
-    fprintf(stderr, weakcrypto_msg_common_fmt, algtype, algname);
 
-    if (console_batch_mode) {
-        fputs(console_abandoned_msg, stderr);
+    const char *prompt = console_print_seatdialogtext(text);
+    if (!prompt) {
         postmsg(&cf);
         return SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
                             "in batch mode");
     }
 
-    fputs(console_continue_prompt, stderr);
+    fprintf(stderr, "%s (y/n) ", prompt);
     fflush(stderr);
 
     {
@@ -244,23 +259,22 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
 }
 
 SeatPromptResult console_confirm_weak_cached_hostkey(
-    Seat *seat, const char *algname, const char *betteralgs,
+    Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     char line[32];
     struct termios cf;
 
     premsg(&cf);
-    fprintf(stderr, weakhk_msg_common_fmt, algname, betteralgs);
 
-    if (console_batch_mode) {
-        fputs(console_abandoned_msg, stderr);
+    const char *prompt = console_print_seatdialogtext(text);
+    if (!prompt) {
         postmsg(&cf);
         return SPR_SW_ABORT("Cannot confirm a weak cached host key "
                             "in batch mode");
     }
 
-    fputs(console_continue_prompt, stderr);
+    fprintf(stderr, "%s (y/n) ", prompt);
     fflush(stderr);
 
     {
