@@ -389,8 +389,10 @@ SeatPromptResult console_confirm_ssh_host_key(
     SeatPromptResult result;
 
     const char *prompt = console_print_seatdialogtext(conio, text);
-    if (!prompt)
-        return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+    if (!prompt) {
+        result = SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+        goto out;
+    }
 
     ResponseType response;
 
@@ -430,7 +432,7 @@ SeatPromptResult console_confirm_ssh_host_key(
         put_dataz(conio, console_abandoned_msg);
         result = SPR_USER_ABORT;
     }
-
+  out:
     conio_free(conio);
     return result;
 }
@@ -443,11 +445,13 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
     SeatPromptResult result;
 
     const char *prompt = console_print_seatdialogtext(conio, text);
-    if (!prompt)
-        return SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
-                            "in batch mode");
+    if (!prompt) {
+        result = SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
+                              "in batch mode");
+        goto out;
+    }
 
-    put_fmt(conio, "%s (y/n)", prompt);
+    put_fmt(conio, "%s (y/n) ", prompt);
 
     ResponseType response = parse_and_free_response(
         console_read_line(conio, true));
@@ -458,7 +462,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
         put_dataz(conio, console_abandoned_msg);
         result = SPR_USER_ABORT;
     }
-
+  out:
     conio_free(conio);
     return result;
 }
