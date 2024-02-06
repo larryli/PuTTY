@@ -1235,9 +1235,9 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
     int type = key_type(filename);
     if (type != SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 &&
         type != SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
-        char *msg = dupprintf("Couldn't load certificate (%s)",
+        char *msg = dupprintf("无法载入证书 (%s)",
                               key_type_to_str(type));
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
@@ -1249,8 +1249,8 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
     strbuf *pub = strbuf_new();
     if (!ppk_loadpub_f(filename, &algname, BinarySink_UPCAST(pub), &comment,
                        &error)) {
-        char *msg = dupprintf("Couldn't load certificate (%s)", error);
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        char *msg = dupprintf("无法载入证书 (%s)", error);
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         strbuf_free(pub);
@@ -1261,9 +1261,9 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
 
     const ssh_keyalg *alg = find_pubkey_alg(algname);
     if (!alg) {
-        char *msg = dupprintf("Couldn't load certificate (unsupported "
-                              "algorithm name '%s')", algname);
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        char *msg = dupprintf("无法载入证书 (不支持的"
+                              "算法 '%s')", algname);
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         sfree(algname);
@@ -1290,8 +1290,8 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
     strbuf_free(new_basepub);
 
     if (!match) {
-        char *msg = dupprintf("Certificate is for a different public key");
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        char *msg = dupprintf("证书公钥不匹配");
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         strbuf_free(pub);
@@ -1306,8 +1306,8 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
     strbuf_free(priv);
 
     if (!newkey) {
-        char *msg = dupprintf("Couldn't combine certificate with key");
-        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        char *msg = dupprintf("无法合并证书密钥");
+        message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
@@ -2181,7 +2181,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
             if (state->key_exists && !state->generation_thread_exists) {
                 char filename[FILENAME_MAX];
-                if (prompt_keyfile(hwnd, "Load certificate:", filename, false,
+                if (prompt_keyfile(hwnd, "载入证书：", filename, false,
                                    false)) {
                     Filename *fn = filename_from_str(filename);
                     add_certificate(hwnd, state, fn);

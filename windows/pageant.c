@@ -1774,7 +1774,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 char *err = dupprintf("Unable to open AF_UNIX socket at %s "
                                       "for SSH agent:\n%s", unixsocket,
                                       sk_socket_error(sock));
-                MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+                MessageBox(NULL, err, "Pageant 错误", MB_ICONERROR | MB_OK);
                 return 1;
             }
             pageant_listener_got_socket(pl, sock);
