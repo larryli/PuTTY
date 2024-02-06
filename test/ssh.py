@@ -24,6 +24,9 @@ def ssh_byte(n):
 def ssh_uint32(n):
     return struct.pack(">L", n)
 
+def ssh_uint64(n):
+    return struct.pack(">Q", n)
+
 def ssh_string(s):
     return ssh_uint32(len(s)) + s
 
@@ -52,6 +55,10 @@ def ssh_decode_byte(s):
 @decoder
 def ssh_decode_uint32(s):
     return struct.unpack_from(">L", s, 0)[0], 4
+
+@decoder
+def ssh_decode_uint64(s):
+    return struct.unpack_from(">Q", s, 0)[0], 8
 
 @decoder
 def ssh_decode_string(s):

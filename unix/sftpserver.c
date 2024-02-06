@@ -545,7 +545,7 @@ static void uss_read(SftpServer *srv, SftpReplyBuilder *reply,
 }
 
 static void uss_write(SftpServer *srv, SftpReplyBuilder *reply,
-                     ptrlen handle, uint64_t offset, ptrlen data)
+                      ptrlen handle, uint64_t offset, ptrlen data)
 {
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
     int fd;

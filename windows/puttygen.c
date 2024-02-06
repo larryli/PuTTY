@@ -203,7 +203,7 @@ struct PassphraseProcStruct {
  * Dialog-box function for the passphrase box.
  */
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
-                                   WPARAM wParam, LPARAM lParam)
+                                       WPARAM wParam, LPARAM lParam)
 {
     static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
@@ -438,9 +438,9 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
             topic = WINHELP_CTX_puttygen_kdfparam; break;
         }
         if (topic) {
-          launch_help(hwnd, topic);
+            launch_help(hwnd, topic);
         } else {
-          MessageBeep(0);
+            MessageBeep(0);
         }
         break;
       }
@@ -483,7 +483,7 @@ static bool prompt_keyfile(HWND hwnd, char *dlgtitle,
  * Dialog-box function for the Licence box.
  */
 static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
-                                WPARAM wParam, LPARAM lParam)
+                                    WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG: {
@@ -522,7 +522,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
  * Dialog-box function for the About box.
  */
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
-                              WPARAM wParam, LPARAM lParam)
+                                  WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG:
@@ -543,10 +543,10 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
         {
             char *buildinfo_text = buildinfo("\r\n");
-            char *text = dupprintf
-                ("PuTTYgen\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-                 ver, buildinfo_text,
-                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
+            char *text = dupprintf(
+                "PuTTYgen\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+                ver, buildinfo_text,
+                "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
             MakeDlgItemBorderless(hwnd, 1000);
@@ -687,43 +687,6 @@ static void hidemany(HWND hwnd, const int *ids, bool hideit)
     }
 }
 
-static void setupbigedit1(HWND hwnd, int id, int idstatic, RSAKey *key)
-{
-    char *buffer = ssh1_pubkey_str(key);
-    SetDlgItemText(hwnd, id, buffer);
-    SetDlgItemText(hwnd, idstatic,
-                   "可粘贴到 authorized_keys 文件中的公钥内容(&P)：");
-    sfree(buffer);
-}
-
-static void setupbigedit2(HWND hwnd, int id, int idstatic,
-                          ssh2_userkey *key)
-{
-    char *buffer = ssh2_pubkey_openssh_str(key);
-    SetDlgItemText(hwnd, id, buffer);
-    SetDlgItemText(hwnd, idstatic, "可粘贴到 "
-                   "OpenSSH authorized_keys 文件中的公钥内容(&P)：");
-    sfree(buffer);
-}
-
-/*
- * Warn about the obsolescent key file format.
- */
-void old_keyfile_warning(void)
-{
-    static const char mbtitle[] = "PuTTY 密钥文件警告";
-    static const char message[] =
-        "现在载入的是一个旧版本文件格式的 SSH2\n"
-        "私钥。这意味着该私钥文件没有足够的安全\n"
-        "性。未来版本的 %s 可能会停止支持\n"
-        "此私钥格式，建议将其转换为新的格式。\n"
-        "\n"
-        "一旦密钥被载入到 PuTTYgen，可以简\n"
-        "单的使用保存文件来进行转换。";
-
-    MessageBox(NULL, message, mbtitle, MB_OK);
-}
-
 enum {
     controlidstart = 100,
     IDC_QUIT,
@@ -733,6 +696,7 @@ enum {
     IDC_GENERATING,
     IDC_PROGRESS,
     IDC_PKSTATIC, IDC_KEYDISPLAY,
+    IDC_CERTSTATIC, IDC_CERTMOREINFO,
     IDC_FPSTATIC, IDC_FINGERPRINT,
     IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
     IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
@@ -756,17 +720,79 @@ enum {
     IDC_GIVEHELP,
     IDC_IMPORT,
     IDC_EXPORT_OPENSSH_AUTO, IDC_EXPORT_OPENSSH_NEW,
-    IDC_EXPORT_SSHCOM
+    IDC_EXPORT_SSHCOM,
+    IDC_ADDCERT, IDC_REMCERT,
 };
+
+static void setupbigedit1(HWND hwnd, RSAKey *key)
+{
+    ShowWindow(GetDlgItem(hwnd, IDC_CERTSTATIC), SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, IDC_CERTMOREINFO), SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, IDC_PKSTATIC), SW_SHOW);
+    ShowWindow(GetDlgItem(hwnd, IDC_KEYDISPLAY), SW_SHOW);
+
+    SetDlgItemText(hwnd, IDC_PKSTATIC,
+                   "可粘贴到 authorized_keys 文件中的公钥内容(&P)：");
+
+    char *buffer = ssh1_pubkey_str(key);
+    SetDlgItemText(hwnd, IDC_KEYDISPLAY, buffer);
+    sfree(buffer);
+}
+
+static void setupbigedit2(HWND hwnd, ssh2_userkey *key)
+{
+    if (ssh_key_alg(key->key)->is_certificate) {
+        ShowWindow(GetDlgItem(hwnd, IDC_CERTSTATIC), SW_SHOW);
+        ShowWindow(GetDlgItem(hwnd, IDC_CERTMOREINFO), SW_SHOW);
+        ShowWindow(GetDlgItem(hwnd, IDC_PKSTATIC), SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, IDC_KEYDISPLAY), SW_HIDE);
+
+        SetDlgItemText(hwnd, IDC_CERTSTATIC,
+                       "此公钥包含有 OpenSSH 证书。");
+    } else {
+        ShowWindow(GetDlgItem(hwnd, IDC_CERTSTATIC), SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, IDC_CERTMOREINFO), SW_HIDE);
+        ShowWindow(GetDlgItem(hwnd, IDC_PKSTATIC), SW_SHOW);
+        ShowWindow(GetDlgItem(hwnd, IDC_KEYDISPLAY), SW_SHOW);
+
+        SetDlgItemText(hwnd, IDC_PKSTATIC, "可粘贴到 "
+                       "OpenSSH authorized_keys 文件中的公钥内容(&P)：");
+
+        char *buffer = ssh2_pubkey_openssh_str(key);
+        SetDlgItemText(hwnd, IDC_KEYDISPLAY, buffer);
+        sfree(buffer);
+    }
+}
+
+/*
+ * Warn about the obsolescent key file format.
+ */
+void old_keyfile_warning(void)
+{
+    static const char mbtitle[] = "PuTTY 密钥文件警告";
+    static const char message[] =
+        "现在载入的是一个旧版本文件格式的 SSH2\n"
+        "私钥。这意味着该私钥文件没有足够的安全\n"
+        "性。未来版本的 %s 可能会停止支持\n"
+        "此私钥格式，建议将其转换为新的格式。\n"
+        "\n"
+        "一旦密钥被载入到 PuTTYgen，可以简\n"
+        "单的使用保存文件来进行转换。";
+
+    MessageBox(NULL, message, mbtitle, MB_OK);
+}
 
 static const int nokey_ids[] = { IDC_NOKEY, 0 };
 static const int generating_ids[] = { IDC_GENERATING, IDC_PROGRESS, 0 };
-static const int gotkey_ids[] = {
-    IDC_PKSTATIC, IDC_KEYDISPLAY,
+static const int gotkey_ids_unconditional[] = {
     IDC_FPSTATIC, IDC_FINGERPRINT,
     IDC_COMMENTSTATIC, IDC_COMMENTEDIT,
     IDC_PASSPHRASE1STATIC, IDC_PASSPHRASE1EDIT,
     IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 0
+};
+static const int gotkey_ids_conditional[] = {
+    IDC_PKSTATIC, IDC_KEYDISPLAY,
+    IDC_CERTSTATIC, IDC_CERTMOREINFO,
 };
 
 /*
@@ -781,7 +807,8 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
       case 0:                          /* no key */
         hidemany(hwnd, nokey_ids, false);
         hidemany(hwnd, generating_ids, true);
-        hidemany(hwnd, gotkey_ids, true);
+        hidemany(hwnd, gotkey_ids_unconditional, true);
+        hidemany(hwnd, gotkey_ids_conditional, true);
         EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
@@ -810,11 +837,14 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
                        MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_EXPORT_SSHCOM,
                        MF_GRAYED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_ADDCERT, MF_GRAYED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_REMCERT, MF_GRAYED|MF_BYCOMMAND);
         break;
       case 1:                          /* generating key */
         hidemany(hwnd, nokey_ids, true);
         hidemany(hwnd, generating_ids, false);
-        hidemany(hwnd, gotkey_ids, true);
+        hidemany(hwnd, gotkey_ids_unconditional, true);
+        hidemany(hwnd, gotkey_ids_conditional, true);
         EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 0);
         EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 0);
         EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
@@ -843,11 +873,14 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
                        MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_EXPORT_SSHCOM,
                        MF_GRAYED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_ADDCERT, MF_GRAYED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_REMCERT, MF_GRAYED|MF_BYCOMMAND);
         break;
       case 2:
         hidemany(hwnd, nokey_ids, true);
         hidemany(hwnd, generating_ids, true);
-        hidemany(hwnd, gotkey_ids, false);
+        hidemany(hwnd, gotkey_ids_unconditional, false);
+        // gotkey_ids_conditional will be unhidden by setupbigedit2
         EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
@@ -882,6 +915,35 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         do_export_menuitem(IDC_EXPORT_OPENSSH_NEW, SSH_KEYTYPE_OPENSSH_NEW);
         do_export_menuitem(IDC_EXPORT_SSHCOM, SSH_KEYTYPE_SSHCOM);
 #undef do_export_menuitem
+        /*
+         * Enable certificate menu items similarly.
+         */
+        {
+            bool add_cert_allowed = false, rem_cert_allowed = false;
+
+            if (state->ssh2 && state->ssh2key.key) {
+                const ssh_keyalg *alg = ssh_key_alg(state->ssh2key.key);
+                if (alg->is_certificate) {
+                    /* If there's a certificate, we can remove it */
+                    rem_cert_allowed = true;
+                    /* And reset to the base algorithm for the next check */
+                    alg = alg->base_alg;
+                }
+
+                /* Now, do we have any certified version of this alg? */
+                for (size_t i = 0; i < n_keyalgs; i++) {
+                    if (all_keyalgs[i]->base_alg == alg) {
+                        add_cert_allowed = true;
+                        break;
+                    }
+                }
+            }
+
+            EnableMenuItem(state->keymenu, IDC_ADDCERT, MF_BYCOMMAND |
+                           (add_cert_allowed ? MF_ENABLED : MF_GRAYED));
+            EnableMenuItem(state->keymenu, IDC_REMCERT, MF_BYCOMMAND |
+                           (rem_cert_allowed ? MF_ENABLED : MF_GRAYED));
+        }
         break;
     }
 }
@@ -992,6 +1054,23 @@ void ui_set_fptype(HWND hwnd, struct MainDlgState *state, int option)
     }
 }
 
+static void update_ui_after_ssh2_pubkey_change(
+    HWND hwnd, struct MainDlgState *state)
+{
+    /* Smaller version of update_ui_after_load which doesn't need to
+     * be told things like the passphrase, which we aren't changing
+     * anyway */
+    char *savecomment = state->ssh2key.comment;
+    state->ssh2key.comment = NULL;
+    char *fp = ssh2_fingerprint(state->ssh2key.key, state->fptype);
+    state->ssh2key.comment = savecomment;
+
+    SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
+    sfree(fp);
+
+    setupbigedit2(hwnd, &state->ssh2key);
+}
+
 static void update_ui_after_load(HWND hwnd, struct MainDlgState *state,
                                  const char *passphrase, int type,
                                  RSAKey *newkey1, ssh2_userkey *newkey2)
@@ -1020,26 +1099,14 @@ static void update_ui_after_load(HWND hwnd, struct MainDlgState *state,
          * Construct a decimal representation of the key, for pasting
          * into .ssh/authorized_keys on a Unix box.
          */
-        setupbigedit1(hwnd, IDC_KEYDISPLAY, IDC_PKSTATIC, &state->key);
+        setupbigedit1(hwnd, &state->key);
     } else {
-        char *fp;
-        char *savecomment;
-
         state->ssh2 = true;
         state->commentptr = &state->ssh2key.comment;
         state->ssh2key = *newkey2;      /* structure copy */
         sfree(newkey2);
 
-        savecomment = state->ssh2key.comment;
-        state->ssh2key.comment = NULL;
-        fp = ssh2_fingerprint(state->ssh2key.key, state->fptype);
-        state->ssh2key.comment = savecomment;
-
-        SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
-        sfree(fp);
-
-        setupbigedit2(hwnd, IDC_KEYDISPLAY,
-                      IDC_PKSTATIC, &state->ssh2key);
+        update_ui_after_ssh2_pubkey_change(hwnd, state);
     }
     SetDlgItemText(hwnd, IDC_COMMENTEDIT,
                    *state->commentptr);
@@ -1162,6 +1229,106 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     burnstr(passphrase);
 }
 
+void add_certificate(HWND hwnd, struct MainDlgState *state,
+                     Filename *filename)
+{
+    int type = key_type(filename);
+    if (type != SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 &&
+        type != SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
+        char *msg = dupprintf("Couldn't load certificate (%s)",
+                              key_type_to_str(type));
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+                    HELPCTXID(errors_cantloadkey));
+        sfree(msg);
+        return;
+    }
+
+    char *algname = NULL;
+    char *comment = NULL;
+    const char *error = NULL;
+    strbuf *pub = strbuf_new();
+    if (!ppk_loadpub_f(filename, &algname, BinarySink_UPCAST(pub), &comment,
+                       &error)) {
+        char *msg = dupprintf("Couldn't load certificate (%s)", error);
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+                    HELPCTXID(errors_cantloadkey));
+        sfree(msg);
+        strbuf_free(pub);
+        return;
+    }
+
+    sfree(comment);
+
+    const ssh_keyalg *alg = find_pubkey_alg(algname);
+    if (!alg) {
+        char *msg = dupprintf("Couldn't load certificate (unsupported "
+                              "algorithm name '%s')", algname);
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+                    HELPCTXID(errors_cantloadkey));
+        sfree(msg);
+        sfree(algname);
+        strbuf_free(pub);
+        return;
+    }
+
+    sfree(algname);
+
+    /* Check the two public keys match apart from certificates */
+    strbuf *old_basepub = strbuf_new();
+    ssh_key_public_blob(ssh_key_base_key(state->ssh2key.key),
+                        BinarySink_UPCAST(old_basepub));
+
+    ssh_key *new_pubkey = ssh_key_new_pub(alg, ptrlen_from_strbuf(pub));
+    strbuf *new_basepub = strbuf_new();
+    ssh_key_public_blob(ssh_key_base_key(new_pubkey),
+                        BinarySink_UPCAST(new_basepub));
+    ssh_key_free(new_pubkey);
+
+    bool match = ptrlen_eq_ptrlen(ptrlen_from_strbuf(old_basepub),
+                                  ptrlen_from_strbuf(new_basepub));
+    strbuf_free(old_basepub);
+    strbuf_free(new_basepub);
+
+    if (!match) {
+        char *msg = dupprintf("Certificate is for a different public key");
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+                    HELPCTXID(errors_cantloadkey));
+        sfree(msg);
+        strbuf_free(pub);
+        return;
+    }
+
+    strbuf *priv = strbuf_new_nm();
+    ssh_key_private_blob(state->ssh2key.key, BinarySink_UPCAST(priv));
+    ssh_key *newkey = ssh_key_new_priv(
+        alg, ptrlen_from_strbuf(pub), ptrlen_from_strbuf(priv));
+    strbuf_free(pub);
+    strbuf_free(priv);
+
+    if (!newkey) {
+        char *msg = dupprintf("Couldn't combine certificate with key");
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+                    HELPCTXID(errors_cantloadkey));
+        sfree(msg);
+        return;
+    }
+
+    ssh_key_free(state->ssh2key.key);
+    state->ssh2key.key = newkey;
+
+    update_ui_after_ssh2_pubkey_change(hwnd, state);
+    ui_set_state(hwnd, state, 2);
+}
+
+void remove_certificate(HWND hwnd, struct MainDlgState *state)
+{
+    ssh_key *newkey = ssh_key_clone(ssh_key_base_key(state->ssh2key.key));
+    ssh_key_free(state->ssh2key.key);
+    state->ssh2key.key = newkey;
+    update_ui_after_ssh2_pubkey_change(hwnd, state);
+    ui_set_state(hwnd, state, 2);
+}
+
 static void start_generating_key(HWND hwnd, struct MainDlgState *state)
 {
     static const char generating_msg[] =
@@ -1200,10 +1367,134 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
 }
 
 /*
+ * Dialog-box function and context structure for the 'Certificate
+ * info' button.
+ */
+struct certinfo_dialog_ctx {
+    SeatDialogText *text;
+};
+
+static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
+                            LPARAM lParam, void *vctx)
+{
+    struct certinfo_dialog_ctx *ctx = (struct certinfo_dialog_ctx *)vctx;
+
+    switch (msg) {
+      case WM_INITDIALOG: {
+        int index = 100, y = 12;
+
+        WPARAM font = SendMessage(hwnd, WM_GETFONT, 0, 0);
+
+        const char *key = NULL;
+        for (SeatDialogTextItem *item = ctx->text->items,
+                 *end = item + ctx->text->nitems; item < end; item++) {
+            switch (item->type) {
+              case SDT_MORE_INFO_KEY:
+                key = item->text;
+                break;
+              case SDT_MORE_INFO_VALUE_SHORT:
+              case SDT_MORE_INFO_VALUE_BLOB: {
+                RECT rk, rv;
+                DWORD editstyle = WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+                    ES_AUTOHSCROLL | ES_READONLY;
+                if (item->type == SDT_MORE_INFO_VALUE_BLOB) {
+                    rk.left = 12;
+                    rk.right = 286;
+                    rk.top = y;
+                    rk.bottom = 8;
+                    y += 10;
+
+                    editstyle |= ES_MULTILINE;
+                    rv.left = 12;
+                    rv.right = 286;
+                    rv.top = y;
+                    rv.bottom = 64;
+                    y += 68;
+                } else {
+                    rk.left = 12;
+                    rk.right = 130;
+                    rk.top = y+2;
+                    rk.bottom = 8;
+
+                    rv.left = 150;
+                    rv.right = 298;
+                    rv.top = y;
+                    rv.bottom = 12;
+
+                    y += 16;
+                }
+
+                MapDialogRect(hwnd, &rk);
+                HWND ctl = CreateWindowEx(
+                    0, "STATIC", key, WS_CHILD | WS_VISIBLE,
+                    rk.left, rk.top, rk.right, rk.bottom,
+                    hwnd, (HMENU)(ULONG_PTR)index++, hinst, NULL);
+                SendMessage(ctl, WM_SETFONT, font, MAKELPARAM(true, 0));
+
+                MapDialogRect(hwnd, &rv);
+                ctl = CreateWindowEx(
+                    WS_EX_CLIENTEDGE, "EDIT", item->text, editstyle,
+                    rv.left, rv.top, rv.right, rv.bottom,
+                    hwnd, (HMENU)(ULONG_PTR)index++, hinst, NULL);
+                SendMessage(ctl, WM_SETFONT, font, MAKELPARAM(true, 0));
+                break;
+              }
+              default:
+                break;
+            }
+        }
+
+        /*
+         * Now resize the overall window, and move the Close button at
+         * the bottom.
+         */
+        RECT r;
+        r.left = 176;
+        r.top = y + 10;
+        r.right = r.bottom = 0;
+        MapDialogRect(hwnd, &r);
+        HWND ctl = GetDlgItem(hwnd, IDOK);
+        SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
+                     SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
+
+        r.left = r.top = r.right = 0;
+        r.bottom = 300;
+        MapDialogRect(hwnd, &r);
+        int oldheight = r.bottom;
+
+        r.left = r.top = r.right = 0;
+        r.bottom = y + 30;
+        MapDialogRect(hwnd, &r);
+        int newheight = r.bottom;
+
+        GetWindowRect(hwnd, &r);
+
+        SetWindowPos(hwnd, NULL, 0, 0, r.right - r.left,
+                     r.bottom - r.top + newheight - oldheight,
+                     SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
+
+        ShowWindow(hwnd, SW_SHOWNORMAL);
+        return 1;
+      }
+      case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+          case IDOK:
+            ShinyEndDialog(hwnd, 0);
+            return 0;
+        }
+        return 0;
+      case WM_CLOSE:
+        ShinyEndDialog(hwnd, 0);
+        return 0;
+    }
+    return 0;
+}
+
+/*
  * Dialog-box function for the main PuTTYgen dialog box.
  */
 static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
-                                WPARAM wParam, LPARAM lParam)
+                                    WPARAM wParam, LPARAM lParam)
 {
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     static const char entropy_msg[] =
@@ -1247,11 +1538,16 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             menu1 = CreateMenu();
             AppendMenu(menu1, MF_ENABLED, IDC_GENERATE, "生成密钥对(&G)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH-&1 密钥 (RSA)");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 &RSA 密钥");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA 密钥");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA 密钥");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2EDDSA, "SSH-2 EdD&SA 密钥");
+            AppendMenu(menu1, MF_ENABLED, IDC_ADDCERT,
+                       "增加证书到密钥(&C)");
+            AppendMenu(menu1, MF_ENABLED, IDC_REMCERT,
+                       "从密钥中删除证书");
+            AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH1, "SSH-1 密钥 (RSA)(&1)");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 RSA 密钥(&R)");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 DSA 密钥(&D)");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 ECDSA 密钥(&E)");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2EDDSA, "SSH-2 EdDSA 密钥(&S)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_PROB,
                        "使用常规查找素数 (快)");
@@ -1277,11 +1573,11 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             AppendMenu(menu1, MF_ENABLED, IDC_IMPORT, "导入密钥(&I)");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_AUTO,
-                       "导出 &OpenSSH 密钥");
+                       "导出 OpenSSH 密钥(&O)");
             AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_NEW,
-                       "导出 &OpenSSH 密钥 (强制新文件格式)");
+                       "导出 OpenSSH 密钥 (强制新文件格式)(&P)");
             AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
-                       "导出 &ssh.com 密钥");
+                       "导出 ssh.com 密钥(&S)");
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1,
                        "转换(&V)");
             state->cvtmenu = menu1;
@@ -1323,6 +1619,18 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             cp2 = cp;
             statictext(&cp2, "", 1, IDC_GENERATING);
             progressbar(&cp2, IDC_PROGRESS);
+            cp2 = cp;
+            bigeditctrl(&cp2, NULL, -1, IDC_CERTSTATIC, 3);
+            {
+                HWND child = GetDlgItem(hwnd, IDC_CERTSTATIC);
+                LONG_PTR style = GetWindowLongPtr(child, GWL_STYLE);
+                style &= ~WS_VSCROLL;
+                SetWindowLongPtr(child, GWL_STYLE, style);
+                SendMessage(child, EM_SETREADONLY, true, 0);
+            }
+            MakeDlgItemBorderless(hwnd, IDC_CERTSTATIC);
+            cp2.xoff = cp2.width = cp2.width / 3;
+            button(&cp2, "证书信息...", IDC_CERTMOREINFO, false);
             bigeditctrl(&cp,
                         "可粘贴到 authorized_keys 文件中的公钥内容(&P)：",
                         IDC_PKSTATIC, IDC_KEYDISPLAY, 5);
@@ -1349,11 +1657,11 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             endbox(&cp);
             beginbox(&cp, "参数", IDC_BOX_PARAMS);
             radioline(&cp, "生成密钥类型：", IDC_TYPESTATIC, 5,
-                      "&RSA", IDC_KEYSSH2RSA,
-                      "&DSA", IDC_KEYSSH2DSA,
-                      "&ECDSA", IDC_KEYSSH2ECDSA,
-                      "EdD&SA", IDC_KEYSSH2EDDSA,
-                      "SSH-&1 (RSA)", IDC_KEYSSH1,
+                      "RSA(&R)", IDC_KEYSSH2RSA,
+                      "DSA(&D)", IDC_KEYSSH2DSA,
+                      "ECDSA(&E)", IDC_KEYSSH2ECDSA,
+                      "EdDSA(&S)", IDC_KEYSSH2EDDSA,
+                      "SSH-1 (RSA)(&1)", IDC_KEYSSH1,
                       NULL);
             cp2 = cp;
             staticedit(&cp2, "生成密钥的位数(&B)：",
@@ -1446,10 +1754,12 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_TIMER:
         if ((UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
             KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
-            const char *err = save_screenshot(hwnd, demo_screenshot_filename);
-            if (err)
+            char *err = save_screenshot(hwnd, demo_screenshot_filename);
+            if (err) {
                 MessageBox(hwnd, err, "Demo screenshot failure",
                            MB_OK | MB_ICONERROR);
+                sfree(err);
+            }
             EndDialog(hwnd, 0);
         }
         return 0;
@@ -1547,11 +1857,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     *state->commentptr = snewn(len + 1, char);
                     GetWindowText(editctl, *state->commentptr, len + 1);
                     if (state->ssh2) {
-                        setupbigedit2(hwnd, IDC_KEYDISPLAY, IDC_PKSTATIC,
-                                      &state->ssh2key);
+                        setupbigedit2(hwnd, &state->ssh2key);
                     } else {
-                        setupbigedit1(hwnd, IDC_KEYDISPLAY, IDC_PKSTATIC,
-                                      &state->key);
+                        setupbigedit1(hwnd, &state->key);
                     }
                 }
             }
@@ -1612,10 +1920,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
                 if ((state->keytype == RSA || state->keytype == DSA) &&
                     state->key_bits < 256) {
-                    char *message = dupprintf
-                        ("PuTTYgen 不能生成低于 256 位的密钥。"
-                         "\n密钥位数将调整为默认的 %d，是否继续？",
-                         DEFAULT_KEY_BITS);
+                    char *message = dupprintf(
+                        "PuTTYgen 不能生成低于 256 位的密钥。"
+                        "\n密钥位数将调整为默认的 %d，是否继续？",
+                        DEFAULT_KEY_BITS);
                     int ret = MessageBox(hwnd, message, "PuTTYgen 警告",
                                          MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);
@@ -1625,9 +1933,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
                 } else if ((state->keytype == RSA || state->keytype == DSA) &&
                            state->key_bits < DEFAULT_KEY_BITS) {
-                    char *message = dupprintf
-                        ("不建议使用少于 %d 位密钥。"
-                         "真的要生成此密钥？", DEFAULT_KEY_BITS);
+                    char *message = dupprintf(
+                        "不建议使用少于 %d 位密钥。"
+                        "真的要生成此密钥？", DEFAULT_KEY_BITS);
                     int ret = MessageBox(hwnd, message, "PuTTYgen 警告",
                                          MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);
@@ -1866,6 +2174,47 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 }
             }
             break;
+          case IDC_ADDCERT:
+            if (HIWORD(wParam) != BN_CLICKED)
+                break;
+            state =
+                (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            if (state->key_exists && !state->generation_thread_exists) {
+                char filename[FILENAME_MAX];
+                if (prompt_keyfile(hwnd, "Load certificate:", filename, false,
+                                   false)) {
+                    Filename *fn = filename_from_str(filename);
+                    add_certificate(hwnd, state, fn);
+                    filename_free(fn);
+                }
+            }
+            break;
+          case IDC_REMCERT:
+            if (HIWORD(wParam) != BN_CLICKED)
+                break;
+            state =
+                (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            if (state->key_exists && !state->generation_thread_exists) {
+                remove_certificate(hwnd, state);
+            }
+            break;
+          case IDC_CERTMOREINFO: {
+            if (HIWORD(wParam) != BN_CLICKED)
+                break;
+            state =
+                (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            if (!state->key_exists || !state->ssh2 || !state->ssh2key.key)
+                break;
+            if (!ssh_key_alg(state->ssh2key.key)->is_certificate)
+                break;
+
+            struct certinfo_dialog_ctx ctx[1];
+            ctx->text = ssh_key_cert_info(state->ssh2key.key);
+            ShinyDialogBox(hinst, MAKEINTRESOURCE(216),
+                           "PuTTYgenCertInfo", hwnd, CertInfoProc, ctx);
+            seat_dialog_text_free(ctx->text);
+            break;
+          }
         }
         return 0;
       case WM_DONEKEY:
@@ -1943,11 +2292,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
              * .ssh/authorized_keys2 on a Unix box.
              */
             if (state->ssh2) {
-                setupbigedit2(hwnd, IDC_KEYDISPLAY,
-                              IDC_PKSTATIC, &state->ssh2key);
+                setupbigedit2(hwnd, &state->ssh2key);
             } else {
-                setupbigedit1(hwnd, IDC_KEYDISPLAY,
-                              IDC_PKSTATIC, &state->key);
+                setupbigedit1(hwnd, &state->key);
             }
         }
         /*
@@ -2003,9 +2350,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             topic = WINHELP_CTX_puttygen_conversions; break;
         }
         if (topic) {
-          launch_help(hwnd, topic);
+            launch_help(hwnd, topic);
         } else {
-          MessageBeep(0);
+            MessageBeep(0);
         }
         break;
       }

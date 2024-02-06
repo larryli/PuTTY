@@ -5,6 +5,7 @@ add_sources_from_current_dir(utils
   utils/agent_named_pipe_name.c
   utils/arm_arch_queries.c
   utils/aux_match_opt.c
+  utils/centre_window.c
   utils/cryptoapi.c
   utils/defaults.c
   utils/dll_hijacking_protection.c
@@ -26,10 +27,11 @@ add_sources_from_current_dir(utils
   utils/open_for_write_would_lose_data.c
   utils/pgp_fingerprints_msgbox.c
   utils/platform_get_x_display.c
-  utils/registry_get_string.c
+  utils/registry.c
   utils/request_file.c
   utils/screenshot.c
   utils/security.c
+  utils/shinydialogbox.c
   utils/split_into_argv.c
   utils/version.c
   utils/win_strerror.c
@@ -114,8 +116,9 @@ add_executable(puttytel
   window.c
   putty.c
   help.c
-  ${CMAKE_SOURCE_DIR}/stubs/nogss.c
-  ${CMAKE_SOURCE_DIR}/stubs/norand.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-rand.c
   ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
   ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
   puttytel.rc)
@@ -131,7 +134,7 @@ installed_program(puttytel)
 
 add_executable(puttygen
   puttygen.c
-  ${CMAKE_SOURCE_DIR}/stubs/notiming.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-timing.c
   noise.c
   no-jump-list.c
   storage.c
@@ -155,8 +158,9 @@ if(HAVE_CONPTY)
     pterm.c
     help.c
     conpty.c
-    ${CMAKE_SOURCE_DIR}/stubs/nogss.c
-    ${CMAKE_SOURCE_DIR}/stubs/norand.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-rand.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pterm.rc)
   be_list(pterm pterm)
@@ -176,3 +180,7 @@ add_executable(test_split_into_argv
   utils/split_into_argv.c)
 target_compile_definitions(test_split_into_argv PRIVATE TEST)
 target_link_libraries(test_split_into_argv utils ${platform_libraries})
+
+add_executable(test_screenshot
+  test_screenshot.c)
+target_link_libraries(test_screenshot utils ${platform_libraries})

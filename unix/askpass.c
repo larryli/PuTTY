@@ -292,8 +292,8 @@ static gboolean try_grab_keyboard(gpointer vctx)
     if (!GDK_IS_WINDOW(gdkw) || !gdk_window_is_visible(gdkw))
         goto fail;
 
-    seat = gdk_display_get_default_seat
-        (gtk_widget_get_display(ctx->dialog));
+    seat = gdk_display_get_default_seat(
+        gtk_widget_get_display(ctx->dialog));
     if (!seat)
         goto fail;
 
@@ -317,8 +317,8 @@ static gboolean try_grab_keyboard(gpointer vctx)
     GdkDeviceManager *dm;
     GdkDevice *pointer, *keyboard;
 
-    dm = gdk_display_get_device_manager
-        (gtk_widget_get_display(ctx->dialog));
+    dm = gdk_display_get_device_manager(
+        gtk_widget_get_display(ctx->dialog));
     if (!dm)
         goto fail;
 
@@ -438,7 +438,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_window_set_title(GTK_WINDOW(ctx->dialog), window_title);
     gtk_window_set_position(GTK_WINDOW(ctx->dialog), GTK_WIN_POS_CENTER);
     g_signal_connect(G_OBJECT(ctx->dialog), "delete-event",
-                              G_CALLBACK(askpass_dialog_closed), ctx);
+                     G_CALLBACK(askpass_dialog_closed), ctx);
     ctx->promptlabel = gtk_label_new(prompt_text);
     align_label_left(GTK_LABEL(ctx->promptlabel));
     gtk_widget_show(ctx->promptlabel);

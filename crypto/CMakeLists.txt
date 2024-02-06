@@ -2,6 +2,10 @@ add_sources_from_current_dir(crypto
   aes-common.c
   aes-select.c
   aes-sw.c
+  aesgcm-common.c
+  aesgcm-select.c
+  aesgcm-sw.c
+  aesgcm-ref-poly.c
   arcfour.c
   argon2.c
   bcrypt.c
@@ -20,6 +24,8 @@ add_sources_from_current_dir(crypto
   mac_simple.c
   md5.c
   mpint.c
+  ntru.c
+  openssh-certs.c
   prng.c
   pubkey-pem.c
   pubkey-ppk.c
@@ -121,6 +127,16 @@ if(HAVE_WMMINTRIN_H)
       volatile __m128i r, a, b, c;
       int main(void) { r = _mm_sha256rnds2_epu32(a, b, c); }"
     ADD_SOURCES_IF_SUCCESSFUL sha256-ni.c sha1-ni.c)
+
+  test_compile_with_flags(HAVE_CLMUL
+    GNU_FLAGS -msse4.1 -mpclmul
+    TEST_SOURCE "
+      #include <wmmintrin.h>
+      #include <tmmintrin.h>
+      volatile __m128i r, a, b;
+      int main(void) { r = _mm_clmulepi64_si128(a, b, 5);
+                       r = _mm_shuffle_epi8(r, a); }"
+    ADD_SOURCES_IF_SUCCESSFUL aesgcm-clmul.c)
 endif()
 
 # ----------------------------------------------------------------------
@@ -167,6 +183,25 @@ if(neon)
       volatile uint32x4_t s, x, y, z;
       int main(void) { r = vaeseq_u8(a, b); s = vsha256hq_u32(x, y, z); }"
     ADD_SOURCES_IF_SUCCESSFUL aes-neon.c sha256-neon.c sha1-neon.c)
+
+  test_compile_with_flags(HAVE_NEON_PMULL
+    GNU_FLAGS -march=armv8-a+crypto
+    MSVC_FLAGS -D_ARM_USE_NEW_NEON_INTRINSICS
+    TEST_SOURCE "
+      #include <${neon_header}>
+      volatile poly128_t r;
+      volatile poly64_t a, b;
+      volatile poly64x2_t u, v;
+      int main(void) { r = vmull_p64(a, b); r = vmull_high_p64(u, v); }"
+    ADD_SOURCES_IF_SUCCESSFUL aesgcm-neon.c)
+
+  test_compile_with_flags(HAVE_NEON_VADDQ_P128
+    GNU_FLAGS -march=armv8-a+crypto
+    MSVC_FLAGS -D_ARM_USE_NEW_NEON_INTRINSICS
+    TEST_SOURCE "
+      #include <${neon_header}>
+      volatile poly128_t r;
+      int main(void) { r = vaddq_p128(r, r); }")
 
   # The 'sha3' architecture extension, despite the name, includes
   # support for SHA-512 (from the SHA-2 standard) as well as SHA-3

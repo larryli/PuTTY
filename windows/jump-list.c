@@ -41,7 +41,7 @@ typedef struct _tagpropertykey {
 typedef PROPVARIANT *REFPROPVARIANT;
 #endif
 /* MinGW doesn't define this yet: */
-#ifndef _PROPVARIANTINIT_DEFINED_
+#if !defined _PROPVARIANTINIT_DEFINED_ && !defined _PROPVARIANT_INIT_DEFINED_
 #define _PROPVARIANTINIT_DEFINED_
 #define PropVariantInit(pvar) memset((pvar),0,sizeof(PROPVARIANT))
 #endif
@@ -544,13 +544,13 @@ static void update_jumplist_from_registry(void)
              */
             for (i = 0, found = false; i < nremoved && !found; i++) {
                 IShellLink *rlink;
-                if (SUCCEEDED(pRemoved->lpVtbl->GetAt
-                              (pRemoved, i, COMPTR(IShellLink, &rlink)))) {
+                if (SUCCEEDED(pRemoved->lpVtbl->GetAt(
+                                  pRemoved, i, COMPTR(IShellLink, &rlink)))) {
                     char desc1[2048], desc2[2048];
-                    if (SUCCEEDED(link->lpVtbl->GetDescription
-                                  (link, desc1, sizeof(desc1)-1)) &&
-                        SUCCEEDED(rlink->lpVtbl->GetDescription
-                                  (rlink, desc2, sizeof(desc2)-1)) &&
+                    if (SUCCEEDED(link->lpVtbl->GetDescription(
+                                      link, desc1, sizeof(desc1)-1)) &&
+                        SUCCEEDED(rlink->lpVtbl->GetDescription(
+                                      rlink, desc2, sizeof(desc2)-1)) &&
                         !strcmp(desc1, desc2)) {
                         found = true;
                     }
@@ -575,8 +575,8 @@ static void update_jumplist_from_registry(void)
      * Get the array form of the collection we've just constructed,
      * and put it in the jump list.
      */
-    if (!SUCCEEDED(collection->lpVtbl->QueryInterface
-                   (collection, COMPTR(IObjectArray, &array))))
+    if (!SUCCEEDED(collection->lpVtbl->QueryInterface(
+                       collection, COMPTR(IObjectArray, &array))))
         goto cleanup;
 
     pCDL->lpVtbl->AppendCategory(pCDL, L"Recent Sessions", array);
@@ -608,8 +608,8 @@ static void update_jumplist_from_registry(void)
      * Get the array form of the collection we've just constructed,
      * and put it in the jump list.
      */
-    if (!SUCCEEDED(collection->lpVtbl->QueryInterface
-                   (collection, COMPTR(IObjectArray, &array))))
+    if (!SUCCEEDED(collection->lpVtbl->QueryInterface(
+                       collection, COMPTR(IObjectArray, &array))))
         goto cleanup;
 
     pCDL->lpVtbl->AddUserTasks(pCDL, array);
@@ -636,8 +636,8 @@ static void update_jumplist_from_registry(void)
      * Get the array form of the collection we've just constructed,
      * and put it in the jump list.
      */
-    if (!SUCCEEDED(collection->lpVtbl->QueryInterface
-                   (collection, COMPTR(IObjectArray, &array))))
+    if (!SUCCEEDED(collection->lpVtbl->QueryInterface(
+                       collection, COMPTR(IObjectArray, &array))))
         goto cleanup;
 
     pCDL->lpVtbl->AddUserTasks(pCDL, array);
@@ -716,13 +716,12 @@ void remove_session_from_jumplist(const char * const sessionname)
 
 bool set_explicit_app_user_model_id(void)
 {
-  DECL_WINDOWS_FUNCTION(static, HRESULT, SetCurrentProcessExplicitAppUserModelID,
-                        (PCWSTR));
+    DECL_WINDOWS_FUNCTION(
+        static, HRESULT, SetCurrentProcessExplicitAppUserModelID, (PCWSTR));
 
-  static HMODULE shell32_module = 0;
+    static HMODULE shell32_module = 0;
 
-    if (!shell32_module)
-    {
+    if (!shell32_module) {
         shell32_module = load_system32_dll("Shell32.dll");
         /*
          * We can't typecheck this function here, because it's defined
@@ -733,12 +732,10 @@ bool set_explicit_app_user_model_id(void)
             shell32_module, SetCurrentProcessExplicitAppUserModelID);
     }
 
-    if (p_SetCurrentProcessExplicitAppUserModelID)
-    {
+    if (p_SetCurrentProcessExplicitAppUserModelID) {
         const wchar_t *id = get_app_user_model_id();
-        if (p_SetCurrentProcessExplicitAppUserModelID(id) == S_OK)
-        {
-          return true;
+        if (p_SetCurrentProcessExplicitAppUserModelID(id) == S_OK) {
+            return true;
         }
         return false;
     }

@@ -92,6 +92,11 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             } else if (!strcmp(p, "-pgpfp")) {
                 pgp_fingerprints_msgbox(NULL);
                 exit(1);
+            } else if (has_ca_config_box &&
+                       (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||
+                        !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca"))) {
+                show_ca_config_box(NULL);
+                exit(0);
             } else if (!strcmp(p, "-demo-config-box")) {
                 if (i+1 >= argc) {
                     cmdline_error("%s expects an output filename", p);
@@ -180,7 +185,11 @@ const wchar_t *get_app_user_model_id(void)
 static void demo_terminal_screenshot(void *ctx, unsigned long now)
 {
     HWND hwnd = (HWND)ctx;
-    save_screenshot(hwnd, terminal_demo_screenshot_filename);
+    char *err = save_screenshot(hwnd, terminal_demo_screenshot_filename);
+    if (err) {
+        MessageBox(hwnd, err, "Demo screenshot failure", MB_OK | MB_ICONERROR);
+        sfree(err);
+    }
     cleanup_exit(0);
 }
 

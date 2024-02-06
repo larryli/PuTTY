@@ -647,7 +647,7 @@ static void makeliteral_truecolour(strbuf *b, termchar *c, unsigned long *state)
      * Put the used parts of the colour info into the buffer.
      */
     put_byte(b, ((c->truecolour.fg.enabled ? 1 : 0) |
-            (c->truecolour.bg.enabled ? 2 : 0)));
+                 (c->truecolour.bg.enabled ? 2 : 0)));
     if (c->truecolour.fg.enabled) {
         put_byte(b, c->truecolour.fg.r);
         put_byte(b, c->truecolour.fg.g);
@@ -1073,7 +1073,7 @@ static int sblines(Terminal *term)
     int sblines = count234(term->scrollback);
     if (term->erase_to_scrollback &&
         term->alt_which && term->alt_screen) {
-            sblines += term->alt_sblines;
+        sblines += term->alt_sblines;
     }
     return sblines;
 }
@@ -1220,12 +1220,6 @@ static void term_timer(void *ctx, unsigned long now)
 
     if (term->window_update_pending)
         term_update_callback(term);
-
-    if (term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY &&
-        now == term->win_resize_timeout) {
-        term->win_resize_pending = WIN_RESIZE_NO;
-        queue_toplevel_callback(term_out_cb, term);
-    }
 }
 
 static void term_update_callback(void *ctx)
@@ -1426,8 +1420,6 @@ void term_update(Terminal *term)
         term->win_resize_pending = WIN_RESIZE_AWAIT_REPLY;
         win_request_resize(term->win, term->win_resize_pending_w,
                            term->win_resize_pending_h);
-        term->win_resize_timeout = schedule_timer(
-            WIN_RESIZE_TIMEOUT, term_timer, term);
     }
     if (term->win_zorder_pending) {
         win_set_zorder(term->win, term->win_zorder_top);
@@ -1545,7 +1537,7 @@ static void set_erase_char(Terminal *term)
  * lookups which would be involved in fetching them from the former
  * every time.
  */
-void term_copy_stuff_from_conf(Terminal *term)
+static void term_copy_stuff_from_conf(Terminal *term)
 {
     term->ansi_colour = conf_get_bool(term->conf, CONF_ansi_colour);
     term->no_arabicshaping = conf_get_bool(term->conf, CONF_no_arabicshaping);
@@ -2151,14 +2143,6 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     int sblen;
     int save_alt_which = term->alt_which;
 
-    /* If we were holding buffered terminal data because we were
-     * waiting for confirmation of a resize, queue a callback to start
-     * processing it again. */
-    if (term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY) {
-        term->win_resize_pending = WIN_RESIZE_NO;
-        queue_toplevel_callback(term_out_cb, term);
-    }
-
     if (newrows == term->rows && newcols == term->cols &&
         newsavelines == term->savelines)
         return;                        /* nothing to do */
@@ -2336,6 +2320,13 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
         backend_size(term->backend, term->cols, term->rows);
 }
 
+void term_resize_request_completed(Terminal *term)
+{
+    assert(term->win_resize_pending == WIN_RESIZE_AWAIT_REPLY);
+    term->win_resize_pending = WIN_RESIZE_NO;
+    queue_toplevel_callback(term_out_cb, term);
+}
+
 /*
  * Hand a backend to the terminal, so it can be notified of resizes.
  */
@@ -2350,7 +2341,7 @@ void term_provide_backend(Terminal *term, Backend *backend)
  * If only the top line has content, returns 0.
  * If no lines have content, return -1.
  */
-static int find_last_nonempty_line(Terminal * term, tree234 * screen)
+static int find_last_nonempty_line(Terminal *term, tree234 *screen)
 {
     int i;
     for (i = count234(screen) - 1; i >= 0; i--) {
@@ -3137,8 +3128,8 @@ static void do_osc(Terminal *term)
 {
     if (term->osc_w) {
         while (term->osc_strlen--)
-            term->wordness[(unsigned char)
-                term->osc_string[term->osc_strlen]] = term->esc_args[0];
+            term->wordness[(unsigned char)term->osc_string[term->osc_strlen]] =
+                term->esc_args[0];
     } else {
         term->osc_string[term->osc_strlen] = '\0';
         switch (term->esc_args[0]) {
@@ -3425,7 +3416,7 @@ static strbuf *term_input_data_from_unicode(
         char *bufptr = strbuf_append(buf, len + 1);
         int rv;
         rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
-                      bufptr, len + 1, NULL, term->ucsdata);
+                      bufptr, len + 1, NULL);
         strbuf_shrink_to(buf, rv < 0 ? 0 : rv);
     }
 
@@ -3920,7 +3911,11 @@ static void term_out(Terminal *term, bool called_from_term_data)
               case '\033':            /* ESC: Escape */
                 if (term->vt52_mode)
                     term->termstate = VT52_ESC;
-                else {
+                else if (term->termstate == SEEN_OSC ||
+                         term->termstate == SEEN_OSC_W) {
+                    /* Be prepared to terminate an OSC early */
+                    term->termstate = OSC_MAYBE_ST;
+                } else {
                     compatibility(ANSIMIN);
                     term->termstate = SEEN_ESC;
                     term->esc_query = 0;
@@ -4027,6 +4022,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     /* Compatibility is nasty here, xterm, linux, decterm yuk! */
                     compatibility(OTHER);
                     term->termstate = SEEN_OSC;
+                    term->osc_strlen = 0;
                     term->esc_args[0] = 0;
                     term->esc_nargs = 1;
                     break;
@@ -5169,6 +5165,17 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     else
                         term->esc_args[term->esc_nargs-1] = UINT_MAX;
                     break;
+                  case 0x9C:
+                    /* Terminate even though we aren't in OSC_STRING yet */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                  case 0xC2:
+                    if (in_utf(term)) {
+                        /* Or be prepared for the UTF-8 version of that */
+                        term->termstate = OSC_MAYBE_ST_UTF8;
+                    }
+                    break;
                   default:
                     /*
                      * _Most_ other characters here terminate the
@@ -5337,6 +5344,17 @@ static void term_out(Terminal *term, bool called_from_term_data)
                         term->esc_args[0] = 10 * term->esc_args[0] + c - '0';
                     else
                         term->esc_args[0] = UINT_MAX;
+                    break;
+                  case 0x9C:
+                    /* Terminate even though we aren't in OSC_STRING yet */
+                    do_osc(term);
+                    term->termstate = TOPLEVEL;
+                    break;
+                  case 0xC2:
+                    if (in_utf(term)) {
+                        /* Or be prepared for the UTF-8 version of that */
+                        term->termstate = OSC_MAYBE_ST_UTF8;
+                    }
                     break;
                   default:
                     term->termstate = OSC_STRING;
@@ -6011,7 +6029,7 @@ static void do_paint(Terminal *term)
 
             if (!term->ansi_colour)
                 tattr = (tattr & ~(ATTR_FGMASK | ATTR_BGMASK)) |
-                ATTR_DEFFG | ATTR_DEFBG;
+                    ATTR_DEFFG | ATTR_DEFBG;
 
             if (!term->xterm_256_colour) {
                 int colour;
@@ -7460,7 +7478,9 @@ int format_function_key(char *buf, Terminal *term, int key_number,
     return p - buf;
 }
 
-int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key)
+int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key,
+                            bool shift, bool ctrl, bool alt,
+                            bool *consumed_alt)
 {
     char *p = buf;
 
@@ -7491,7 +7511,17 @@ int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key)
     } else if ((code == 1 || code == 4) && term->rxvt_homeend) {
         p += sprintf(p, code == 1 ? "\x1B[H" : "\x1BOw");
     } else {
-        p += sprintf(p, "\x1B[%d~", code);
+        if (term->vt52_mode) {
+	    p += sprintf(p, "\x1B[%d~", code);
+        } else {
+            int bitmap = 0;
+            if (term->funky_type == FUNKY_XTERM_216)
+                bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
+            if (bitmap)
+                p += sprintf(p, "\x1B[%d;%d~", code, bitmap);
+            else
+                p += sprintf(p, "\x1B[%d~", code);
+        }
     }
 
     return p - buf;

@@ -322,7 +322,12 @@ static BinarySink *stdout_bs, *stderr_bs;
 
 static enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
-size_t try_output(bool is_stderr)
+static size_t output_backlog(void)
+{
+    return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
+}
+
+void try_output(bool is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
@@ -343,12 +348,13 @@ size_t try_output(bool is_stderr)
             perror(is_stderr ? "stderr: write" : "stdout: write");
             exit(1);
         }
+
+        backend_unthrottle(backend, output_backlog());
     }
     if (outgoingeof == EOF_PENDING && bufchain_size(&stdout_data) == 0) {
         close(STDOUT_FILENO);
         outgoingeof = EOF_SENT;
     }
-    return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
 static size_t plink_output(
@@ -360,7 +366,8 @@ static size_t plink_output(
     BinarySink *bs = is_stderr ? stderr_bs : stdout_bs;
     put_data(bs, data, len);
 
-    return try_output(is_stderr);
+    try_output(is_stderr);
+    return output_backlog();
 }
 
 static bool plink_eof(Seat *seat)
@@ -408,6 +415,7 @@ static const SeatVtable plink_seat_vt = {
     .confirm_ssh_host_key = console_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = console_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = console_confirm_weak_cached_hostkey,
+    .prompt_descriptions = console_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = plink_echoedit_update,
     .get_x_display = nullseat_get_x_display,
@@ -434,57 +442,57 @@ static void from_tty(void *vbuf, unsigned len)
     p = buf; end = buf + len;
     while (p < end) {
         switch (state) {
-            case NORMAL:
-                if (*p == '\xff') {
-                    p++;
-                    state = FF;
-                } else {
-                    q = memchr(p, '\xff', end - p);
-                    if (q == NULL) q = end;
-                    backend_send(backend, p, q - p);
-                    p = q;
-                }
-                break;
-            case FF:
-                if (*p == '\xff') {
-                    backend_send(backend, p, 1);
-                    p++;
-                    state = NORMAL;
-                } else if (*p == '\0') {
-                    p++;
-                    state = FF00;
-                } else abort();
-                break;
-            case FF00:
-                if (*p == '\0') {
-                    backend_special(backend, SS_BRK, 0);
-                } else {
-                    /*
-                     * Pretend that PARMRK wasn't set.  This involves
-                     * faking what INPCK and IGNPAR would have done if
-                     * we hadn't overridden them.  Unfortunately, we
-                     * can't do this entirely correctly because INPCK
-                     * distinguishes between framing and parity
-                     * errors, but PARMRK format represents both in
-                     * the same way.  We assume that parity errors are
-                     * more common than framing errors, and hence
-                     * treat all input errors as being subject to
-                     * INPCK.
-                     */
-                    if (orig_termios.c_iflag & INPCK) {
-                        /* If IGNPAR is set, we throw away the character. */
-                        if (!(orig_termios.c_iflag & IGNPAR)) {
-                            /* PE/FE get passed on as NUL. */
-                            *p = 0;
-                            backend_send(backend, p, 1);
-                        }
-                    } else {
-                        /* INPCK not set.  Assume we got a parity error. */
-                        backend_send(backend, p, 1);
-                    }
-                }
+          case NORMAL:
+            if (*p == '\xff') {
+                p++;
+                state = FF;
+            } else {
+                q = memchr(p, '\xff', end - p);
+                if (q == NULL) q = end;
+                backend_send(backend, p, q - p);
+                p = q;
+            }
+            break;
+          case FF:
+            if (*p == '\xff') {
+                backend_send(backend, p, 1);
                 p++;
                 state = NORMAL;
+            } else if (*p == '\0') {
+                p++;
+                state = FF00;
+            } else abort();
+            break;
+          case FF00:
+            if (*p == '\0') {
+                backend_special(backend, SS_BRK, 0);
+            } else {
+                /*
+                 * Pretend that PARMRK wasn't set.  This involves
+                 * faking what INPCK and IGNPAR would have done if
+                 * we hadn't overridden them.  Unfortunately, we
+                 * can't do this entirely correctly because INPCK
+                 * distinguishes between framing and parity
+                 * errors, but PARMRK format represents both in
+                 * the same way.  We assume that parity errors are
+                 * more common than framing errors, and hence
+                 * treat all input errors as being subject to
+                 * INPCK.
+                 */
+                if (orig_termios.c_iflag & INPCK) {
+                    /* If IGNPAR is set, we throw away the character. */
+                    if (!(orig_termios.c_iflag & IGNPAR)) {
+                        /* PE/FE get passed on as NUL. */
+                        *p = 0;
+                        backend_send(backend, p, 1);
+                    }
+                } else {
+                    /* INPCK not set.  Assume we got a parity error. */
+                    backend_send(backend, p, 1);
+                }
+            }
+            p++;
+            state = NORMAL;
         }
     }
 }
@@ -502,66 +510,68 @@ void sigwinch(int signum)
  */
 static void usage(void)
 {
-    printf("Plink: 命令行连接工具\n");
+    printf("Plink: command-line connection utility\n");
     printf("%s\n", ver);
-    printf("用法: plink [选项] [用户名@]主机 [命令]\n");
-    printf("       (\"主机\" 也可以使用已保存的 PuTTY 会话名)\n");
-    printf("选项:\n");
-    printf("  -V        显示版本信息后退出\n");
-    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
-    printf("  -v        显示详细信息\n");
-    printf("  -load 会话名  载入保存的会话信息\n");
+    printf("Usage: plink [options] [user@]host [command]\n");
+    printf("       (\"host\" can also be a PuTTY saved session name)\n");
+    printf("Options:\n");
+    printf("  -V        print version information and exit\n");
+    printf("  -pgpfp    print PGP key fingerprints and exit\n");
+    printf("  -v        show verbose messages\n");
+    printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
-    printf("            载入保存的会话信息\n");
+    printf("            force use of a particular protocol\n");
     printf("  -ssh-connection\n");
-    printf("            强制使用裸 ssh 连接协议\n");
-    printf("  -P 端口   连接指定的端口\n");
-    printf("  -l 用户名 使用指定的用户名连接\n");
-    printf("  -batch    禁用所有交互式提示\n");
-    printf("  -proxycmd 命令\n");
-    printf("            使用 '命令' 作为本地代理\n");
-    printf("  -sercfg 配置字符串 (比如： 19200,8,n,1,X)\n");
-    printf("            指定串口配置 (仅限串口)\n");
-    printf("以下选项仅适用于 SSH 连接:\n");
-    printf("  -pwfile 文件   使用指定文件中的密码登录\n");
-    printf("  -D [监听IP:]监听端口\n");
-    printf("            基于 SOCKS 的动态端口转发\n");
-    printf("  -L [监听IP:]监听端口:主机:端口\n");
-    printf("            转发本地端口到远程地址\n");
-    printf("  -R [监听IP:]监听端口:主机:端口\n");
-    printf("            转发远程端口到本地地址\n");
-    printf("  -X -x     启禁用 X11 转发\n");
-    printf("  -A -a     启禁用 agent 转发\n");
-    printf("  -t -T     启禁用 pty 分配\n");
-    printf("  -1 -2     启禁用 pty 分配\n");
-    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
-    printf("  -C        启用压缩\n");
-    printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  禁用 Pageant 认证代理\n");
-    printf("  -agent    启用 Pageant 认证代理\n");
+    printf("            force use of the bare ssh-connection protocol\n");
+    printf("  -P port   connect to specified port\n");
+    printf("  -l user   connect with specified username\n");
+    printf("  -batch    disable all interactive prompts\n");
+    printf("  -proxycmd command\n");
+    printf("            use 'command' as local proxy\n");
+    printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
+    printf("            Specify the serial configuration (serial only)\n");
+    printf("The following options only apply to SSH connections:\n");
+    printf("  -pwfile file   login with password read from specified file\n");
+    printf("  -D [listen-IP:]listen-port\n");
+    printf("            Dynamic SOCKS-based port forwarding\n");
+    printf("  -L [listen-IP:]listen-port:host:port\n");
+    printf("            Forward local port to remote address\n");
+    printf("  -R [listen-IP:]listen-port:host:port\n");
+    printf("            Forward remote port to local address\n");
+    printf("  -X -x     enable / disable X11 forwarding\n");
+    printf("  -A -a     enable / disable agent forwarding\n");
+    printf("  -t -T     enable / disable pty allocation\n");
+    printf("  -1 -2     force use of particular SSH protocol version\n");
+    printf("  -4 -6     force use of IPv4 or IPv6\n");
+    printf("  -C        enable compression\n");
+    printf("  -i key    private key file for user authentication\n");
+    printf("  -noagent  disable use of Pageant\n");
+    printf("  -agent    enable use of Pageant\n");
     printf("  -no-trivial-auth\n");
-    printf("            断开过于迅速的 SSH 认证连接\n");
-    printf("  -noshare  禁用连接共享\n");
-    printf("  -share    启用连接共享\n");
-    printf("  -hostkey 密钥ID\n");
-    printf("            手动指定主机密钥(可能重复)\n");
+    printf("            disconnect if SSH authentication succeeds trivially\n");
+    printf("  -noshare  disable use of connection sharing\n");
+    printf("  -share    enable use of connection sharing\n");
+    printf("  -hostkey keyid\n");
+    printf("            manually specify a host key (may be repeated)\n");
     printf("  -sanitise-stderr, -sanitise-stdout, "
            "-no-sanitise-stderr, -no-sanitise-stdout\n");
-    printf("            删除/不删除标准错误/输出中控制字符\n");
-    printf("  -no-antispoof   认证后忽略反欺骗提示\n");
-    printf("  -m 文件   从文件中读取远程命令\n");
-    printf("  -s        远程命令是 SSH 子系统 (仅限 SSH-2)\n");
-    printf("  -N        完全不运行 shell/命令 (仅限 SSH-2)\n");
-    printf("  -nc 主机:端口\n");
-    printf("            打开隧道代替会话 (仅限 SSH-2)\n");
-    printf("  -sshlog 文件\n");
-    printf("  -sshrawlog 文件\n");
-    printf("            记录协议详细日志到指定文件\n");
+    printf("            do/don't strip control chars from standard "
+           "output/error\n");
+    printf("  -no-antispoof   omit anti-spoofing prompt after "
+           "authentication\n");
+    printf("  -m file   read remote command(s) from file\n");
+    printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
+    printf("  -N        don't start a shell/command (SSH-2 only)\n");
+    printf("  -nc host:port\n");
+    printf("            open tunnel in place of session (SSH-2 only)\n");
+    printf("  -sshlog file\n");
+    printf("  -sshrawlog file\n");
+    printf("            log protocol details to a file\n");
     printf("  -logoverwrite\n");
     printf("  -logappend\n");
-    printf("            记录文件已存在时覆盖文件还是在文件末尾添加内容\n");
+    printf("            control what happens when a log file already exists\n");
     printf("  -shareexists\n");
-    printf("            测试是否存在上游连接共享\n");
+    printf("            test whether a connection-sharing upstream exists\n");
     exit(1);
 }
 
@@ -647,13 +657,11 @@ static void plink_pw_check(void *vctx, pollwrapper *pw)
         }
     }
 
-    if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
-        backend_unthrottle(backend, try_output(false));
-    }
+    if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W))
+        try_output(false);
 
-    if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
-        backend_unthrottle(backend, try_output(true));
-    }
+    if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W))
+        try_output(true);
 }
 
 static bool plink_continue(void *vctx, bool found_any_fd,

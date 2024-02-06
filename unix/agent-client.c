@@ -219,7 +219,7 @@ agent_pending_query *agent_query(
     uxsel_set(sock, SELECT_R, agent_select_result);
     return conn;
 
-    failure:
+  failure:
     *out = NULL;
     *outlen = 0;
     return NULL;

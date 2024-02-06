@@ -43,8 +43,8 @@ void debug_memdump(const void *buf, int len, bool L)
                 foo[i] = ' ';
             } else {
                 debug_printf("%c%2.2x",
-                        &p[i] != (unsigned char *) buf
-                        && i % 4 ? '.' : ' ', p[i]
+                             &p[i] != (unsigned char *) buf
+                             && i % 4 ? '.' : ' ', p[i]
                     );
                 if (p[i] >= ' ' && p[i] <= '~')
                     foo[i] = (char) p[i];

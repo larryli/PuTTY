@@ -10,34 +10,34 @@ static const TermWinVtable fuzz_termwin_vt;
 
 int main(int argc, char **argv)
 {
-        char blk[512];
-        size_t len;
-        Terminal *term;
-        Conf *conf;
-        struct unicode_data ucsdata;
-        TermWin termwin;
+    char blk[512];
+    size_t len;
+    Terminal *term;
+    Conf *conf;
+    struct unicode_data ucsdata;
+    TermWin termwin;
 
-        termwin.vt = &fuzz_termwin_vt;
+    termwin.vt = &fuzz_termwin_vt;
 
-        conf = conf_new();
-        do_defaults(NULL, conf);
-        init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
-                 conf_get_bool(conf, CONF_utf8_override),
-                 CS_NONE, conf_get_int(conf, CONF_vtmode));
+    conf = conf_new();
+    do_defaults(NULL, conf);
+    init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
+             conf_get_bool(conf, CONF_utf8_override),
+             CS_NONE, conf_get_int(conf, CONF_vtmode));
 
-        term = term_init(conf, &ucsdata, &termwin);
-        term_size(term, 24, 80, 10000);
-        term->ldisc = NULL;
-        /* Tell american fuzzy lop that this is a good place to fork. */
+    term = term_init(conf, &ucsdata, &termwin);
+    term_size(term, 24, 80, 10000);
+    term->ldisc = NULL;
+    /* Tell american fuzzy lop that this is a good place to fork. */
 #ifdef __AFL_HAVE_MANUAL_CONTROL
-        __AFL_INIT();
+    __AFL_INIT();
 #endif
-        while (!feof(stdin)) {
-                len = fread(blk, 1, sizeof(blk), stdin);
-                term_data(term, blk, len);
-        }
-        term_update(term);
-        return 0;
+    while (!feof(stdin)) {
+        len = fread(blk, 1, sizeof(blk), stdin);
+        term_data(term, blk, len);
+    }
+    term_update(term);
+    return 0;
 }
 
 /* functions required by terminal.c */
@@ -134,44 +134,44 @@ void timer_change_notify(unsigned long next) { }
 
 /* needed by config.c */
 
-void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int whichbutton) { }
-int dlg_radiobutton_get(union control *ctrl, dlgparam *dp) { return 0; }
-void dlg_checkbox_set(union control *ctrl, dlgparam *dp, bool checked) { }
-bool dlg_checkbox_get(union control *ctrl, dlgparam *dp) { return false; }
-void dlg_editbox_set(union control *ctrl, dlgparam *dp, char const *text) { }
-char *dlg_editbox_get(union control *ctrl, dlgparam *dp)
+void dlg_radiobutton_set(dlgcontrol *ctrl, dlgparam *dp, int whichbutton) { }
+int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp) { return 0; }
+void dlg_checkbox_set(dlgcontrol *ctrl, dlgparam *dp, bool checked) { }
+bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp) { return false; }
+void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text) { }
+char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
 { return dupstr("moo"); }
-void dlg_listbox_clear(union control *ctrl, dlgparam *dp) { }
-void dlg_listbox_del(union control *ctrl, dlgparam *dp, int index) { }
-void dlg_listbox_add(union control *ctrl, dlgparam *dp, char const *text) { }
-void dlg_listbox_addwithid(union control *ctrl, dlgparam *dp,
+void dlg_listbox_clear(dlgcontrol *ctrl, dlgparam *dp) { }
+void dlg_listbox_del(dlgcontrol *ctrl, dlgparam *dp, int index) { }
+void dlg_listbox_add(dlgcontrol *ctrl, dlgparam *dp, char const *text) { }
+void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
                            char const *text, int id) { }
-int dlg_listbox_getid(union control *ctrl, dlgparam *dp, int index)
+int dlg_listbox_getid(dlgcontrol *ctrl, dlgparam *dp, int index)
 { return 0; }
-int dlg_listbox_index(union control *ctrl, dlgparam *dp) { return -1; }
-bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
+int dlg_listbox_index(dlgcontrol *ctrl, dlgparam *dp) { return -1; }
+bool dlg_listbox_issel(dlgcontrol *ctrl, dlgparam *dp, int index)
 { return false; }
-void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index) { }
-void dlg_text_set(union control *ctrl, dlgparam *dp, char const *text) { }
-void dlg_filesel_set(union control *ctrl, dlgparam *dp, Filename *fn) { }
-Filename *dlg_filesel_get(union control *ctrl, dlgparam *dp) { return NULL; }
-void dlg_fontsel_set(union control *ctrl, dlgparam *dp, FontSpec *fn) { }
-FontSpec *dlg_fontsel_get(union control *ctrl, dlgparam *dp) { return NULL; }
-void dlg_update_start(union control *ctrl, dlgparam *dp) { }
-void dlg_update_done(union control *ctrl, dlgparam *dp) { }
-void dlg_set_focus(union control *ctrl, dlgparam *dp) { }
-void dlg_label_change(union control *ctrl, dlgparam *dp, char const *text) { }
-union control *dlg_last_focused(union control *ctrl, dlgparam *dp)
+void dlg_listbox_select(dlgcontrol *ctrl, dlgparam *dp, int index) { }
+void dlg_text_set(dlgcontrol *ctrl, dlgparam *dp, char const *text) { }
+void dlg_filesel_set(dlgcontrol *ctrl, dlgparam *dp, Filename *fn) { }
+Filename *dlg_filesel_get(dlgcontrol *ctrl, dlgparam *dp) { return NULL; }
+void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fn) { }
+FontSpec *dlg_fontsel_get(dlgcontrol *ctrl, dlgparam *dp) { return NULL; }
+void dlg_update_start(dlgcontrol *ctrl, dlgparam *dp) { }
+void dlg_update_done(dlgcontrol *ctrl, dlgparam *dp) { }
+void dlg_set_focus(dlgcontrol *ctrl, dlgparam *dp) { }
+void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text) { }
+dlgcontrol *dlg_last_focused(dlgcontrol *ctrl, dlgparam *dp)
 { return NULL; }
 void dlg_beep(dlgparam *dp) { }
 void dlg_error_msg(dlgparam *dp, const char *msg) { }
 void dlg_end(dlgparam *dp, int value) { }
-void dlg_coloursel_start(union control *ctrl, dlgparam *dp,
+void dlg_coloursel_start(dlgcontrol *ctrl, dlgparam *dp,
                          int r, int g, int b) { }
-bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
+bool dlg_coloursel_results(dlgcontrol *ctrl, dlgparam *dp,
                            int *r, int *g, int *b) { return false; }
-void dlg_refresh(union control *ctrl, dlgparam *dp) { }
-bool dlg_is_visible(union control *ctrl, dlgparam *dp) { return false; }
+void dlg_refresh(dlgcontrol *ctrl, dlgparam *dp) { }
+bool dlg_is_visible(dlgcontrol *ctrl, dlgparam *dp) { return false; }
 
 const int ngsslibs = 0;
 const char *const gsslibnames[0] = { };

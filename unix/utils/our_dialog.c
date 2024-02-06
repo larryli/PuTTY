@@ -128,8 +128,8 @@ void our_dialog_add_to_content_area(GtkWindow *dlg, GtkWidget *w,
 
     gtk_box_pack_start(vbox, w, expand, fill, padding);
 #else
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
-         w, expand, fill, padding);
+    gtk_box_pack_start(
+        GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
+        w, expand, fill, padding);
 #endif
 }

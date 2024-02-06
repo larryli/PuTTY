@@ -31,14 +31,26 @@ Things to do during the branch-stabilisation period:
    word XXX-REVIEW-BEFORE-RELEASE. (Any such comments should state
    clearly what needs to be done.)
 
- - Do some testing of the Windows version with Minefield (you can
-   build a Minefield version using 'bob . XFLAGS=-DMINEFIELD'), and of
-   the Unix version with valgrind and/or Address Sanitiser. In
-   particular, any headline features for the release should get a
-   workout with memory checking enabled!
+ - Test the Unix build with Address Sanitiser. In particular, any
+   headline features for the release should get a workout with memory
+   checking enabled!
 
- - Test the CMake build scripts with the oldest CMake they claim to
-   support, on both Unix and Windows.
+ - Test the Windows build with Address Sanitiser too (as of VS 2022).
+    + In the course of that, give a recent Windows pterm a try, to
+      make sure that still works.
+
+ - Test building and running on old platforms:
+    + build on Debian stretch (containing CMake 3.7, the earliest
+      CMake we claim support for)
+    + build with all three major versions of GTK
+    + build the old-Windows binaries and test-run them on Win95 (PuTTY
+      proper even without WinSock2)
+
+ - Check Coverity is happy.
+
+ - Check the side-channel tester is happy.
+
+ - Check all the non-SSH network backends still basically work.
 
 Making a release candidate build
 --------------------------------
@@ -75,9 +87,6 @@ Making a release candidate build
 
  - Make the release tag, pointing at the version-update commit we just
    generated.
-
- - If the release is on a branch (which I expect it generally will
-   be), merge that branch to main.
 
  - Make a release-candidate build from the release tag, and put the
    build.out and build.log files somewhere safe. Normally I store
@@ -119,6 +128,10 @@ Making a release candidate build
          also try Debian sid
        + test-build with all of GTK 1, 2 and 3
        + test-build with -DNOT_X_WINDOWS
+    * test that the Windows source builds with Visual Studio (just in
+      case there's an unguarded clangism that would prevent it)
+    * quick check of the outlying network protocols (Telnet, SUPDUP
+      etc)
     * feed the release-candidate source to Coverity and make sure it
       didn't turn up any last-minute problems
     * make sure we have a clean run of testsc
@@ -183,23 +196,26 @@ locally, this is the procedure for putting it up on the web.
 
  - Check that downloads via version-numbered URLs all work:
       ../putty/release.pl --version=X.YZ --precheck
-   If this has trouble accessing chiark's ftp server, that is
-   unfortunately normal; add --no-ftp and try again.
 
  - Switch the 'latest' links over to the new release:
     * Update the HTTP redirect at the:www/putty/htaccess .
-    * Update the FTP symlink at chiark:ftp/putty-latest .
 
  - Now verify that downloads via the 'latest' URLs are all redirected
    correctly and work:
       ../putty/release.pl --version=X.YZ --postcheck
 
+ - If the release is on a branch (which I expect it generally will
+   be), merge that branch to main, so that the 'update version number'
+   change appears on main and the snapshots start announcing
+   themselves as post-X.YZ.
+
  - Push all the git repositories:
     * run 'git push' in the website checkout
     * run 'git push' in the wishlist checkout
     * push from the main PuTTY checkout. Typically this one will be
-      pushing both the release tag and an update to the main branch,
-      plus removing the pre-release branch, so you'll want some
+      pushing both the release tag and the merge we just made to the
+      main branch, plus removing the pre-release branch, so you'll
+      want some
       commands along these lines:
         git push origin main          # update the main branch
         git push origin --tags        # should push the new release tag
@@ -218,6 +234,17 @@ locally, this is the procedure for putting it up on the web.
    the rsync mirror package (~/ftp/putty-website-mirror) contains a
    subdirectory for the new version and that the links from its
    latest.html point into that subdirectory.
+
+ - Start the process of updating our Windows Store entry:
+    + log into partner.microsoft.com and go to Partner Center
+    + start editing the existing app submission, which should
+      automatically create a new submission
+       * provide a new set of installer URLs, then click "save all"
+         which actually uploads them
+       * change the "what's new in this release" text in the store
+         listing
+       * upload revised screenshots, if necessary
+    + press Publish to submit that to the actual upload process
 
  - Announce the release!
     + Construct a release announcement email whose message body is the

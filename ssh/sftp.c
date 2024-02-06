@@ -21,7 +21,7 @@ static void fxp_internal_error(const char *msg);
  * Client-specific parts of the send- and receive-packet system.
  */
 
-bool sftp_send(struct sftp_packet *pkt)
+static bool sftp_send(struct sftp_packet *pkt)
 {
     bool ret;
     sftp_send_prepare(pkt);
@@ -283,8 +283,7 @@ bool fxp_init(void)
         return false;
     }
     if (remotever > SFTP_PROTO_VERSION) {
-        fxp_internal_error
-            ("remote protocol is more advanced than we support");
+        fxp_internal_error("remote protocol is more advanced than we support");
         sftp_pkt_free(pktin);
         return false;
     }
@@ -575,7 +574,7 @@ static bool fxp_got_attrs(struct sftp_packet *pktin, struct fxp_attrs *attrs)
 }
 
 bool fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
-                  struct fxp_attrs *attrs)
+                   struct fxp_attrs *attrs)
 {
     sfree(req);
     if (pktin->type == SSH_FXP_ATTRS) {

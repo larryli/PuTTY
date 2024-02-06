@@ -1,6 +1,6 @@
 /*
-* Supdup backend
-*/
+ * Supdup backend
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +10,7 @@
 
 /*
  * TTYOPT FUNCTION BITS (36-bit bitmasks)
-*/
+ */
 #define TOALT   0200000000000LL         //  Characters 0175 and 0176 are converted to altmode (0033) on input
 #define TOCLC   0100000000000LL         //  (user option bit) Convert lower-case input to upper-case
 #define TOERS   0040000000000LL         //  Selective erase is supported
@@ -202,49 +202,49 @@ static void do_toplevel(Supdup *supdup, strbuf *outbuf, int c)
         supdup->td_argindex = 0;
         supdup->td_code = c;
         switch (c) {
-        case TDMOV:
+          case TDMOV:
             // %TD codes using 4 arguments
             supdup->td_argcount = 4;
             supdup->tdstate = TD_ARGS;
             break;
 
-        case TDMV0:
-        case TDMV1:
+          case TDMV0:
+          case TDMV1:
             // %TD codes using 2 arguments
             supdup->td_argcount = 2;
             supdup->tdstate = TD_ARGS;
             break;
 
-        case TDQOT:
-        case TDILP:
-        case TDDLP:
-        case TDICP:
-        case TDDCP:
+          case TDQOT:
+          case TDILP:
+          case TDDLP:
+          case TDICP:
+          case TDDCP:
             // %TD codes using 1 argument
             supdup->td_argcount = 1;
             supdup->tdstate = TD_ARGS;
             break;
 
-        case TDEOF:
-        case TDEOL:
-        case TDDLF:
-        case TDCRL:
-        case TDNOP:
-        case TDORS:
-        case TDFS:
-        case TDCLR:
-        case TDBEL:
-        case TDBOW:
-        case TDRST:
-        case TDBS:
-        case TDCR:
-        case TDLF:
+          case TDEOF:
+          case TDEOL:
+          case TDDLF:
+          case TDCRL:
+          case TDNOP:
+          case TDORS:
+          case TDFS:
+          case TDCLR:
+          case TDBEL:
+          case TDBOW:
+          case TDRST:
+          case TDBS:
+          case TDCR:
+          case TDLF:
             // %TD codes using 0 arguments
             supdup->td_argcount = 0;
             supdup->tdstate = TD_ARGSDONE;
             break;
 
-        default:
+          default:
             // Unhandled, ignore
             break;
         }
@@ -279,7 +279,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
     // Arguments for %TD code have been collected; dispatch based
     // on the %TD code we're handling.
     switch (supdup->td_code) {
-    case TDMOV:
+      case TDMOV:
         /*
           General cursor position code.  Followed by four bytes;
           the first two are the "old" vertical and horizontal
@@ -292,8 +292,8 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[%d;%dH", supdup->td_args[2]+1, supdup->td_args[3]+1);
         break;
 
-    case TDMV0:
-    case TDMV1:
+      case TDMV0:
+      case TDMV1:
         /*
           General cursor position code.  Followed by two bytes;
           the new vertical and horizontal positions.
@@ -301,7 +301,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[%d;%dH", supdup->td_args[0]+1, supdup->td_args[1]+1);
         break;
 
-    case TDEOF:
+      case TDEOF:
         /*
           Erase to end of screen.  This is an optional function
           since many terminals do not support this.  If the
@@ -315,7 +315,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[J");
         break;
 
-    case TDEOL:
+      case TDEOL:
         /*
           Erase to end of line.  This erases the character
           position the cursor is at and all positions to the right
@@ -324,7 +324,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[K");
         break;
 
-    case TDDLF:
+      case TDDLF:
         /*
           Clear the character position the cursor is on.  The
           cursor does not move.
@@ -332,7 +332,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[X");
         break;
 
-    case TDCRL:
+      case TDCRL:
         /*
           If the cursor is not on the bottom line of the screen,
           move cursor to the beginning of the next line and clear
@@ -342,13 +342,13 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\015\012");
         break;
 
-    case TDNOP:
+      case TDNOP:
         /*
           No-op; should be ignored.
         */
         break;
 
-    case TDORS:
+      case TDORS:
         /*
           Output reset.  This code serves as a data mark for
           aborting output much as IAC DM does in the ordinary
@@ -364,7 +364,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         sk_write(supdup->s, buf, 4);
         break;
 
-    case TDQOT:
+      case TDQOT:
         /*
           Quotes the following character.  This is used when
           sending 8-bit codes which are not %TD codes, for
@@ -376,7 +376,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_byte(outbuf, supdup->td_args[0]);
         break;
 
-    case TDFS:
+      case TDFS:
         /*
           Non-destructive forward space.  The cursor moves right
           one position; this code will not be sent at the end of a
@@ -386,7 +386,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[C");
         break;
 
-    case TDCLR:
+      case TDCLR:
         /*
           Erase the screen.  Home the cursor to the top left hand
           corner of the screen.
@@ -394,7 +394,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[2J\033[H");
         break;
 
-    case TDBEL:
+      case TDBEL:
         /*
           Generate an audio tone, bell, whatever.
         */
@@ -402,7 +402,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\007");
         break;
 
-    case TDILP:
+      case TDILP:
         /*
           Insert blank lines at the cursor; followed by a byte
           containing a count of the number of blank lines to
@@ -413,7 +413,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[%dL", supdup->td_args[0]);
         break;
 
-    case TDDLP:
+      case TDDLP:
         /*
           Delete lines at the cursor; followed by a count.  The
           cursor is unmoved.  The first line deleted is the one
@@ -424,7 +424,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[%dM", supdup->td_args[0]);
         break;
 
-    case TDICP:
+      case TDICP:
         /*
           Insert blank character positions at the cursor; followed
           by a count.  The cursor is unmoved.  The character the
@@ -435,7 +435,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[%d@", supdup->td_args[0]);
         break;
 
-    case TDDCP:
+      case TDDCP:
         /*
           Delete characters at the cursor; followed by a count.
           The cursor is unmoved.  The first character deleted is
@@ -445,8 +445,8 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_fmt(outbuf, "\033[%dP", supdup->td_args[0]);
         break;
 
-    case TDBOW:
-    case TDRST:
+      case TDBOW:
+      case TDRST:
         /*
           Display black characters on white screen.
           HIGHLY OPTIONAL.
@@ -463,7 +463,7 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
          * official documentation, behavior is based on UNIX
          * SUPDUP implementation from MIT.
          */
-    case TDBS:
+      case TDBS:
         /*
          * Backspace -- move cursor back one character (does not
          * appear to wrap...)
@@ -471,14 +471,14 @@ static void do_argsdone(Supdup *supdup, strbuf *outbuf, int c)
         put_byte(outbuf, '\010');
         break;
 
-    case TDLF:
+      case TDLF:
         /*
          * Linefeed -- move cursor down one line (again, no wrapping)
          */
         put_byte(outbuf, '\012');
         break;
 
-    case TDCR:
+      case TDCR:
         /*
          * Carriage return -- move cursor to start of current line.
          */
@@ -512,7 +512,7 @@ static void do_supdup_read(Supdup *supdup, const char *buf, size_t len)
     while (len--) {
         int c = (unsigned char)*buf++;
         switch (supdup->state) {
-        case CONNECTING:
+          case CONNECTING:
             // "Following the transmission of the terminal options by
             //  the user, the server should respond with an ASCII
             //  greeting message, terminated with a %TDNOP code..."
@@ -528,7 +528,7 @@ static void do_supdup_read(Supdup *supdup, const char *buf, size_t len)
             }
             break;
 
-        case CONNECTED:
+          case CONNECTED:
             // "All transmissions from the server after the %TDNOP
             //  [see above] are either printing characters or virtual
             //  terminal display codes."  Forward these on to the
@@ -671,13 +671,13 @@ static const InteractorVtable Supdup_interactorvt = {
 };
 
 /*
-* Called to set up the Supdup connection.
-*
-* Returns an error message, or NULL on success.
-*
-* Also places the canonical host name into `realhost'. It must be
-* freed by the caller.
-*/
+ * Called to set up the Supdup connection.
+ *
+ * Returns an error message, or NULL on success.
+ *
+ * Also places the canonical host name into `realhost'. It must be
+ * freed by the caller.
+ */
 static char *supdup_init(const BackendVtable *x, Seat *seat,
                          Backend **backend_handle,
                          LogContext *logctx, Conf *conf,
@@ -717,15 +717,15 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     *backend_handle = &supdup->backend;
 
     switch (conf_get_int(supdup->conf, CONF_supdup_ascii_set)) {
-    case SUPDUP_CHARSET_ASCII:
-      supdup->print = print_ascii;
-      break;
-    case SUPDUP_CHARSET_ITS:
-      supdup->print = print_its;
-      break;
-    case SUPDUP_CHARSET_WAITS:
-      supdup->print = print_waits;
-      break;
+      case SUPDUP_CHARSET_ASCII:
+        supdup->print = print_ascii;
+        break;
+      case SUPDUP_CHARSET_ITS:
+        supdup->print = print_its;
+        break;
+      case SUPDUP_CHARSET_WAITS:
+        supdup->print = print_waits;
+        break;
     }
 
     /*
@@ -837,16 +837,16 @@ static void supdup_free(Backend *be)
 }
 
 /*
-* Reconfigure the Supdup backend.
-*/
+ * Reconfigure the Supdup backend.
+ */
 static void supdup_reconfig(Backend *be, Conf *conf)
 {
     /* Nothing to do; SUPDUP cannot be reconfigured while running. */
 }
 
 /*
-* Called to send data down the Supdup connection.
-*/
+ * Called to send data down the Supdup connection.
+ */
 static void supdup_send(Backend *be, const char *buf, size_t len)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
@@ -867,8 +867,8 @@ static void supdup_send(Backend *be, const char *buf, size_t len)
 }
 
 /*
-* Called to query the current socket sendability status.
-*/
+ * Called to query the current socket sendability status.
+ */
 static size_t supdup_sendbuffer(Backend *be)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
@@ -876,8 +876,8 @@ static size_t supdup_sendbuffer(Backend *be)
 }
 
 /*
-* Called to set the size of the window from Supdup's POV.
-*/
+ * Called to set the size of the window from Supdup's POV.
+ */
 static void supdup_size(Backend *be, int width, int height)
 {
     Supdup *supdup = container_of(be, Supdup, backend);
@@ -892,8 +892,8 @@ static void supdup_size(Backend *be, int width, int height)
 }
 
 /*
-* Send Telnet special codes.
-*/
+ * Send Telnet special codes.
+ */
 static void supdup_special(Backend *be, SessionSpecialCode code, int arg)
 {
 }
@@ -946,8 +946,8 @@ static int supdup_exitcode(Backend *be)
 }
 
 /*
-* cfg_info for Dupdup does nothing at all.
-*/
+ * cfg_info for Supdup does nothing at all.
+ */
 static int supdup_cfg_info(Backend *be)
 {
     return 0;

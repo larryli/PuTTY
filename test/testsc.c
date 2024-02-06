@@ -81,6 +81,7 @@
 #include "misc.h"
 #include "mpint.h"
 #include "crypto/ecc.h"
+#include "crypto/ntru.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
@@ -114,19 +115,23 @@ static void random_seed(const char *seedstr)
     random_buf_limit = 0;
 }
 
+static void random_advance_counter(void)
+{
+    ssh_hash_reset(random_hash);
+    put_asciz(random_hash, random_seedstr);
+    put_uint64(random_hash, random_counter);
+    random_counter++;
+    random_buf_limit = ssh_hash_alg(random_hash)->hlen;
+    ssh_hash_digest(random_hash, random_buf);
+}
+
 void random_read(void *vbuf, size_t size)
 {
     assert(random_seedstr);
     uint8_t *buf = (uint8_t *)vbuf;
     while (size-- > 0) {
-        if (random_buf_limit == 0) {
-            ssh_hash_reset(random_hash);
-            put_asciz(random_hash, random_seedstr);
-            put_uint64(random_hash, random_counter);
-            random_counter++;
-            random_buf_limit = ssh_hash_alg(random_hash)->hlen;
-            ssh_hash_digest(random_hash, random_buf);
-        }
+        if (random_buf_limit == 0)
+            random_advance_counter();
         *buf++ = random_buf[random_buf_limit--];
     }
 }
@@ -243,28 +248,39 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
 }
 
 #if HAVE_AES_NI
-#define CIPHERS_AES_NI(X, Y) \
-    X(Y, ssh_aes256_sdctr_ni)                   \
-    X(Y, ssh_aes256_cbc_ni)                     \
-    X(Y, ssh_aes192_sdctr_ni)                   \
-    X(Y, ssh_aes192_cbc_ni)                     \
-    X(Y, ssh_aes128_sdctr_ni)                   \
-    X(Y, ssh_aes128_cbc_ni)                     \
-    /* end of list */
+#define IF_AES_NI(x) x
 #else
-#define CIPHERS_AES_NI(X, Y)
+#define IF_AES_NI(x)
 #endif
-#if HAVE_NEON_CRYPTO
-#define CIPHERS_AES_NEON(X, Y) \
-    X(Y, ssh_aes256_sdctr_neon)                   \
-    X(Y, ssh_aes256_cbc_neon)                     \
-    X(Y, ssh_aes192_sdctr_neon)                   \
-    X(Y, ssh_aes192_cbc_neon)                     \
-    X(Y, ssh_aes128_sdctr_neon)                   \
-    X(Y, ssh_aes128_cbc_neon)                     \
-    /* end of list */
+
+#if HAVE_SHA_NI
+#define IF_SHA_NI(x) x
 #else
-#define CIPHERS_AES_NEON(X, Y)
+#define IF_SHA_NI(x)
+#endif
+
+#if HAVE_CLMUL
+#define IF_CLMUL(x) x
+#else
+#define IF_CLMUL(x)
+#endif
+
+#if HAVE_NEON_CRYPTO
+#define IF_NEON_CRYPTO(x) x
+#else
+#define IF_NEON_CRYPTO(x)
+#endif
+
+#if HAVE_NEON_SHA512
+#define IF_NEON_SHA512(x) x
+#else
+#define IF_NEON_SHA512(x)
+#endif
+
+#if HAVE_NEON_PMULL
+#define IF_NEON_PMULL(x) x
+#else
+#define IF_NEON_PMULL(x)
 #endif
 
 /* Ciphers that we expect to pass this test. Blowfish and Arcfour are
@@ -276,25 +292,47 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_des)                               \
     X(Y, ssh_des_sshcom_ssh2)                   \
     X(Y, ssh_aes256_sdctr)                      \
+    X(Y, ssh_aes256_gcm)                        \
     X(Y, ssh_aes256_cbc)                        \
     X(Y, ssh_aes192_sdctr)                      \
+    X(Y, ssh_aes192_gcm)                        \
     X(Y, ssh_aes192_cbc)                        \
     X(Y, ssh_aes128_sdctr)                      \
+    X(Y, ssh_aes128_gcm)                        \
     X(Y, ssh_aes128_cbc)                        \
     X(Y, ssh_aes256_sdctr_sw)                   \
+    X(Y, ssh_aes256_gcm_sw)                     \
     X(Y, ssh_aes256_cbc_sw)                     \
     X(Y, ssh_aes192_sdctr_sw)                   \
+    X(Y, ssh_aes192_gcm_sw)                     \
     X(Y, ssh_aes192_cbc_sw)                     \
     X(Y, ssh_aes128_sdctr_sw)                   \
+    X(Y, ssh_aes128_gcm_sw)                     \
     X(Y, ssh_aes128_cbc_sw)                     \
-    CIPHERS_AES_NI(X, Y)                        \
-    CIPHERS_AES_NEON(X, Y)                      \
+    IF_AES_NI(X(Y, ssh_aes256_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes256_gcm_ni))          \
+    IF_AES_NI(X(Y, ssh_aes256_cbc_ni))          \
+    IF_AES_NI(X(Y, ssh_aes192_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes192_gcm_ni))          \
+    IF_AES_NI(X(Y, ssh_aes192_cbc_ni))          \
+    IF_AES_NI(X(Y, ssh_aes128_sdctr_ni))        \
+    IF_AES_NI(X(Y, ssh_aes128_gcm_ni))          \
+    IF_AES_NI(X(Y, ssh_aes128_cbc_ni))          \
+    IF_NEON_CRYPTO(X(Y, ssh_aes256_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes256_gcm_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes256_cbc_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes192_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes192_gcm_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes192_cbc_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes128_sdctr_neon)) \
+    IF_NEON_CRYPTO(X(Y, ssh_aes128_gcm_neon))   \
+    IF_NEON_CRYPTO(X(Y, ssh_aes128_cbc_neon))   \
     X(Y, ssh2_chacha20_poly1305)                \
     /* end of list */
 
 #define CIPHER_TESTLIST(X, name) X(cipher_ ## name)
 
-#define MACS(X, Y)                              \
+#define SIMPLE_MACS(X, Y)                       \
     X(Y, ssh_hmac_md5)                          \
     X(Y, ssh_hmac_sha1)                         \
     X(Y, ssh_hmac_sha1_buggy)                   \
@@ -303,23 +341,20 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_hmac_sha256)                       \
     /* end of list */
 
-#define MAC_TESTLIST(X, name) X(mac_ ## name)
+#define ALL_MACS(X, Y)                                      \
+    SIMPLE_MACS(X, Y)                                       \
+    X(Y, poly1305)                                          \
+    X(Y, aesgcm_sw_sw)                                      \
+    X(Y, aesgcm_sw_refpoly)                                 \
+    IF_AES_NI(X(Y, aesgcm_ni_sw))                           \
+    IF_NEON_CRYPTO(X(Y, aesgcm_neon_sw))                    \
+    IF_CLMUL(X(Y, aesgcm_sw_clmul))                         \
+    IF_NEON_PMULL(X(Y, aesgcm_sw_neon))                     \
+    IF_AES_NI(IF_CLMUL(X(Y, aesgcm_ni_clmul)))              \
+    IF_NEON_CRYPTO(IF_NEON_PMULL(X(Y, aesgcm_neon_neon)))   \
+    /* end of list */
 
-#if HAVE_SHA_NI
-#define HASH_SHA_NI(X, Y) X(Y, ssh_sha256_ni) X(Y, ssh_sha1_ni)
-#else
-#define HASH_SHA_NI(X, Y)
-#endif
-#if HAVE_NEON_CRYPTO
-#define HASH_SHA_NEON(X, Y) X(Y, ssh_sha256_neon) X(Y, ssh_sha1_neon)
-#else
-#define HASH_SHA_NEON(X, Y)
-#endif
-#if HAVE_NEON_SHA512
-#define HASH_SHA512_NEON(X, Y) X(Y, ssh_sha384_neon) X(Y, ssh_sha512_neon)
-#else
-#define HASH_SHA512_NEON(X, Y)
-#endif
+#define MAC_TESTLIST(X, name) X(mac_ ## name)
 
 #define HASHES(X, Y)                            \
     X(Y, ssh_md5)                               \
@@ -331,9 +366,12 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_sha512)                            \
     X(Y, ssh_sha384_sw)                         \
     X(Y, ssh_sha512_sw)                         \
-    HASH_SHA_NI(X, Y)                           \
-    HASH_SHA_NEON(X, Y)                         \
-    HASH_SHA512_NEON(X, Y)                      \
+    IF_SHA_NI(X(Y, ssh_sha256_ni))              \
+    IF_SHA_NI(X(Y, ssh_sha1_ni))                \
+    IF_NEON_CRYPTO(X(Y, ssh_sha256_neon))       \
+    IF_NEON_CRYPTO(X(Y, ssh_sha1_neon))         \
+    IF_NEON_SHA512(X(Y, ssh_sha384_neon))       \
+    IF_NEON_SHA512(X(Y, ssh_sha512_neon))       \
     X(Y, ssh_sha3_224)                          \
     X(Y, ssh_sha3_256)                          \
     X(Y, ssh_sha3_384)                          \
@@ -387,10 +425,11 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(ecc_edwards_get_affine)                   \
     X(ecc_edwards_decompress)                   \
     CIPHERS(CIPHER_TESTLIST, X)                 \
-    MACS(MAC_TESTLIST, X)                       \
+    ALL_MACS(MAC_TESTLIST, X)                   \
     HASHES(HASH_TESTLIST, X)                    \
     X(argon2)                                   \
     X(primegen_probabilistic)                   \
+    X(ntru)                                     \
     /* end of list */
 
 static void test_mp_get_nbits(void)
@@ -1400,20 +1439,37 @@ static void test_cipher(const ssh_cipheralg *calg)
     static void test_cipher_##cipher(void) { test_cipher(&cipher); }
 CIPHERS(CIPHER_TESTFN, Y_unused)
 
-static void test_mac(const ssh2_macalg *malg)
+static void test_mac(const ssh2_macalg *malg, const ssh_cipheralg *calg)
 {
-    ssh2_mac *m = ssh2_mac_new(malg, NULL);
+    ssh_cipher *c = NULL;
+    if (calg) {
+        c = ssh_cipher_new(calg);
+        if (!c) {
+            test_skipped = true;
+            return;
+        }
+    }
+
+    ssh2_mac *m = ssh2_mac_new(malg, c);
     if (!m) {
         test_skipped = true;
+        if (c)
+            ssh_cipher_free(c);
         return;
     }
 
+    size_t ckeylen = calg ? calg->padded_keybytes : 0;
+    size_t civlen = calg ? calg->blksize : 0;
+    uint8_t *ckey = snewn(ckeylen, uint8_t);
+    uint8_t *civ = snewn(civlen, uint8_t);
     uint8_t *mkey = snewn(malg->keylen, uint8_t);
     size_t datalen = 256;
     size_t maclen = malg->len;
     uint8_t *data = snewn(datalen + maclen, uint8_t);
 
     for (size_t i = 0; i < looplimit(16); i++) {
+        random_read(ckey, ckeylen);
+        random_read(civ, civlen);
         random_read(mkey, malg->keylen);
         random_read(data, datalen);
         uint8_t seqbuf[4];
@@ -1421,20 +1477,85 @@ static void test_mac(const ssh2_macalg *malg)
         uint32_t seq = GET_32BIT_MSB_FIRST(seqbuf);
 
         log_start();
+        if (c) {
+            ssh_cipher_setkey(c, ckey);
+            ssh_cipher_setiv(c, civ);
+        }
         ssh2_mac_setkey(m, make_ptrlen(mkey, malg->keylen));
         ssh2_mac_generate(m, data, datalen, seq);
         ssh2_mac_verify(m, data, datalen, seq);
         log_end();
     }
 
+    sfree(ckey);
+    sfree(civ);
     sfree(mkey);
     sfree(data);
     ssh2_mac_free(m);
+    if (c)
+        ssh_cipher_free(c);
 }
 
 #define MAC_TESTFN(Y_unused, mac)                                 \
-    static void test_mac_##mac(void) { test_mac(&mac); }
-MACS(MAC_TESTFN, Y_unused)
+    static void test_mac_##mac(void) { test_mac(&mac, NULL); }
+SIMPLE_MACS(MAC_TESTFN, Y_unused)
+
+static void test_mac_poly1305(void)
+{
+    test_mac(&ssh2_poly1305, &ssh2_chacha20_poly1305);
+}
+
+static void test_mac_aesgcm_sw_sw(void)
+{
+    test_mac(&ssh2_aesgcm_mac_sw, &ssh_aes128_gcm_sw);
+}
+
+static void test_mac_aesgcm_sw_refpoly(void)
+{
+    test_mac(&ssh2_aesgcm_mac_ref_poly, &ssh_aes128_gcm_sw);
+}
+
+#if HAVE_AES_NI
+static void test_mac_aesgcm_ni_sw(void)
+{
+    test_mac(&ssh2_aesgcm_mac_sw, &ssh_aes128_gcm_ni);
+}
+#endif
+
+#if HAVE_NEON_CRYPTO
+static void test_mac_aesgcm_neon_sw(void)
+{
+    test_mac(&ssh2_aesgcm_mac_sw, &ssh_aes128_gcm_neon);
+}
+#endif
+
+#if HAVE_CLMUL
+static void test_mac_aesgcm_sw_clmul(void)
+{
+    test_mac(&ssh2_aesgcm_mac_clmul, &ssh_aes128_gcm_sw);
+}
+#endif
+
+#if HAVE_NEON_PMULL
+static void test_mac_aesgcm_sw_neon(void)
+{
+    test_mac(&ssh2_aesgcm_mac_neon, &ssh_aes128_gcm_sw);
+}
+#endif
+
+#if HAVE_AES_NI && HAVE_CLMUL
+static void test_mac_aesgcm_ni_clmul(void)
+{
+    test_mac(&ssh2_aesgcm_mac_clmul, &ssh_aes128_gcm_ni);
+}
+#endif
+
+#if HAVE_NEON_CRYPTO && HAVE_NEON_PMULL
+static void test_mac_aesgcm_neon_neon(void)
+{
+    test_mac(&ssh2_aesgcm_mac_neon, &ssh_aes128_gcm_neon);
+}
+#endif
 
 static void test_hash(const ssh_hashalg *halg)
 {
@@ -1514,6 +1635,7 @@ static void test_primegen(const PrimeGenerationPolicy *policy)
 
     for (size_t i = 0; i < looplimit(2); i++) {
         while (true) {
+            random_advance_counter();
             struct random_state st = random_get_state();
 
             PrimeCandidateSource *pcs = pcs_new(128);
@@ -1549,6 +1671,76 @@ static void test_primegen(const PrimeGenerationPolicy *policy)
 static void test_primegen_probabilistic(void)
 {
     test_primegen(&primegen_probabilistic);
+}
+
+static void test_ntru(void)
+{
+    unsigned p = 11, q = 59, w = 3;
+    uint16_t *pubkey_orig = snewn(p, uint16_t);
+    uint16_t *pubkey_check = snewn(p, uint16_t);
+    uint16_t *pubkey = snewn(p, uint16_t);
+    uint16_t *plaintext = snewn(p, uint16_t);
+    uint16_t *ciphertext = snewn(p, uint16_t);
+
+    strbuf *buffer = strbuf_new();
+    strbuf_append(buffer, 16384);
+    BinarySource src[1];
+
+    for (size_t i = 0; i < looplimit(32); i++) {
+        while (true) {
+            random_advance_counter();
+            struct random_state st = random_get_state();
+
+            NTRUKeyPair *keypair = ntru_keygen_attempt(p, q, w);
+
+            if (keypair) {
+                memcpy(pubkey_orig, ntru_pubkey(keypair),
+                       p*sizeof(*pubkey_orig));
+                ntru_keypair_free(keypair);
+
+                random_set_state(st);
+
+                log_start();
+                NTRUKeyPair *keypair = ntru_keygen_attempt(p, q, w);
+                memcpy(pubkey_check, ntru_pubkey(keypair),
+                       p*sizeof(*pubkey_check));
+
+                ntru_gen_short(plaintext, p, w);
+                ntru_encrypt(ciphertext, plaintext, pubkey, p, w);
+                ntru_decrypt(plaintext, ciphertext, keypair);
+
+                strbuf_clear(buffer);
+                ntru_encode_pubkey(ntru_pubkey(keypair), p, q,
+                                   BinarySink_UPCAST(buffer));
+                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(buffer));
+                ntru_decode_pubkey(pubkey, p, q, src);
+
+                strbuf_clear(buffer);
+                ntru_encode_ciphertext(ciphertext, p, q,
+                                       BinarySink_UPCAST(buffer));
+                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(buffer));
+                ntru_decode_ciphertext(ciphertext, keypair, src);
+
+                strbuf_clear(buffer);
+                ntru_encode_plaintext(plaintext, p, BinarySink_UPCAST(buffer));
+                log_end();
+
+                ntru_keypair_free(keypair);
+
+                break;
+            }
+
+            assert(!memcmp(pubkey_orig, pubkey_check,
+                           p*sizeof(*pubkey_check)));
+        }
+    }
+
+    sfree(pubkey_orig);
+    sfree(pubkey_check);
+    sfree(pubkey);
+    sfree(plaintext);
+    sfree(ciphertext);
+    strbuf_free(buffer);
 }
 
 static const struct test tests[] = {

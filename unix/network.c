@@ -150,9 +150,9 @@ static int cmpfortree(void *av, void *bv)
     if (as > bs)
         return +1;
     if (a < b)
-       return -1;
+        return -1;
     if (a > b)
-       return +1;
+        return +1;
     return 0;
 }
 
@@ -184,103 +184,89 @@ void sk_cleanup(void)
     }
 }
 
-SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_family)
+SockAddr *sk_namelookup(const char *host, char **canonicalname,
+                        int address_family)
 {
+    *canonicalname = NULL;
+
     if (host[0] == '/') {
         *canonicalname = dupstr(host);
         return unix_sock_addr(host);
     }
 
-    SockAddr *ret = snew(SockAddr);
-#ifndef NO_IPV6
-    struct addrinfo hints;
-    int err;
-#else
-    unsigned long a;
-    struct hostent *h = NULL;
-    int n;
-#endif
-    strbuf *realhost = strbuf_new();
-
-    /* Clear the structure and default to IPv4. */
-    memset(ret, 0, sizeof(SockAddr));
-    ret->superfamily = UNRESOLVED;
-    ret->error = NULL;
-    ret->refcount = 1;
+    SockAddr *addr = snew(SockAddr);
+    memset(addr, 0, sizeof(SockAddr));
+    addr->superfamily = UNRESOLVED;
+    addr->refcount = 1;
 
 #ifndef NO_IPV6
-    hints.ai_flags = AI_CANONNAME;
-    hints.ai_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
-                       address_family == ADDRTYPE_IPV6 ? AF_INET6 :
-                       AF_UNSPEC);
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = 0;
-    hints.ai_addrlen = 0;
-    hints.ai_addr = NULL;
-    hints.ai_canonname = NULL;
-    hints.ai_next = NULL;
+    /*
+     * Use getaddrinfo, as long as it's available. This should handle
+     * both IPv4 and IPv6 address literals, and hostnames, in one
+     * unified API.
+     */
     {
-        char *trimmed_host = host_strduptrim(host); /* strip [] on literals */
-        err = getaddrinfo(trimmed_host, NULL, &hints, &ret->ais);
-        sfree(trimmed_host);
-    }
-    if (err != 0) {
-        ret->error = gai_strerror(err);
-        strbuf_free(realhost);
-        return ret;
-    }
-    ret->superfamily = IP;
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = (address_family == ADDRTYPE_IPV4 ? AF_INET :
+                           address_family == ADDRTYPE_IPV6 ? AF_INET6 :
+                           AF_UNSPEC);
+        hints.ai_flags = AI_CANONNAME;
+        hints.ai_socktype = SOCK_STREAM;
 
-    if (ret->ais->ai_canonname != NULL)
-        put_fmt(realhost, "%s", ret->ais->ai_canonname);
-    else
-        put_fmt(realhost, "%s", host);
-#else
-    if ((a = inet_addr(host)) == (unsigned long)(in_addr_t)(-1)) {
-        /*
-         * Otherwise use the IPv4-only gethostbyname... (NOTE:
-         * we don't use gethostbyname as a fallback!)
-         */
-        if (ret->superfamily == UNRESOLVED) {
-            /*debug("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host); */
-            if ( (h = gethostbyname(host)) )
-                ret->superfamily = IP;
+        /* strip [] on IPv6 address literals */
+        char *trimmed_host = host_strduptrim(host);
+        int err = getaddrinfo(trimmed_host, NULL, &hints, &addr->ais);
+        sfree(trimmed_host);
+
+        if (addr->ais) {
+            addr->superfamily = IP;
+            if (addr->ais->ai_canonname)
+                *canonicalname = dupstr(addr->ais->ai_canonname);
+            else
+                *canonicalname = dupstr(host);
+        } else {
+            addr->error = gai_strerror(err);
         }
-        if (ret->superfamily == UNRESOLVED) {
-            ret->error = (h_errno == HOST_NOT_FOUND ||
-                          h_errno == NO_DATA ||
-                          h_errno == NO_ADDRESS ? "Host does not exist" :
-                          h_errno == TRY_AGAIN ?
-                          "Temporary name service failure" :
-                          "gethostbyname: unknown error");
-            strbuf_free(realhost);
-            return ret;
-        }
-        /* This way we are always sure the h->h_name is valid :) */
-        strbuf_clear(realhost);
-        put_fmt(realhost, "%s", h->h_name);
-        for (n = 0; h->h_addr_list[n]; n++);
-        ret->addresses = snewn(n, unsigned long);
-        ret->naddresses = n;
-        for (n = 0; n < ret->naddresses; n++) {
-            memcpy(&a, h->h_addr_list[n], sizeof(a));
-            ret->addresses[n] = ntohl(a);
-        }
-    } else {
-        /*
-         * This must be a numeric IPv4 address because it caused a
-         * success return from inet_addr.
-         */
-        ret->superfamily = IP;
-        strbuf_clear(realhost);
-        put_fmt(realhost, "%s", host);
-        ret->addresses = snew(unsigned long);
-        ret->naddresses = 1;
-        ret->addresses[0] = ntohl(a);
+        return addr;
     }
+
+#else
+    /*
+     * Failing that (if IPv6 support was not compiled in), try the
+     * old-fashioned approach, which is to start by manually checking
+     * for an IPv4 literal and then use gethostbyname.
+     */
+    unsigned long a = inet_addr(host);
+    if (a != (unsigned long) INADDR_NONE) {
+        addr->addresses = snew(unsigned long);
+        addr->naddresses = 1;
+        addr->addresses[0] = ntohl(a);
+        addr->superfamily = IP;
+        *canonicalname = dupstr(host);
+        return addr;
+    }
+
+    struct hostent *h = gethostbyname(host);
+    if (h) {
+        addr->superfamily = IP;
+
+        size_t n;
+        for (n = 0; h->h_addr_list[n]; n++);
+        addr->addresses = snewn(n, unsigned long);
+        addr->naddresses = n;
+        for (n = 0; n < addr->naddresses; n++) {
+            uint32_t a;
+            memcpy(&a, h->h_addr_list[n], sizeof(a));
+            addr->addresses[n] = ntohl(a);
+        }
+
+        *canonicalname = dupstr(h->h_name);
+    } else {
+        addr->error = hstrerror(h_errno);
+    }
+    return addr;
 #endif
-    *canonicalname = strbuf_to_str(realhost);
-    return ret;
 }
 
 SockAddr *sk_nonamelookup(const char *host)
@@ -669,14 +655,14 @@ static int try_connect(NetSocket *sock)
             } else {
                 err = errno;
                 if (err != EADDRINUSE) /* failed, for a bad reason */
-                  break;
+                    break;
             }
 
             if (localport == 0)
-              break;                   /* we're only looping once */
+                break;                   /* we're only looping once */
             localport--;
             if (localport == 0)
-              break;                   /* we might have got to the end */
+                break;                   /* we might have got to the end */
         }
 
         if (err)
@@ -745,7 +731,7 @@ static int try_connect(NetSocket *sock)
 
     uxsel_tell(sock);
 
-    ret:
+  ret:
 
     /*
      * No matter what happened, put the socket back in the tree.
@@ -1057,7 +1043,7 @@ void *sk_getxdmdata(Socket *sock, int *lenp)
         PUT_16BIT_MSB_FIRST(buf+4, ntohs(u.sin.sin_port));
         break;
 #ifndef NO_IPV6
-    case AF_INET6:
+      case AF_INET6:
         *lenp = 6;
         buf = snewn(*lenp, char);
         if (IN6_IS_ADDR_V4MAPPED(&u.sin6.sin6_addr)) {

@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 18136 # update this at every release
+set Epoch 18293 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -55,7 +55,7 @@ ifneq "$(SNAPSHOT)" "" set Puttytextver PuTTY development snapshot $(Date).$(vcs
 ifneq "$(SNAPSHOT)" "" set Textver Development snapshot $(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Puttytextver PuTTY custom build $(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Textver Custom build $(Date).$(vcsid)
-in putty/doc do echo "\\versionid $(Puttytextver)" > version.but
+in putty/doc do echo "\\\\versionid $(Puttytextver)" > version.but
 
 # Set up the version string for use in the SSH connection greeting.
 #
@@ -150,7 +150,7 @@ delegate -
 # library list), and no other Windows toolchain we build with is that
 # picky. So this ensures the Windows library structure continues to
 # work in the most difficult circumstance we expect it to encounter.
-in putty do cmake . -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw.cmake
+in putty do cmake . -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw.cmake -DSTRICT=ON
 in putty do make -j$(nproc) VERBOSE=1
 enddelegate
 
@@ -172,15 +172,25 @@ mkdir putty/windows/abuild64
 #
 # For the 32-bit ones, we set a subsystem version of 5.01, which
 # allows the resulting files to still run on Windows XP.
-in putty/windows/build32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/build32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DPUTTY_SUBSYSTEM_VERSION=5.01 -DSTRICT=ON
 in putty/windows/build32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/build64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/build64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/build64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
+# The cmake mechanism used to set the subsystem version is a bit of a
+# bodge (it depends on knowing how cmake set up all its build command
+# variables), so just in case it breaks in future, double-check we
+# really did get the subsystem version we wanted.
+in putty/windows/build32 do objdump -x putty.exe > exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MajorOSystemVersion[[:space:]]+5' exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MinorOSystemVersion[[:space:]]+1' exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MajorSubsystemVersion[[:space:]]+5' exe-headers.txt
+in putty/windows/build32 do grep -Ex 'MinorSubsystemVersion[[:space:]]+1' exe-headers.txt
+
 # Build experimental Arm Windows binaries.
-in putty/windows/abuild32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/abuild32 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a32) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/abuild32 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
-in putty/windows/abuild64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2"
+in putty/windows/abuild64 with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl_a64) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -DSTRICT=ON
 in putty/windows/abuild64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
 # Make a list of the Windows binaries we're going to ship, so that we
@@ -245,7 +255,7 @@ in putty/windows/abuild64 with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 #
 # There's no installer to go with these, so they must also embed the
 # help file.
-in putty/windows/buildold with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32_2003) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON
+in putty/windows/buildold with cmake_at_least_3.20 do cmake ../.. -DCMAKE_TOOLCHAIN_FILE=$(cmake_toolchain_clangcl32_2003) -DCMAKE_BUILD_TYPE=Release -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DPUTTY_LINK_MAPS=ON -DSTRICT=ON
 in putty/windows/buildold with cmake_at_least_3.20 do make -j$(nproc) VERBOSE=1
 
 # Regenerate to-sign.txt with the 'old' binaries included.

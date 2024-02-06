@@ -3,7 +3,7 @@
 set(PUTTY_GTK_VERSION "ANY"
   CACHE STRING "Which major version of GTK to build with")
 set_property(CACHE PUTTY_GTK_VERSION
-  PROPERTY STRINGS ANY 3 2 1)
+  PROPERTY STRINGS ANY 3 2 1 NONE)
 
 set(GTK_FOUND FALSE)
 
@@ -74,6 +74,7 @@ if(GTK_FOUND)
   # Check for some particular Pango functions.
   function(pango_check_subscope)
     set(CMAKE_REQUIRED_INCLUDES ${GTK_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_LINK_OPTIONS ${GTK_LDFLAGS})
     set(CMAKE_REQUIRED_LIBRARIES ${GTK_LIBRARIES})
     check_symbol_exists(pango_font_family_is_monospace "pango/pango.h"
       HAVE_PANGO_FONT_FAMILY_IS_MONOSPACE)

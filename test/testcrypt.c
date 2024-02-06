@@ -35,6 +35,7 @@
 #include "misc.h"
 #include "mpint.h"
 #include "crypto/ecc.h"
+#include "crypto/ntru.h"
 #include "proxy/cproxy.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
@@ -87,7 +88,7 @@ uint64_t prng_reseed_time_ms(void)
     X(cipher, ssh_cipher *, ssh_cipher_free(v))                         \
     X(mac, ssh2_mac *, ssh2_mac_free(v))                                \
     X(dh, dh_ctx *, dh_cleanup(v))                                      \
-    X(ecdh, ecdh_key *, ssh_ecdhkex_freekey(v))                         \
+    X(ecdh, ecdh_key *, ecdh_key_free(v))                               \
     X(rsakex, RSAKey *, ssh_rsakex_freekey(v))                          \
     X(rsa, RSAKey *, rsa_free(v))                                       \
     X(prng, prng *, prng_free(v))                                       \
@@ -96,6 +97,8 @@ uint64_t prng_reseed_time_ms(void)
     X(pgc, PrimeGenerationContext *, primegen_free_context(v))          \
     X(pockle, Pockle *, pockle_free(v))                                 \
     X(millerrabin, MillerRabin *, miller_rabin_free(v))                 \
+    X(ntrukeypair, NTRUKeyPair *, ntru_keypair_free(v))                 \
+    X(ntruencodeschedule, NTRUEncodeSchedule *, ntru_encode_schedule_free(v)) \
     /* end of list */
 
 typedef struct Value Value;
@@ -211,7 +214,6 @@ typedef const char *TD_opt_val_string_asciz;
 typedef char **TD_out_val_string_asciz;
 typedef char **TD_out_opt_val_string_asciz;
 typedef const char **TD_out_opt_val_string_asciz_const;
-typedef ssh_hash *TD_consumed_val_hash;
 typedef const ssh_hashalg *TD_hashalg;
 typedef const ssh2_macalg *TD_macalg;
 typedef const ssh_keyalg *TD_keyalg;
@@ -222,6 +224,7 @@ typedef RsaSsh1Order TD_rsaorder;
 typedef key_components *TD_keycomponents;
 typedef const PrimeGenerationPolicy *TD_primegenpolicy;
 typedef struct mpint_list TD_mpint_list;
+typedef struct int16_list *TD_int16_list;
 typedef PockleStatus TD_pocklestatus;
 typedef struct mr_result TD_mr_result;
 typedef Argon2Flavour TD_argon2flavour;
@@ -386,6 +389,46 @@ static struct mpint_list get_mpint_list(BinarySource *in)
     return mpl;
 }
 
+typedef struct int16_list {
+    size_t n;
+    uint16_t *integers;
+} int16_list;
+
+static void finaliser_int16_list_free(strbuf *out, void *vlist)
+{
+    int16_list *list = (int16_list *)vlist;
+    sfree(list->integers);
+    sfree(list);
+}
+
+static int16_list *make_int16_list(size_t n)
+{
+    int16_list *list = snew(int16_list);
+    list->n = n;
+    list->integers = snewn(n, uint16_t);
+    add_finaliser(finaliser_int16_list_free, list);
+    return list;
+}
+
+static int16_list *get_int16_list(BinarySource *in)
+{
+    size_t n = get_uint(in);
+    int16_list *list = make_int16_list(n);
+    for (size_t i = 0; i < n; i++)
+        list->integers[i] = get_uint(in);
+    return list;
+}
+
+static void return_int16_list(strbuf *out, int16_list *list)
+{
+    for (size_t i = 0; i < list->n; i++) {
+        if (i > 0)
+            put_byte(out, ',');
+        put_fmt(out, "%d", (int)(int16_t)list->integers[i]);
+    }
+    put_byte(out, '\n');
+}
+
 static void finaliser_return_uint(strbuf *out, void *ctx)
 {
     unsigned *uval = (unsigned *)ctx;
@@ -544,6 +587,7 @@ NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
 NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
 NULLABLE_RETURN_WRAPPER(val_mpint, mp_int *)
+NULLABLE_RETURN_WRAPPER(int16_list, int16_list *)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {
@@ -719,8 +763,7 @@ strbuf *ssh_cipher_encrypt_wrapper(ssh_cipher *c, ptrlen input)
     if (input.len % ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_encrypt: needs a multiple of %d bytes",
                     ssh_cipher_alg(c)->blksize);
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_encrypt(c, sb->u, sb->len);
     return sb;
 }
@@ -730,30 +773,27 @@ strbuf *ssh_cipher_decrypt_wrapper(ssh_cipher *c, ptrlen input)
     if (input.len % ssh_cipher_alg(c)->blksize)
         fatal_error("ssh_cipher_decrypt: needs a multiple of %d bytes",
                     ssh_cipher_alg(c)->blksize);
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_decrypt(c, sb->u, sb->len);
     return sb;
 }
 
 strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
-                                           unsigned long seq)
+                                          unsigned long seq)
 {
     if (input.len != 4)
         fatal_error("ssh_cipher_encrypt_length: needs exactly 4 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_encrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
 
 strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
-                                           unsigned long seq)
+                                          unsigned long seq)
 {
-    if (input.len % ssh_cipher_alg(c)->blksize)
+    if (input.len != 4)
         fatal_error("ssh_cipher_decrypt_length: needs exactly 4 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
+    strbuf *sb = strbuf_dup(input);
     ssh_cipher_decrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
@@ -764,6 +804,63 @@ strbuf *ssh2_mac_genresult_wrapper(ssh2_mac *m)
     void *u = strbuf_append(sb, ssh2_mac_alg(m)->len);
     ssh2_mac_genresult(m, u);
     return sb;
+}
+
+ssh_key *ssh_key_base_key_wrapper(ssh_key *key)
+{
+    /* To avoid having to explain the borrowed reference to Python,
+     * just clone the key unconditionally */
+    return ssh_key_clone(ssh_key_base_key(key));
+}
+
+void ssh_key_ca_public_blob_wrapper(ssh_key *key, BinarySink *out)
+{
+    /* Wrap to avoid null-pointer dereference */
+    if (!key->vt->is_certificate)
+        fatal_error("ssh_key_ca_public_blob: needs a certificate");
+    ssh_key_ca_public_blob(key, out);
+}
+
+void ssh_key_cert_id_string_wrapper(ssh_key *key, BinarySink *out)
+{
+    /* Wrap to avoid null-pointer dereference */
+    if (!key->vt->is_certificate)
+        fatal_error("ssh_key_cert_id_string: needs a certificate");
+    ssh_key_cert_id_string(key, out);
+}
+
+static bool ssh_key_check_cert_wrapper(
+    ssh_key *key, bool host, ptrlen principal, uint64_t time, ptrlen optstr,
+    BinarySink *error)
+{
+    /* Wrap to avoid null-pointer dereference */
+    if (!key->vt->is_certificate)
+        fatal_error("ssh_key_cert_id_string: needs a certificate");
+
+    ca_options opts;
+    opts.permit_rsa_sha1 = true;
+    opts.permit_rsa_sha256 = true;
+    opts.permit_rsa_sha512 = true;
+
+    while (optstr.len) {
+        ptrlen word = ptrlen_get_word(&optstr, ",");
+        ptrlen key = word, value = PTRLEN_LITERAL("");
+        const char *comma = memchr(word.ptr, '=', word.len);
+        if (comma) {
+            key.len = comma - (const char *)word.ptr;
+            value.ptr = comma + 1;
+            value.len = word.len - key.len - 1;
+        }
+
+        if (ptrlen_eq_string(key, "permit_rsa_sha1"))
+            opts.permit_rsa_sha1 = ptrlen_eq_string(value, "true");
+        if (ptrlen_eq_string(key, "permit_rsa_sha256"))
+            opts.permit_rsa_sha256 = ptrlen_eq_string(value, "true");
+        if (ptrlen_eq_string(key, "permit_rsa_sha512"))
+            opts.permit_rsa_sha512 = ptrlen_eq_string(value, "true");
+    }
+
+    return ssh_key_check_cert(key, host, principal, time, &opts, error);
 }
 
 bool dh_validate_f_wrapper(dh_ctx *dh, mp_int *f)
@@ -786,6 +883,142 @@ static RSAKey *rsa_new(void)
     RSAKey *rsa = snew(RSAKey);
     memset(rsa, 0, sizeof(RSAKey));
     return rsa;
+}
+
+strbuf *ecdh_key_getkey_wrapper(ecdh_key *ek, ptrlen remoteKey)
+{
+    /* Fold the boolean return value in C into the string return value
+     * for this purpose, by returning NULL on failure */
+    strbuf *sb = strbuf_new();
+    if (!ecdh_key_getkey(ek, remoteKey, BinarySink_UPCAST(sb))) {
+        strbuf_free(sb);
+        return NULL;
+    }
+    return sb;
+}
+
+static void int16_list_resize(int16_list *list, unsigned p)
+{
+    list->integers = sresize(list->integers, p, uint16_t);
+    for (size_t i = list->n; i < p; i++)
+        list->integers[i] = 0;
+}
+
+#if 0
+static int16_list ntru_ring_to_list_and_free(uint16_t *out, unsigned p)
+{
+    struct mpint_list mpl;
+    mpl.n = p;
+    mpl->integers = snewn(p, mp_int *);
+    for (unsigned i = 0; i < p; i++)
+        mpl->integers[i] = mp_from_integer((int16_t)out[i]);
+    sfree(out);
+    add_finaliser(finaliser_sfree, mpl->integers);
+    return mpl;
+}
+#endif
+
+int16_list *ntru_ring_multiply_wrapper(
+    int16_list *a, int16_list *b, unsigned p, unsigned q)
+{
+    int16_list_resize(a, p);
+    int16_list_resize(b, p);
+    int16_list *out = make_int16_list(p);
+    ntru_ring_multiply(out->integers, a->integers, b->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_ring_invert_wrapper(int16_list *in, unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    unsigned success = ntru_ring_invert(out->integers, in->integers, p, q);
+    if (!success)
+        return NULL;
+    return out;
+}
+
+int16_list *ntru_mod3_wrapper(int16_list *in, unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_mod3(out->integers, in->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_round3_wrapper(int16_list *in, unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_round3(out->integers, in->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_bias_wrapper(int16_list *in, unsigned bias,
+                              unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_bias(out->integers, in->integers, bias, p, q);
+    return out;
+}
+
+int16_list *ntru_scale_wrapper(int16_list *in, unsigned scale,
+                               unsigned p, unsigned q)
+{
+    int16_list_resize(in, p);
+    int16_list *out = make_int16_list(p);
+    ntru_scale(out->integers, in->integers, scale, p, q);
+    return out;
+}
+
+NTRUEncodeSchedule *ntru_encode_schedule_wrapper(int16_list *in)
+{
+    return ntru_encode_schedule(in->integers, in->n);
+}
+
+void ntru_encode_wrapper(NTRUEncodeSchedule *sched, int16_list *rs,
+                         BinarySink *bs)
+{
+    ntru_encode(sched, rs->integers, bs);
+}
+
+int16_list *ntru_decode_wrapper(NTRUEncodeSchedule *sched, ptrlen data)
+{
+    int16_list *out = make_int16_list(ntru_encode_schedule_nvals(sched));
+    ntru_decode(sched, out->integers, data);
+    return out;
+}
+
+int16_list *ntru_gen_short_wrapper(unsigned p, unsigned w)
+{
+    int16_list *out = make_int16_list(p);
+    ntru_gen_short(out->integers, p, w);
+    return out;
+}
+
+int16_list *ntru_pubkey_wrapper(NTRUKeyPair *keypair)
+{
+    unsigned p = ntru_keypair_p(keypair);
+    int16_list *out = make_int16_list(p);
+    memcpy(out->integers, ntru_pubkey(keypair), p*sizeof(uint16_t));
+    return out;
+}
+
+int16_list *ntru_encrypt_wrapper(int16_list *plaintext, int16_list *pubkey,
+                                 unsigned p, unsigned q)
+{
+    int16_list *out = make_int16_list(p);
+    ntru_encrypt(out->integers, plaintext->integers, pubkey->integers, p, q);
+    return out;
+}
+
+int16_list *ntru_decrypt_wrapper(int16_list *ciphertext, NTRUKeyPair *keypair)
+{
+    unsigned p = ntru_keypair_p(keypair);
+    int16_list *out = make_int16_list(p);
+    ntru_decrypt(out->integers, ciphertext->integers, keypair);
+    return out;
 }
 
 strbuf *rsa_ssh1_encrypt_wrapper(ptrlen input, RSAKey *key)
@@ -817,8 +1050,7 @@ strbuf *des_encrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
         fatal_error("des_encrypt_xdmauth: key must be 7 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des_encrypt_xdmauth: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des_encrypt_xdmauth(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -829,8 +1061,7 @@ strbuf *des_decrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
         fatal_error("des_decrypt_xdmauth: key must be 7 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des_decrypt_xdmauth: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des_decrypt_xdmauth(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -841,8 +1072,7 @@ strbuf *des3_encrypt_pubkey_wrapper(ptrlen key, ptrlen data)
         fatal_error("des3_encrypt_pubkey: key must be 16 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_encrypt_pubkey: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_encrypt_pubkey(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -853,8 +1083,7 @@ strbuf *des3_decrypt_pubkey_wrapper(ptrlen key, ptrlen data)
         fatal_error("des3_decrypt_pubkey: key must be 16 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_decrypt_pubkey: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_decrypt_pubkey(key.ptr, sb->u, sb->len);
     return sb;
 }
@@ -867,8 +1096,7 @@ strbuf *des3_encrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("des3_encrypt_pubkey_ossh: iv must be 8 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_encrypt_pubkey_ossh: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_encrypt_pubkey_ossh(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -881,8 +1109,7 @@ strbuf *des3_decrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("des3_encrypt_pubkey_ossh: iv must be 8 bytes long");
     if (data.len % 8 != 0)
         fatal_error("des3_decrypt_pubkey_ossh: data must be a multiple of 8 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     des3_decrypt_pubkey_ossh(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -895,8 +1122,7 @@ strbuf *aes256_encrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("aes256_encrypt_pubkey: iv must be 16 bytes long");
     if (data.len % 16 != 0)
         fatal_error("aes256_encrypt_pubkey: data must be a multiple of 16 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     aes256_encrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -909,8 +1135,7 @@ strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
         fatal_error("aes256_encrypt_pubkey: iv must be 16 bytes long");
     if (data.len % 16 != 0)
         fatal_error("aes256_decrypt_pubkey: data must be a multiple of 16 bytes");
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, data);
+    strbuf *sb = strbuf_dup(data);
     aes256_decrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
@@ -1059,16 +1284,19 @@ const char *key_components_nth_name(key_components *kc, size_t n)
     return (n >= kc->ncomponents ? NULL :
             kc->components[n].name);
 }
-const char *key_components_nth_str(key_components *kc, size_t n)
+strbuf *key_components_nth_str(key_components *kc, size_t n)
 {
-    return (n >= kc->ncomponents ? NULL :
-            kc->components[n].is_mp_int ? NULL :
-            kc->components[n].text);
+    if (n >= kc->ncomponents)
+        return NULL;
+    if (kc->components[n].type != KCT_TEXT &&
+        kc->components[n].type != KCT_BINARY)
+        return NULL;
+    return strbuf_dup(ptrlen_from_strbuf(kc->components[n].str));
 }
 mp_int *key_components_nth_mp(key_components *kc, size_t n)
 {
     return (n >= kc->ncomponents ? NULL :
-            !kc->components[n].is_mp_int ? NULL :
+            kc->components[n].type != KCT_MPINT ? NULL :
             mp_copy(kc->components[n].mp));
 }
 
@@ -1101,7 +1329,16 @@ strbuf *get_implementations_commasep(ptrlen alg)
     strbuf *out = strbuf_new();
     put_datapl(out, alg);
 
-    if (ptrlen_startswith(alg, PTRLEN_LITERAL("aes"), NULL)) {
+    if (ptrlen_startswith(alg, PTRLEN_LITERAL("aesgcm"), NULL)) {
+        put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
+        put_fmt(out, ",%.*s_ref_poly", PTRLEN_PRINTF(alg));
+#if HAVE_CLMUL
+        put_fmt(out, ",%.*s_clmul", PTRLEN_PRINTF(alg));
+#endif
+#if HAVE_NEON_PMULL
+        put_fmt(out, ",%.*s_neon", PTRLEN_PRINTF(alg));
+#endif
+    } else if (ptrlen_startswith(alg, PTRLEN_LITERAL("aes"), NULL)) {
         put_fmt(out, ",%.*s_sw", PTRLEN_PRINTF(alg));
 #if HAVE_AES_NI
         put_fmt(out, ",%.*s_ni", PTRLEN_PRINTF(alg));
@@ -1347,7 +1584,7 @@ OPTIONAL_PTR_FUNC(string)
     static void handle_##fname(BinarySource *_in, strbuf *_out) {       \
         ARGS_##fname _args = get_args_##fname(_in);                     \
         (void)_args; /* suppress warning if no actual arguments */      \
-        return_##outtype(_out, JUXTAPOSE2(realname, (__VA_ARGS__)));     \
+        return_##outtype(_out, JUXTAPOSE2(realname, (__VA_ARGS__)));    \
     }
 #include "testcrypt-func.h"
 #undef FUNC_INNER

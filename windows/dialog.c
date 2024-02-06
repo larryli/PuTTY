@@ -27,21 +27,190 @@
 #define ICON_BIG        1
 #endif
 
+typedef struct PortableDialogStuff {
+    /*
+     * These are the various bits of data required to handle a dialog
+     * box that's been built up from the cross-platform dialog.c
+     * system.
+     */
+
+    /* The 'controlbox' that was returned from the portable setup function */
+    struct controlbox *ctrlbox;
+
+    /* The dlgparam that's passed to all the runtime dlg_* functions.
+     * Declared as an array of 1 so it's convenient to pass it as a pointer. */
+    struct dlgparam dp[1];
+
+    /*
+     * Collections of instantiated controls. There can be more than
+     * one of these, because sometimes you want to destroy and
+     * recreate a subset of them - e.g. when switching panes in the
+     * main PuTTY config box, you delete and recreate _most_ of the
+     * controls, but not the OK and Cancel buttons at the bottom.
+     */
+    size_t nctrltrees;
+    struct winctrls *ctrltrees;
+
+    /*
+     * Flag indicating whether the dialog box has been initialised.
+     * Used to suppresss spurious firing of message handlers during
+     * setup.
+     */
+    bool initialised;
+} PortableDialogStuff;
+
 /*
- * These are the various bits of data required to handle the
- * portable-dialog stuff in the config box. Having them at file
- * scope in here isn't too bad a place to put them; if we were ever
- * to need more than one config box per process we could always
- * shift them to a per-config-box structure stored in GWL_USERDATA.
+ * Initialise a PortableDialogStuff, before launching the dialog box.
  */
-static struct controlbox *ctrlbox;
+static PortableDialogStuff *pds_new(size_t nctrltrees)
+{
+    PortableDialogStuff *pds = snew(PortableDialogStuff);
+    memset(pds, 0, sizeof(*pds));
+
+    pds->ctrlbox = ctrl_new_box();
+
+    dp_init(pds->dp);
+
+    pds->nctrltrees = nctrltrees;
+    pds->ctrltrees = snewn(pds->nctrltrees, struct winctrls);
+    for (size_t i = 0; i < pds->nctrltrees; i++) {
+        winctrl_init(&pds->ctrltrees[i]);
+        dp_add_tree(pds->dp, &pds->ctrltrees[i]);
+    }
+
+    pds->dp->errtitle = dupprintf("%s 错误", appname);
+
+    pds->initialised = false;
+
+    return pds;
+}
+
+static void pds_free(PortableDialogStuff *pds)
+{
+    ctrl_free_box(pds->ctrlbox);
+
+    dp_cleanup(pds->dp);
+
+    for (size_t i = 0; i < pds->nctrltrees; i++)
+        winctrl_cleanup(&pds->ctrltrees[i]);
+    sfree(pds->ctrltrees);
+
+    sfree(pds);
+}
+
+static INT_PTR pds_default_dlgproc(PortableDialogStuff *pds, HWND hwnd,
+                                   UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+      case WM_LBUTTONUP:
+        /*
+         * Button release should trigger WM_OK if there was a
+         * previous double click on the host CA list.
+         */
+        ReleaseCapture();
+        if (pds->dp->ended)
+            ShinyEndDialog(hwnd, pds->dp->endresult ? 1 : 0);
+        break;
+      case WM_COMMAND:
+      case WM_DRAWITEM:
+      default: {                       /* also handle drag list msg here */
+        /*
+         * Only process WM_COMMAND once the dialog is fully formed.
+         */
+        int ret;
+        if (pds->initialised) {
+            ret = winctrl_handle_command(pds->dp, msg, wParam, lParam);
+            if (pds->dp->ended && GetCapture() != hwnd)
+                ShinyEndDialog(hwnd, pds->dp->endresult ? 1 : 0);
+        } else
+            ret = 0;
+        return ret;
+      }
+      case WM_HELP:
+        if (!winctrl_context_help(pds->dp,
+                                  hwnd, ((LPHELPINFO)lParam)->iCtrlId))
+            MessageBeep(0);
+        break;
+      case WM_CLOSE:
+        quit_help(hwnd);
+        ShinyEndDialog(hwnd, 0);
+        return 0;
+
+        /* Grrr Explorer will maximize Dialogs! */
+      case WM_SIZE:
+        if (wParam == SIZE_MAXIMIZED)
+            force_normal(hwnd);
+        return 0;
+
+    }
+    return 0;
+}
+
+static void pds_initdialog_start(PortableDialogStuff *pds, HWND hwnd)
+{
+    pds->dp->hwnd = hwnd;
+
+    if (pds->dp->wintitle)     /* apply override title, if provided */
+        SetWindowText(hwnd, pds->dp->wintitle);
+
+    /* The portable dialog system generally includes the ability to
+     * handle context help for particular controls. Enable the
+     * relevant window styles if we have a help file available. */
+    if (has_help()) {
+        LONG_PTR style = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, style | WS_EX_CONTEXTHELP);
+    } else {
+        /* If not, and if the dialog template provided a top-level
+         * Help button, delete it */
+        HWND item = GetDlgItem(hwnd, IDC_HELPBTN);
+        if (item)
+            DestroyWindow(item);
+    }
+}
+
 /*
- * ctrls_base holds the OK and Cancel buttons: the controls which
- * are present in all dialog panels. ctrls_panel holds the ones
- * which change from panel to panel.
+ * Create the panelfuls of controls in the configuration box.
  */
-static struct winctrls ctrls_base, ctrls_panel;
-static struct dlgparam dp;
+static void pds_create_controls(
+    PortableDialogStuff *pds, size_t which_tree, int base_id,
+    int left, int right, int top, char *path)
+{
+    struct ctlpos cp;
+
+    ctlposinit(&cp, pds->dp->hwnd, left, right, top);
+
+    for (int index = -1; (index = ctrl_find_path(
+                              pds->ctrlbox, path, index)) >= 0 ;) {
+        struct controlset *s = pds->ctrlbox->ctrlsets[index];
+        winctrl_layout(pds->dp, &pds->ctrltrees[which_tree], &cp, s, &base_id);
+    }
+}
+
+static void pds_initdialog_finish(PortableDialogStuff *pds)
+{
+    /*
+     * Set focus into the first available control in ctrltree #0,
+     * which the caller was expected to set up to be the one
+     * containing the dialog controls likely to be used first.
+     */
+    struct winctrl *c;
+    for (int i = 0; (c = winctrl_findbyindex(&pds->ctrltrees[0], i)) != NULL;
+         i++) {
+        if (c->ctrl) {
+            dlg_set_focus(c->ctrl, pds->dp);
+            break;
+        }
+    }
+
+    /*
+     * Now we've finished creating our initial set of controls,
+     * it's safe to actually show the window without risking setup
+     * flicker.
+     */
+    ShowWindow(pds->dp->hwnd, SW_SHOWNORMAL);
+
+    pds->initialised = true;
+}
 
 #define LOGEVENT_INITIAL_MAX 128
 #define LOGEVENT_CIRCULAR_MAX 128
@@ -216,10 +385,10 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         SetWindowText(hwnd, str);
         sfree(str);
         char *buildinfo_text = buildinfo("\r\n");
-        char *text = dupprintf
-            ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-             appname, ver, buildinfo_text,
-             "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
+        char *text = dupprintf(
+            "%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+            appname, ver, buildinfo_text,
+            "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
         sfree(buildinfo_text);
         SetDlgItemText(hwnd, IDA_TEXT, text);
         MakeDlgItemBorderless(hwnd, IDA_TEXT);
@@ -253,57 +422,6 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         return 0;
     }
     return 0;
-}
-
-static int SaneDialogBox(HINSTANCE hinst,
-                         LPCTSTR tmpl,
-                         HWND hwndparent,
-                         DLGPROC lpDialogFunc)
-{
-    WNDCLASS wc;
-    HWND hwnd;
-    MSG msg;
-    int flags;
-    int ret;
-    int gm;
-
-    wc.style = CS_DBLCLKS | CS_SAVEBITS | CS_BYTEALIGNWINDOW;
-    wc.lpfnWndProc = DefDlgProc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = DLGWINDOWEXTRA + 2*sizeof(LONG_PTR);
-    wc.hInstance = hinst;
-    wc.hIcon = NULL;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH) (COLOR_BACKGROUND +1);
-    wc.lpszMenuName = NULL;
-    wc.lpszClassName = "PuTTYConfigBox";
-    RegisterClass(&wc);
-
-    hwnd = CreateDialog(hinst, tmpl, hwndparent, lpDialogFunc);
-
-    SetWindowLongPtr(hwnd, BOXFLAGS, 0); /* flags */
-    SetWindowLongPtr(hwnd, BOXRESULT, 0); /* result from SaneEndDialog */
-
-    while ((gm=GetMessage(&msg, NULL, 0, 0)) > 0) {
-        flags=GetWindowLongPtr(hwnd, BOXFLAGS);
-        if (!(flags & DF_END) && !IsDialogMessage(hwnd, &msg))
-            DispatchMessage(&msg);
-        if (flags & DF_END)
-            break;
-    }
-
-    if (gm == 0)
-        PostQuitMessage(msg.wParam); /* We got a WM_QUIT, pass it on */
-
-    ret=GetWindowLongPtr(hwnd, BOXRESULT);
-    DestroyWindow(hwnd);
-    return ret;
-}
-
-static void SaneEndDialog(HWND hwnd, int ret)
-{
-    SetWindowLongPtr(hwnd, BOXRESULT, ret);
-    SetWindowLongPtr(hwnd, BOXFLAGS, DF_END);
 }
 
 /*
@@ -355,84 +473,37 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
     return newitem;
 }
 
-/*
- * Create the panelfuls of controls in the configuration box.
- */
-static void create_controls(HWND hwnd, char *path)
-{
-    struct ctlpos cp;
-    int index;
-    int base_id;
-    struct winctrls *wc;
-
-    if (!path[0]) {
-        /*
-         * Here we must create the basic standard controls.
-         */
-        ctlposinit(&cp, hwnd, 3, 3, 235);
-        wc = &ctrls_base;
-        base_id = IDCX_STDBASE;
-    } else {
-        /*
-         * Otherwise, we're creating the controls for a particular
-         * panel.
-         */
-        ctlposinit(&cp, hwnd, 100, 3, 13);
-        wc = &ctrls_panel;
-        base_id = IDCX_PANELBASE;
-    }
-
-    for (index=-1; (index = ctrl_find_path(ctrlbox, path, index)) >= 0 ;) {
-        struct controlset *s = ctrlbox->ctrlsets[index];
-        winctrl_layout(&dp, wc, &cp, s, &base_id);
-    }
-}
-
 const char *dialog_box_demo_screenshot_filename = NULL;
+
+/* ctrltrees indices for the main dialog box */
+enum {
+    TREE_PANEL, /* things we swap out every time treeview selects a new pane */
+    TREE_BASE, /* fixed things at the bottom like OK and Cancel buttons */
+};
 
 /*
  * This function is the configuration box.
  * (Being a dialog procedure, in general it returns 0 if the default
  * dialog processing should be performed, and 1 if it should not.)
  */
-static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
-                                           WPARAM wParam, LPARAM lParam)
+static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
+                                  LPARAM lParam, void *ctx)
 {
+    PortableDialogStuff *pds = (PortableDialogStuff *)ctx;
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
-    HWND hw, treeview;
+    HWND treeview;
     struct treeview_faff tvfaff;
-    int ret;
 
     switch (msg) {
       case WM_INITDIALOG:
-        dp.hwnd = hwnd;
-        create_controls(hwnd, "");     /* Open and Cancel buttons etc */
-        SetWindowText(hwnd, dp.wintitle);
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
-        if (has_help())
-            SetWindowLongPtr(hwnd, GWL_EXSTYLE,
-                             GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
-                             WS_EX_CONTEXTHELP);
-        else {
-            HWND item = GetDlgItem(hwnd, IDC_HELPBTN);
-            if (item)
-                DestroyWindow(item);
-        }
+        pds_initdialog_start(pds, hwnd);
+
+        pds_create_controls(pds, TREE_BASE, IDCX_STDBASE, 3, 3, 235, "");
+
         SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
                     (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
-        /*
-         * Centre the window.
-         */
-        {                              /* centre the window */
-            RECT rs, rd;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        centre_window(hwnd);
 
         /*
          * Create the tree view.
@@ -485,8 +556,8 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
             char *path = NULL;
             char *firstpath = NULL;
 
-            for (i = 0; i < ctrlbox->nctrlsets; i++) {
-                struct controlset *s = ctrlbox->ctrlsets[i];
+            for (i = 0; i < pds->ctrlbox->nctrlsets; i++) {
+                struct controlset *s = pds->ctrlbox->ctrlsets[i];
                 HTREEITEM item;
                 int j;
                 char *c;
@@ -511,9 +582,9 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 
                 c = strrchr(s->pathname, '/');
                 if (!c)
-                        c = s->pathname;
+                    c = s->pathname;
                 else
-                        c++;
+                    c++;
 
                 item = treeview_insert(&tvfaff, j, c, s->pathname);
                 if (!hfirst) {
@@ -535,64 +606,32 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
              * match the initial treeview selection.
              */
             assert(firstpath);   /* config.c must have given us _something_ */
-            create_controls(hwnd, firstpath);
-            dlg_refresh(NULL, &dp);    /* and set up control values */
+            pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
+                                100, 3, 13, firstpath);
+            dlg_refresh(NULL, pds->dp);    /* and set up control values */
         }
-
-        /*
-         * Set focus into the first available control.
-         */
-        {
-            int i;
-            struct winctrl *c;
-
-            for (i = 0; (c = winctrl_findbyindex(&ctrls_panel, i)) != NULL;
-                 i++) {
-                if (c->ctrl) {
-                    dlg_set_focus(c->ctrl, &dp);
-                    break;
-                }
-            }
-        }
-
-        /*
-         * Now we've finished creating our initial set of controls,
-         * it's safe to actually show the window without risking setup
-         * flicker.
-         */
-        ShowWindow(hwnd, SW_SHOWNORMAL);
-
-        /*
-         * Set the flag that activates a couple of the other message
-         * handlers below, which were disabled until now to avoid
-         * spurious firing during the above setup procedure.
-         */
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 
         if (dialog_box_demo_screenshot_filename)
             SetTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID, TICKSPERSEC, NULL);
+
+        pds_initdialog_finish(pds);
         return 0;
+
       case WM_TIMER:
         if (dialog_box_demo_screenshot_filename &&
             (UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
             KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
-            const char *err = save_screenshot(
+            char *err = save_screenshot(
                 hwnd, dialog_box_demo_screenshot_filename);
-            if (err)
+            if (err) {
                 MessageBox(hwnd, err, "Demo screenshot failure",
                            MB_OK | MB_ICONERROR);
-            SaneEndDialog(hwnd, 0);
+                sfree(err);
+            }
+            ShinyEndDialog(hwnd, 0);
         }
         return 0;
-      case WM_LBUTTONUP:
-        /*
-         * Button release should trigger WM_OK if there was a
-         * previous double click on the session list.
-         */
-        ReleaseCapture();
-        if (dp.ended)
-            SaneEndDialog(hwnd, dp.endresult ? 1 : 0);
-        break;
+
       case WM_NOTIFY:
         if (LOWORD(wParam) == IDCX_TREEVIEW &&
             ((LPNMHDR) lParam)->code == TVN_SELCHANGED) {
@@ -607,7 +646,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
             TVITEM item;
             char buffer[64];
 
-            if (GetWindowLongPtr(hwnd, GWLP_USERDATA) != 1)
+            if (!pds->initialised)
                 return 0;
 
             i = TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
@@ -625,60 +664,34 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
                 HWND item;
                 struct winctrl *c;
 
-                while ((c = winctrl_findbyindex(&ctrls_panel, 0)) != NULL) {
+                while ((c = winctrl_findbyindex(
+                            &pds->ctrltrees[TREE_PANEL], 0)) != NULL) {
                     for (k = 0; k < c->num_ids; k++) {
                         item = GetDlgItem(hwnd, c->base_id + k);
                         if (item)
                             DestroyWindow(item);
                     }
-                    winctrl_rem_shortcuts(&dp, c);
-                    winctrl_remove(&ctrls_panel, c);
+                    winctrl_rem_shortcuts(pds->dp, c);
+                    winctrl_remove(&pds->ctrltrees[TREE_PANEL], c);
                     sfree(c->data);
                     sfree(c);
                 }
             }
-            create_controls(hwnd, (char *)item.lParam);
+            pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
+                                100, 3, 13, (char *)item.lParam);
 
-            dlg_refresh(NULL, &dp);    /* set up control values */
+            dlg_refresh(NULL, pds->dp);    /* set up control values */
 
             SendMessage (hwnd, WM_SETREDRAW, true, 0);
             InvalidateRect (hwnd, NULL, true);
 
             SetFocus(((LPNMHDR) lParam)->hwndFrom);     /* ensure focus stays */
-            return 0;
         }
-        break;
-      case WM_COMMAND:
-      case WM_DRAWITEM:
-      default:                         /* also handle drag list msg here */
-        /*
-         * Only process WM_COMMAND once the dialog is fully formed.
-         */
-        if (GetWindowLongPtr(hwnd, GWLP_USERDATA) == 1) {
-            ret = winctrl_handle_command(&dp, msg, wParam, lParam);
-            if (dp.ended && GetCapture() != hwnd)
-                SaneEndDialog(hwnd, dp.endresult ? 1 : 0);
-        } else
-            ret = 0;
-        return ret;
-      case WM_HELP:
-        if (!winctrl_context_help(&dp, hwnd,
-                                 ((LPHELPINFO)lParam)->iCtrlId))
-            MessageBeep(0);
-        break;
-      case WM_CLOSE:
-        quit_help(hwnd);
-        SaneEndDialog(hwnd, 0);
         return 0;
 
-        /* Grrr Explorer will maximize Dialogs! */
-      case WM_SIZE:
-        if (wParam == SIZE_MAXIMIZED)
-            force_normal(hwnd);
-        return 0;
-
+      default:
+        return pds_default_dlgproc(pds, hwnd, msg, wParam, lParam);
     }
-    return 0;
 }
 
 void modal_about_box(HWND hwnd)
@@ -714,29 +727,22 @@ void defuse_showwindow(void)
 bool do_config(Conf *conf)
 {
     bool ret;
+    PortableDialogStuff *pds = pds_new(2);
 
-    ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, false, 0, 0);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), false, 0);
-    dp_init(&dp);
-    winctrl_init(&ctrls_base);
-    winctrl_init(&ctrls_panel);
-    dp_add_tree(&dp, &ctrls_base);
-    dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s 配置", appname);
-    dp.errtitle = dupprintf("%s 错误", appname);
-    dp.data = conf;
-    dlg_auto_set_fixed_pitch_flag(&dp);
-    dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
+    setup_config_box(pds->ctrlbox, false, 0, 0);
+    win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(), false, 0);
 
-    ret =
-        SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
-                  GenericMainDlgProc);
+    pds->dp->wintitle = dupprintf("%s 配置", appname);
+    pds->dp->data = conf;
 
-    ctrl_free_box(ctrlbox);
-    winctrl_cleanup(&ctrls_panel);
-    winctrl_cleanup(&ctrls_base);
-    dp_cleanup(&dp);
+    dlg_auto_set_fixed_pitch_flag(pds->dp);
+
+    pds->dp->shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
+
+    ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
+                         NULL, GenericMainDlgProc, pds);
+
+    pds_free(pds);
 
     return ret;
 }
@@ -746,31 +752,26 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     Conf *backup_conf;
     bool ret;
     int protocol;
+    PortableDialogStuff *pds = pds_new(2);
 
     backup_conf = conf_copy(conf);
 
-    ctrlbox = ctrl_new_box();
     protocol = conf_get_int(conf, CONF_protocol);
-    setup_config_box(ctrlbox, true, protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), true, protocol);
-    dp_init(&dp);
-    winctrl_init(&ctrls_base);
-    winctrl_init(&ctrls_panel);
-    dp_add_tree(&dp, &ctrls_base);
-    dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s 重新配置", appname);
-    dp.errtitle = dupprintf("%s 错误", appname);
-    dp.data = conf;
-    dlg_auto_set_fixed_pitch_flag(&dp);
-    dp.shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
+    setup_config_box(pds->ctrlbox, true, protocol, protcfginfo);
+    win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(),
+                         true, protocol);
 
-    ret = SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
-                  GenericMainDlgProc);
+    pds->dp->wintitle = dupprintf("%s 重新配置", appname);
+    pds->dp->data = conf;
 
-    ctrl_free_box(ctrlbox);
-    winctrl_cleanup(&ctrls_base);
-    winctrl_cleanup(&ctrls_panel);
-    dp_cleanup(&dp);
+    dlg_auto_set_fixed_pitch_flag(pds->dp);
+
+    pds->dp->shortcuts['g'] = true;          /* the treeview: `Cate&gory' */
+
+    ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
+                         NULL, GenericMainDlgProc, pds);
+
+    pds_free(pds);
 
     if (!ret)
         conf_copy_into(conf, backup_conf);
@@ -841,97 +842,232 @@ void showabout(HWND hwnd)
 }
 
 struct hostkey_dialog_ctx {
-    const char *const *keywords;
-    const char *const *values;
-    const char *host;
-    int port;
-    FingerprintType fptype_default;
-    char **fingerprints;
-    const char *keydisp;
-    LPCTSTR iconid;
+    SeatDialogText *text;
+    bool has_title;
     const char *helpctx;
 };
 
-static INT_PTR CALLBACK HostKeyMoreInfoProc(HWND hwnd, UINT msg,
-                                            WPARAM wParam, LPARAM lParam)
+static INT_PTR HostKeyMoreInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
+                                   LPARAM lParam, void *vctx)
 {
+    struct hostkey_dialog_ctx *ctx = (struct hostkey_dialog_ctx *)vctx;
+
     switch (msg) {
       case WM_INITDIALOG: {
-        const struct hostkey_dialog_ctx *ctx =
-            (const struct hostkey_dialog_ctx *)lParam;
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
+        int index = 100, y = 12;
 
-        if (ctx->fingerprints[SSH_FPTYPE_SHA256])
-            SetDlgItemText(hwnd, IDC_HKI_SHA256,
-                           ctx->fingerprints[SSH_FPTYPE_SHA256]);
-        if (ctx->fingerprints[SSH_FPTYPE_MD5])
-            SetDlgItemText(hwnd, IDC_HKI_MD5,
-                           ctx->fingerprints[SSH_FPTYPE_MD5]);
+        WPARAM font = SendMessage(hwnd, WM_GETFONT, 0, 0);
 
-        SetDlgItemText(hwnd, IDA_TEXT, ctx->keydisp);
+        const char *key = NULL;
+        for (SeatDialogTextItem *item = ctx->text->items,
+                 *end = item + ctx->text->nitems; item < end; item++) {
+            switch (item->type) {
+              case SDT_MORE_INFO_KEY:
+                key = item->text;
+                break;
+              case SDT_MORE_INFO_VALUE_SHORT:
+              case SDT_MORE_INFO_VALUE_BLOB: {
+                RECT rk, rv;
+                DWORD editstyle = WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+                    ES_AUTOHSCROLL | ES_READONLY;
+                if (item->type == SDT_MORE_INFO_VALUE_BLOB) {
+                    rk.left = 12;
+                    rk.right = 376;
+                    rk.top = y;
+                    rk.bottom = 8;
+                    y += 10;
 
+                    editstyle |= ES_MULTILINE;
+                    rv.left = 12;
+                    rv.right = 376;
+                    rv.top = y;
+                    rv.bottom = 64;
+                    y += 68;
+                } else {
+                    rk.left = 12;
+                    rk.right = 80;
+                    rk.top = y+2;
+                    rk.bottom = 8;
+
+                    rv.left = 100;
+                    rv.right = 288;
+                    rv.top = y;
+                    rv.bottom = 12;
+
+                    y += 16;
+                }
+
+                MapDialogRect(hwnd, &rk);
+                HWND ctl = CreateWindowEx(
+                    0, "STATIC", key, WS_CHILD | WS_VISIBLE,
+                    rk.left, rk.top, rk.right, rk.bottom,
+                    hwnd, (HMENU)(ULONG_PTR)index++, hinst, NULL);
+                SendMessage(ctl, WM_SETFONT, font, MAKELPARAM(true, 0));
+
+                MapDialogRect(hwnd, &rv);
+                ctl = CreateWindowEx(
+                    WS_EX_CLIENTEDGE, "EDIT", item->text, editstyle,
+                    rv.left, rv.top, rv.right, rv.bottom,
+                    hwnd, (HMENU)(ULONG_PTR)index++, hinst, NULL);
+                SendMessage(ctl, WM_SETFONT, font, MAKELPARAM(true, 0));
+                break;
+              }
+              default:
+                break;
+            }
+        }
+
+        /*
+         * Now resize the overall window, and move the Close button at
+         * the bottom.
+         */
+        RECT r;
+        r.left = 176;
+        r.top = y + 10;
+        r.right = r.bottom = 0;
+        MapDialogRect(hwnd, &r);
+        HWND ctl = GetDlgItem(hwnd, IDOK);
+        SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
+                     SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
+
+        r.left = r.top = r.right = 0;
+        r.bottom = 300;
+        MapDialogRect(hwnd, &r);
+        int oldheight = r.bottom;
+
+        r.left = r.top = r.right = 0;
+        r.bottom = y + 30;
+        MapDialogRect(hwnd, &r);
+        int newheight = r.bottom;
+
+        GetWindowRect(hwnd, &r);
+
+        SetWindowPos(hwnd, NULL, 0, 0, r.right - r.left,
+                     r.bottom - r.top + newheight - oldheight,
+                     SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
+
+        ShowWindow(hwnd, SW_SHOWNORMAL);
         return 1;
       }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
-            EndDialog(hwnd, 0);
+            ShinyEndDialog(hwnd, 0);
             return 0;
         }
         return 0;
       case WM_CLOSE:
-        EndDialog(hwnd, 0);
+        ShinyEndDialog(hwnd, 0);
         return 0;
     }
     return 0;
 }
 
-static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
-                                          WPARAM wParam, LPARAM lParam)
+static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
+                                 WPARAM wParam, LPARAM lParam, void *vctx)
 {
+    struct hostkey_dialog_ctx *ctx = (struct hostkey_dialog_ctx *)vctx;
+
     switch (msg) {
       case WM_INITDIALOG: {
-        strbuf *sb = strbuf_new();
-        const struct hostkey_dialog_ctx *ctx =
-            (const struct hostkey_dialog_ctx *)lParam;
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
-        for (int id = 100;; id++) {
-            char buf[256];
+        strbuf *dlg_text = strbuf_new();
+        const char *dlg_title = "";
+        ctx->has_title = false;
+        LPCTSTR iconid = IDI_QUESTION;
 
-            if (!GetDlgItemText(hwnd, id, buf, (int)lenof(buf)))
+        for (SeatDialogTextItem *item = ctx->text->items,
+                 *end = item + ctx->text->nitems; item < end; item++) {
+            switch (item->type) {
+              case SDT_PARA:
+                put_fmt(dlg_text, "%s\r\n\r\n", item->text);
                 break;
-
-            strbuf_clear(sb);
-            for (const char *p = buf; *p ;) {
-                if (*p == '{') {
-                    for (size_t i = 0; ctx->keywords[i]; i++) {
-                        if (strstartswith(p, ctx->keywords[i])) {
-                            p += strlen(ctx->keywords[i]);
-                            put_dataz(sb, ctx->values[i]);
-                            goto matched;
-                        }
-                    }
-                } else {
-                    put_byte(sb, *p++);
-                }
-              matched:;
+              case SDT_DISPLAY:
+                put_fmt(dlg_text, "%s\r\n\r\n", item->text);
+                break;
+              case SDT_SCARY_HEADING:
+                SetDlgItemText(hwnd, IDC_HK_TITLE, item->text);
+                iconid = IDI_WARNING;
+                ctx->has_title = true;
+                break;
+              case SDT_TITLE:
+                dlg_title = item->text;
+                break;
+              default:
+                break;
             }
-
-            SetDlgItemText(hwnd, id, sb->s);
         }
-        strbuf_free(sb);
+        while (strbuf_chomp(dlg_text, '\r') || strbuf_chomp(dlg_text, '\n'));
 
-        char *hostport = dupprintf("%s (端口 %d)", ctx->host, ctx->port);
-        SetDlgItemText(hwnd, IDC_HK_HOST, hostport);
-        sfree(hostport);
-        MakeDlgItemBorderless(hwnd, IDC_HK_HOST);
+        SetDlgItemText(hwnd, IDC_HK_TEXT, dlg_text->s);
+        MakeDlgItemBorderless(hwnd, IDC_HK_TEXT);
+        strbuf_free(dlg_text);
 
-        SetDlgItemText(hwnd, IDC_HK_FINGERPRINT,
-                       ctx->fingerprints[ctx->fptype_default]);
-        MakeDlgItemBorderless(hwnd, IDC_HK_FINGERPRINT);
+        SetWindowText(hwnd, dlg_title);
+
+        if (!ctx->has_title) {
+            HWND item = GetDlgItem(hwnd, IDC_HK_TITLE);
+            if (item)
+                DestroyWindow(item);
+        }
+
+        /*
+         * Find out how tall the text in the edit control really ended
+         * up (after line wrapping), and adjust the height of the
+         * whole box to match it.
+         */
+        int height = SendDlgItemMessage(hwnd, IDC_HK_TEXT,
+                                        EM_GETLINECOUNT, 0, 0);
+        height *= 9; /* height of a text line, by definition of dialog units */
+
+        int edittop = ctx->has_title ? 40 : 20;
+
+        RECT r;
+        r.left = 40;
+        r.top = edittop;
+        r.right = 290;
+        r.bottom = height;
+        MapDialogRect(hwnd, &r);
+        SetWindowPos(GetDlgItem(hwnd, IDC_HK_TEXT), NULL,
+                     r.left, r.top, r.right, r.bottom,
+                     SWP_NOREDRAW | SWP_NOZORDER);
+
+        static const struct {
+            int id, x;
+        } buttons[] = {
+            { IDCANCEL, 288 },
+            { IDC_HK_ACCEPT, 168 },
+            { IDC_HK_ONCE, 216 },
+            { IDC_HK_MOREINFO, 60 },
+            { IDHELP, 12 },
+        };
+        for (size_t i = 0; i < lenof(buttons); i++) {
+            HWND ctl = GetDlgItem(hwnd, buttons[i].id);
+            r.left = buttons[i].x;
+            r.top = edittop + height + 20;
+            r.right = r.bottom = 0;
+            MapDialogRect(hwnd, &r);
+            SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
+                         SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
+        }
+
+        r.left = r.top = r.right = 0;
+        r.bottom = 240;
+        MapDialogRect(hwnd, &r);
+        int oldheight = r.bottom;
+
+        r.left = r.top = r.right = 0;
+        r.bottom = edittop + height + 40;
+        MapDialogRect(hwnd, &r);
+        int newheight = r.bottom;
+
+        GetWindowRect(hwnd, &r);
+
+        SetWindowPos(hwnd, NULL, 0, 0, r.right - r.left,
+                     r.bottom - r.top + newheight - oldheight,
+                     SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
 
         HANDLE icon = LoadImage(
-            NULL, ctx->iconid, IMAGE_ICON,
+            NULL, iconid, IMAGE_ICON,
             GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON),
             LR_SHARED);
         SendDlgItemMessage(hwnd, IDC_HK_ICON, STM_SETICON, (WPARAM)icon, 0);
@@ -942,13 +1078,16 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
                 DestroyWindow(item);
         }
 
+        ShowWindow(hwnd, SW_SHOWNORMAL);
+
         return 1;
       }
       case WM_CTLCOLORSTATIC: {
         HDC hdc = (HDC)wParam;
         HWND control = (HWND)lParam;
 
-        if (GetWindowLongPtr(control, GWLP_ID) == IDC_HK_TITLE) {
+        if (GetWindowLongPtr(control, GWLP_ID) == IDC_HK_TITLE &&
+            ctx->has_title) {
             SetBkMode(hdc, TRANSPARENT);
             HFONT prev_font = (HFONT)SelectObject(
                 hdc, (HFONT)GetStockObject(SYSTEM_FONT));
@@ -969,60 +1108,51 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
           case IDC_HK_ACCEPT:
           case IDC_HK_ONCE:
           case IDCANCEL:
-            EndDialog(hwnd, LOWORD(wParam));
+            ShinyEndDialog(hwnd, LOWORD(wParam));
             return 0;
           case IDHELP: {
-            const struct hostkey_dialog_ctx *ctx =
-                (const struct hostkey_dialog_ctx *)
-                GetWindowLongPtr(hwnd, GWLP_USERDATA);
             launch_help(hwnd, ctx->helpctx);
             return 0;
           }
           case IDC_HK_MOREINFO: {
-            const struct hostkey_dialog_ctx *ctx =
-                (const struct hostkey_dialog_ctx *)
-                GetWindowLongPtr(hwnd, GWLP_USERDATA);
-            DialogBoxParam(hinst, MAKEINTRESOURCE(IDD_HK_MOREINFO),
-                           hwnd, HostKeyMoreInfoProc, (LPARAM)ctx);
+            ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_HK_MOREINFO),
+                           "PuTTYHostKeyMoreInfo", hwnd,
+                           HostKeyMoreInfoProc, ctx);
           }
         }
         return 0;
       case WM_CLOSE:
-        EndDialog(hwnd, IDCANCEL);
+        ShinyEndDialog(hwnd, IDCANCEL);
         return 0;
     }
     return 0;
 }
 
+const SeatDialogPromptDescriptions *win_seat_prompt_descriptions(Seat *seat)
+{
+    static const SeatDialogPromptDescriptions descs = {
+        .hk_accept_action = "点击“接受”",
+        .hk_connect_once_action = "点击“只连接一次”",
+        .hk_cancel_action = "点击“取消”",
+        .hk_cancel_action_Participle = "点击“取消”",
+    };
+    return &descs;
+}
+
 SeatPromptResult win_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
-    void (*callback)(void *ctx, SeatPromptResult result), void *vctx)
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
+    void (*callback)(void *ctx, SeatPromptResult result), void *cbctx)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
 
-    static const char *const keywords[] =
-        { "{KEYTYPE}", "{APPNAME}", NULL };
-
-    const char *values[2];
-    values[0] = keytype;
-    values[1] = appname;
-
     struct hostkey_dialog_ctx ctx[1];
-    ctx->keywords = keywords;
-    ctx->values = values;
-    ctx->fingerprints = fingerprints;
-    ctx->fptype_default = ssh2_pick_default_fingerprint(fingerprints);
-    ctx->keydisp = keydisp;
-    ctx->iconid = (mismatch ? IDI_WARNING : IDI_QUESTION);
-    ctx->helpctx = (mismatch ? WINHELP_CTX_errors_hostkey_changed :
-                    WINHELP_CTX_errors_hostkey_absent);
-    ctx->host = host;
-    ctx->port = port;
-    int dlgid = (mismatch ? IDD_HK_WRONG : IDD_HK_ABSENT);
-    int mbret = DialogBoxParam(
-        hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,
-        HostKeyDialogProc, (LPARAM)ctx);
+    ctx->text = text;
+    ctx->helpctx = helpctx;
+
+    int mbret = ShinyDialogBox(
+        hinst, MAKEINTRESOURCE(IDD_HOSTKEY), "PuTTYHostKeyDialog",
+        wgs->term_hwnd, HostKeyDialogProc, ctx);
     assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
     if (mbret == IDC_HK_ACCEPT) {
         store_host_key(host, port, keytype, keystr);
@@ -1045,7 +1175,7 @@ SeatPromptResult win_seat_confirm_weak_crypto_primitive(
     static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
         "服务器支持的第一个 %s\n"
-        "是 %s，其低于配置的警告阀值。\n"
+        "为 %s，其低于配置的警告阀值。\n"
         "要继续连接么？\n";
     char *message, *title;
     int mbret;
@@ -1168,4 +1298,42 @@ void old_keyfile_warning(void)
 
     sfree(msg);
     sfree(title);
+}
+
+static INT_PTR CAConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
+                            void *ctx)
+{
+    PortableDialogStuff *pds = (PortableDialogStuff *)ctx;
+
+    switch (msg) {
+      case WM_INITDIALOG:
+        pds_initdialog_start(pds, hwnd);
+
+        SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
+                    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
+
+        centre_window(hwnd);
+
+        pds_create_controls(pds, 0, IDCX_PANELBASE, 3, 3, 3, "Main");
+        pds_create_controls(pds, 0, IDCX_STDBASE, 3, 3, 243, "");
+        dlg_refresh(NULL, pds->dp);    /* and set up control values */
+
+        pds_initdialog_finish(pds);
+        return 0;
+
+      default:
+        return pds_default_dlgproc(pds, hwnd, msg, wParam, lParam);
+    }
+}
+
+void show_ca_config_box(dlgparam *dp)
+{
+    PortableDialogStuff *pds = pds_new(1);
+
+    setup_ca_config_box(pds->ctrlbox);
+
+    ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_CA_CONFIG), "PuTTYConfigBox",
+                   dp ? dp->hwnd : NULL, CAConfigProc, pds);
+
+    pds_free(pds);
 }

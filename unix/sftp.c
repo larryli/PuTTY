@@ -265,16 +265,16 @@ int seek_file(WFile *f, uint64_t offset, int whence)
     int lseek_whence;
 
     switch (whence) {
-    case FROM_START:
+      case FROM_START:
         lseek_whence = SEEK_SET;
         break;
-    case FROM_CURRENT:
+      case FROM_CURRENT:
         lseek_whence = SEEK_CUR;
         break;
-    case FROM_END:
+      case FROM_END:
         lseek_whence = SEEK_END;
         break;
-    default:
+      default:
         return -1;
     }
 

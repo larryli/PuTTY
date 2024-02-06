@@ -479,20 +479,20 @@ static dr_emit_flags_t instrument_instr(
          */
         opnd_t shiftcount = instr_get_src(instr, 0);
         if (!opnd_is_immed(shiftcount)) {
-          reg_id_t r0;
-          drreg_status_t st;
-          st = drreg_reserve_register(drcontext, bb, instr, NULL, &r0);
-          DR_ASSERT(st == DRREG_SUCCESS);
-          opnd_t op_r0 = opnd_create_reg(r0);
-          instr_t *movzx = INSTR_CREATE_movzx(drcontext, op_r0, shiftcount);
-          instr_set_translation(movzx, instr_get_app_pc(instr));
-          instrlist_preinsert(bb, instr, movzx);
-          instr_format_location(instr, &loc);
-          dr_insert_clean_call(
-              drcontext, bb, instr, (void *)log_var_shift, false,
-              2, op_r0, OPND_CREATE_INTPTR(loc));
-          st = drreg_unreserve_register(drcontext, bb, instr, r0);
-          DR_ASSERT(st == DRREG_SUCCESS);
+            reg_id_t r0;
+            drreg_status_t st;
+            st = drreg_reserve_register(drcontext, bb, instr, NULL, &r0);
+            DR_ASSERT(st == DRREG_SUCCESS);
+            opnd_t op_r0 = opnd_create_reg(r0);
+            instr_t *movzx = INSTR_CREATE_movzx(drcontext, op_r0, shiftcount);
+            instr_set_translation(movzx, instr_get_app_pc(instr));
+            instrlist_preinsert(bb, instr, movzx);
+            instr_format_location(instr, &loc);
+            dr_insert_clean_call(
+                drcontext, bb, instr, (void *)log_var_shift, false,
+                2, op_r0, OPND_CREATE_INTPTR(loc));
+            st = drreg_unreserve_register(drcontext, bb, instr, r0);
+            DR_ASSERT(st == DRREG_SUCCESS);
         }
         break;
       }
@@ -586,7 +586,7 @@ static void load_module(
 #define TRY_WRAP(fn, pre, post) do                              \
     {                                                           \
         static bool done_this_one = false;                      \
-        try_wrap_fn(module, fn, pre, post, &done_this_one);    \
+        try_wrap_fn(module, fn, pre, post, &done_this_one);     \
     } while (0)
 
     if (loaded) {

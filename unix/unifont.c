@@ -574,8 +574,8 @@ static void x11font_destroy(unifont *font)
 static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 {
     Display *disp = xfont->disp;
-    char *derived_name = x11_guess_derived_font_name
-        (disp, xfont->fonts[0].xfs, sfid & 1, !!(sfid & 2));
+    char *derived_name = x11_guess_derived_font_name(
+        disp, xfont->fonts[0].xfs, sfid & 1, !!(sfid & 2));
     xfont->fonts[sfid].xfs = XLoadQueryFont(disp, derived_name);
     xfont->fonts[sfid].allocated = true;
     sfree(derived_name);
@@ -600,7 +600,7 @@ static bool x11font_has_glyph(unifont *font, wchar_t glyph)
          */
         char sbstring[2];
         int sblen = wc_to_mb(xfont->real_charset, 0, &glyph, 1,
-                             sbstring, 2, "", NULL);
+                             sbstring, 2, "");
         if (sblen == 0 || !sbstring[0])
             return false;              /* not even in the charset */
 
@@ -691,10 +691,9 @@ static void x11font_cairo_setup(
             xfi->indexflip = (*((char *) &endianness_test) == 1) ? 0 : 7;
         }
 
-        xfi->pixmap = XCreatePixmap
-            (disp,
-             GDK_DRAWABLE_XID(gtk_widget_get_window(ctx->u.cairo.widget)),
-             xfi->pixwidth, xfi->pixheight, 1);
+        xfi->pixmap = XCreatePixmap(
+            disp, GDK_DRAWABLE_XID(gtk_widget_get_window(ctx->u.cairo.widget)),
+            xfi->pixwidth, xfi->pixheight, 1);
         gcvals.foreground = WhitePixel(disp, widgetscr);
         gcvals.background = BlackPixel(disp, widgetscr);
         gcvals.font = xfi->xfs->fid;
@@ -747,8 +746,8 @@ static void x11font_cairo_cache_glyph(
         }
     }
     xfi->glyphcache[glyphindex].bitmap = bitmap;
-    xfi->glyphcache[glyphindex].surface = cairo_image_surface_create_for_data
-        (bitmap, CAIRO_FORMAT_A1, xfi->pixwidth, xfi->pixheight, xfi->rowsize);
+    xfi->glyphcache[glyphindex].surface = cairo_image_surface_create_for_data(
+        bitmap, CAIRO_FORMAT_A1, xfi->pixwidth, xfi->pixheight, xfi->rowsize);
 }
 
 static void x11font_cairo_draw_glyph(unifont_drawctx *ctx,
@@ -956,7 +955,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
          */
         char *sbstring = snewn(len+1, char);
         int sblen = wc_to_mb(xfont->real_charset, 0, string, len,
-                             sbstring, len+1, ".", NULL);
+                             sbstring, len+1, ".");
         x11font_really_draw_text(x11font_drawfuncs + index + 0, ctx,
                                  &xfont->fonts[sfid], xfont->disp, x, y,
                                  sbstring, sblen, shadowoffset,
@@ -1644,8 +1643,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
      * string to UTF-8.
      */
     utfstring = snewn(len*6+1, char); /* UTF-8 has max 6 bytes/char */
-    utflen = wc_to_mb(CS_UTF8, 0, string, len,
-                      utfstring, len*6+1, ".", NULL);
+    utflen = wc_to_mb(CS_UTF8, 0, string, len, utfstring, len*6+1, ".");
 
     utfptr = utfstring;
     while (utflen > 0) {
@@ -2227,9 +2225,9 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
     if (font->want_fallback) {
         for (i = 0; i < lenof(unifont_types); i++) {
             if (unifont_types[i]->create_fallback) {
-                fallback = unifont_types[i]->create_fallback
-                    (widget, font->height, wide, bold,
-                     shadowoffset, shadowalways);
+                fallback = unifont_types[i]->create_fallback(
+                    widget, font->height, wide, bold,
+                    shadowoffset, shadowalways);
                 if (fallback)
                     break;
             }
@@ -2574,7 +2572,7 @@ static void unifontsel_setup_stylelist(unifontsel_internal *fs,
             continue;                  /* we're filtering out this font */
         }
         if (!info || !started || strnullcasecmp(currcs, info->charset) ||
-             strnullcasecmp(currstyle, info->style)) {
+            strnullcasecmp(currstyle, info->style)) {
             /*
              * We've either finished a style/charset, or started a
              * new one, or both.
@@ -2664,9 +2662,9 @@ static void unifontsel_set_filter_buttons(unifontsel_internal *fs)
     int i;
 
     for (i = 0; i < fs->n_filter_buttons; i++) {
-        int flagbit = GPOINTER_TO_INT(g_object_get_data
-                                      (G_OBJECT(fs->filter_buttons[i]),
-                                       "user-data"));
+        int flagbit = GPOINTER_TO_INT(g_object_get_data(
+                                          G_OBJECT(fs->filter_buttons[i]),
+                                          "user-data"));
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fs->filter_buttons[i]),
                                      !!(fs->filter_flags & flagbit));
     }
@@ -2680,8 +2678,8 @@ static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
     fontinfo *info = fs->selected;
 
     if (info) {
-        sizename = info->fontclass->scale_fontname
-            (GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
+        sizename = info->fontclass->scale_fontname(
+            GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
         font = info->fontclass->create(GTK_WIDGET(fs->u.window),
                                        sizename ? sizename : info->realname,
                                        false, false, 0, 0);
@@ -2868,9 +2866,9 @@ static void unifontsel_select_font(unifontsel_internal *fs,
      */
     assert(info->familyindex >= 0);
     treepath = gtk_tree_path_new_from_indices(info->familyindex, -1);
-    gtk_tree_selection_select_path
-        (gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->family_list)),
-         treepath);
+    gtk_tree_selection_select_path(
+        gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->family_list)),
+        treepath);
     gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->family_list),
                                  treepath, NULL, false, 0.0, 0.0);
     success = gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->family_model),
@@ -2892,9 +2890,9 @@ static void unifontsel_select_font(unifontsel_internal *fs,
     if (info->style) {
         assert(info->styleindex >= 0);
         treepath = gtk_tree_path_new_from_indices(info->styleindex, -1);
-        gtk_tree_selection_select_path
-            (gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->style_list)),
-             treepath);
+        gtk_tree_selection_select_path(
+            gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->style_list)),
+            treepath);
         gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->style_list),
                                      treepath, NULL, false, 0.0, 0.0);
         gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->style_model),
@@ -2915,9 +2913,9 @@ static void unifontsel_select_font(unifontsel_internal *fs,
         if (info->size) {
             assert(info->sizeindex >= 0);
             treepath = gtk_tree_path_new_from_indices(info->sizeindex, -1);
-            gtk_tree_selection_select_path
-                (gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->size_list)),
-                 treepath);
+            gtk_tree_selection_select_path(
+                gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->size_list)),
+                treepath);
             gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->size_list),
                                          treepath, NULL, false, 0.0, 0.0);
             gtk_tree_path_free(treepath);
@@ -3237,8 +3235,8 @@ static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
         int flags;
         struct fontinfo_realname_find f;
 
-        newname = info->fontclass->canonify_fontname
-            (GTK_WIDGET(fs->u.window), info->realname, &newsize, &flags, true);
+        newname = info->fontclass->canonify_fontname(
+            GTK_WIDGET(fs->u.window), info->realname, &newsize, &flags, true);
 
         f.realname = newname;
         f.flags = flags;
@@ -3364,10 +3362,10 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->u.user_data = NULL;
     fs->u.window = GTK_WINDOW(gtk_dialog_new());
     gtk_window_set_title(fs->u.window, wintitle);
-    fs->u.cancel_button = gtk_dialog_add_button
-        (GTK_DIALOG(fs->u.window), STANDARD_CANCEL_LABEL, GTK_RESPONSE_CANCEL);
-    fs->u.ok_button = gtk_dialog_add_button
-        (GTK_DIALOG(fs->u.window), STANDARD_OK_LABEL, GTK_RESPONSE_OK);
+    fs->u.cancel_button = gtk_dialog_add_button(
+        GTK_DIALOG(fs->u.window), STANDARD_CANCEL_LABEL, GTK_RESPONSE_CANCEL);
+    fs->u.ok_button = gtk_dialog_add_button(
+        GTK_DIALOG(fs->u.window), STANDARD_OK_LABEL, GTK_RESPONSE_OK);
     gtk_widget_grab_default(fs->u.ok_button);
 
     /*
@@ -3399,8 +3397,8 @@ unifontsel *unifontsel_new(const char *wintitle)
     w = table;
 #endif
 
-    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area
-                               (GTK_DIALOG(fs->u.window))),
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(
+                                   GTK_DIALOG(fs->u.window))),
                        w, true, true, 0);
 
     label = gtk_label_new_with_mnemonic("_Font:");
@@ -3423,9 +3421,9 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
     gtk_label_set_mnemonic_widget(GTK_LABEL(label), w);
     gtk_widget_show(w);
-    column = gtk_tree_view_column_new_with_attributes
-        ("Font", gtk_cell_renderer_text_new(),
-         "text", 0, (char *)NULL);
+    column = gtk_tree_view_column_new_with_attributes(
+        "Font", gtk_cell_renderer_text_new(),
+        "text", 0, (char *)NULL);
     gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
     gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
     g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(w))),
@@ -3474,9 +3472,9 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
     gtk_label_set_mnemonic_widget(GTK_LABEL(label), w);
     gtk_widget_show(w);
-    column = gtk_tree_view_column_new_with_attributes
-        ("Style", gtk_cell_renderer_text_new(),
-         "text", 0, "sensitive", 3, "weight", 4, (char *)NULL);
+    column = gtk_tree_view_column_new_with_attributes(
+        "Style", gtk_cell_renderer_text_new(),
+        "text", 0, "sensitive", 3, "weight", 4, (char *)NULL);
     gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
     gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
     g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(w))),
@@ -3532,9 +3530,9 @@ unifontsel *unifontsel_new(const char *wintitle)
     w = gtk_tree_view_new_with_model(GTK_TREE_MODEL(model));
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
     gtk_widget_show(w);
-    column = gtk_tree_view_column_new_with_attributes
-        ("Size", gtk_cell_renderer_text_new(),
-         "text", 0, (char *)NULL);
+    column = gtk_tree_view_column_new_with_attributes(
+        "Size", gtk_cell_renderer_text_new(),
+        "text", 0, (char *)NULL);
     gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
     gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
     g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(w))),
@@ -3741,8 +3739,8 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
      */
     fontname = unifont_do_prefix(fontname, &start, &end);
     for (i = start; i < end; i++) {
-        fontname2 = unifont_types[i]->canonify_fontname
-            (GTK_WIDGET(fs->u.window), fontname, &size, &flags, false);
+        fontname2 = unifont_types[i]->canonify_fontname(
+            GTK_WIDGET(fs->u.window), fontname, &size, &flags, false);
         if (fontname2)
             break;
     }
@@ -3792,8 +3790,8 @@ char *unifontsel_get_name(unifontsel *fontsel)
         return NULL;
 
     if (fs->selected->size == 0) {
-        name = fs->selected->fontclass->scale_fontname
-            (GTK_WIDGET(fs->u.window), fs->selected->realname, fs->selsize);
+        name = fs->selected->fontclass->scale_fontname(
+            GTK_WIDGET(fs->u.window), fs->selected->realname, fs->selsize);
         if (name) {
             char *ret = dupcat(fs->selected->fontclass->prefix, ":", name);
             sfree(name);

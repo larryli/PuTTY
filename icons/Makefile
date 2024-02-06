@@ -13,6 +13,8 @@ PNGS = $(patsubst %.pam,%.png,$(PAMS))
 MONOPNGS = $(patsubst %.pam,%.png,$(MONOPAMS))
 TRUEPNGS = $(patsubst %.pam,%.png,$(TRUEPAMS))
 
+SVGS = $(patsubst %,%.svg,$(ICONS))
+
 ICOS = putty.ico puttygen.ico pscp.ico pageant.ico pageants.ico puttycfg.ico \
        puttyins.ico pterm.ico ptermcfg.ico
 ICNS = PuTTY.icns Pterm.icns
@@ -20,11 +22,12 @@ CICONS = xpmputty.c xpmpucfg.c xpmpterm.c xpmptcfg.c
 
 base: icos cicons
 
-all: pngs monopngs base icns # truepngs currently disabled by default
+all: pngs monopngs base icns svgs # truepngs currently disabled by default
 
 pngs: $(PNGS)
 monopngs: $(MONOPNGS)
 truepngs: $(TRUEPNGS)
+svgs: $(SVGS)
 
 icos: $(ICOS)
 icns: $(ICNS)
@@ -45,6 +48,9 @@ $(MONOPAMS): %.pam: mkicon.py
 
 $(TRUEPAMS): %.pam: mkicon.py
 	./mkicon.py -T $(MODE) $(join $(subst -, ,$(subst -true,,$(basename $@))),_icon) $@
+
+$(SVGS): %.svg: mksvg.py
+	./mksvg.py $(patsubst %.svg,%_icon,$@) -o $@
 
 putty.ico: putty-16.png putty-32.png putty-48.png \
            putty-16-mono.png putty-32-mono.png putty-48-mono.png

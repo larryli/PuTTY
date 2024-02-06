@@ -87,19 +87,20 @@ class ChildProcess(object):
 childprocess = ChildProcess()
 
 method_prefixes = {
-    'val_wpoint': 'ecc_weierstrass_',
-    'val_mpoint': 'ecc_montgomery_',
-    'val_epoint': 'ecc_edwards_',
-    'val_hash': 'ssh_hash_',
-    'val_mac': 'ssh2_mac_',
-    'val_key': 'ssh_key_',
-    'val_cipher': 'ssh_cipher_',
-    'val_dh': 'dh_',
-    'val_ecdh': 'ssh_ecdhkex_',
-    'val_rsakex': 'ssh_rsakex_',
-    'val_prng': 'prng_',
-    'val_pcs': 'pcs_',
-    'val_pockle': 'pockle_',
+    'val_wpoint': ['ecc_weierstrass_'],
+    'val_mpoint': ['ecc_montgomery_'],
+    'val_epoint': ['ecc_edwards_'],
+    'val_hash': ['ssh_hash_'],
+    'val_mac': ['ssh2_mac_'],
+    'val_key': ['ssh_key_'],
+    'val_cipher': ['ssh_cipher_'],
+    'val_dh': ['dh_'],
+    'val_ecdh': ['ssh_ecdhkex_'],
+    'val_rsakex': ['ssh_rsakex_'],
+    'val_prng': ['prng_'],
+    'val_pcs': ['pcs_'],
+    'val_pockle': ['pockle_'],
+    'val_ntruencodeschedule': ['ntru_encode_schedule_', 'ntru_'],
 }
 method_lists = {t: [] for t in method_prefixes}
 
@@ -198,6 +199,13 @@ def make_argword(arg, argtype, fnname, argindex, argname, to_preserve):
             sublist.append(make_argword(val, ("val_mpint", False),
                                         fnname, argindex, argname, to_preserve))
         return b" ".join(coerce_to_bytes(sub) for sub in sublist)
+    if typename == "int16_list":
+        sublist = [make_argword(len(arg), ("uint", False),
+                                fnname, argindex, argname, to_preserve)]
+        for val in arg:
+            sublist.append(make_argword(val & 0xFFFF, ("uint", False),
+                                        fnname, argindex, argname, to_preserve))
+        return b" ".join(coerce_to_bytes(sub) for sub in sublist)
     raise TypeError(
         "Can't convert {}() argument #{:d} ({}) to {} (value was {!r})".format(
             fnname, argindex, argname, typename, arg))
@@ -246,6 +254,8 @@ def make_retval(rettype, word, unpack_strings):
         return word == b"true"
     elif rettype in {"pocklestatus", "mr_result"}:
         return word.decode("ASCII")
+    elif rettype == "int16_list":
+        return list(map(int, word.split(b',')))
     raise TypeError("Can't deal with return value {!r} of type {!r}"
                     .format(word, rettype))
 
@@ -420,10 +430,12 @@ def _setup(scope):
         scope[function] = func
         if len(argtypes) > 0:
             t = argtypes[0][0]
-            if (t in method_prefixes and
-                function.startswith(method_prefixes[t])):
-                methodname = function[len(method_prefixes[t]):]
-                method_lists[t].append((methodname, func))
+            if t in method_prefixes:
+                for prefix in method_prefixes[t]:
+                    if function.startswith(prefix):
+                        methodname = function[len(prefix):]
+                        method_lists[t].append((methodname, func))
+                        break
 
 _setup(globals())
 del _setup

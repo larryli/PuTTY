@@ -58,6 +58,7 @@ static const SeatVtable psftp_seat_vt = {
     .confirm_ssh_host_key = console_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = console_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = console_confirm_weak_cached_hostkey,
+    .prompt_descriptions = console_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = nullseat_get_x_display,
@@ -2563,10 +2564,10 @@ static void usage(void)
 
 static void version(void)
 {
-  char *buildinfo_text = buildinfo("\n");
-  printf("psftp: %s\n%s\n", ver, buildinfo_text);
-  sfree(buildinfo_text);
-  exit(0);
+    char *buildinfo_text = buildinfo("\n");
+    printf("psftp: %s\n%s\n", ver, buildinfo_text);
+    sfree(buildinfo_text);
+    exit(0);
 }
 
 /*
@@ -2788,7 +2789,7 @@ const unsigned cmdline_tooltype = TOOLTYPE_FILETRANSFER;
  */
 int psftp_main(int argc, char *argv[])
 {
-    int i, ret;
+    int i, toret;
     int portnumber = 0;
     char *userhost, *user;
     int mode = 0;
@@ -2805,7 +2806,7 @@ int psftp_main(int argc, char *argv[])
     do_defaults(NULL, conf);
 
     for (i = 1; i < argc; i++) {
-        int ret;
+        int retd;
         if (argv[i][0] != '-') {
             if (userhost)
                 usage();
@@ -2813,12 +2814,13 @@ int psftp_main(int argc, char *argv[])
                 userhost = dupstr(argv[i]);
             continue;
         }
-        ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1, conf);
-        if (ret == -2) {
+        retd = cmdline_process_param(
+            argv[i], i+1 < argc ? argv[i+1] : NULL, 1, conf);
+        if (retd == -2) {
             cmdline_error("option \"%s\" requires an argument", argv[i]);
-        } else if (ret == 2) {
+        } else if (retd == 2) {
             i++;               /* skip next argument */
-        } else if (ret == 1) {
+        } else if (retd == 1) {
             /* We have our own verbosity in addition to `flags'. */
             if (cmdline_verbose())
                 verbose = true;
@@ -2879,10 +2881,10 @@ int psftp_main(int argc, char *argv[])
      * it now.
      */
     if (userhost) {
-        int ret;
-        ret = psftp_connect(userhost, user, portnumber);
+        int retd;
+        retd = psftp_connect(userhost, user, portnumber);
         sfree(userhost);
-        if (ret)
+        if (retd)
             return 1;
         if (do_sftp_init())
             return 1;
@@ -2891,7 +2893,7 @@ int psftp_main(int argc, char *argv[])
                " to connect\n");
     }
 
-    ret = do_sftp(mode, modeflags, batchfile);
+    toret = do_sftp(mode, modeflags, batchfile);
 
     if (backend && backend_connected(backend)) {
         char ch;
@@ -2910,5 +2912,5 @@ int psftp_main(int argc, char *argv[])
     if (psftp_logctx)
         log_free(psftp_logctx);
 
-    return ret;
+    return toret;
 }

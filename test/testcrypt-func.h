@@ -273,8 +273,12 @@ FUNC(val_mac, ssh2_mac_new, ARG(macalg, alg), ARG(opt_val_cipher, cipher))
 FUNC(void, ssh2_mac_setkey, ARG(val_mac, m), ARG(val_string_ptrlen, key))
 FUNC(void, ssh2_mac_start, ARG(val_mac, m))
 FUNC(void, ssh2_mac_update, ARG(val_mac, m), ARG(val_string_ptrlen, data))
+FUNC(void, ssh2_mac_next_message, ARG(val_mac, m))
 FUNC_WRAPPED(val_string, ssh2_mac_genresult, ARG(val_mac, m))
 FUNC(val_string_asciz_const, ssh2_mac_text_name, ARG(val_mac, m))
+
+FUNC(void, aesgcm_set_prefix_lengths,
+     ARG(val_mac, m), ARG(uint, skip), ARG(uint, aad))
 
 /*
  * The ssh_key abstraction. All the uses of BinarySink and
@@ -302,6 +306,15 @@ FUNC(void, ssh_key_openssh_blob, ARG(val_key, key),
 FUNC(val_string_asciz, ssh_key_cache_str, ARG(val_key, key))
 FUNC(val_keycomponents, ssh_key_components, ARG(val_key, key))
 FUNC(uint, ssh_key_public_bits, ARG(keyalg, self), ARG(val_string_ptrlen, blob))
+FUNC_WRAPPED(val_key, ssh_key_base_key, ARG(val_key, key))
+FUNC_WRAPPED(void, ssh_key_ca_public_blob, ARG(val_key, key),
+             ARG(out_val_string_binarysink, blob))
+FUNC_WRAPPED(void, ssh_key_cert_id_string, ARG(val_key, key),
+             ARG(out_val_string_binarysink, blob))
+FUNC_WRAPPED(boolean, ssh_key_check_cert, ARG(val_key, key),
+             ARG(boolean, host), ARG(val_string_ptrlen, principal),
+             ARG(uint, time), ARG(val_string_ptrlen, options),
+             ARG(out_val_string_binarysink, error))
 
 /*
  * Accessors to retrieve the innards of a 'key_components'.
@@ -309,7 +322,7 @@ FUNC(uint, ssh_key_public_bits, ARG(keyalg, self), ARG(val_string_ptrlen, blob))
 FUNC(uint, key_components_count, ARG(val_keycomponents, kc))
 FUNC(opt_val_string_asciz_const, key_components_nth_name,
      ARG(val_keycomponents, kc), ARG(uint, n))
-FUNC(opt_val_string_asciz_const, key_components_nth_str,
+FUNC(opt_val_string, key_components_nth_str,
      ARG(val_keycomponents, kc), ARG(uint, n))
 FUNC(opt_val_mpint, key_components_nth_mp, ARG(val_keycomponents, kc),
      ARG(uint, n))
@@ -332,6 +345,7 @@ FUNC_WRAPPED(val_string, ssh_cipher_encrypt_length, ARG(val_cipher, c),
              ARG(val_string_ptrlen, blk), ARG(uint, seq))
 FUNC_WRAPPED(val_string, ssh_cipher_decrypt_length, ARG(val_cipher, c),
              ARG(val_string_ptrlen, blk), ARG(uint, seq))
+FUNC(void, ssh_cipher_next_message, ARG(val_cipher, c))
 
 /*
  * Integer Diffie-Hellman.
@@ -346,11 +360,40 @@ FUNC(val_mpint, dh_find_K, ARG(val_dh, ctx), ARG(val_mpint, f))
 /*
  * Elliptic-curve Diffie-Hellman.
  */
-FUNC(val_ecdh, ssh_ecdhkex_newkey, ARG(ecdh_alg, alg))
-FUNC(void, ssh_ecdhkex_getpublic, ARG(val_ecdh, key),
+FUNC(val_ecdh, ecdh_key_new, ARG(ecdh_alg, alg), ARG(boolean, is_server))
+FUNC(void, ecdh_key_getpublic, ARG(val_ecdh, key),
      ARG(out_val_string_binarysink, pub))
-FUNC(opt_val_mpint, ssh_ecdhkex_getkey, ARG(val_ecdh, key),
-     ARG(val_string_ptrlen, pub))
+FUNC_WRAPPED(opt_val_string, ecdh_key_getkey, ARG(val_ecdh, key),
+             ARG(val_string_ptrlen, pub))
+
+/*
+ * NTRU and its subroutines.
+ */
+FUNC_WRAPPED(int16_list, ntru_ring_multiply, ARG(int16_list, a),
+             ARG(int16_list, b), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(opt_int16_list, ntru_ring_invert, ARG(int16_list, r),
+             ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_mod3, ARG(int16_list, r),
+             ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_round3, ARG(int16_list, r),
+             ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_bias, ARG(int16_list, r),
+             ARG(uint, bias), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_scale, ARG(int16_list, r),
+             ARG(uint, scale), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(val_ntruencodeschedule, ntru_encode_schedule, ARG(int16_list, ms))
+FUNC(uint, ntru_encode_schedule_length, ARG(val_ntruencodeschedule, sched))
+FUNC_WRAPPED(void, ntru_encode, ARG(val_ntruencodeschedule, sched),
+             ARG(int16_list, rs), ARG(out_val_string_binarysink, data))
+FUNC_WRAPPED(opt_int16_list, ntru_decode, ARG(val_ntruencodeschedule, sched),
+             ARG(val_string_ptrlen, data))
+FUNC_WRAPPED(int16_list, ntru_gen_short, ARG(uint, p), ARG(uint, w))
+FUNC(val_ntrukeypair, ntru_keygen, ARG(uint, p), ARG(uint, q), ARG(uint, w))
+FUNC_WRAPPED(int16_list, ntru_pubkey, ARG(val_ntrukeypair, keypair))
+FUNC_WRAPPED(int16_list, ntru_encrypt, ARG(int16_list, plaintext),
+             ARG(int16_list, pubkey), ARG(uint, p), ARG(uint, q))
+FUNC_WRAPPED(int16_list, ntru_decrypt, ARG(int16_list, ciphertext),
+             ARG(val_ntrukeypair, keypair))
 
 /*
  * RSA key exchange, and also the BinarySource get function

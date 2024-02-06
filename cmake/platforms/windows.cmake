@@ -7,6 +7,15 @@ set(PUTTY_LINK_MAPS OFF
 set(PUTTY_EMBEDDED_CHM_FILE ""
   CACHE FILEPATH "Path to a .chm help file to embed in the binaries")
 
+if(PUTTY_SUBSYSTEM_VERSION)
+  string(REPLACE
+    "subsystem:windows" "subsystem:windows,${PUTTY_SUBSYSTEM_VERSION}"
+    CMAKE_C_CREATE_WIN32_EXE ${CMAKE_C_CREATE_WIN32_EXE})
+  string(REPLACE
+    "subsystem:console" "subsystem:console,${PUTTY_SUBSYSTEM_VERSION}"
+    CMAKE_C_CREATE_CONSOLE_EXE ${CMAKE_C_CREATE_CONSOLE_EXE})
+endif()
+
 function(define_negation newvar oldvar)
   if(${oldvar})
     set(${newvar} OFF PARENT_SCOPE)
@@ -40,6 +49,8 @@ define_negation(NO_MULTIMON HAVE_MULTIMON_H)
 
 check_include_files("windows.h;htmlhelp.h" HAVE_HTMLHELP_H)
 define_negation(NO_HTMLHELP HAVE_HTMLHELP_H)
+
+check_include_files("winsock2.h;afunix.h" HAVE_AFUNIX_H)
 
 check_symbol_exists(strtoumax "inttypes.h" HAVE_STRTOUMAX)
 check_symbol_exists(AddDllDirectory "windows.h" HAVE_ADDDLLDIRECTORY)
@@ -102,9 +113,22 @@ else()
   set(LFLAG_MANIFEST_NO "")
 endif()
 
-if(STRICT AND (CMAKE_C_COMPILER_ID MATCHES "GNU" OR
-               CMAKE_C_COMPILER_ID MATCHES "Clang"))
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wpointer-arith -Wvla")
+if(STRICT)
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -Wpointer-arith -Wvla")
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wpointer-arith -Wvla")
+  endif()
+endif()
+
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  # Switch back from MSVC-style error message format
+  # "file.c(line,col)" to clang's native style "file.c:line:col:". I
+  # find the latter more convenient because it matches other Unixy
+  # tools like grep, and I have tooling to parse that format and jump
+  # to the sites of error messages.
+  set(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} -Xclang -fdiagnostics-format -Xclang clang")
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "MSVC")

@@ -6,11 +6,12 @@ set -e
 text=`{ find . -name CVS -prune -o \
                -name .cvsignore -prune -o \
                -name .svn -prune -o \
+               -name .git -prune -o \
                -name LATEST.VER -prune -o \
                -name CHECKLST.txt -prune -o \
                -name mksrcarc.sh -prune -o \
-               -name '*.dsp' -prune -o \
-               -name '*.dsw' -prune -o \
+               -name '*.chm' -prune -o \
+               -name '*.cur' -prune -o \
                -type f -print | sed 's/^\.\///'; } | \
       grep -ivE 'test/.*\.txt|MODULE|website.url' | grep -vF .ico | grep -vF .icns`
 # These are files which I'm _sure_ should be treated as text, but
@@ -20,7 +21,7 @@ text=`{ find . -name CVS -prune -o \
 bintext=test/*.txt
 # These are actual binary files which we don't want transforming.
 bin=`{ ls -1 windows/*.ico windows/website.url; \
-       find . -name '*.dsp' -print -o -name '*.dsw' -print; }`
+       find . -name '*.chm' -print -o -name '*.cur' -print; }`
 
 verbosely() {
     echo "$@"

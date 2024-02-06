@@ -190,6 +190,24 @@ struct GtkFrontend {
 #endif
     int trust_sigil_w, trust_sigil_h;
 
+    /*
+     * Not every GDK backend can be relied on 100% to reply to a
+     * resize request in a timely manner. (In X11 it's all
+     * asynchronous and goes via the window manager, and if your
+     * window manager is seriously unwell, you'd rather not have
+     * terminal windows start becoming unusable as a knock-on effect,
+     * since those are just the thing you might need to use for
+     * emergency WM maintenance!)
+     *
+     * So when we ask GTK to resize our terminal window, we also set a
+     * 5-second timer, after which we'll regretfully conclude that a
+     * resize (or ConfigureNotify telling us no resize took place) is
+     * probably not going to happen after all.
+     */
+    bool win_resize_pending, term_resize_notification_required;
+    long win_resize_timeout;
+    #define WIN_RESIZE_TIMEOUT (TICKSPERSEC*5)
+
     Seat seat;
     TermWin termwin;
     LogPolicy logpolicy;
@@ -233,7 +251,7 @@ static void post_fatal_message_box(void *vctx, int result)
 static void common_connfatal_message_box(
     GtkFrontend *inst, const char *msg, post_dialog_fn_t postfn)
 {
-    char *title = dupcat(appname, " 致命错误");
+    char *title = dupcat(appname, " Fatal Error");
     GtkWidget *dialog = create_message_box(
         inst->window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
@@ -411,6 +429,7 @@ static const SeatVtable gtk_seat_vt = {
     .confirm_ssh_host_key = gtk_seat_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = gtk_seat_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = gtk_seat_confirm_weak_cached_hostkey,
+    .prompt_descriptions = gtk_seat_prompt_descriptions,
     .is_utf8 = gtk_seat_is_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = gtk_seat_get_x_display,
@@ -637,7 +656,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
          * case we'll just re-emphasise that one.
          */
         if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
-            char *title = dupcat(appname, " 退出确认");
+            char *title = dupcat(appname, " Exit Confirmation");
             char *msg, *additional = NULL;
             if (inst->backend && inst->backend->vt->close_warn_text) {
                 additional = inst->backend->vt->close_warn_text(inst->backend);
@@ -760,6 +779,10 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     inst->drawing_area_setup_called = true;
     if (inst->term)
         term_size(inst->term, h, w, conf_get_int(inst->conf, CONF_savelines));
+    if (inst->term_resize_notification_required)
+        term_resize_request_completed(inst->term);
+    if (inst->win_resize_pending)
+        inst->win_resize_pending = false;
 
     if (!inst->drawing_area_setup_needed)
         return;
@@ -1257,7 +1280,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - Ctrl->: increase font size\n");
 #endif
-            change_font_size(inst, +1);
+            if (!inst->win_resize_pending)
+                change_font_size(inst, +1);
             return true;
         }
         if (event->keyval == GDK_KEY_less &&
@@ -1265,7 +1289,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - Ctrl-<: increase font size\n");
 #endif
-            change_font_size(inst, -1);
+            if (!inst->win_resize_pending)
+                change_font_size(inst, -1);
             return true;
         }
 
@@ -1650,10 +1675,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                  */
                 guint new_keyval;
                 GdkModifierType consumed;
-                if (gdk_keymap_translate_keyboard_state
-                    (gdk_keymap_get_for_display(gdk_display_get_default()),
-                     event->hardware_keycode, event->state & ~META_MANUAL_MASK,
-                     0, &new_keyval, NULL, NULL, &consumed)) {
+                if (gdk_keymap_translate_keyboard_state(
+                        gdk_keymap_get_for_display(gdk_display_get_default()),
+                        event->hardware_keycode,
+                        event->state & ~META_MANUAL_MASK,
+                        0, &new_keyval, NULL, NULL, &consumed)) {
                     ucsoutput[0] = '\033';
                     ucsoutput[1] = gdk_keyval_to_unicode(new_keyval);
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -1889,7 +1915,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             if (event->state & GDK_CONTROL_MASK)
                 break;
 
-            end = 1 + format_small_keypad_key(output+1, inst->term, sk_key);
+            end = 1 + format_small_keypad_key(
+                output+1, inst->term, sk_key, event->state & GDK_SHIFT_MASK,
+                event->state & GDK_CONTROL_MASK,
+                event->state & inst->meta_mod_mask, &consumed_meta_key);
+            if (consumed_meta_key)
+                start = 1; /* supersedes the usual prefixing of Esc */
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - small keypad key");
 #endif
@@ -1909,11 +1940,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             xkey = 'G'; goto arrow_key;
           arrow_key:
             consumed_meta_key = false;
-            end = 1 + format_arrow_key(output+1, inst->term, xkey,
-                                       event->state & GDK_SHIFT_MASK,
-                                       event->state & GDK_CONTROL_MASK,
-                                       event->state & inst->meta_mod_mask,
-                                       &consumed_meta_key);
+            end = 1 + format_arrow_key(
+                output+1, inst->term, xkey, event->state & GDK_SHIFT_MASK,
+                event->state & GDK_CONTROL_MASK,
+                event->state & inst->meta_mod_mask, &consumed_meta_key);
             if (consumed_meta_key)
                 start = 1; /* supersedes the usual prefixing of Esc */
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -1947,7 +1977,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         goto done;
     }
 
-    done:
+  done:
 
     if (end-start > 0) {
         if (special) {
@@ -2481,10 +2511,20 @@ static void gtkwin_deny_term_resize(void *vctx)
     drawing_area_setup_simple(inst);
 }
 
-static void gtkwin_request_resize(TermWin *tw, int w, int h)
+static void gtkwin_timer(void *vctx, unsigned long now)
 {
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    GtkFrontend *inst = (GtkFrontend *)vctx;
 
+    if (inst->win_resize_pending && now == inst->win_resize_timeout) {
+        if (inst->term_resize_notification_required)
+            term_resize_request_completed(inst->term);
+        inst->win_resize_pending = false;        
+    }
+}
+
+static void request_resize_internal(GtkFrontend *inst, bool from_terminal,
+                                    int w, int h)
+{
 #if GTK_CHECK_VERSION(2,0,0)
     /*
      * Initial check: don't even try to resize a window if it's in one
@@ -2517,8 +2557,10 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
         GdkWindowState state = gdk_window_get_state(gdkwin);
         if (state & (GDK_WINDOW_STATE_MAXIMIZED |
                      GDK_WINDOW_STATE_FULLSCREEN |
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,10,0)
                      GDK_WINDOW_STATE_TILED |
+#endif
+#if GTK_CHECK_VERSION(3,22,23)
                      GDK_WINDOW_STATE_TOP_TILED |
                      GDK_WINDOW_STATE_RIGHT_TILED |
                      GDK_WINDOW_STATE_BOTTOM_TILED |
@@ -2526,6 +2568,7 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
 #endif
                      0)) {
             queue_toplevel_callback(gtkwin_deny_term_resize, inst);
+            term_resize_request_completed(inst->term);
             return;
         }
     }
@@ -2614,6 +2657,16 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
 
 #endif
 
+    inst->win_resize_pending = true;
+    inst->term_resize_notification_required = from_terminal;
+    inst->win_resize_timeout = schedule_timer(
+        WIN_RESIZE_TIMEOUT, gtkwin_timer, inst);
+}
+
+static void gtkwin_request_resize(TermWin *tw, int w, int h)
+{
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    request_resize_internal(inst, true, w, h);
 }
 
 #if GTK_CHECK_VERSION(3,0,0)
@@ -3010,9 +3063,8 @@ static void gtkwin_clip_write(
     state->pasteout_data = snewn(len*6, char);
     state->pasteout_data_len = len*6;
     state->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
-                                       data, len, state->pasteout_data,
-                                       state->pasteout_data_len,
-                                       NULL, NULL);
+                                        data, len, state->pasteout_data,
+                                        state->pasteout_data_len, NULL);
     if (state->pasteout_data_len == 0) {
         sfree(state->pasteout_data);
         state->pasteout_data = NULL;
@@ -4797,9 +4849,9 @@ static void after_change_settings_dialog(void *vctx, int retval)
             conf_get_int(newconf, CONF_window_border) ||
             need_size) {
             set_geom_hints(inst);
-            win_request_resize(&inst->termwin,
-                               conf_get_int(newconf, CONF_width),
-                               conf_get_int(newconf, CONF_height));
+            request_resize_internal(inst, false,
+                                    conf_get_int(newconf, CONF_width),
+                                    conf_get_int(newconf, CONF_height));
         } else {
             /*
              * The above will have caused a call to term_size() for
@@ -4872,8 +4924,8 @@ static void change_font_size(GtkFrontend *inst, int increment)
     }
 
     set_geom_hints(inst);
-    win_request_resize(&inst->termwin, conf_get_int(inst->conf, CONF_width),
-                       conf_get_int(inst->conf, CONF_height));
+    request_resize_internal(inst, false, conf_get_int(inst->conf, CONF_width),
+                            conf_get_int(inst->conf, CONF_height));
     term_invalidate(inst->term);
     gtk_widget_queue_draw(inst->area);
 
@@ -5120,9 +5172,16 @@ static void start_backend(GtkFrontend *inst)
                          conf_get_bool(inst->conf, CONF_tcp_keepalives));
 
     if (error) {
-        seat_connection_fatal(&inst->seat,
-                              "Unable to open connection to %s:\n%s",
-                              conf_dest(inst->conf), error);
+        if (cmdline_tooltype & TOOLTYPE_NONNETWORK) {
+            /* Special case for pterm. */
+            seat_connection_fatal(&inst->seat,
+                                  "Unable to open terminal:\n%s",
+                                  error);
+        } else {
+            seat_connection_fatal(&inst->seat,
+                                  "Unable to open connection to %s:\n%s",
+                                  conf_dest(inst->conf), error);
+        }
         sfree(error);
         inst->exited = true;
         return;

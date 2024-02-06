@@ -61,8 +61,7 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 }
 
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-             char *mbstr, int mblen, const char *defchr,
-             struct unicode_data *ucsdata)
+             char *mbstr, int mblen, const char *defchr)
 {
     if (codepage == DEFAULT_CODEPAGE) {
         char output[MB_LEN_MAX];
@@ -247,7 +246,7 @@ bool init_ucs(struct unicode_data *ucsdata, char *linecharset,
 const char *cp_name(int codepage)
 {
     if (codepage == CS_NONE)
-        return "使用字体编码";
+        return "Use font encoding";
     return charset_to_localenc(codepage);
 }
 
@@ -258,13 +257,13 @@ const char *cp_enumerate(int index)
     if (charset == CS_NONE) {
         /* "Use font encoding" comes after all the named charsets */
         if (charset_localenc_nth(index-1) != CS_NONE)
-            return "使用字体编码";
+            return "Use font encoding";
         return NULL;
     }
     return charset_to_localenc(charset);
 }
 
-int decode_codepage(char *cp_name)
+int decode_codepage(const char *cp_name)
 {
     if (!cp_name || !*cp_name)
         return CS_UTF8;

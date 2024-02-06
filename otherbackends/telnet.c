@@ -191,7 +191,7 @@ struct Telnet {
 
     enum {
         TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
-            SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
+        SEENSB, SUBNEGOT, SUBNEG_IAC, SEENCR
     } state;
 
     Conf *conf;
@@ -448,11 +448,11 @@ static void process_subneg(Telnet *telnet)
             }
             bsize = 20;
             for (eval = conf_get_str_strs(telnet->conf, CONF_environmt,
-                                         NULL, &ekey);
+                                          NULL, &ekey);
                  eval != NULL;
                  eval = conf_get_str_strs(telnet->conf, CONF_environmt,
-                                         ekey, &ekey))
-                 bsize += strlen(ekey) + strlen(eval) + 2;
+                                          ekey, &ekey))
+                bsize += strlen(ekey) + strlen(eval) + 2;
             user = get_remote_username(telnet->conf);
             if (user)
                 bsize += 6 + strlen(user);
@@ -464,10 +464,10 @@ static void process_subneg(Telnet *telnet)
             b[3] = TELQUAL_IS;
             n = 4;
             for (eval = conf_get_str_strs(telnet->conf, CONF_environmt,
-                                         NULL, &ekey);
+                                          NULL, &ekey);
                  eval != NULL;
                  eval = conf_get_str_strs(telnet->conf, CONF_environmt,
-                                         ekey, &ekey)) {
+                                          ekey, &ekey)) {
                 b[n++] = var;
                 for (e = ekey; *e; e++)
                     b[n++] = *e;
@@ -496,10 +496,10 @@ static void process_subneg(Telnet *telnet)
                 logeventf(telnet->logctx, "client subnegotiation: SB %s IS:",
                           telopt(telnet->sb_opt));
                 for (eval = conf_get_str_strs(telnet->conf, CONF_environmt,
-                                             NULL, &ekey);
+                                              NULL, &ekey);
                      eval != NULL;
                      eval = conf_get_str_strs(telnet->conf, CONF_environmt,
-                                             ekey, &ekey)) {
+                                              ekey, &ekey)) {
                     logeventf(telnet->logctx, "    %s=%s", ekey, eval);
                 }
                 if (user)

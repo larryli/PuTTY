@@ -2,6 +2,7 @@ add_library(sshcommon OBJECT
   bpp1.c
   bpp2.c
   bpp-bare.c
+  ca-config.c
   censor1.c
   censor2.c
   common.c

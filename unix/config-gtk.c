@@ -10,18 +10,18 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, dlgparam *dlg,
+static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
     if (event == EVENT_ACTION) {
-        about_box(ctrl->generic.context.p);
+        about_box(ctrl->context.p);
     }
 }
 
 void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
 {
     struct controlset *s, *s2;
-    union control *c;
+    dlgcontrol *c;
     int i;
 
     if (!midsession) {
@@ -29,18 +29,18 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
          * Add the About button to the standard panel.
          */
         s = ctrl_getset(b, "", "", "");
-        c = ctrl_pushbutton(s, "关于(A)", 'a', HELPCTX(no_help),
+        c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
                             about_handler, P(win));
-        c->generic.column = 0;
+        c->column = 0;
     }
 
     /*
      * GTK makes it rather easier to put the scrollbar on the left
      * than Windows does!
      */
-    s = ctrl_getset(b, "窗口", "scrollback",
-                    "设置窗口回滚");
-    ctrl_checkbox(s, "滚动条显示在左侧(L)", 'l',
+    s = ctrl_getset(b, "Window", "scrollback",
+                    "Control the scrollback in the window");
+    ctrl_checkbox(s, "Scrollbar on left", 'l',
                   HELPCTX(no_help),
                   conf_checkbox_handler,
                   I(CONF_scrollbar_on_left));
@@ -50,8 +50,8 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      */
     for (i = 0; i < s->ncontrols; i++) {
         c = s->ctrls[i];
-        if (c->generic.type == CTRL_CHECKBOX &&
-            c->generic.context.i == CONF_scrollbar) {
+        if (c->type == CTRL_CHECKBOX &&
+            c->context.i == CONF_scrollbar) {
             /*
              * Control i is the scrollbar checkbox.
              * Control s->ncontrols-1 is the scrollbar-on-left one.
@@ -59,7 +59,7 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
             if (i < s->ncontrols-2) {
                 c = s->ctrls[s->ncontrols-1];
                 memmove(s->ctrls+i+2, s->ctrls+i+1,
-                        (s->ncontrols-i-2)*sizeof(union control *));
+                        (s->ncontrols-i-2)*sizeof(dlgcontrol *));
                 s->ctrls[i+1] = c;
             }
             break;
@@ -73,8 +73,8 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      * so I think the sensible thing here is to _move_ this
      * controlset into a separate Window/Fonts panel!
      */
-    s2 = ctrl_getset(b, "窗口/外观", "font",
-                     "字体设置");
+    s2 = ctrl_getset(b, "Window/Appearance", "font",
+                     "Font settings");
     /* Remove this controlset from b. */
     for (i = 0; i < b->nctrlsets; i++) {
         if (b->ctrlsets[i] == s2) {
@@ -85,34 +85,34 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
             break;
         }
     }
-    ctrl_settitle(b, "窗口/字体", "设置字体使用选项");
-    s = ctrl_getset(b, "窗口/字体", "font",
-                    "用于显示非粗体文本的字体");
-    ctrl_fontsel(s, "用于普通文本的字体(F)", 'f',
+    ctrl_settitle(b, "Window/Fonts", "Options controlling font usage");
+    s = ctrl_getset(b, "Window/Fonts", "font",
+                    "Fonts for displaying non-bold text");
+    ctrl_fontsel(s, "Font used for ordinary text", 'f',
                  HELPCTX(no_help),
                  conf_fontsel_handler, I(CONF_font));
-    ctrl_fontsel(s, "用于宽 (CJK) 文本的字体(W)", 'w',
+    ctrl_fontsel(s, "Font used for wide (CJK) text", 'w',
                  HELPCTX(no_help),
                  conf_fontsel_handler, I(CONF_widefont));
-    s = ctrl_getset(b, "窗口/字体", "fontbold",
-                    "用于显示非体文本的字体");
-    ctrl_fontsel(s, "用于粗体文本的字体(B)", 'b',
+    s = ctrl_getset(b, "Window/Fonts", "fontbold",
+                    "Fonts for displaying bolded text");
+    ctrl_fontsel(s, "Font used for bolded text", 'b',
                  HELPCTX(no_help),
                  conf_fontsel_handler, I(CONF_boldfont));
-    ctrl_fontsel(s, "用于粗体宽文本的字体(I)", 'i',
+    ctrl_fontsel(s, "Font used for bold wide text", 'i',
                  HELPCTX(no_help),
                  conf_fontsel_handler, I(CONF_wideboldfont));
-    ctrl_checkbox(s, "使用阴影粗体替代粗体字体(U)", 'u',
+    ctrl_checkbox(s, "Use shadow bold instead of bold fonts", 'u',
                   HELPCTX(no_help),
                   conf_checkbox_handler,
                   I(CONF_shadowbold));
-    ctrl_text(s, "（请注意，粗体字体或阴影粗体仅"
-              "在未设置更改文本颜色请求粗体时使"
-              "用。）",
+    ctrl_text(s, "(Note that bold fonts or shadow bolding are only"
+              " used if you have not requested bolding to be done by"
+              " changing the text colour.)",
               HELPCTX(no_help));
-    ctrl_editbox(s, "阴影加粗的水平偏移(Z):", 'z', 20,
+    ctrl_editbox(s, "Horizontal offset for shadow bold:", 'z', 20,
                  HELPCTX(no_help), conf_editbox_handler,
-                 I(CONF_shadowboldoffset), I(-1));
+                 I(CONF_shadowboldoffset), ED_INT);
 
     /*
      * Markus Kuhn feels, not totally unreasonably, that it's good
@@ -122,9 +122,9 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      * UTF-8 option for every application they use. Therefore,
      * here's an override option in the Translation panel.
      */
-    s = ctrl_getset(b, "窗口/转换", "trans",
-                    "接收数据时字符集转换");
-    ctrl_checkbox(s, "区域设置使用 UTF-8 字符集(L)", 'l',
+    s = ctrl_getset(b, "Window/Translation", "trans",
+                    "Character set translation on received data");
+    ctrl_checkbox(s, "Override with UTF-8 if locale says so", 'l',
                   HELPCTX(translation_utf8_override),
                   conf_checkbox_handler,
                   I(CONF_utf8_override));
@@ -135,12 +135,12 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      * Option or Command (or both, or neither) should act as a Meta
      * key, or whether they should have their normal OS functions.
      */
-    s = ctrl_getset(b, "终端/键盘", "meta",
-                    "选择 Meta 键:");
-    ctrl_checkbox(s, "选项键用作 Meta 键(P)", 'p',
+    s = ctrl_getset(b, "Terminal/Keyboard", "meta",
+                    "Choose the Meta key:");
+    ctrl_checkbox(s, "Option key acts as Meta", 'p',
                   HELPCTX(no_help),
                   conf_checkbox_handler, I(CONF_osx_option_meta));
-    ctrl_checkbox(s, "命令键用作 Meta 键", 'm',
+    ctrl_checkbox(s, "Command key acts as Meta", 'm',
                   HELPCTX(no_help),
                   conf_checkbox_handler, I(CONF_osx_command_meta));
 #endif
@@ -151,10 +151,10 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
          * configuration, so that they can have their window manager treat
          * different kinds of PuTTY and pterm differently if they want to.
          */
-        s = ctrl_getset(b, "窗口/行为", "x11",
-                        "X Window 系统设置");
-        ctrl_editbox(s, "窗口类名:", 'z', 50,
+        s = ctrl_getset(b, "Window/Behaviour", "x11",
+                        "X Window System settings");
+        ctrl_editbox(s, "Window class name:", 'z', 50,
                      HELPCTX(no_help), conf_editbox_handler,
-                     I(CONF_winclass), I(1));
+                     I(CONF_winclass), ED_STR);
     }
 }

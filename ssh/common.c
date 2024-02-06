@@ -607,11 +607,16 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset)
  * lists of protocol identifiers in SSH-2.
  */
 
-void add_to_commasep(strbuf *buf, const char *data)
+void add_to_commasep_pl(strbuf *buf, ptrlen data)
 {
     if (buf->len > 0)
         put_byte(buf, ',');
-    put_data(buf, data, strlen(data));
+    put_datapl(buf, data);
+}
+
+void add_to_commasep(strbuf *buf, const char *data)
+{
+    add_to_commasep_pl(buf, ptrlen_from_asciz(data));
 }
 
 bool get_commasep_word(ptrlen *list, ptrlen *word)
@@ -835,7 +840,7 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
 
 #undef BITMAP_UNIVERSAL
 #undef BITMAP_CONDITIONAL
-#undef SSH1_BITMAP_WORD
+#undef SSH2_BITMAP_WORD
 
 /* ----------------------------------------------------------------------
  * Centralised component of SSH host key verification.
@@ -850,8 +855,8 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
 SeatPromptResult verify_ssh_host_key(
     InteractionReadySeat iseat, Conf *conf, const char *host, int port,
     ssh_key *key, const char *keytype, char *keystr, const char *keydisp,
-    char **fingerprints, void (*callback)(void *ctx, SeatPromptResult result),
-    void *ctx)
+    char **fingerprints, int ca_count,
+    void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     /*
      * First, check if the Conf includes a manual specification of the
@@ -919,10 +924,146 @@ SeatPromptResult verify_ssh_host_key(
      * The key is either missing from the cache, or does not match.
      * Either way, fall back to an interactive prompt from the Seat.
      */
-    bool mismatch = (storage_status != 1);
-    return seat_confirm_ssh_host_key(
-        iseat, host, port, keytype, keystr, keydisp, fingerprints, mismatch,
-        callback, ctx);
+    SeatDialogText *text = seat_dialog_text_new();
+    const SeatDialogPromptDescriptions *pds =
+        seat_prompt_descriptions(iseat.seat);
+
+    FingerprintType fptype_default =
+        ssh2_pick_default_fingerprint(fingerprints);
+
+    seat_dialog_text_append(
+        text, SDT_TITLE, "%s 安全警告", appname);
+
+    HelpCtx helpctx;
+
+    if (key && ssh_key_alg(key)->is_certificate) {
+        seat_dialog_text_append(
+            text, SDT_SCARY_HEADING, "**警告** - 潜在安全隐患！");
+        seat_dialog_text_append(
+            text, SDT_PARA, "此服务器提供了经过认证的主机密钥:");
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s (端口 %d)", host, port);
+        if (ca_count) {
+            seat_dialog_text_append(
+                text, SDT_PARA, "此服务器是由其他证书颁发机构签名认证，"
+                "并未配置在 %s 可信证书颁发机构 (CA) 中。",
+                appname);
+            if (storage_status == 2) {
+                seat_dialog_text_append(
+                    text, SDT_PARA, "**此外**ALSO，此服务器密钥与 "
+                    "%s 此前缓存的密钥不匹配。", appname);
+                seat_dialog_text_append(
+                    text, SDT_PARA, "这说明有其他证书颁发机构在此网络提供服务，"
+                    "**并且*可能是该服务器管理员更新了主机密钥，"
+                    "或者更可能是连接到了一台伪装成该服务器的其他计算机系统。");
+            } else {
+                seat_dialog_text_append(
+                    text, SDT_PARA, "这说明有其他证书颁发机构在此网络提供服务，"
+                    "或是连接到了一台伪装成该服务器的其他计算机系统。");
+            }
+        } else {
+            assert(storage_status == 2);
+            seat_dialog_text_append(
+                text, SDT_PARA, "此服务器认证密钥与 "
+                "%s 此前缓存的密钥不匹配。", appname);
+            seat_dialog_text_append(
+                text, SDT_PARA, "这说明可能该服务器管理员更新了主机密钥，"
+                "或者更可能是连接到了一台伪装成该服务器的其他计算机系统。");
+        }
+        seat_dialog_text_append(
+            text, SDT_PARA, "新的 %s 密钥指纹为:", keytype);
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+        helpctx = HELPCTX(errors_cert_mismatch);
+    } else if (storage_status == 1) {
+        seat_dialog_text_append(
+            text, SDT_PARA, "该服务器主机密钥未缓存:");
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s (端口 %d)", host, port);
+        seat_dialog_text_append(
+            text, SDT_PARA, "不能保证该服务器是能够正确访问的计算机。");
+        seat_dialog_text_append(
+            text, SDT_PARA, "该服务器的 %s 密钥指纹为:", keytype);
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+        helpctx = HELPCTX(errors_hostkey_absent);
+    } else {
+        seat_dialog_text_append(
+            text, SDT_SCARY_HEADING, "**警告** - 潜在安全隐患！");
+        seat_dialog_text_append(
+            text, SDT_PARA, "在 %s 缓存中不能匹配该服务器密钥:"
+            , appname);
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s (端口 %d)", host, port);
+        seat_dialog_text_append(
+            text, SDT_PARA, "这说明可能该服务器管理员更新了主机密钥，"
+            "或者更可能是连接到了一台伪装成该服务器的其他计算机系统。");
+        seat_dialog_text_append(
+            text, SDT_PARA, "新的 %s 密钥指纹为:", keytype);
+        seat_dialog_text_append(
+            text, SDT_DISPLAY, "%s", fingerprints[fptype_default]);
+        helpctx = HELPCTX(errors_hostkey_changed);
+    }
+
+    /* The above text is printed even in batch mode. Here's where we stop if
+     * we can't present interactive prompts. */
+    seat_dialog_text_append(
+        text, SDT_BATCH_ABORT, "连接已放弃。");
+
+    if (storage_status == 1) {
+        seat_dialog_text_append(
+            text, SDT_PARA, "如果信任该主机，请%s增加密钥到"
+            "%s 缓存中，并继续连接。",
+            pds->hk_accept_action, appname);
+        seat_dialog_text_append(
+            text, SDT_PARA, "如果仅仅只希望进行本次连接，而不将密钥储存，"
+            "请%s。",
+            pds->hk_connect_once_action);
+        seat_dialog_text_append(
+            text, SDT_PARA, "如果不信任该主机，请%s放弃此连接。"
+            , pds->hk_cancel_action);
+        seat_dialog_text_append(
+            text, SDT_PROMPT, "储存密钥到缓存？");
+    } else {
+        seat_dialog_text_append(
+            text, SDT_PARA, "如果确信该密钥被更新并同意接受新的密钥，"
+            "请%s更新 %s 缓存并继续连接。",
+            pds->hk_accept_action, appname);
+        if (key && ssh_key_alg(key)->is_certificate) {
+            seat_dialog_text_append(
+                text, SDT_PARA, "(储存此认证密钥到缓存中将不会"
+                "导致其证书颁发机构信任任何其他密钥或主机。)");
+        }
+        seat_dialog_text_append(
+            text, SDT_PARA, "如果仅仅只希望继续本次连接，而不更新系统缓存，"
+            "请%s。", pds->hk_connect_once_action);
+        seat_dialog_text_append(
+            text, SDT_PARA, "如果希望完全放弃本次连接，"
+            "请%s。%s是**唯一**可以保证的安全选择。",
+            pds->hk_cancel_action, pds->hk_cancel_action_Participle);
+        seat_dialog_text_append(
+            text, SDT_PROMPT, "更新缓存的密钥？");
+    }
+
+    seat_dialog_text_append(text, SDT_MORE_INFO_KEY,
+                            "主机公钥完整文本");
+    seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_BLOB, "%s", keydisp);
+
+    if (fingerprints[SSH_FPTYPE_SHA256]) {
+        seat_dialog_text_append(text, SDT_MORE_INFO_KEY, "SHA256 指纹");
+        seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s",
+                                fingerprints[SSH_FPTYPE_SHA256]);
+    }
+    if (fingerprints[SSH_FPTYPE_MD5]) {
+        seat_dialog_text_append(text, SDT_MORE_INFO_KEY, "MD5 指纹");
+        seat_dialog_text_append(text, SDT_MORE_INFO_VALUE_SHORT, "%s",
+                                fingerprints[SSH_FPTYPE_MD5]);
+    }
+
+    SeatPromptResult toret = seat_confirm_ssh_host_key(
+        iseat, host, port, keytype, keystr, text, helpctx, callback, ctx);
+    seat_dialog_text_free(text);
+    return toret;
 }
 
 /* ----------------------------------------------------------------------

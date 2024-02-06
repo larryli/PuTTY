@@ -161,7 +161,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 return;
             }
         }
-        s->K = dh_find_K(s->dh_ctx, s->f);
+        mp_int *K = dh_find_K(s->dh_ctx, s->f);
+        put_mp_ssh2(s->kex_shared_secret, K);
+        mp_free(K);
 
         if (dh_is_gex(s->kex_alg)) {
             if (s->dh_got_size_bounds)
@@ -189,12 +191,12 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             mp_free(s->p); s->p = NULL;
         }
     } else if (s->kex_alg->main_type == KEXTYPE_ECDH) {
-        ppl_logevent("Doing ECDH key exchange with curve %s and hash %s",
-                     ssh_ecdhkex_curve_textname(s->kex_alg),
+        char *desc = ecdh_keyalg_description(s->kex_alg);
+        ppl_logevent("Doing %s, using hash %s", desc,
                      ssh_hash_alg(s->exhash)->text_name);
-        s->ppl.bpp->pls->kctx = SSH2_PKTCTX_ECDHKEX;
+        sfree(desc);
 
-        s->ecdh_key = ssh_ecdhkex_newkey(s->kex_alg);
+        s->ecdh_key = ecdh_key_new(s->kex_alg, true);
         if (!s->ecdh_key) {
             ssh_sw_abort(s->ppl.ssh, "Unable to generate key for ECDH");
             *aborted = true;
@@ -217,8 +219,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             ptrlen keydata = get_string(pktin);
             put_stringpl(s->exhash, keydata);
 
-            s->K = ssh_ecdhkex_getkey(s->ecdh_key, keydata);
-            if (!get_err(pktin) && !s->K) {
+            bool ok = ecdh_key_getkey(s->ecdh_key, keydata,
+                                      BinarySink_UPCAST(s->kex_shared_secret));
+            if (!get_err(pktin) && !ok) {
                 ssh_proto_error(s->ppl.ssh, "Received invalid elliptic curve "
                                 "point in ECDH initial packet");
                 *aborted = true;
@@ -230,14 +233,14 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         put_stringpl(pktout, s->hostkeydata);
         {
             strbuf *pubpoint = strbuf_new();
-            ssh_ecdhkex_getpublic(s->ecdh_key, BinarySink_UPCAST(pubpoint));
+            ecdh_key_getpublic(s->ecdh_key, BinarySink_UPCAST(pubpoint));
             put_string(s->exhash, pubpoint->u, pubpoint->len);
             put_stringsb(pktout, pubpoint);
         }
         put_stringsb(pktout, finalise_and_sign_exhash(s));
         pq_push(s->ppl.out_pq, pktout);
 
-        ssh_ecdhkex_freekey(s->ecdh_key);
+        ecdh_key_free(s->ecdh_key);
         s->ecdh_key = NULL;
     } else if (s->kex_alg->main_type == KEXTYPE_GSS) {
         ssh_sw_abort(s->ppl.ssh, "GSS key exchange not supported in server");
@@ -301,18 +304,22 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             return;
         }
 
+        mp_int *K;
         {
             ptrlen encrypted_secret = get_string(pktin);
             put_stringpl(s->exhash, encrypted_secret);
-            s->K = ssh_rsakex_decrypt(
+            K = ssh_rsakex_decrypt(
                 s->rsa_kex_key, s->kex_alg->hash, encrypted_secret);
         }
 
-        if (!s->K) {
+        if (!K) {
             ssh_proto_error(s->ppl.ssh, "Unable to decrypt RSA kex secret");
             *aborted = true;
             return;
         }
+
+        put_mp_ssh2(s->kex_shared_secret, K);
+        mp_free(K);
 
         if (s->rsa_kex_key_needs_freeing) {
             ssh_rsakex_freekey(s->rsa_kex_key);

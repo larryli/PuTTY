@@ -96,3 +96,21 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
         return NULL;
     }
 }
+
+Socket *platform_start_subprocess(const char *cmd, Plug *plug,
+                                  const char *prefix)
+{
+    Socket *socket = make_deferred_fd_socket(
+        null_deferred_socket_opener(),
+        sk_nonamelookup("<local command>"), 0, plug);
+    char *err = platform_setup_local_proxy(socket, cmd);
+    fd_socket_set_psb_prefix(socket, prefix);
+
+    if (err) {
+        sk_close(socket);
+        socket = new_error_socket_fmt(plug, "%s", err);
+        sfree(err);
+    }
+
+    return socket;
+}

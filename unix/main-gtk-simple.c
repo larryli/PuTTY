@@ -468,7 +468,7 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
                 break;                 /* finished command-line processing */
             } else
                 err = true, fprintf(stderr, "%s: -e expects an argument\n",
-                                 appname);
+                                    appname);
 
         } else if (!strcmp(p, "-title")) {
             EXPECTS_ARG;
@@ -531,6 +531,12 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
             exit(1);
+
+        } else if (has_ca_config_box &&
+                   (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||
+                    !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca"))) {
+            show_ca_config_box_synchronously();
+            exit(0);
 
         } else if (p[0] != '-') {
             /* Non-option arguments not handled by cmdline.c are errors. */

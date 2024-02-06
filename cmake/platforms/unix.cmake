@@ -51,6 +51,21 @@ int main(int argc, char **argv) {
            cr.pid + cr.uid + cr.gid;
 }" HAVE_SO_PEERCRED)
 
+check_c_source_compiles("
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(int argc, char **argv) {
+    setpgrp();
+}" HAVE_NULLARY_SETPGRP)
+check_c_source_compiles("
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(int argc, char **argv) {
+    setpgrp(0, 0);
+}" HAVE_BINARY_SETPGRP)
+
 if(HAVE_GETADDRINFO AND PUTTY_IPV6)
   set(NO_IPV6 OFF)
 else()
@@ -65,21 +80,27 @@ endif()
 
 include(cmake/gtk.cmake)
 
-# See if we have X11 available. This requires libX11 itself, and also
-# the GDK integration to X11.
-find_package(X11)
+if(GTK_FOUND)
+  # See if we have X11 available. This requires libX11 itself, and also
+  # the GDK integration to X11.
+  find_package(X11)
 
-function(check_x11)
-  list(APPEND CMAKE_REQUIRED_INCLUDES ${GTK_INCLUDE_DIRS})
-  check_include_file(gdk/gdkx.h HAVE_GDK_GDKX_H)
+  function(check_x11)
+    list(APPEND CMAKE_REQUIRED_INCLUDES ${GTK_INCLUDE_DIRS})
+    check_include_file(gdk/gdkx.h HAVE_GDK_GDKX_H)
 
-  if(X11_FOUND AND HAVE_GDK_GDKX_H)
-    set(NOT_X_WINDOWS OFF PARENT_SCOPE)
-  else()
-    set(NOT_X_WINDOWS ON PARENT_SCOPE)
-  endif()
-endfunction()
-check_x11()
+    if(X11_FOUND AND HAVE_GDK_GDKX_H)
+      set(NOT_X_WINDOWS OFF PARENT_SCOPE)
+    else()
+      set(NOT_X_WINDOWS ON PARENT_SCOPE)
+    endif()
+  endfunction()
+  check_x11()
+else()
+  # If we didn't even have GTK, behave as if X11 is not available.
+  # (There's nothing useful we could do with it even if there was.)
+  set(NOT_X_WINDOWS ON)
+endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/charset ${GTK_INCLUDE_DIRS} ${X11_INCLUDE_DIR})
 link_directories(${GTK_LIBRARY_DIRS})
@@ -108,19 +129,84 @@ if(PUTTY_GSSAPI STREQUAL DYNAMIC)
 endif()
 
 if(PUTTY_GSSAPI STREQUAL STATIC)
+  set(KRB5_CFLAGS)
+  set(KRB5_LDFLAGS)
+
+  # First try using pkg-config
   find_package(PkgConfig)
   pkg_check_modules(KRB5 krb5-gssapi)
+
+  # Failing that, try the dedicated krb5-config
+  if(NOT KRB5_FOUND)
+    find_program(KRB5_CONFIG krb5-config)
+    if(KRB5_CONFIG)
+      execute_process(COMMAND ${KRB5_CONFIG} --cflags gssapi
+        OUTPUT_VARIABLE krb5_config_cflags
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE krb5_config_cflags_result)
+      execute_process(COMMAND ${KRB5_CONFIG} --libs gssapi
+        OUTPUT_VARIABLE krb5_config_libs
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE krb5_config_libs_result)
+
+      if(krb5_config_cflags_result EQUAL 0 AND krb5_config_libs_result EQUAL 0)
+        set(KRB5_INCLUDE_DIRS)
+        set(KRB5_LIBRARY_DIRS)
+        set(KRB5_LIBRARIES)
+
+        # We can safely put krb5-config's cflags directly into cmake's
+        # cflags, without bothering to extract the include directories.
+        set(KRB5_CFLAGS ${krb5_config_cflags})
+
+        # But krb5-config --libs isn't so simple. It will actually
+        # deliver a mix of libraries and other linker options. We have
+        # to separate them for cmake purposes, because if we pass the
+        # whole lot to add_link_options then they'll appear too early
+        # in the command line (so that by the time our own code refers
+        # to GSSAPI functions it'll be too late to search these
+        # libraries for them), and if we pass the whole lot to
+        # link_libraries then it'll get confused about options that
+        # aren't libraries.
+        separate_arguments(krb5_config_libs NATIVE_COMMAND
+          ${krb5_config_libs})
+        foreach(opt ${krb5_config_libs})
+          string(REGEX MATCH "^-l" ok ${opt})
+          if(ok)
+            list(APPEND KRB5_LIBRARIES ${opt})
+            continue()
+          endif()
+          string(REGEX MATCH "^-L" ok ${opt})
+          if(ok)
+            string(REGEX REPLACE "^-L" "" optval ${opt})
+            list(APPEND KRB5_LIBRARY_DIRS ${optval})
+            continue()
+          endif()
+          list(APPEND KRB5_LDFLAGS ${opt})
+        endforeach()
+
+        message(STATUS "Found Kerberos via krb5-config")
+        set(KRB5_FOUND YES)
+      endif()
+    endif()
+  endif()
+
   if(KRB5_FOUND)
     include_directories(${KRB5_INCLUDE_DIRS})
     link_directories(${KRB5_LIBRARY_DIRS})
     link_libraries(${KRB5_LIBRARIES})
+    add_compile_options(${KRB5_CFLAGS})
+    add_link_options(${KRB5_LDFLAGS})
     set(STATIC_GSSAPI ON)
   else()
     message(WARNING
-      "Could not find krb5 via pkg-config -- \
+      "Could not find krb5 via pkg-config or krb5-config -- \
 cannot provide static GSSAPI support")
     set(NO_GSSAPI ON)
   endif()
+endif()
+
+if(PUTTY_GSSAPI STREQUAL OFF)
+  set(NO_GSSAPI ON)
 endif()
 
 if(STRICT AND (CMAKE_C_COMPILER_ID MATCHES "GNU" OR

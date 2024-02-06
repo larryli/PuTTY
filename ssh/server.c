@@ -122,6 +122,7 @@ static const SeatVtable server_seat_vt = {
     .confirm_ssh_host_key = nullseat_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = server_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = server_confirm_weak_cached_hostkey,
+    .prompt_descriptions = nullseat_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = nullseat_get_x_display,

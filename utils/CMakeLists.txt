@@ -2,16 +2,21 @@ add_sources_from_current_dir(utils
   antispoof.c
   backend_socket_log.c
   base64_decode_atom.c
+  base64_decode.c
   base64_encode_atom.c
+  base64_encode.c
+  base64_valid.c
   bufchain.c
   buildinfo.c
   burnstr.c
+  cert-expr.c
   chomp.c
   cmdline_get_passwd_input_state_new.c
   conf.c
   conf_dest.c
   conf_launchable.c
   ctrlparse.c
+  ctrlset_normalise.c
   debug.c
   decode_utf8.c
   decode_utf8_to_wchar.c
@@ -24,30 +29,34 @@ add_sources_from_current_dir(utils
   encode_utf8.c
   encode_wide_string_as_utf8.c
   fgetline.c
+  host_ca_new_free.c
   host_strchr.c
   host_strchr_internal.c
   host_strcspn.c
   host_strduptrim.c
   host_strrchr.c
+  key_components.c
   log_proxy_stderr.c
   make_spr_sw_abort_static.c
   marshal.c
   memory.c
   memxor.c
-  null_lp.c
-  nullseat.c
   nullstrcmp.c
   out_of_memory.c
   parse_blocksize.c
+  percent_decode.c
+  percent_encode.c
   prompts.c
   ptrlen.c
   read_file_into.c
   seat_connection_fatal.c
+  seat_dialog_text.c
   sessprep.c
   sk_free_peer_info.c
   smemclr.c
   smemeq.c
   spr_get_error_message.c
+  ssh_key_clone.c
   ssh2_pick_fingerprint.c
   sshutils.c
   strbuf.c
@@ -59,6 +68,7 @@ add_sources_from_current_dir(utils
   version.c
   wcwidth.c
   wildcard.c
+  wordwrap.c
   write_c_string_literal.c
   x11authfile.c
   x11authnames.c

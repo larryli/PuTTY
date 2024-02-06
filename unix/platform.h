@@ -78,7 +78,9 @@ extern const struct BackendVtable pty_backend;
 /*
  * Under GTK, there is no context help available.
  */
-#define HELPCTX(x) P(NULL)
+typedef void *HelpCtx;
+#define NULL_HELPCTX ((HelpCtx)NULL)
+#define HELPCTX(x) NULL
 #define FILTER_KEY_FILES NULL          /* FIXME */
 #define FILTER_DYNLIB_FILES NULL       /* FIXME */
 
@@ -113,9 +115,9 @@ unsigned long getticks(void);
 /* OS X has no PRIMARY selection */
 #define MOUSE_SELECT_CLIPBOARD CLIP_NULL
 #define MOUSE_PASTE_CLIPBOARD CLIP_LOCAL
-#define CLIPNAME_IMPLICIT "上次选择的文本"
-#define CLIPNAME_EXPLICIT "系统剪贴板"
-#define CLIPNAME_EXPLICIT_OBJECT "系统剪贴板"
+#define CLIPNAME_IMPLICIT "Last selected text"
+#define CLIPNAME_EXPLICIT "System clipboard"
+#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
 /* These defaults are the ones that more or less comply with the OS X
  * Human Interface Guidelines, i.e. copy/paste to the system clipboard
  * is _not_ implicit but requires a specific UI action. This is at
@@ -220,7 +222,7 @@ int gtkdlg_askappend(Seat *seat, Filename *filename,
                      void (*callback)(void *ctx, int result), void *ctx);
 SeatPromptResult gtk_seat_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
 SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -228,6 +230,7 @@ SeatPromptResult gtk_seat_confirm_weak_crypto_primitive(
 SeatPromptResult gtk_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx);
+const SeatDialogPromptDescriptions *gtk_seat_prompt_descriptions(Seat *seat);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 struct message_box_button {
     const char *title;
@@ -245,6 +248,7 @@ GtkWidget *create_message_box(
     bool selectable, const struct message_box_buttons *buttons,
     post_dialog_fn_t after, void *afterctx);
 #endif
+void show_ca_config_box_synchronously(void);
 
 /* window.c needs this special function in utils */
 int keysym_to_unicode(int keysym);
@@ -385,6 +389,7 @@ Socket *make_fd_socket(int infd, int outfd, int inerrfd,
 Socket *make_deferred_fd_socket(DeferredSocketOpener *opener,
                                 SockAddr *addr, int port, Plug *plug);
 void setup_fd_socket(Socket *s, int infd, int outfd, int inerrfd);
+void fd_socket_set_psb_prefix(Socket *s, const char *prefix);
 
 /*
  * Default font setting, which can vary depending on NOT_X_WINDOWS.

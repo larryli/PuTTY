@@ -34,44 +34,53 @@ void console_print_error_msg(const char *prefix, const char *msg)
 
 SeatPromptResult console_confirm_ssh_host_key(
     Seat *seat, const char *host, int port, const char *keytype,
-    char *keystr, const char *keydisp, char **fingerprints, bool mismatch,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
-    char *common;
-    const char *intro, *prompt;
+    const char *prompt = NULL;
+
+    stdio_sink errsink[1];
+    stdio_sink_init(errsink, stderr);
 
     char line[32];
 
-    FingerprintType fptype_default =
-        ssh2_pick_default_fingerprint(fingerprints);
-
-    if (mismatch) {                    /* key was different */
-        common = hk_wrongmsg_common(host, port, keytype,
-                                    fingerprints[fptype_default]);
-        intro = hk_wrongmsg_interactive_intro;
-        prompt = hk_wrongmsg_interactive_prompt;
-    } else {                           /* key was absent */
-        common = hk_absentmsg_common(host, port, keytype,
-                                     fingerprints[fptype_default]);
-        intro = hk_absentmsg_interactive_intro;
-        prompt = hk_absentmsg_interactive_prompt;
+    for (SeatDialogTextItem *item = text->items,
+             *end = item+text->nitems; item < end; item++) {
+        switch (item->type) {
+          case SDT_PARA:
+            wordwrap(BinarySink_UPCAST(errsink),
+                     ptrlen_from_asciz(item->text), 60);
+            fputc('\n', stderr);
+            break;
+          case SDT_DISPLAY:
+            fprintf(stderr, "  %s\n", item->text);
+            break;
+          case SDT_SCARY_HEADING:
+            /* Can't change font size or weight in this context */
+            fprintf(stderr, "%s\n", item->text);
+            break;
+          case SDT_BATCH_ABORT:
+            if (console_batch_mode) {
+                fprintf(stderr, "%s\n", item->text);
+                fflush(stderr);
+                return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+            }
+            break;
+          case SDT_PROMPT:
+            prompt = item->text;
+            break;
+          default:
+            break;
+        }
     }
-
-    fputs(common, stderr);
-    sfree(common);
-
-    if (console_batch_mode) {
-        fputs(console_abandoned_msg, stderr);
-        return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
-    }
-
-    fputs(intro, stderr);
-    fflush(stderr);
+    assert(prompt); /* something in the SeatDialogText should have set this */
 
     while (true) {
-        fputs(prompt, stderr);
+        fprintf(stderr,
+                "%s (y/n, Return cancels connection, i for more info) ",
+                prompt);
         fflush(stderr);
 
         line[0] = '\0';    /* fail safe if ReadFile returns no data */
@@ -84,13 +93,22 @@ SeatPromptResult console_confirm_ssh_host_key(
         SetConsoleMode(hin, savemode);
 
         if (line[0] == 'i' || line[0] == 'I') {
-            fprintf(stderr, "Full public key:\n%s\n", keydisp);
-            if (fingerprints[SSH_FPTYPE_SHA256])
-                fprintf(stderr, "SHA256 key fingerprint:\n%s\n",
-                        fingerprints[SSH_FPTYPE_SHA256]);
-            if (fingerprints[SSH_FPTYPE_MD5])
-                fprintf(stderr, "MD5 key fingerprint:\n%s\n",
-                        fingerprints[SSH_FPTYPE_MD5]);
+            for (SeatDialogTextItem *item = text->items,
+                     *end = item+text->nitems; item < end; item++) {
+                switch (item->type) {
+                  case SDT_MORE_INFO_KEY:
+                    fprintf(stderr, "%s", item->text);
+                    break;
+                  case SDT_MORE_INFO_VALUE_SHORT:
+                    fprintf(stderr, ": %s\n", item->text);
+                    break;
+                  case SDT_MORE_INFO_VALUE_BLOB:
+                    fprintf(stderr, ":\n%s\n", item->text);
+                    break;
+                  default:
+                    break;
+                }
+            }
         } else {
             break;
         }

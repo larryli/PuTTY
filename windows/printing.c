@@ -67,11 +67,15 @@ static bool printer_add_enum(int param, DWORD level, char **buffer,
 
     /*
      * Exploratory call to EnumPrinters to determine how much space
-     * we'll need for the output. Discard the return value since it
-     * will almost certainly be a failure due to lack of space.
+     * we'll need for the output.
+     *
+     * If we get ERROR_INSUFFICIENT_BUFFER, that's fine, we're
+     * prepared to deal with it. Any other error, we return failure.
      */
-    p_EnumPrinters(param, NULL, level, (LPBYTE)((*buffer)+offset), 512,
-                   &needed, &nprinters);
+    if (p_EnumPrinters(param, NULL, level, (LPBYTE)((*buffer)+offset), 512,
+                       &needed, &nprinters) == 0 &&
+        GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+        return false;
 
     if (needed < 512)
         needed = 512;
@@ -127,7 +131,7 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
 
     return ret;
 
-    error:
+  error:
     sfree(buffer);
     sfree(ret);
     *nprinters_ptr = 0;
@@ -191,7 +195,7 @@ printer_job *printer_start_job(char *printer)
 
     return ret;
 
-    error:
+  error:
     if (pagestarted)
         p_EndPagePrinter(ret->hprinter);
     if (jobstarted)

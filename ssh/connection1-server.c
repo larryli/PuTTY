@@ -113,15 +113,15 @@ bool ssh1_handle_direction_specific_packet(
             BinarySource_UPCAST(pktin), 1);
 
         if (get_err(pktin)) {
-          ppl_logevent("Unable to decode pty request packet");
-          success = false;
+            ppl_logevent("Unable to decode pty request packet");
+            success = false;
         } else if (!chan_allocate_pty(
                        s->mainchan_chan, termtype, width, height,
                        pixwidth, pixheight, modes)) {
-          ppl_logevent("Unable to allocate a pty");
-          success = false;
+            ppl_logevent("Unable to allocate a pty");
+            success = false;
         } else {
-          success = true;
+            success = true;
         }
 
         pktout = ssh_bpp_new_pktout(

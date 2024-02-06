@@ -103,7 +103,7 @@ struct PassphraseProcStruct {
  * Dialog-box function for the Licence box.
  */
 static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
-                                WPARAM wParam, LPARAM lParam)
+                                    WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG:
@@ -128,15 +128,15 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
  * Dialog-box function for the About box.
  */
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
-                              WPARAM wParam, LPARAM lParam)
+                                  WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG: {
         char *buildinfo_text = buildinfo("\r\n");
-        char *text = dupprintf
-            ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-             ver, buildinfo_text,
-             "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
+        char *text = dupprintf(
+            "Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+            ver, buildinfo_text,
+            "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
         sfree(buildinfo_text);
         SetDlgItemText(hwnd, IDC_ABOUT_TEXTBOX, text);
         MakeDlgItemBorderless(hwnd, IDC_ABOUT_TEXTBOX);
@@ -214,7 +214,7 @@ static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
  * Dialog-box function for the passphrase box.
  */
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
-                                   WPARAM wParam, LPARAM lParam)
+                                       WPARAM wParam, LPARAM lParam)
 {
     struct PassphraseProcStruct *p;
 
@@ -311,8 +311,14 @@ void old_keyfile_warning(void)
 }
 
 struct keylist_update_ctx {
+    HDC hdc;
+    int algbitswidth, algwidth, bitswidth, hashwidth;
     bool enable_remove_controls;
     bool enable_reencrypt_controls;
+};
+
+struct keylist_display_data {
+    strbuf *alg, *bits, *hash, *comment, *info;
 };
 
 static void keylist_update_callback(
@@ -321,8 +327,14 @@ static void keylist_update_callback(
 {
     struct keylist_update_ctx *ctx = (struct keylist_update_ctx *)vctx;
     FingerprintType this_type = ssh2_pick_fingerprint(fingerprints, fptype);
-    const char *fingerprint = fingerprints[this_type];
-    strbuf *listentry = strbuf_new();
+    ptrlen fingerprint = ptrlen_from_asciz(fingerprints[this_type]);
+
+    struct keylist_display_data *disp = snew(struct keylist_display_data);
+    disp->alg = strbuf_new();
+    disp->bits = strbuf_new();
+    disp->hash = strbuf_new();
+    disp->comment = strbuf_new();
+    disp->info = strbuf_new();
 
     /* There is at least one key, so the controls for removing keys
      * should be enabled */
@@ -330,79 +342,77 @@ static void keylist_update_callback(
 
     switch (key->ssh_version) {
       case 1: {
-        put_fmt(listentry, "ssh1\t%s\t%s", fingerprint, comment);
-
         /*
-         * Replace the space in the fingerprint (between bit count and
-         * hash) with a tab, for nice alignment in the box.
+         * Expect the fingerprint to contain two words: bit count and
+         * hash.
          */
-        char *p = strchr(listentry->s, ' ');
-        if (p)
-            *p = '\t';
+        put_dataz(disp->alg, "SSH-1");
+        put_datapl(disp->bits, ptrlen_get_word(&fingerprint, " "));
+        put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
         break;
       }
 
       case 2: {
         /*
-         * For nice alignment in the list box, we would ideally want
-         * every entry to align to the tab stop settings, and have a
-         * column for algorithm name, one for bit count, one for hex
-         * fingerprint, and one for key comment.
-         *
-         * Unfortunately, some of the algorithm names are so long that
-         * they overflow into the bit-count field. Fortunately, at the
-         * moment, those are _precisely_ the algorithm names that
-         * don't need a bit count displayed anyway (because for
-         * NIST-style ECDSA the bit count is mentioned in the
-         * algorithm name, and for ssh-ed25519 there is only one
-         * possible value anyway). So we fudge this by simply omitting
-         * the bit count field in that situation.
-         *
-         * This is fragile not only in the face of further key types
-         * that don't follow this pattern, but also in the face of
-         * font metrics changes - the Windows semantics for list box
-         * tab stops is that \t aligns to the next one you haven't
-         * already exceeded, so I have to guess when the key type will
-         * overflow past the bit-count tab stop and leave out a tab
-         * character. Urgh.
+         * Expect the fingerprint to contain three words: algorithm
+         * name, bit count, hash.
          */
-        BinarySource src[1];
-        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(key->blob));
-        ptrlen algname = get_string(src);
-        const ssh_keyalg *alg = find_pubkey_alg_len(algname);
+        const ssh_keyalg *alg = pubkey_blob_to_alg(
+            ptrlen_from_strbuf(key->blob));
 
-        bool include_bit_count = (alg == &ssh_dsa || alg == &ssh_rsa);
-
-        int wordnumber = 0;
-        for (const char *p = fingerprint; *p; p++) {
-            char c = *p;
-            if (c == ' ') {
-                if (wordnumber < 2)
-                    c = '\t';
-                wordnumber++;
-            }
-            if (include_bit_count || wordnumber != 1)
-                put_byte(listentry, c);
+        ptrlen keytype_word = ptrlen_get_word(&fingerprint, " ");
+        if (alg) {
+            /* Use our own human-legible algorithm names if available,
+             * because they fit better in the space. (Certificate key
+             * algorithm names in particular are terribly long.) */
+            char *alg_desc = ssh_keyalg_desc(alg);
+            put_dataz(disp->alg, alg_desc);
+            sfree(alg_desc);
+        } else {
+            put_datapl(disp->alg, keytype_word);
         }
 
-        put_fmt(listentry, "\t%s", comment);
-        break;
+        ptrlen bits_word = ptrlen_get_word(&fingerprint, " ");
+        if (alg && ssh_keyalg_variable_size(alg))
+            put_datapl(disp->bits, bits_word);
+
+        put_datapl(disp->hash, ptrlen_get_word(&fingerprint, " "));
       }
     }
 
+    put_dataz(disp->comment, comment);
+
+    SIZE sz;
+    if (disp->bits->len) {
+        GetTextExtentPoint32(ctx->hdc, disp->alg->s, disp->alg->len, &sz);
+        if (ctx->algwidth < sz.cx) ctx->algwidth = sz.cx;
+        GetTextExtentPoint32(ctx->hdc, disp->bits->s, disp->bits->len, &sz);
+        if (ctx->bitswidth < sz.cx) ctx->bitswidth = sz.cx;
+    } else {
+        GetTextExtentPoint32(ctx->hdc, disp->alg->s, disp->alg->len, &sz);
+        if (ctx->algbitswidth < sz.cx) ctx->algbitswidth = sz.cx;
+    }
+    GetTextExtentPoint32(ctx->hdc, disp->hash->s, disp->hash->len, &sz);
+    if (ctx->hashwidth < sz.cx) ctx->hashwidth = sz.cx;
+
     if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
-        put_fmt(listentry, "\t(已加密)");
+        put_fmt(disp->info, "(已加密)");
     } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
-        put_fmt(listentry, "\t(可重新加密)");
+        put_fmt(disp->info, "(可重新加密)");
 
         /* At least one key can be re-encrypted */
         ctx->enable_reencrypt_controls = true;
     }
 
+    /* This list box is owner-drawn but doesn't have LBS_HASSTRINGS,
+     * so we can use LB_ADDSTRING to hand the list box our display
+     * info pointer */
     SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
-                       LB_ADDSTRING, 0, (LPARAM)listentry->s);
-    strbuf_free(listentry);
+                       LB_ADDSTRING, 0, (LPARAM)disp);
 }
+
+/* Column start positions for the list box, in pixels (not dialog units). */
+static int colpos_bits, colpos_hash, colpos_comment;
 
 /*
  * Update the visible key list.
@@ -410,6 +420,25 @@ static void keylist_update_callback(
 void keylist_update(void)
 {
     if (keylist) {
+        /*
+         * Clear the previous list box content and free their display
+         * structures.
+         */
+        {
+            int nitems = SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                                            LB_GETCOUNT, 0, 0);
+            for (int i = 0; i < nitems; i++) {
+                struct keylist_display_data *disp =
+                    (struct keylist_display_data *)SendDlgItemMessage(
+                        keylist, IDC_KEYLIST_LISTBOX, LB_GETITEMDATA, i, 0);
+                strbuf_free(disp->alg);
+                strbuf_free(disp->bits);
+                strbuf_free(disp->hash);
+                strbuf_free(disp->comment);
+                strbuf_free(disp->info);
+                sfree(disp);
+            }
+        }
         SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
                            LB_RESETCONTENT, 0, 0);
 
@@ -417,7 +446,22 @@ void keylist_update(void)
         struct keylist_update_ctx ctx[1];
         ctx->enable_remove_controls = false;
         ctx->enable_reencrypt_controls = false;
+        ctx->algbitswidth = ctx->algwidth = 0;
+        ctx->bitswidth = ctx->hashwidth = 0;
+        ctx->hdc = GetDC(keylist);
+        SelectObject(ctx->hdc, (HFONT)SendMessage(keylist, WM_GETFONT, 0, 0));
         int status = pageant_enum_keys(keylist_update_callback, ctx, &errmsg);
+
+        SIZE sz;
+        GetTextExtentPoint32(ctx->hdc, "MM", 2, &sz);
+        int gutter = sz.cx;
+
+        DeleteDC(ctx->hdc);
+        colpos_hash = ctx->algwidth + ctx->bitswidth + 2*gutter;
+        if (colpos_hash < ctx->algbitswidth + gutter)
+            colpos_hash = ctx->algbitswidth + gutter;
+        colpos_bits = colpos_hash - ctx->bitswidth - gutter;
+        colpos_comment = colpos_hash + ctx->hashwidth + gutter;
         assert(status == PAGEANT_ACTION_OK);
         assert(!errmsg);
 
@@ -546,7 +590,7 @@ static void prompt_add_keyfile(bool encrypted)
  * Dialog-box function for the key list box.
  */
 static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
-                                WPARAM wParam, LPARAM lParam)
+                                    WPARAM wParam, LPARAM lParam)
 {
     static const struct {
         const char *name;
@@ -554,6 +598,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
     } fptypes[] = {
         {"SHA256", SSH_FPTYPE_SHA256},
         {"MD5", SSH_FPTYPE_MD5},
+        {"SHA256 包含证书", SSH_FPTYPE_SHA256_CERT},
+        {"MD5 包含证书", SSH_FPTYPE_MD5_CERT},
     };
 
     switch (msg) {
@@ -576,18 +622,12 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                              GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
                              WS_EX_CONTEXTHELP);
         else {
-          HWND item = GetDlgItem(hwnd, IDC_KEYLIST_HELP);
-          if (item)
-              DestroyWindow(item);
+            HWND item = GetDlgItem(hwnd, IDC_KEYLIST_HELP);
+            if (item)
+                DestroyWindow(item);
         }
 
         keylist = hwnd;
-        {
-          static int tabs[] = { 35, 75, 300 };
-          SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_SETTABSTOPS,
-                             sizeof(tabs) / sizeof(*tabs),
-                             (LPARAM) tabs);
-        }
 
         int selection = 0;
         for (size_t i = 0; i < lenof(fptypes); i++) {
@@ -600,6 +640,96 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                            CB_SETCURSEL, 0, selection);
 
         keylist_update();
+        return 0;
+      }
+      case WM_MEASUREITEM: {
+        assert(wParam == IDC_KEYLIST_LISTBOX);
+
+        MEASUREITEMSTRUCT *mi = (MEASUREITEMSTRUCT *)lParam;
+
+        /*
+         * Our list box is owner-drawn, but we put normal text in it.
+         * So the line height is the same as it would normally be,
+         * which is 8 dialog units.
+         */
+        RECT r;
+        r.left = r.right = r.top = 0;
+        r.bottom = 8;
+        MapDialogRect(hwnd, &r);
+        mi->itemHeight = r.bottom;
+
+        return 0;
+      }
+      case WM_DRAWITEM: {
+        assert(wParam == IDC_KEYLIST_LISTBOX);
+
+        DRAWITEMSTRUCT *di = (DRAWITEMSTRUCT *)lParam;
+
+        if (di->itemAction == ODA_FOCUS) {
+            /* Just toggle the focus rectangle either on or off. This
+             * is an XOR-type function, so it's the same call in
+             * either case. */
+            DrawFocusRect(di->hDC, &di->rcItem);
+        } else {
+            /* Draw the full text. */
+            bool selected = (di->itemState & ODS_SELECTED);
+            COLORREF newfg = GetSysColor(
+                selected ? COLOR_HIGHLIGHTTEXT : COLOR_WINDOWTEXT);
+            COLORREF newbg = GetSysColor(
+                selected ? COLOR_HIGHLIGHT : COLOR_WINDOW);
+            COLORREF oldfg = SetTextColor(di->hDC, newfg);
+            COLORREF oldbg = SetBkColor(di->hDC, newbg);
+
+            HFONT font = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+            HFONT oldfont = SelectObject(di->hDC, font);
+
+            /* ExtTextOut("") is an easy way to just draw the
+             * background rectangle */
+            ExtTextOut(di->hDC, di->rcItem.left, di->rcItem.top,
+                       ETO_OPAQUE | ETO_CLIPPED, &di->rcItem, "", 0, NULL);
+
+            struct keylist_display_data *disp =
+                (struct keylist_display_data *)di->itemData;
+
+            RECT r;
+
+            /* Apparently real list boxes start drawing at x=1, not x=0 */
+            r.left = r.top = r.bottom = 0;
+            r.right = 1;
+            MapDialogRect(hwnd, &r);
+            ExtTextOut(di->hDC, di->rcItem.left + r.right, di->rcItem.top,
+                       ETO_CLIPPED, &di->rcItem, disp->alg->s,
+                       disp->alg->len, NULL);
+
+            if (disp->bits->len) {
+                ExtTextOut(di->hDC, di->rcItem.left + r.right + colpos_bits,
+                           di->rcItem.top, ETO_CLIPPED, &di->rcItem,
+                           disp->bits->s, disp->bits->len, NULL);
+            }
+
+            ExtTextOut(di->hDC, di->rcItem.left + r.right + colpos_hash,
+                       di->rcItem.top, ETO_CLIPPED, &di->rcItem,
+                       disp->hash->s, disp->hash->len, NULL);
+
+            strbuf *sb = strbuf_new();
+            put_datapl(sb, ptrlen_from_strbuf(disp->comment));
+            if (disp->info->len) {
+                put_byte(sb, '\t');
+                put_datapl(sb, ptrlen_from_strbuf(disp->info));
+            }
+
+            TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
+                          di->rcItem.top, sb->s, sb->len, 0, NULL, 0);
+
+            strbuf_free(sb);
+
+            SetTextColor(di->hDC, oldfg);
+            SetBkColor(di->hDC, oldbg);
+            SelectObject(di->hDC, oldfont);
+
+            if (di->itemState & ODS_FOCUS)
+                DrawFocusRect(di->hDC, &di->rcItem);
+        }
         return 0;
       }
       case WM_COMMAND:
@@ -722,9 +852,9 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             topic = WINHELP_CTX_pageant_deferred; break;
         }
         if (topic) {
-          launch_help(hwnd, topic);
+            launch_help(hwnd, topic);
         } else {
-          MessageBeep(0);
+            MessageBeep(0);
         }
         break;
       }
@@ -1036,8 +1166,7 @@ static char *answer_filemapping_message(const char *mapname)
             err = dupstr("wrong owning SID of file mapping");
             goto cleanup;
         }
-    } else
-    {
+    } else {
 #ifdef DEBUG_IPC
         debug("security APIs not present\n");
 #endif
@@ -1182,8 +1311,8 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 
             if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
                                      _T(""), SW_SHOW) <= 32) {
-              MessageBox(NULL, "无法执行 PuTTY！",
-                         "错误", MB_OK | MB_ICONERROR);
+                MessageBox(NULL, "无法执行 PuTTY！",
+                           "错误", MB_OK | MB_ICONERROR);
             }
             break;
           }
@@ -1241,31 +1370,34 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             break;
           default: {
             if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
-              MENUITEMINFO mii;
-              TCHAR buf[MAX_PATH + 1];
-              TCHAR param[MAX_PATH + 1];
-              memset(&mii, 0, sizeof(mii));
-              mii.cbSize = sizeof(mii);
-              mii.fMask = MIIM_TYPE;
-              mii.cch = MAX_PATH;
-              mii.dwTypeData = buf;
-              GetMenuItemInfo(session_menu, wParam, false, &mii);
-              param[0] = '\0';
-              if (restrict_putty_acl)
-                  strcat(param, "&R");
-              strcat(param, "@");
-              strcat(param, mii.dwTypeData);
-              if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
-                                       _T(""), SW_SHOW) <= 32) {
-                MessageBox(NULL, "无法执行 PuTTY！", "错误",
-                           MB_OK | MB_ICONERROR);
-              }
+                MENUITEMINFO mii;
+                TCHAR buf[MAX_PATH + 1];
+                TCHAR param[MAX_PATH + 1];
+                memset(&mii, 0, sizeof(mii));
+                mii.cbSize = sizeof(mii);
+                mii.fMask = MIIM_TYPE;
+                mii.cch = MAX_PATH;
+                mii.dwTypeData = buf;
+                GetMenuItemInfo(session_menu, wParam, false, &mii);
+                param[0] = '\0';
+                if (restrict_putty_acl)
+                    strcat(param, "&R");
+                strcat(param, "@");
+                strcat(param, mii.dwTypeData);
+                if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
+                                         _T(""), SW_SHOW) <= 32) {
+                    MessageBox(NULL, "无法执行 PuTTY！", "错误",
+                               MB_OK | MB_ICONERROR);
+                }
             }
             break;
           }
         }
         break;
       }
+      case WM_NETEVENT:
+        winselgui_response(wParam, lParam);
+        return 0;
       case WM_DESTROY:
         quit_help(hwnd);
         PostQuitMessage(0);
@@ -1292,10 +1424,10 @@ static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
         err = answer_filemapping_message(mapname);
         if (err) {
 #ifdef DEBUG_IPC
-          debug("IPC failed: %s\n", err);
+            debug("IPC failed: %s\n", err);
 #endif
-          sfree(err);
-          return 0;
+            sfree(err);
+            return 0;
         }
         return 1;
       }
@@ -1401,6 +1533,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
     const char *command = NULL;
+    const char *unixsocket = NULL;
     bool show_keylist_on_startup = false;
     int argc;
     char **argv, **argstart;
@@ -1497,6 +1630,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             show_keylist_on_startup = true;
         } else if (match_optval("-openssh-config", "-openssh_config")) {
             openssh_config_file = val;
+        } else if (match_optval("-unix")) {
+            unixsocket = val;
         } else if (match_opt("-c")) {
             /*
              * If we see `-c', then the rest of the command line
@@ -1542,6 +1677,31 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (!already_running) {
         /*
+         * Set up the window class for the hidden window that receives
+         * all the messages to do with our presence in the system tray.
+         */
+
+        if (!prev) {
+            WNDCLASS wndclass;
+
+            memset(&wndclass, 0, sizeof(wndclass));
+            wndclass.lpfnWndProc = TrayWndProc;
+            wndclass.hInstance = inst;
+            wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
+            wndclass.lpszClassName = TRAYCLASSNAME;
+
+            RegisterClass(&wndclass);
+        }
+
+        keylist = NULL;
+
+        traywindow = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
+                                  WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                                  CW_USEDEFAULT, CW_USEDEFAULT,
+                                  100, 100, NULL, NULL, inst, NULL);
+        winselgui_set_hwnd(traywindow);
+
+        /*
          * Initialise the cross-platform Pageant code.
          */
         pageant_init();
@@ -1584,6 +1744,30 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             }
 
             sfree(pipename);
+        }
+
+        /*
+         * Set up an AF_UNIX listener too, if we were asked to.
+         */
+        if (unixsocket) {
+            sk_init();
+
+            /* FIXME: diagnose any error except file-not-found. Also,
+             * check the file type if possible? */
+            remove(unixsocket);
+
+            Plug *pl_plug;
+            struct pageant_listen_state *pl =
+                pageant_listener_new(&pl_plug, &wpc->plc);
+            Socket *sock = sk_newlistener_unix(unixsocket, pl_plug);
+            if (sk_socket_error(sock)) {
+                char *err = dupprintf("Unable to open AF_UNIX socket at %s "
+                                      "for SSH agent:\n%s", unixsocket,
+                                      sk_socket_error(sock));
+                MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+                return 1;
+            }
+            pageant_listener_got_socket(pl, sock);
         }
 
         /*
@@ -1667,31 +1851,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         return 0;
     }
 
-    /*
-     * Set up the window class for the hidden window that receives
-     * all the messages to do with our presence in the system tray.
-     */
-
-    if (!prev) {
-        WNDCLASS wndclass;
-
-        memset(&wndclass, 0, sizeof(wndclass));
-        wndclass.lpfnWndProc = TrayWndProc;
-        wndclass.hInstance = inst;
-        wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-        wndclass.lpszClassName = TRAYCLASSNAME;
-
-        RegisterClass(&wndclass);
-    }
-
-    keylist = NULL;
-
-    traywindow = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
-                              WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-                              CW_USEDEFAULT, CW_USEDEFAULT,
-                              100, 100, NULL, NULL, inst, NULL);
-    winselgui_set_hwnd(traywindow);
-
     /* Set up a system tray icon */
     AddTrayIcon(traywindow);
 
@@ -1705,7 +1864,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-           "查看密钥(&V)");
+               "查看密钥(&V)");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "增加密钥(&K)");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
                "增加(加密的)密钥");

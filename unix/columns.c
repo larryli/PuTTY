@@ -332,7 +332,6 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
     ColumnsChild *child;
     GtkWidget *childw;
     GList *children;
-    bool was_visible;
 
     g_return_if_fail(container != NULL);
     g_return_if_fail(IS_COLUMNS(container));
@@ -346,23 +345,28 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
         if (child->widget != widget)
             continue;
 
-        was_visible = gtk_widget_get_visible(widget);
+        bool need_layout = false;
+        if (gtk_widget_get_visible(widget))
+            need_layout = true;
         gtk_widget_unparent(widget);
         cols->children = g_list_remove_link(cols->children, children);
         g_list_free(children);
 
-        if (child->same_height_as) {
-            g_return_if_fail(child->same_height_as->same_height_as == child);
-            child->same_height_as->same_height_as = NULL;
-            if (gtk_widget_get_visible(child->same_height_as->widget))
-                gtk_widget_queue_resize(GTK_WIDGET(container));
-        }
+        /* Unlink this widget from its valign list, and if anything
+         * else on the list is still visible, ensure we recompute our
+         * layout */
+        for (ColumnsChild *ch = child->valign_next; ch != child;
+             ch = ch->valign_next)
+            if (gtk_widget_get_visible(ch->widget))
+                need_layout = true;
+        child->valign_next->valign_prev = child->valign_prev;
+        child->valign_prev->valign_next = child->valign_next;
 
         if (cols->vexpand == child)
             cols->vexpand = NULL;
 
         g_free(child);
-        if (was_visible)
+        if (need_layout)
             gtk_widget_queue_resize(GTK_WIDGET(container));
         break;
     }
@@ -465,7 +469,8 @@ void columns_add(Columns *cols, GtkWidget *child,
     childdata->colstart = colstart;
     childdata->colspan = colspan;
     childdata->force_left = false;
-    childdata->same_height_as = NULL;
+    childdata->valign_next = childdata;
+    childdata->valign_prev = childdata;
     childdata->percentages = NULL;
 
     cols->children = g_list_append(cols->children, childdata);
@@ -516,7 +521,7 @@ void columns_force_left_align(Columns *cols, GtkWidget *widget)
         gtk_widget_queue_resize(GTK_WIDGET(cols));
 }
 
-void columns_force_same_height(Columns *cols, GtkWidget *cw1, GtkWidget *cw2)
+void columns_align_next_to(Columns *cols, GtkWidget *cw1, GtkWidget *cw2)
 {
     ColumnsChild *child1, *child2;
 
@@ -530,8 +535,13 @@ void columns_force_same_height(Columns *cols, GtkWidget *cw1, GtkWidget *cw2)
     child2 = columns_find_child(cols, cw2);
     g_return_if_fail(child2 != NULL);
 
-    child1->same_height_as = child2;
-    child2->same_height_as = child1;
+    ColumnsChild *child1prev = child1->valign_prev;
+    ColumnsChild *child2prev = child2->valign_prev;
+    child1prev->valign_next = child2;
+    child2->valign_prev = child1prev;
+    child2prev->valign_next = child1;
+    child1->valign_prev = child2prev;
+
     if (gtk_widget_get_visible(cw1) || gtk_widget_get_visible(cw2))
         gtk_widget_queue_resize(GTK_WIDGET(cols));
 }
@@ -843,8 +853,9 @@ static gint columns_compute_height(Columns *cols, widget_dim_fn_t get_height)
             continue;
 
         childheight = get_height(child);
-        if (child->same_height_as) {
-            gint childheight2 = get_height(child->same_height_as);
+        for (ColumnsChild *ch = child->valign_next; ch != child;
+             ch = ch->valign_next) {
+            gint childheight2 = get_height(ch);
             if (childheight < childheight2)
                 childheight = childheight2;
         }
@@ -904,6 +915,17 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
 
     for (children = cols->children;
          children && (child = children->data);
+         children = children->next)
+        child->visited = false;
+
+    /*
+     * Main layout loop. In this loop, vertically aligned controls are
+     * only half dealt with: we assign each one enough _height_ to
+     * match the others in its group, but we don't adjust its y
+     * coordinates yet.
+     */
+    for (children = cols->children;
+         children && (child = children->data);
          children = children->next) {
         if (!child->widget) {
             /* Column reconfiguration. */
@@ -922,14 +944,19 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
         if (!gtk_widget_get_visible(child->widget))
             continue;
 
+        int ymin = 0;
+
         realheight = get_height(child);
         if (child == cols->vexpand)
             realheight += vexpand_extra;
         fakeheight = realheight;
-        if (child->same_height_as) {
-            gint childheight2 = get_height(child->same_height_as);
+        for (ColumnsChild *ch = child->valign_next; ch != child;
+             ch = ch->valign_next) {
+            gint childheight2 = get_height(ch);
             if (fakeheight < childheight2)
                 fakeheight = childheight2;
+            if (ch->visited && ymin < ch->y)
+                ymin = ch->y;
         }
         colspan = child->colspan ? child->colspan : ncols-child->colstart;
 
@@ -943,18 +970,41 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
         {
             int topy, boty;
 
-            topy = 0;
+            topy = ymin;
             for (i = 0; i < colspan; i++) {
                 if (topy < colypos[child->colstart+i])
                     topy = colypos[child->colstart+i];
             }
-            child->y = topy + fakeheight/2 - realheight/2;
+            child->y = topy;
             child->h = realheight;
+            child->visited = true;
             boty = topy + fakeheight + cols->spacing;
             for (i = 0; i < colspan; i++) {
                 colypos[child->colstart+i] = boty;
             }
         }
+    }
+
+    /*
+     * Now make a separate pass that deals with vertical alignment by
+     * moving controls downwards based on the difference between their
+     * own height and the largest height of anything in their group.
+     */
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
+        if (!child->widget)
+            continue;
+        if (!gtk_widget_get_visible(child->widget))
+            continue;
+
+        fakeheight = realheight = child->h;
+        for (ColumnsChild *ch = child->valign_next; ch != child;
+             ch = ch->valign_next) {
+            if (fakeheight < ch->h)
+                fakeheight = ch->h;
+        }
+        child->y += fakeheight/2 - realheight/2;
     }
 
     g_free(colypos);

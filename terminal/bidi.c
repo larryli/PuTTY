@@ -3558,13 +3558,14 @@ static void reverse_sequences(BidiContext *ctx)
 }
 
 /*
- * The Main Bidi Function, and the only function that should be used
- * by the outside world.
+ * The Main Bidi Function. The two wrappers below it present different
+ * external APIs for different purposes, but everything comes through
+ * here.
  *
  * text: a buffer of size textlen containing text to apply the
  * Bidirectional algorithm to.
  */
-void do_bidi_new(BidiContext *ctx, bidi_char *text, size_t textlen)
+static void do_bidi_new(BidiContext *ctx, bidi_char *text, size_t textlen)
 {
     ensure_arrays(ctx, textlen);
     ctx->text = text;

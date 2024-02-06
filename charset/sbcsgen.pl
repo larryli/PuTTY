@@ -38,7 +38,7 @@ my @charsetnames = ();
 my @sortpriority = ();
 
 while (<FOO>) {
-    chomp;
+    chomp; y/\r//d;
     if (/^charset (.*)$/) {
         $charsetname = $1;
         @vals = ();

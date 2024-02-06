@@ -11,6 +11,7 @@
  */
 
 #include "putty.h"
+#include "puttymem.h"
 
 #define PAGESIZE 4096
 
