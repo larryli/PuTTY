@@ -17,6 +17,8 @@ struct ssh1_login_server_state {
 
     PacketProtocolLayer *successor_layer;
 
+    const SshServerConfig *ssc;
+
     int remote_protoflags;
     int local_protoflags;
     unsigned long supported_ciphers_mask, supported_auths_mask;
@@ -70,12 +72,13 @@ static void no_progress(void *param, int action, int phase, int iprogress) {}
 
 PacketProtocolLayer *ssh1_login_server_new(
     PacketProtocolLayer *successor_layer, RSAKey *hostkey,
-    AuthPolicy *authpolicy)
+    AuthPolicy *authpolicy, const SshServerConfig *ssc)
 {
     struct ssh1_login_server_state *s = snew(struct ssh1_login_server_state);
     memset(s, 0, sizeof(*s));
     s->ppl.vt = &ssh1_login_server_vtable;
 
+    s->ssc = ssc;
     s->hostkey = hostkey;
     s->authpolicy = authpolicy;
 
@@ -143,10 +146,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     }
 
     s->local_protoflags = SSH1_PROTOFLAGS_SUPPORTED;
-    /* FIXME: ability to configure this to a subset */
-    s->supported_ciphers_mask = ((1U << SSH_CIPHER_3DES) |
-                                 (1U << SSH_CIPHER_BLOWFISH) |
-                                 (1U << SSH_CIPHER_DES));
+    s->supported_ciphers_mask = s->ssc->ssh1_cipher_mask;
     s->supported_auths_mask = 0;
     s->ap_methods = auth_methods(s->authpolicy);
     if (s->ap_methods & AUTHMETHOD_PASSWORD)
@@ -241,8 +241,8 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
 
     {
         const ssh_cipheralg *cipher =
-            (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
-             s->cipher_type == SSH_CIPHER_DES ? &ssh_des : &ssh_3des_ssh1);
+            (s->cipher_type == SSH1_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
+             s->cipher_type == SSH1_CIPHER_DES ? &ssh_des : &ssh_3des_ssh1);
         ssh1_bpp_new_cipher(s->ppl.bpp, cipher, s->session_key);
     }
 

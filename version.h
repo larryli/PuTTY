@@ -8,9 +8,9 @@
  * default stuff used for local development runs of 'make'.
  */
 
-#define TEXTVER "·¢²¼°æ 0.71cn"
-#define SSHVER "-0-70-CN-Build"
-#define BINARY_VERSION 0,71,0,0
+#define TEXTVER "Unidentified build"
+#define SSHVER "-Unidentified-Local-Build"
+#define BINARY_VERSION 0,0,0,0
 
 #ifndef SOURCE_COMMIT
 /*
@@ -31,5 +31,5 @@
  * where you might go straight from local 'make' to 'make install'
  * without going through Buildscr.
  */
-#define SOURCE_COMMIT "putty-0.71cn"
+#define SOURCE_COMMIT "unavailable"
 #endif

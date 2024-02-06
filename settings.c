@@ -107,7 +107,7 @@ char *get_remote_username(Conf *conf)
 
 static char *gpps_raw(settings_r *sesskey, const char *name, const char *def)
 {
-    char *ret = sesskey ? read_setting_s(sesskey, name) : NULL;
+    char *ret = read_setting_s(sesskey, name);
     if (!ret)
 	ret = platform_default_s(name);
     if (!ret)
@@ -131,7 +131,7 @@ static void gpps(settings_r *sesskey, const char *name, const char *def,
 static void gppfont(settings_r *sesskey, char *name,
                     Conf *conf, int primary)
 {
-    FontSpec *result = sesskey ? read_setting_fontspec(sesskey, name) : NULL;
+    FontSpec *result = read_setting_fontspec(sesskey, name);
     if (!result)
         result = platform_default_fontspec(name);
     conf_set_fontspec(conf, primary, result);
@@ -140,7 +140,7 @@ static void gppfont(settings_r *sesskey, char *name,
 static void gppfile(settings_r *sesskey, const char *name,
                     Conf *conf, int primary)
 {
-    Filename *result = sesskey ? read_setting_filename(sesskey, name) : NULL;
+    Filename *result = read_setting_filename(sesskey, name);
     if (!result)
 	result = platform_default_filename(name);
     conf_set_filename(conf, primary, result);
@@ -162,7 +162,7 @@ static void gppb(settings_r *sesskey, const char *name, bool def,
 static int gppi_raw(settings_r *sesskey, const char *name, int def)
 {
     def = platform_default_i(name, def);
-    return sesskey ? read_setting_i(sesskey, name, def) : def;
+    return read_setting_i(sesskey, name, def);
 }
 
 static void gppi(settings_r *sesskey, const char *name, int def,
@@ -592,21 +592,25 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_b(sesskey, "Compression", conf_get_bool(conf, CONF_compression));
     write_setting_b(sesskey, "TryAgent", conf_get_bool(conf, CONF_tryagent));
     write_setting_b(sesskey, "AgentFwd", conf_get_bool(conf, CONF_agentfwd));
+#ifndef NO_GSSAPI
     write_setting_b(sesskey, "GssapiFwd", conf_get_bool(conf, CONF_gssapifwd));
+#endif
     write_setting_b(sesskey, "ChangeUsername", conf_get_bool(conf, CONF_change_username));
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX, conf, CONF_ssh_cipherlist);
     wprefs(sesskey, "KEX", kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
     wprefs(sesskey, "HostKey", hknames, HK_MAX, conf, CONF_ssh_hklist);
     write_setting_i(sesskey, "RekeyTime", conf_get_int(conf, CONF_ssh_rekey_time));
+#ifndef NO_GSSAPI
     write_setting_i(sesskey, "GssapiRekey", conf_get_int(conf, CONF_gssapirekey));
+#endif
     write_setting_s(sesskey, "RekeyBytes", conf_get_str(conf, CONF_ssh_rekey_data));
     write_setting_b(sesskey, "SshNoAuth", conf_get_bool(conf, CONF_ssh_no_userauth));
     write_setting_b(sesskey, "SshBanner", conf_get_bool(conf, CONF_ssh_show_banner));
     write_setting_b(sesskey, "AuthTIS", conf_get_bool(conf, CONF_try_tis_auth));
     write_setting_b(sesskey, "AuthKI", conf_get_bool(conf, CONF_try_ki_auth));
+#ifndef NO_GSSAPI
     write_setting_b(sesskey, "AuthGSSAPI", conf_get_bool(conf, CONF_try_gssapi_auth));
     write_setting_b(sesskey, "AuthGSSAPIKEX", conf_get_bool(conf, CONF_try_gssapi_kex));
-#ifndef NO_GSSAPI
     wprefs(sesskey, "GSSLibs", gsslibkeywords, ngsslibs, conf, CONF_ssh_gsslist);
     write_setting_filename(sesskey, "GSSCustom", conf_get_filename(conf, CONF_ssh_gss_custom));
 #endif
@@ -675,8 +679,8 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_b(sesskey, "AutoWrapMode", conf_get_bool(conf, CONF_wrap_mode));
     write_setting_b(sesskey, "LFImpliesCR", conf_get_bool(conf, CONF_lfhascr));
     write_setting_b(sesskey, "CRImpliesLF", conf_get_bool(conf, CONF_crhaslf));
-    write_setting_b(sesskey, "DisableArabicShaping", conf_get_bool(conf, CONF_arabicshaping));
-    write_setting_b(sesskey, "DisableBidi", conf_get_bool(conf, CONF_bidi));
+    write_setting_b(sesskey, "DisableArabicShaping", conf_get_bool(conf, CONF_no_arabicshaping));
+    write_setting_b(sesskey, "DisableBidi", conf_get_bool(conf, CONF_no_bidi));
     write_setting_b(sesskey, "WinNameAlways", conf_get_bool(conf, CONF_win_name_always));
     write_setting_s(sesskey, "WinTitle", conf_get_str(conf, CONF_wintitle));
     write_setting_i(sesskey, "TermWidth", conf_get_int(conf, CONF_width));
@@ -937,7 +941,9 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "TryAgent", true, conf, CONF_tryagent);
     gppb(sesskey, "AgentFwd", false, conf, CONF_agentfwd);
     gppb(sesskey, "ChangeUsername", false, conf, CONF_change_username);
+#ifndef NO_GSSAPI
     gppb(sesskey, "GssapiFwd", false, conf, CONF_gssapifwd);
+#endif
     gprefs(sesskey, "Cipher", "\0",
 	   ciphernames, CIPHER_MAX, conf, CONF_ssh_cipherlist);
     {
@@ -990,7 +996,9 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gprefs(sesskey, "HostKey", "ed25519,ecdsa,rsa,dsa,WARN",
            hknames, HK_MAX, conf, CONF_ssh_hklist);
     gppi(sesskey, "RekeyTime", 60, conf, CONF_ssh_rekey_time);
+#ifndef NO_GSSAPI
     gppi(sesskey, "GssapiRekey", GSS_DEF_REKEY_MINS, conf, CONF_gssapirekey);
+#endif
     gpps(sesskey, "RekeyBytes", "1G", conf, CONF_ssh_rekey_data);
     {
 	/* SSH-2 only by default */
@@ -1007,9 +1015,9 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "SshBanner", true, conf, CONF_ssh_show_banner);
     gppb(sesskey, "AuthTIS", false, conf, CONF_try_tis_auth);
     gppb(sesskey, "AuthKI", true, conf, CONF_try_ki_auth);
+#ifndef NO_GSSAPI
     gppb(sesskey, "AuthGSSAPI", true, conf, CONF_try_gssapi_auth);
     gppb(sesskey, "AuthGSSAPIKEX", true, conf, CONF_try_gssapi_kex);
-#ifndef NO_GSSAPI
     gprefs(sesskey, "GSSLibs", "\0",
 	   gsslibkeywords, ngsslibs, conf, CONF_ssh_gsslist);
     gppfile(sesskey, "GSSCustom", conf, CONF_ssh_gss_custom);
@@ -1021,8 +1029,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "PassiveTelnet", false, conf, CONF_passive_telnet);
     gppb(sesskey, "BackspaceIsDelete", true, conf, CONF_bksp_is_delete);
     gppb(sesskey, "RXVTHomeEnd", false, conf, CONF_rxvt_homeend);
-    gppi(sesskey, "LinuxFunctionKeys", 2, conf, CONF_funky_type);
-    gppb(sesskey, "NoApplicationKeys", true, conf, CONF_no_applic_k);
+    gppi(sesskey, "LinuxFunctionKeys", 0, conf, CONF_funky_type);
+    gppb(sesskey, "NoApplicationKeys", false, conf, CONF_no_applic_k);
     gppb(sesskey, "NoApplicationCursors", false, conf, CONF_no_applic_c);
     gppb(sesskey, "NoMouseReporting", false, conf, CONF_no_mouse_rep);
     gppb(sesskey, "NoRemoteResize", false, conf, CONF_no_remote_resize);
@@ -1093,13 +1101,13 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
 		 / 1000
 #endif
 		 );
-    gppi(sesskey, "ScrollbackLines", 9999, conf, CONF_savelines);
+    gppi(sesskey, "ScrollbackLines", 2000, conf, CONF_savelines);
     gppb(sesskey, "DECOriginMode", false, conf, CONF_dec_om);
     gppb(sesskey, "AutoWrapMode", true, conf, CONF_wrap_mode);
     gppb(sesskey, "LFImpliesCR", false, conf, CONF_lfhascr);
     gppb(sesskey, "CRImpliesLF", false, conf, CONF_crhaslf);
-    gppb(sesskey, "DisableArabicShaping", false, conf, CONF_arabicshaping);
-    gppb(sesskey, "DisableBidi", false, conf, CONF_bidi);
+    gppb(sesskey, "DisableArabicShaping", false, conf, CONF_no_arabicshaping);
+    gppb(sesskey, "DisableBidi", false, conf, CONF_no_bidi);
     gppb(sesskey, "WinNameAlways", true, conf, CONF_win_name_always);
     gpps(sesskey, "WinTitle", "", conf, CONF_wintitle);
     gppi(sesskey, "TermWidth", 80, conf, CONF_width);
@@ -1260,9 +1268,9 @@ static int sessioncmp(const void *av, const void *bv)
      * Alphabetical order, except that "Default Settings" is a
      * special case and comes first.
      */
-    if (!strcmp(a, "默认设置"))
+    if (!strcmp(a, "Default Settings"))
 	return -1;		       /* a comes first */
-    if (!strcmp(b, "默认设置"))
+    if (!strcmp(b, "Default Settings"))
 	return +1;		       /* b comes first */
     /*
      * FIXME: perhaps we should ignore the first & in determining
@@ -1297,7 +1305,7 @@ void get_sesslist(struct sesslist *list, bool allocate)
 	p = list->buffer;
 	list->nsessions = 1;	       /* "Default Settings" counts as one */
 	while (*p) {
-	    if (strcmp(p, "默认设置"))
+	    if (strcmp(p, "Default Settings"))
 		list->nsessions++;
 	    while (*p)
 		p++;
@@ -1305,11 +1313,11 @@ void get_sesslist(struct sesslist *list, bool allocate)
 	}
 
 	list->sessions = snewn(list->nsessions + 1, const char *);
-	list->sessions[0] = "默认设置";
+	list->sessions[0] = "Default Settings";
 	p = list->buffer;
 	i = 1;
 	while (*p) {
-	    if (strcmp(p, "默认设置"))
+	    if (strcmp(p, "Default Settings"))
 		list->sessions[i++] = p;
 	    while (*p)
 		p++;

@@ -24,12 +24,6 @@ Alternatively, you can always run pscp.exe by its full pathname, e.g.
 (Note that a Command Prompt that was already open before you ran the
 installer will not have inherited the update of PATH.)
 
-Some versions of Windows will refuse to run HTML Help files (.CHM)
-if they are installed on a network drive. If you have installed
-PuTTY on a network drive, you might want to check that the help file
-works properly. If not, see http://support.microsoft.com/kb/896054
-for information on how to solve this problem.
-
 What do I do if it doesn't work?
 --------------------------------
 

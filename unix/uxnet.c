@@ -221,6 +221,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
     }
     if (err != 0) {
 	ret->error = gai_strerror(err);
+        strbuf_free(realhost);
 	return ret;
     }
     ret->superfamily = IP;
@@ -1552,6 +1553,15 @@ static SocketPeerInfo *sk_net_peer_info(Socket *sock)
     }
 
     return pi;
+}
+
+int sk_net_get_fd(Socket *sock)
+{
+    /* This function is not fully general: it only works on NetSocket */
+    if (sock->vt != &NetSocket_sockvt)
+        return -1;                     /* failure */
+    NetSocket *s = container_of(sock, NetSocket, sock);
+    return s->s;
 }
 
 static void uxsel_tell(NetSocket *s)

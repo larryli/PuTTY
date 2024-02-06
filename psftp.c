@@ -33,6 +33,7 @@ static void do_sftp_cleanup(void);
  */
 
 char *pwd, *homedir;
+static LogContext *psftp_logctx = NULL;
 static Backend *backend;
 Conf *conf;
 bool sent_eof = false;
@@ -210,20 +211,6 @@ char *canonify(const char *name)
     }
 }
 
-/*
- * qsort comparison routine for fxp_name structures. Sorts by real
- * file name.
- */
-static int sftp_name_compare(const void *av, const void *bv)
-{
-    const struct fxp_name *const *a = (const struct fxp_name *const *) av;
-    const struct fxp_name *const *b = (const struct fxp_name *const *) bv;
-    return strcmp((*a)->filename, (*b)->filename);
-}
-
-/*
- * Likewise, but for a bare char *.
- */
 static int bare_name_compare(const void *av, const void *bv)
 {
     const char **a = (const char **) av;
@@ -1023,6 +1010,17 @@ int sftp_cmd_close(struct sftp_command *cmd)
     return 0;
 }
 
+void list_directory_from_sftp_warn_unsorted(void)
+{
+    printf("Directory is too large to sort; writing file names unsorted\n");
+}
+
+void list_directory_from_sftp_print(struct fxp_name *name)
+{
+    with_stripctrl(san, name->longname)
+        printf("%s\n", san);
+}
+
 /*
  * List a directory. If no arguments are given, list pwd; otherwise
  * list the directory given in words[1].
@@ -1031,8 +1029,6 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 {
     struct fxp_handle *dirh;
     struct fxp_names *names;
-    struct fxp_name **ournames;
-    size_t nnames, namesize;
     const char *dir;
     char *cdir, *unwcdir, *wildcard;
     struct sftp_packet *pktin;
@@ -1090,8 +1086,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	sfree(unwcdir);
 	return 0;
     } else {
-	nnames = namesize = 0;
-	ournames = NULL;
+        struct list_directory_from_sftp_ctx *ctx =
+            list_directory_from_sftp_new();
 
 	while (1) {
 
@@ -1110,34 +1106,19 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 		break;
 	    }
 
-            sgrowarrayn(ournames, namesize, nnames, names->nnames);
-
 	    for (size_t i = 0; i < names->nnames; i++)
 		if (!wildcard || wc_match(wildcard, names->names[i].filename))
-		    ournames[nnames++] = fxp_dup_name(&names->names[i]);
+                    list_directory_from_sftp_feed(ctx, &names->names[i]);
 
 	    fxp_free_names(names);
 	}
+
 	req = fxp_close_send(dirh);
         pktin = sftp_wait_for_reply(req);
 	fxp_close_recv(pktin, req);
 
-	/*
-	 * Now we have our filenames. Sort them by actual file
-	 * name, and then output the longname parts.
-	 */
-        if (nnames > 0)
-            qsort(ournames, nnames, sizeof(*ournames), sftp_name_compare);
-
-	/*
-	 * And print them.
-	 */
-	for (size_t i = 0; i < nnames; i++) {
-            with_stripctrl(san, ournames[i]->longname)
-                printf("%s\n", san);
-	    fxp_free_name(ournames[i]);
-	}
-	sfree(ournames);
+        list_directory_from_sftp_finish(ctx);
+        list_directory_from_sftp_free(ctx);
     }
 
     sfree(cdir);
@@ -2528,36 +2509,36 @@ size_t sftp_sendbuffer(void)
  */
 static void usage(void)
 {
-    printf("PuTTY 安全文件传输 (SFTP) 客户端\n");
+    printf("PuTTY Secure File Transfer (SFTP) client\n");
     printf("%s\n", ver);
-    printf("用法: psftp [选项] [用户@]主机\n");
-    printf("选项:\n");
-    printf("  -V        显示版本信息后退出\n");
-    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
-    printf("  -b 文件   使用指定的批处理文件\n");
-    printf("  -bc       输出批处理文件命令\n");
-    printf("  -be       批处理文件发生错误也不停止其处理进程\n");
-    printf("  -v        显示详细信息\n");
-    printf("  -load 会话名  载入保存的会话信息\n");
-    printf("  -l 用户   使用指定的用户名连接\n");
-    printf("  -P 端口   连接指定的端口\n");
-    printf("  -pw 密码  使用指定的密码登录\n");
-    printf("  -1 -2     强制使用 SSH 协议版本\n");
-    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
-    printf("  -C        允许压缩\n");
-    printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  禁止使用 Pageant 认证代理\n");
-    printf("  -agent    开启使用 Pageant 认证代理\n");
+    printf("Usage: psftp [options] [user@]host\n");
+    printf("Options:\n");
+    printf("  -V        print version information and exit\n");
+    printf("  -pgpfp    print PGP key fingerprints and exit\n");
+    printf("  -b file   use specified batchfile\n");
+    printf("  -bc       output batchfile commands\n");
+    printf("  -be       don't stop batchfile processing if errors\n");
+    printf("  -v        show verbose messages\n");
+    printf("  -load sessname  Load settings from saved session\n");
+    printf("  -l user   connect with specified username\n");
+    printf("  -P port   connect to specified port\n");
+    printf("  -pw passw login with specified password\n");
+    printf("  -1 -2     force use of particular SSH protocol version\n");
+    printf("  -4 -6     force use of IPv4 or IPv6\n");
+    printf("  -C        enable compression\n");
+    printf("  -i key    private key file for user authentication\n");
+    printf("  -noagent  disable use of Pageant\n");
+    printf("  -agent    enable use of Pageant\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            手动指定主机密钥 (可能重复)\n");
-    printf("  -batch    禁止所有交互提示\n");
-    printf("  -no-sanitise-stderr  不要从标准错误中删除"
-           "控制字符\n");
-    printf("  -proxycmd 命令\n");
-    printf("            使用 '命令' 作为本地代理\n");
-    printf("  -sshlog 文件\n");
-    printf("  -sshrawlog 文件\n");
-    printf("            记录协议详细日志到指定文件\n");
+    printf("            manually specify a host key (may be repeated)\n");
+    printf("  -batch    disable all interactive prompts\n");
+    printf("  -no-sanitise-stderr  don't strip control chars from"
+           " standard error\n");
+    printf("  -proxycmd command\n");
+    printf("            use 'command' as local proxy\n");
+    printf("  -sshlog file\n");
+    printf("  -sshrawlog file\n");
+    printf("            log protocol details to a file\n");
     cleanup_exit(1);
 }
 
@@ -2576,7 +2557,6 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 {
     char *host, *realhost;
     const char *err;
-    LogContext *logctx;
 
     /* Separate host and username */
     host = userhost;
@@ -2733,11 +2713,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		 "exec sftp-server");
     conf_set_bool(conf, CONF_ssh_subsys2, false);
 
-    logctx = log_init(default_logpolicy, conf);
+    psftp_logctx = log_init(default_logpolicy, conf);
 
     platform_psftp_pre_conn_setup();
 
-    err = backend_init(&ssh_backend, psftp_seat, &backend, logctx, conf,
+    err = backend_init(&ssh_backend, psftp_seat, &backend, psftp_logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
@@ -2905,6 +2885,12 @@ int psftp_main(int argc, char *argv[])
     random_save_seed();
     cmdline_cleanup();
     sk_cleanup();
+
+    stripctrl_free(string_scc);
+    stripctrl_free(stderr_scc);
+
+    if (psftp_logctx)
+        log_free(psftp_logctx);
 
     return ret;
 }

@@ -84,18 +84,6 @@ void noise_get_heavy(void (*func) (void *, int))
     read_random_seed(func);
 }
 
-void random_save_seed(void)
-{
-    int len;
-    void *data;
-
-    if (random_active) {
-	random_get_savedata(&data, &len);
-	write_random_seed(data, len);
-	sfree(data);
-    }
-}
-
 /*
  * This function is called on a timer, and grabs as much changeable
  * system data as it can quickly get its hands on.

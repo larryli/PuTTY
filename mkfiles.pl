@@ -601,7 +601,7 @@ if (defined $makefiles{'clangcl'}) {
     print &def($makefile_extra{'clangcl'}->{'end'});
     print "\nclean:\n".
         &splitline("\trm -f \$(BUILDDIR)*.obj \$(BUILDDIR)*.exe ".
-                   "\$(BUILDDIR)*.res \$(BUILDDIR)*.map ".
+                   "\$(BUILDDIR)*.rcpp \$(BUILDDIR)*.res \$(BUILDDIR)*.map ".
                    "\$(BUILDDIR)*.exe.manifest")."\n";
     select STDOUT; close OUT;
 }

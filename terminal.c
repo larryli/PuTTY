@@ -114,6 +114,7 @@ static void deselect(Terminal *);
 static void term_print_finish(Terminal *);
 static void scroll(Terminal *, int, int, int, bool);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
+static void term_added_data(Terminal *term);
 
 static termline *newtermline(Terminal *term, int cols, bool bce)
 {
@@ -1340,7 +1341,6 @@ static void power_on(Terminal *term, bool clear)
 	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
     term->curr_truecolour.fg = term->curr_truecolour.bg = optionalrgb_none;
     term->save_truecolour = term->alt_save_truecolour = term->curr_truecolour;
-    term->term_editing = term->term_echoing = false;
     term->app_cursor_keys = conf_get_bool(term->conf, CONF_app_cursor);
     term->app_keypad_keys = conf_get_bool(term->conf, CONF_app_keypad);
     term->use_bce = conf_get_bool(term->conf, CONF_bce);
@@ -1353,6 +1353,7 @@ static void power_on(Terminal *term, bool clear)
     term->urxvt_extended_mouse = false;
     win_set_raw_mouse_mode(term->win, false);
     term->bracketed_paste = false;
+    term->srm_echo = false;
     {
 	int i;
 	for (i = 0; i < 256; i++)
@@ -1464,13 +1465,13 @@ static void set_erase_char(Terminal *term)
 void term_copy_stuff_from_conf(Terminal *term)
 {
     term->ansi_colour = conf_get_bool(term->conf, CONF_ansi_colour);
-    term->arabicshaping = conf_get_bool(term->conf, CONF_arabicshaping);
+    term->no_arabicshaping = conf_get_bool(term->conf, CONF_no_arabicshaping);
     term->beep = conf_get_int(term->conf, CONF_beep);
     term->bellovl = conf_get_bool(term->conf, CONF_bellovl);
     term->bellovl_n = conf_get_int(term->conf, CONF_bellovl_n);
     term->bellovl_s = conf_get_int(term->conf, CONF_bellovl_s);
     term->bellovl_t = conf_get_int(term->conf, CONF_bellovl_t);
-    term->bidi = conf_get_bool(term->conf, CONF_bidi);
+    term->no_bidi = conf_get_bool(term->conf, CONF_no_bidi);
     term->bksp_is_delete = conf_get_bool(term->conf, CONF_bksp_is_delete);
     term->blink_cur = conf_get_bool(term->conf, CONF_blink_cur);
     term->blinktext = conf_get_bool(term->conf, CONF_blinktext);
@@ -1564,10 +1565,10 @@ void term_reconfig(Terminal *term, Conf *conf)
      * If the bidi or shaping settings have changed, flush the bidi
      * cache completely.
      */
-    if (conf_get_bool(term->conf, CONF_arabicshaping) !=
-	conf_get_bool(conf, CONF_arabicshaping) ||
-	conf_get_bool(term->conf, CONF_bidi) !=
-	conf_get_bool(conf, CONF_bidi)) {
+    if (conf_get_bool(term->conf, CONF_no_arabicshaping) !=
+	conf_get_bool(conf, CONF_no_arabicshaping) ||
+	conf_get_bool(term->conf, CONF_no_bidi) !=
+	conf_get_bool(conf, CONF_no_bidi)) {
 	for (i = 0; i < term->bidi_cache_size; i++) {
 	    sfree(term->pre_bidi_cache[i].chars);
 	    sfree(term->post_bidi_cache[i].chars);
@@ -1754,6 +1755,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->trusted = true;
 
+    term->bracketed_paste_active = false;
+
     return term;
 }
 
@@ -1804,6 +1807,7 @@ void term_free(Terminal *term)
     sfree(term->tabs);
 
     expire_timer_context(term);
+    delete_callbacks_for_context(term);
 
     conf_free(term->conf);
 
@@ -2634,11 +2638,6 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 	  case 8:		       /* DECARM: auto key repeat */
 	    term->repeat_off = !state;
 	    break;
-	  case 10:		       /* DECEDM: set local edit mode */
-	    term->term_editing = state;
-	    if (term->ldisc)	       /* cause ldisc to notice changes */
-		ldisc_echoedit_update(term->ldisc);
-	    break;
 	  case 25:		       /* DECTCEM: enable/disable cursor */
 	    compatibility2(OTHER, VT220);
 	    term->cursor_on = state;
@@ -2700,9 +2699,7 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 	    term->insert = state;
 	    break;
 	  case 12:		       /* SRM: set echo mode */
-	    term->term_echoing = !state;
-	    if (term->ldisc)	       /* cause ldisc to notice changes */
-		ldisc_echoedit_update(term->ldisc);
+            term->srm_echo = !state;
 	    break;
 	  case 20:		       /* LNM: Return sends ... */
 	    term->cr_lf_return = state;
@@ -2952,6 +2949,126 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
         }
     }
     seen_disp_event(term);
+}
+
+static strbuf *term_input_data_from_unicode(
+    Terminal *term, const wchar_t *widebuf, int len)
+{
+    strbuf *buf = strbuf_new();
+
+    if (in_utf(term)) {
+        /*
+         * Translate input wide characters into UTF-8 to go in the
+         * terminal's input data queue.
+         */
+        for (int i = 0; i < len; i++) {
+            unsigned long ch = widebuf[i];
+
+            if (IS_SURROGATE(ch)) {
+#ifdef PLATFORM_IS_UTF16
+                if (i+1 < len) {
+                    unsigned long ch2 = widebuf[i+1];
+                    if (IS_SURROGATE_PAIR(ch, ch2)) {
+                        ch = FROM_SURROGATES(ch, ch2);
+                        i++;
+                    }
+                } else
+#endif
+                {
+                    /* Unrecognised UTF-16 sequence */
+                    ch = '.';
+                }
+            }
+
+            char utf8_chr[6];
+            put_data(buf, utf8_chr, encode_utf8(utf8_chr, ch));
+        }
+    } else {
+        /*
+         * Call to the character-set subsystem to translate into
+         * whatever charset the terminal is currently configured in.
+         *
+         * Since the terminal doesn't currently support any multibyte
+         * character set other than UTF-8, we can assume here that
+         * there will be at most one output byte per input wchar_t.
+         * (But also we must allow space for the trailing NUL that
+         * wc_to_mb will write.)
+         */
+        char *bufptr = strbuf_append(buf, len + 1);
+        int rv;
+        rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
+                      bufptr, len + 1, NULL, term->ucsdata);
+        buf->len = rv < 0 ? 0 : rv;
+    }
+
+    return buf;
+}
+
+static strbuf *term_input_data_from_charset(
+    Terminal *term, int codepage, const char *str, int len)
+{
+    strbuf *buf;
+
+    if (codepage < 0) {
+        buf = strbuf_new();
+        put_data(buf, str, len);
+    } else {
+        int widesize = len * 2;        /* allow for UTF-16 surrogates */
+        wchar_t *widebuf = snewn(widesize, wchar_t);
+        int widelen = mb_to_wc(codepage, 0, str, len, widebuf, widesize);
+        buf = term_input_data_from_unicode(term, widebuf, widelen);
+        sfree(widebuf);
+    }
+
+    return buf;
+}
+
+static inline void term_bracketed_paste_start(Terminal *term)
+{
+    ptrlen seq = PTRLEN_LITERAL("\033[200~");
+    if (term->ldisc)
+        ldisc_send(term->ldisc, seq.ptr, seq.len, false);
+    term->bracketed_paste_active = true;
+}
+
+static inline void term_bracketed_paste_stop(Terminal *term)
+{
+    if (!term->bracketed_paste_active)
+        return;
+
+    ptrlen seq = PTRLEN_LITERAL("\033[201~");
+    if (term->ldisc)
+        ldisc_send(term->ldisc, seq.ptr, seq.len, false);
+    term->bracketed_paste_active = false;
+}
+
+static inline void term_keyinput_internal(
+    Terminal *term, const void *buf, int len, bool interactive)
+{
+    if (term->srm_echo) {
+        /*
+         * Implement the terminal-level local echo behaviour that
+         * ECMA-48 specifies when terminal mode 12 is configured off
+         * (ESC[12l). In this mode, data input to the terminal via the
+         * keyboard is also added to the output buffer. But this
+         * doesn't apply to escape sequences generated as session
+         * input _within_ the terminal, e.g. in response to terminal
+         * query sequences, or the bracketing sequences of bracketed
+         * paste mode. Those will be sent directly via
+         * ldisc_send(term->ldisc, ...) and won't go through this
+         * function.
+         */
+
+        /* Mimic the special case of negative length in ldisc_send */
+        int true_len = len >= 0 ? len : strlen(buf);
+
+        bufchain_add(&term->inbuf, buf, true_len);
+        term_added_data(term);
+    }
+    term_bracketed_paste_stop(term);
+    if (term->ldisc)
+        ldisc_send(term->ldisc, buf, len, interactive);
+    term_seen_key_event(term);
 }
 
 unsigned long term_translate(
@@ -3226,8 +3343,11 @@ static void term_out(Terminal *term)
 		 */
 		compatibility(ANSIMIN);
 		if (term->ldisc) {
-		    lpage_send(term->ldisc, DEFAULT_CODEPAGE,
-			       term->answerback, term->answerbacklen, false);
+                    strbuf *buf = term_input_data_from_charset(
+                        term, DEFAULT_CODEPAGE,
+                        term->answerback, term->answerbacklen);
+                    ldisc_send(term->ldisc, buf->s, buf->len, false);
+                    strbuf_free(buf);
 		}
 		break;
 	      case '\007':	      /* BEL: Bell */
@@ -5058,7 +5178,7 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
     int it;
 
     /* Do Arabic shaping and bidi. */
-    if (!term->bidi || !term->arabicshaping ||
+    if (!term->no_bidi || !term->no_arabicshaping ||
         (ldata->trusted && term->cols > TRUST_SIGIL_WIDTH)) {
 
 	if (!term_bidi_cache_hit(term, scr_y, ldata->chars, term->cols,
@@ -5127,16 +5247,16 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
                 nbc++;
             }
 
-	    if(!term->bidi)
+	    if(!term->no_bidi)
 		do_bidi(term->wcFrom, nbc);
 
-	    /* this is saved iff done from inside the shaping */
-	    if(!term->bidi && term->arabicshaping)
-		for(it=0; it<nbc; it++)
-		    term->wcTo[it] = term->wcFrom[it];
-
-	    if(!term->arabicshaping)
+	    if(!term->no_arabicshaping) {
 		do_shape(term->wcFrom, term->wcTo, nbc);
+            } else {
+                /* If we're not calling do_shape, we must copy the
+                 * data into wcTo anyway, unchanged */
+                memcpy(term->wcTo, term->wcFrom, nbc * sizeof(*term->wcTo));
+            }
 
 	    if (term->ltemp_size < ldata->size) {
 		term->ltemp_size = ldata->size;
@@ -6230,9 +6350,12 @@ static void term_paste_callback(void *vterm)
 	    if (term->paste_buffer[term->paste_pos + n++] == '\015')
 		break;
 	}
-	if (term->ldisc)
-	    luni_send(term->ldisc, term->paste_buffer + term->paste_pos, n,
-                      false);
+	if (term->ldisc) {
+            strbuf *buf = term_input_data_from_unicode(
+                term, term->paste_buffer + term->paste_pos, n);
+            term_keyinput_internal(term, buf->s, buf->len, false);
+            strbuf_free(buf);
+        }
 	term->paste_pos += n;
 
 	if (term->paste_pos < term->paste_len) {
@@ -6240,6 +6363,7 @@ static void term_paste_callback(void *vterm)
 	    return;
 	}
     }
+    term_bracketed_paste_stop(term);
     sfree(term->paste_buffer);
     term->paste_buffer = NULL;
     term->paste_len = 0;
@@ -6275,10 +6399,8 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
     term->paste_pos = term->paste_len = 0;
     term->paste_buffer = snewn(len + 12, wchar_t);
 
-    if (term->bracketed_paste) {
-        memcpy(term->paste_buffer, L"\033[200~", 6 * sizeof(wchar_t));
-        term->paste_len += 6;
-    }
+    if (term->bracketed_paste)
+        term_bracketed_paste_start(term);
 
     p = data;
     while (p < data + len) {
@@ -6327,19 +6449,18 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
         term->paste_buffer[term->paste_len++] = wc;
     }
 
-    if (term->bracketed_paste) {
-        memcpy(term->paste_buffer + term->paste_len,
-               L"\033[201~", 6 * sizeof(wchar_t));
-        term->paste_len += 6;
-    }
-
     /* Assume a small paste will be OK in one go. */
     if (term->paste_len < 256) {
-        if (term->ldisc)
-            luni_send(term->ldisc, term->paste_buffer, term->paste_len, false);
+        if (term->ldisc) {
+            strbuf *buf = term_input_data_from_unicode(
+                term, term->paste_buffer, term->paste_len);
+            term_keyinput_internal(term, buf->s, buf->len, false);
+            strbuf_free(buf);
+        }
         if (term->paste_buffer)
             sfree(term->paste_buffer);
-        term->paste_buffer = 0;
+        term_bracketed_paste_stop(term);
+        term->paste_buffer = NULL;
         term->paste_pos = term->paste_len = 0;
     }
 
@@ -6836,13 +6957,34 @@ int format_numeric_keypad_key(char *buf, Terminal *term, char key,
         }
     }
 
-    if (p == buf && !app_keypad && key != 'G') {
-        /* Fallback: numeric keypad keys decode as their ASCII
-         * representation. */
-        p += sprintf(p, "%c", key);
-    }
-
     return p - buf;
+}
+
+void term_keyinputw(Terminal *term, const wchar_t *widebuf, int len)
+{
+    strbuf *buf = term_input_data_from_unicode(term, widebuf, len);
+    if (buf->len)
+        term_keyinput_internal(term, buf->s, buf->len, true);
+    strbuf_free(buf);
+}
+
+void term_keyinput(Terminal *term, int codepage, const void *str, int len)
+{
+    if (codepage < 0 || codepage == term->ucsdata->line_codepage) {
+        /*
+         * This text needs no translation, either because it's already
+         * in the right character set, or because we got the special
+         * codepage value -1 from our caller which means 'this data
+         * should be charset-agnostic, just send it raw' (for really
+         * simple things like control characters).
+         */
+        term_keyinput_internal(term, str, len, true);
+    } else {
+        strbuf *buf = term_input_data_from_charset(term, codepage, str, len);
+        if (buf->len)
+            term_keyinput_internal(term, buf->s, buf->len, true);
+        strbuf_free(buf);
+    }
 }
 
 void term_nopaste(Terminal *term)
@@ -6850,6 +6992,7 @@ void term_nopaste(Terminal *term)
     if (term->paste_len == 0)
 	return;
     sfree(term->paste_buffer);
+    term_bracketed_paste_stop(term);
     term->paste_buffer = NULL;
     term->paste_len = 0;
 }
@@ -6876,15 +7019,6 @@ void term_lost_clipboard_ownership(Terminal *term, int clipboard)
      */
     if (term->selstate != DRAGGING)
         term_out(term);
-}
-
-bool term_ldisc(Terminal *term, int option)
-{
-    if (option == LD_ECHO)
-	return term->term_echoing;
-    if (option == LD_EDIT)
-	return term->term_editing;
-    return false;
 }
 
 static void term_added_data(Terminal *term)

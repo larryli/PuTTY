@@ -412,6 +412,16 @@ static void uss_fstat(SftpServer *srv, SftpReplyBuilder *reply,
     }
 }
 
+#if !HAVE_FUTIMES
+static inline int futimes(int fd, const struct timeval tv[2])
+{
+    /* If the OS doesn't support futimes(3) then we have to pretend it
+     * always returns failure */
+    errno = EINVAL;
+    return -1;
+}
+#endif
+
 /*
  * The guts of setstat and fsetstat, macroised so that they can call
  * fchown(fd,...) or chown(path,...) depending on parameters.

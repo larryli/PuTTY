@@ -334,33 +334,13 @@ static void mainchan_ready(mainchan *mc)
     queue_idempotent_callback(&mc->ppl->ic_process_queue);
 }
 
-struct mainchan_open_failure_abort_ctx {
-    Ssh *ssh;
-    char *abort_message;
-};
-
-static void mainchan_open_failure_abort(void *vctx)
-{
-    struct mainchan_open_failure_abort_ctx *ctx =
-        (struct mainchan_open_failure_abort_ctx *)vctx;
-    ssh_sw_abort(
-        ctx->ssh, "Server refused to open main channel: %s",
-        ctx->abort_message);
-    sfree(ctx->abort_message);
-    sfree(ctx);
-}
-
 static void mainchan_open_failure(Channel *chan, const char *errtext)
 {
     assert(chan->vt == &mainchan_channelvt);
     mainchan *mc = container_of(chan, mainchan, chan);
 
-    struct mainchan_open_failure_abort_ctx *ctx =
-        snew(struct mainchan_open_failure_abort_ctx);
-
-    ctx->ssh = mc->ppl->ssh;
-    ctx->abort_message = dupstr(errtext);
-    queue_toplevel_callback(mainchan_open_failure_abort, ctx);
+    ssh_sw_abort_deferred(mc->ppl->ssh,
+                          "Server refused to open main channel: %s", errtext);
 }
 
 static size_t mainchan_send(Channel *chan, bool is_stderr,
@@ -489,7 +469,7 @@ void mainchan_get_specials(
 {
     /* FIXME: this _does_ depend on whether these services are supported */
 
-    add_special(ctx, "Break ÇÐ¶Ï", SS_BRK, 0);
+    add_special(ctx, "Break", SS_BRK, 0);
 
     #define SIGNAL_MAIN(name, desc) \
     add_special(ctx, "SIG" #name " (" desc ")", SS_SIG ## name, 0);
@@ -498,7 +478,7 @@ void mainchan_get_specials(
     #undef SIGNAL_MAIN
     #undef SIGNAL_SUB
 
-    add_special(ctx, "¸ü¶àÐÅºÅ", SS_SUBMENU, 0);
+    add_special(ctx, "More signals", SS_SUBMENU, 0);
 
     #define SIGNAL_MAIN(name, desc)
     #define SIGNAL_SUB(name) \

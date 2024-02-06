@@ -1,7 +1,7 @@
 #include "rcstuff.h"
 
 #define APPNAME "PuTTY"
-#define APPDESC "SSH¡¢Telnet ºÍ Rlogin ¿Í»§¶Ë"
+#define APPDESC "SSH, Telnet and Rlogin client"
 
 #include "winhelp.rc2"
 #include "win_res.rc2"

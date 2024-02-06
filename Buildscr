@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 16971 # update this at every release
+set Epoch 17091 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -44,7 +44,7 @@ ifneq "$(Ndate)" "" read Days days
 # comparisons with the surrounding actual releases.
 ifeq "$(RELEASE)" "" read Lastver putty/LATEST.VER
 
-# Set up the textual version strings for the docs build and installer.
+# Set up the textual version strings for the docs build and installers.
 # We have one of these including the word 'PuTTY', and one without,
 # which are inconveniently capitalised differently.
 ifneq "$(RELEASE)" "" set Puttytextver PuTTY release $(RELEASE)
@@ -80,7 +80,7 @@ ifneq "$(PRERELEASE)" "" set Autoconfver $(PRERELEASE)~pre$(Ndate).$(vcsid)
 ifneq "$(SNAPSHOT)" "" set Autoconfver $(Lastver)-$(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Autoconfver Custom.$(Date).$(vcsid)
 
-# Set up the filenames for the Windows installer (minus extension,
+# Set up the filenames for the Windows installers (minus extension,
 # which goes on later).
 ifneq "$(RELEASE)" "" set Isuffix $(RELEASE)-installer
 ifneq "$(PRERELEASE)" "" set Isuffix $(PRERELEASE)-pre$(Ndate)-installer
@@ -91,13 +91,7 @@ set Ifilename64 putty-64bit-$(Isuffix)
 set Ifilenamea32 putty-arm32-$(Isuffix)
 set Ifilenamea64 putty-arm64-$(Isuffix)
 
-# Set up the version string for the Windows installer.
-ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
-ifneq "$(PRERELEASE)" "" set Iversion $(PRERELEASE)-pre$(Ndate).$(vcsid)
-ifneq "$(SNAPSHOT)" "" set Iversion $(Date).$(vcsid)
-ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Iversion Custom-$(Date).$(vcsid)
-
-# Set up the Windows version resource info, for both the installer and
+# Set up the Windows version resource info, for both the installers and
 # the individual programs. This must be a sequence of four 16-bit
 # integers compared lexicographically, and we define it as follows:
 #
@@ -153,14 +147,7 @@ in putty do make -j$(nproc)
 in putty do python test/cryptsuite.py
 enddelegate
 
-# Munge the installer script locally so that it reports the version
-# we're really building.
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVerName=).*$$/$$1$$a/' '$(Puttytextver)' putty.iss
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoTextVersion=).*$$/$$1$$a/' '$(Textver)' putty.iss
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVersion=).*$$/$$1$$a/' '$(Iversion)' putty.iss
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoVersion=)\d+\.\d+\.\d+\.\d+\r?$$/$$1$$a/' '$(Winver)' putty.iss
-
-# Windowsify LICENCE, since it's going in the Windows installer.
+# Windowsify LICENCE, since it's going in the Windows installers.
 in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 # Some gratuitous theming for the MSI installer UI.
@@ -174,7 +161,7 @@ mkdir putty/windows/buildold
 mkdir putty/windows/abuild32
 mkdir putty/windows/abuild64
 
-# Build the binaries to go in the installer, in both 32- and 64-bit
+# Build the binaries to go in the installers, in both 32- and 64-bit
 # flavours.
 #
 # For the 32-bit ones, we set a subsystem version of 5.01, which
@@ -207,7 +194,7 @@ ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i h
 # of these versions of the binaries. We'll make the rest below.
 in putty do for hash in md5 sha1 sha256 sha512; do for dir_plat in "build32 w32" "build64 w64" "abuild32 wa32" "abuild64 wa64"; do set -- $$dir_plat; (cd windows/$$1 && $${hash}sum *.exe | sed 's!\( \+\)!\1'$$2'/!;s!$$! (installer version)!') >> $${hash}sums.installer; done; done
 
-# Build a WiX MSI installer, for each of build32 and build64.
+# Build a WiX MSI installer, for each build flavour.
 in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=x86 -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
 in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=x64 -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
 in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb

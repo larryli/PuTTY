@@ -71,7 +71,7 @@ static int rsa_ssh1_load_main(FILE * fp, RSAKey *key, bool pub_only,
 
     /* One byte giving encryption type, and one reserved uint32. */
     ciphertype = get_byte(src);
-    if (ciphertype != 0 && ciphertype != SSH_CIPHER_3DES)
+    if (ciphertype != 0 && ciphertype != SSH1_CIPHER_3DES)
 	goto end;
     if (get_uint32(src) != 0)
         goto end;                 /* reserved field nonzero, panic! */
@@ -330,7 +330,7 @@ bool rsa_ssh1_savekey(const Filename *filename, RSAKey *key,
      * The public part of the key.
      */
     put_data(buf, rsa_signature, sizeof(rsa_signature));
-    put_byte(buf, passphrase ? SSH_CIPHER_3DES : 0); /* encryption type */
+    put_byte(buf, passphrase ? SSH1_CIPHER_3DES : 0); /* encryption type */
     put_uint32(buf, 0);                              /* reserved */
     rsa_ssh1_public_blob(BinarySink_UPCAST(buf), key,
                          RSA_SSH1_MODULUS_FIRST);
@@ -1601,16 +1601,16 @@ int key_type(const Filename *filename)
 const char *key_type_to_str(int type)
 {
     switch (type) {
-      case SSH_KEYTYPE_UNOPENABLE: return "无法打开文件"; break;
-      case SSH_KEYTYPE_UNKNOWN: return "不是私钥"; break;
-      case SSH_KEYTYPE_SSH1_PUBLIC: return "SSH-1 公钥"; break;
-      case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716: return "SSH-2 公钥 (RFC 4716 格式)"; break;
-      case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH: return "SSH-2 公钥 (OpenSSH 格式)"; break;
-      case SSH_KEYTYPE_SSH1: return "SSH-1 私钥"; break;
-      case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 私钥"; break;
-      case SSH_KEYTYPE_OPENSSH_PEM: return "OpenSSH SSH-2 私钥 (旧 PEM 格式)"; break;
-      case SSH_KEYTYPE_OPENSSH_NEW: return "OpenSSH SSH-2 私钥 (新格式)"; break;
-      case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 私钥"; break;
+      case SSH_KEYTYPE_UNOPENABLE: return "unable to open file"; break;
+      case SSH_KEYTYPE_UNKNOWN: return "not a recognised key file format"; break;
+      case SSH_KEYTYPE_SSH1_PUBLIC: return "SSH-1 public key"; break;
+      case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716: return "SSH-2 public key (RFC 4716 format)"; break;
+      case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH: return "SSH-2 public key (OpenSSH format)"; break;
+      case SSH_KEYTYPE_SSH1: return "SSH-1 private key"; break;
+      case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 private key"; break;
+      case SSH_KEYTYPE_OPENSSH_PEM: return "OpenSSH SSH-2 private key (old PEM format)"; break;
+      case SSH_KEYTYPE_OPENSSH_NEW: return "OpenSSH SSH-2 private key (new format)"; break;
+      case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 private key"; break;
         /*
          * This function is called with a key type derived from
          * looking at an actual key file, so the output-only type

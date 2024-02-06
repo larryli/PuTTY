@@ -12,11 +12,14 @@
 #include <utime.h>
 #include <errno.h>
 #include <assert.h>
-#include <glob.h>
 
 #include "putty.h"
 #include "ssh.h"
 #include "psftp.h"
+
+#if HAVE_GLOB_H
+#include <glob.h>
+#endif
 
 /*
  * In PSFTP our selects are synchronous, so these functions are
@@ -358,6 +361,7 @@ int test_wildcard(const char *name, bool cmdline)
 	 */
 	return WCTYPE_NONEXISTENT;
     } else {
+#if HAVE_GLOB_H
 	glob_t globbed;
 	int ret = WCTYPE_NONEXISTENT;
 
@@ -368,12 +372,18 @@ int test_wildcard(const char *name, bool cmdline)
 	}
 
 	return ret;
+#else
+        /* On a system without glob.h, we just have to return a
+         * failure code */
+        return WCTYPE_NONEXISTENT;
+#endif
     }
 }
 
 /*
  * Actually return matching file names for a local wildcard.
  */
+#if HAVE_GLOB_H
 struct WildcardMatcher {
     glob_t globbed;
     int i;
@@ -400,6 +410,20 @@ void finish_wildcard_matching(WildcardMatcher *dir) {
     globfree(&dir->globbed);
     sfree(dir);
 }
+#else
+WildcardMatcher *begin_wildcard_matching(const char *name)
+{
+    return NULL;
+}
+char *wildcard_get_filename(WildcardMatcher *dir)
+{
+    unreachable("Can't construct a valid WildcardMatcher without <glob.h>");
+}
+void finish_wildcard_matching(WildcardMatcher *dir)
+{
+    unreachable("Can't construct a valid WildcardMatcher without <glob.h>");
+}
+#endif
 
 char *stripslashes(const char *str, bool local)
 {
@@ -464,8 +488,10 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) i++;
 
-	if (i < 1 && !no_fds_ok && !toplevel_callback_pending())
+	if (i < 1 && !no_fds_ok && !toplevel_callback_pending()) {
+            pollwrap_free(pw);
 	    return -1;		       /* doom */
+        }
 
 	/* Expand the fdlist buffer if necessary. */
         sgrowarray(fdlist, fdsize, i);

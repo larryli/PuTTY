@@ -515,7 +515,7 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
 
 	} else if (!strcmp(p, "-xrm")) {
 	    EXPECTS_ARG;
-	    provide_xrm_string(val);
+	    provide_xrm_string(val, appname);
 
 	} else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
 	    help(stdout);

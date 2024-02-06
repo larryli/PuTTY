@@ -503,29 +503,19 @@ static void return_val_string_asciz(strbuf *out, char *s)
     return_val_string(out, sb);
 }
 
-static void return_opt_val_string_asciz(strbuf *out, char *s)
-{
-    if (!s)
-        strbuf_catf(out, "NULL\n");
-    else
-        return_val_string_asciz(out, s);
-}
+#define NULLABLE_RETURN_WRAPPER(type_name, c_type)                      \
+    static void return_opt_##type_name(strbuf *out, c_type ptr)         \
+    {                                                                   \
+        if (!ptr)                                                       \
+            strbuf_catf(out, "NULL\n");                                 \
+        else                                                            \
+            return_##type_name(out, ptr);                               \
+    }
 
-static void return_opt_val_cipher(strbuf *out, ssh_cipher *c)
-{
-    if (!c)
-        strbuf_catf(out, "NULL\n");
-    else
-        return_val_cipher(out, c);
-}
-
-static void return_opt_val_hash(strbuf *out, ssh_hash *h)
-{
-    if (!h)
-        strbuf_catf(out, "NULL\n");
-    else
-        return_val_hash(out, h);
-}
+NULLABLE_RETURN_WRAPPER(val_string_asciz, char *)
+NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
+NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
+NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {

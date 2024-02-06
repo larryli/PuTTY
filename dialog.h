@@ -586,6 +586,10 @@ void dlg_label_change(union control *ctrl, dlgparam *dp, char const *text);
  */
 union control *dlg_last_focused(union control *ctrl, dlgparam *dp);
 /*
+ * Find out whether a particular control is currently visible.
+ */
+bool dlg_is_visible(union control *ctrl, dlgparam *dp);
+/*
  * During event processing, you might well want to give an error
  * indication to the user. dlg_beep() is a quick and easy generic
  * error; dlg_error() puts up a message-box or equivalent.

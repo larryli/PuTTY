@@ -9,6 +9,7 @@
 #include "sshbpp.h"
 #include "sshppl.h"
 #include "sshcr.h"
+#include "sshserver.h"
 #include "storage.h"
 #include "ssh2transport.h"
 #include "mpint.h"
@@ -243,13 +244,27 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                      ssh_hash_alg(s->exhash)->text_name);
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_RSAKEX;
 
-        {
-            const struct ssh_rsa_kex_extra *extra =
-                (const struct ssh_rsa_kex_extra *)s->kex_alg->extra;
+        const struct ssh_rsa_kex_extra *extra =
+            (const struct ssh_rsa_kex_extra *)s->kex_alg->extra;
+
+        if (s->ssc && s->ssc->rsa_kex_key) {
+            int klen = ssh_rsakex_klen(s->ssc->rsa_kex_key);
+            if (klen >= extra->minklen) {
+                ppl_logevent("Using configured %d-bit RSA key", klen);
+                s->rsa_kex_key = s->ssc->rsa_kex_key;
+            } else {
+                ppl_logevent("Configured %d-bit RSA key is too short (min %d)",
+                             klen, extra->minklen);
+            }
+        }
+
+        if (!s->rsa_kex_key) {
+            ppl_logevent("Generating a %d-bit RSA key", extra->minklen);
 
 	    s->rsa_kex_key = snew(RSAKey);
 	    rsa_generate(s->rsa_kex_key, extra->minklen, no_progress, NULL);
 	    s->rsa_kex_key->comment = NULL;
+            s->rsa_kex_key_needs_freeing = true;
         }
 
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXRSA_PUBKEY);
@@ -288,8 +303,12 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             return;
         }
 
-        ssh_rsakex_freekey(s->rsa_kex_key);
+        if (s->rsa_kex_key_needs_freeing) {
+            ssh_rsakex_freekey(s->rsa_kex_key);
+            sfree(s->rsa_kex_key);
+        }
         s->rsa_kex_key = NULL;
+        s->rsa_kex_key_needs_freeing = false;
 
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXRSA_DONE);
         put_stringsb(pktout, finalise_and_sign_exhash(s));

@@ -1,12 +1,31 @@
 typedef struct AuthPolicy AuthPolicy;
 
+struct SshServerConfig {
+    const char *session_starting_dir;
+
+    RSAKey *rsa_kex_key;
+
+    /*
+     * In all of these ptrlens, setting the 'ptr' member to NULL means
+     * that we're not overriding the default configuration.
+     */
+    ptrlen banner;                     /* default here is 'no banner' */
+    ptrlen kex_override[NKEXLIST];
+
+    bool exit_signal_numeric;          /* mimic an old server bug */
+
+    unsigned long ssh1_cipher_mask;
+    bool ssh1_allow_compression;
+};
+
 Plug *ssh_server_plug(
-    Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
+    Conf *conf, const SshServerConfig *ssc,
+    ssh_key *const *hostkeys, int nhostkeys,
     RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
     const SftpServerVtable *sftpserver_vt);
 void ssh_server_start(Plug *plug, Socket *socket);
 
-void server_instance_terminated(void);
+void server_instance_terminated(LogPolicy *logpolicy);
 void platform_logevent(const char *msg);
 
 #define AUTHMETHODS(X)                          \
@@ -67,23 +86,30 @@ RSAKey *auth_publickey_ssh1(
 bool auth_successful(AuthPolicy *, ptrlen username, unsigned method);
 
 PacketProtocolLayer *ssh2_userauth_server_new(
-    PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy);
+    PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy,
+    const SshServerConfig *ssc);
 void ssh2_userauth_server_set_transport_layer(
     PacketProtocolLayer *userauth, PacketProtocolLayer *transport);
 
 void ssh2connection_server_configure(
-    PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt);
+    PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt,
+    const SshServerConfig *ssc);
+void ssh1connection_server_configure(
+    PacketProtocolLayer *ppl, const SshServerConfig *ssc);
 
 PacketProtocolLayer *ssh1_login_server_new(
     PacketProtocolLayer *successor_layer, RSAKey *hostkey,
-    AuthPolicy *authpolicy);
+    AuthPolicy *authpolicy, const SshServerConfig *ssc);
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
-                      const SftpServerVtable *sftpserver_vt);
+                      const SftpServerVtable *sftpserver_vt,
+                      const SshServerConfig *ssc);
 
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, bool pipes_instead_of_pty);
+    struct ssh_ttymodes ttymodes, bool pipes_instead_of_pty, const char *dir,
+    const char *const *env_vars_to_unset);
+int pty_backend_exit_signum(Backend *be);
 ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg);
 
 /*
@@ -101,3 +127,5 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
                              const char *screen_number_suffix,
                              ptrlen authproto, ptrlen authdata,
                              Socket **sockets, Conf *conf);
+
+Conf *make_ssh_server_conf(void);

@@ -22,6 +22,9 @@
 #define CONNSHARE_SOCKETDIR_PREFIX "/tmp/putty-connshare"
 #define SALT_FILENAME "salt"
 #define SALT_SIZE 64
+#ifndef PIPE_BUF
+#define PIPE_BUF _POSIX_PIPE_BUF
+#endif
 
 static char *make_parentdir_name(void)
 {

@@ -131,7 +131,7 @@ void pageant_make_keylist2(BinarySink *bs)
 
 static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
 #ifdef __GNUC__
-__attribute__ ((format (printf, 3, 4)))
+__attribute__ ((format (PUTTY_PRINTF_ARCHETYPE, 3, 4)))
 #endif
     ;
 
@@ -936,7 +936,7 @@ void pageant_forget_passphrases(void)
 	char *pp = index234(passphrases, 0);
 	smemclr(pp, strlen(pp));
 	delpos234(passphrases, 0);
-	free(pp);
+	sfree(pp);
     }
 }
 
@@ -1213,6 +1213,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
              */
             *retstr = dupstr(error);
             sfree(rkey);
+            if (comment)
+                sfree(comment);
             return PAGEANT_ACTION_FAILURE;
         } else if (ret == 1) {
             /*
@@ -1309,6 +1311,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                 return PAGEANT_ACTION_FAILURE;
             }
 
+            ssh_key_free(skey->key);
+            sfree(skey);
 	    sfree(response);
 	} else {
 	    if (!pageant_add_ssh2_key(skey)) {

@@ -119,7 +119,9 @@ char *get_username(void)
      * coping correctly with people who have su'ed.
      */
     user = getlogin();
+#if HAVE_SETPWENT
     setpwent();
+#endif
     if (user)
 	p = getpwnam(user);
     else
@@ -141,7 +143,9 @@ char *get_username(void)
 	    return NULL;
 	ret = p->pw_name;
     }
+#if HAVE_ENDPWENT
     endpwent();
+#endif
 
     return dupstr(ret);
 }

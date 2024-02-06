@@ -45,13 +45,22 @@ static const struct SshChannelVtable ssh1sesschan_vtable = {
     NULL /* hint_channel_is_simple */,
 };
 
+void ssh1connection_server_configure(
+    PacketProtocolLayer *ppl, const SshServerConfig *ssc)
+{
+    struct ssh1_connection_state *s =
+        container_of(ppl, struct ssh1_connection_state, ppl);
+    s->ssc = ssc;
+}
+
 void ssh1_connection_direction_specific_setup(
     struct ssh1_connection_state *s)
 {
     if (!s->mainchan_chan) {
         s->mainchan_sc.vt = &ssh1sesschan_vtable;
         s->mainchan_sc.cl = &s->cl;
-        s->mainchan_chan = sesschan_new(&s->mainchan_sc, s->ppl.logctx, NULL);
+        s->mainchan_chan = sesschan_new(
+            &s->mainchan_sc, s->ppl.logctx, NULL, s->ssc);
     }
 }
 
@@ -88,7 +97,7 @@ bool ssh1_handle_direction_specific_packet(
         return true;
 
       case SSH1_CMSG_REQUEST_COMPRESSION:
-        if (s->compressing) {
+        if (s->compressing || !s->ssc->ssh1_allow_compression) {
             pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_FAILURE);
             pq_push(s->ppl.out_pq, pktout);
         } else {
@@ -364,4 +373,9 @@ SshChannel *ssh1_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
     pq_push(s->ppl.out_pq, pktout);
 
     return &c->sc;
+}
+
+bool ssh1_connection_need_antispoof_prompt(struct ssh1_connection_state *s)
+{
+    return false;
 }

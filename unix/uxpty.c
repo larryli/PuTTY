@@ -857,7 +857,8 @@ static void copy_ttymodes_into_termios(
  */
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, bool pipes_instead)
+    struct ssh_ttymodes ttymodes, bool pipes_instead, const char *dir,
+    const char *const *env_vars_to_unset)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -1088,6 +1089,11 @@ Backend *pty_backend_create(
                 close(ptyfd);
         }
 	setpgid(pgrp, pgrp);
+
+        if (env_vars_to_unset)
+            for (const char *const *p = env_vars_to_unset; *p; p++)
+                unsetenv(*p);
+
 	if (!pipes_instead) {
 	    char *term_env_var = dupprintf("TERM=%s",
 					   conf_get_str(conf, CONF_termtype));
@@ -1113,9 +1119,13 @@ Backend *pty_backend_create(
              * on.
              */
             const char *x_display = seat_get_x_display(pty->seat);
-            char *x_display_env_var = dupprintf("DISPLAY=%s", x_display);
-            putenv(x_display_env_var);
-            /* As above, we don't free this. */
+            if (x_display) {
+                char *x_display_env_var = dupprintf("DISPLAY=%s", x_display);
+                putenv(x_display_env_var);
+                /* As above, we don't free this. */
+            } else {
+                unsetenv("DISPLAY");
+            }
         }
 #endif
 	{
@@ -1134,6 +1144,13 @@ Backend *pty_backend_create(
 		 */
 	    }
 	}
+
+        if (dir) {
+            if (chdir(dir) < 0) {
+                /* Ignore the error - nothing we can sensibly do about it,
+                 * and our existing cwd is as good a fallback as any. */
+            }
+        }
 
 	/*
 	 * SIGINT, SIGQUIT and SIGPIPE may have been set to ignored by
@@ -1264,7 +1281,7 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
         cmd = pty_argv[0];
 
     *backend_handle= pty_backend_create(
-        seat, logctx, conf, pty_argv, cmd, modes, false);
+        seat, logctx, conf, pty_argv, cmd, modes, false, NULL, NULL);
     *realhost = dupstr("");
     return NULL;
 }
@@ -1526,17 +1543,23 @@ static int pty_exitcode(Backend *be)
         return WEXITSTATUS(pty->exit_code);
 }
 
-ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
+int pty_backend_exit_signum(Backend *be)
 {
     Pty *pty = container_of(be, Pty, backend);
-    int sig;
-
-    *aux_msg = NULL;
 
     if (!pty->finished || !WIFSIGNALED(pty->exit_code))
-	return PTRLEN_LITERAL("");
+	return -1;
 
-    sig = WTERMSIG(pty->exit_code);
+    return WTERMSIG(pty->exit_code);
+}
+
+ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
+{
+    *aux_msg = NULL;
+
+    int sig = pty_backend_exit_signum(be);
+    if (sig < 0)
+	return PTRLEN_LITERAL("");
 
 #define TRANSLATE_SIGNAL(s) do                          \
     {                                                   \

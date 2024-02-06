@@ -79,10 +79,6 @@ char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */
 }
-bool term_ldisc(Terminal *term, int mode)
-{
-    return false;
-}
 static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
@@ -661,7 +657,11 @@ int main(int argc, char **argv)
                 errors = true;
             } else {
                 --argc;
-                provide_xrm_string(*++argv);
+                /* Explicitly pass "plink" in place of appname for
+                 * error reporting purposes. appname will have been
+                 * set by be_foo.c to something more generic, probably
+                 * "PuTTY". */
+                provide_xrm_string(*++argv, "plink");
             }
         } else if (!strcmp(p, "-shareexists")) {
             just_test_share_exists = true;

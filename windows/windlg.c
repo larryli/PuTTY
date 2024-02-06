@@ -49,7 +49,7 @@ static char *events_initial[LOGEVENT_INITIAL_MAX];
 static char *events_circular[LOGEVENT_CIRCULAR_MAX];
 static int ninitial = 0, ncircular = 0, circular_first = 0;
 
-#define PRINTER_DISABLED_STRING "无 (禁止打印)"
+#define PRINTER_DISABLED_STRING "None (printing disabled)"
 
 void force_normal(HWND hwnd)
 {
@@ -86,7 +86,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
-	    char *str = dupprintf("%s 事件日志记录", appname);
+	    char *str = dupprintf("%s Event Log", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
 	}
@@ -182,7 +182,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
-	    char *str = dupprintf("%s 许可证", appname);
+	    char *str = dupprintf("%s Licence", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
             SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
@@ -210,7 +210,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-	str = dupprintf("关于 %s", appname);
+	str = dupprintf("About %s", appname);
 	SetWindowText(hwnd, str);
 	sfree(str);
         {
@@ -218,7 +218,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             char *text = dupprintf
                 ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
                  appname, ver, buildinfo_text,
-                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
+                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, IDA_TEXT, text);
             sfree(text);
@@ -241,7 +241,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	  case IDA_WEB:
 	    /* Load web browser */
 	    ShellExecute(hwnd, "open",
-			 "https://github.com/larryli/PuTTY",
+			 "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
 			 0, 0, SW_SHOWDEFAULT);
 	    return 0;
 	}
@@ -367,7 +367,7 @@ static void create_controls(HWND hwnd, char *path)
 	/*
 	 * Here we must create the basic standard controls.
 	 */
-	ctlposinit(&cp, hwnd, 3, 3, 240); // fix height 235
+	ctlposinit(&cp, hwnd, 3, 3, 235);
 	wc = &ctrls_base;
 	base_id = IDCX_STDBASE;
     } else {
@@ -442,7 +442,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.top = 3;
 	    r.bottom = r.top + 10;
 	    MapDialogRect(hwnd, &r);
-	    tvstatic = CreateWindowEx(0, "STATIC", "分类(&G)：",
+	    tvstatic = CreateWindowEx(0, "STATIC", "Cate&gory:",
 				      WS_CHILD | WS_VISIBLE,
 				      r.left, r.top,
 				      r.right - r.left, r.bottom - r.top,
@@ -454,7 +454,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.left = 3;
 	    r.right = r.left + 95;
 	    r.top = 13;
-	    r.bottom = r.top + 224; // fix height 219
+	    r.bottom = r.top + 219;
 	    MapDialogRect(hwnd, &r);
 	    treeview = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREEVIEW, "",
 				      WS_CHILD | WS_VISIBLE |
@@ -703,8 +703,8 @@ bool do_config(void)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s 配置", appname);
-    dp.errtitle = dupprintf("%s 错误", appname);
+    dp.wintitle = dupprintf("%s Configuration", appname);
+    dp.errtitle = dupprintf("%s Error", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;	       /* the treeview: `Cate&gory' */
@@ -738,8 +738,8 @@ bool do_reconfig(HWND hwnd, int protcfginfo)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s 重新配置", appname);
-    dp.errtitle = dupprintf("%s 错误", appname);
+    dp.wintitle = dupprintf("%s Reconfiguration", appname);
+    dp.errtitle = dupprintf("%s Error", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;	       /* the treeview: `Cate&gory' */
@@ -826,36 +826,36 @@ int win_seat_verify_ssh_host_key(
     int ret;
 
     static const char absentmsg[] =
-	"在系统注册表缓存中没有找到该服务器密钥。\n"
-	"不能保证该服务器是能够正确访问的计算机。\n"
-	""
-	"该服务器的 %s 密钥指纹为:\n"
+	"The server's host key is not cached in the registry. You\n"
+	"have no guarantee that the server is the computer you\n"
+	"think it is.\n"
+	"The server's %s key fingerprint is:\n"
 	"%s\n"
-	"如果信任该主机，请点击 \"是\" 增加密钥到"
-	" %s 缓存中并继续连接。\n"
-	"如果仅仅只希望进行本次连接，而不"
-	"将密钥储存，请点击 \"否\"。\n"
-	"如果不信任该主机，请点击 \"取消\" 放弃"
-	"连接。\n";
+	"If you trust this host, hit Yes to add the key to\n"
+	"%s's cache and carry on connecting.\n"
+	"If you want to carry on connecting just once, without\n"
+	"adding the key to the cache, hit No.\n"
+	"If you do not trust this host, hit Cancel to abandon the\n"
+	"connection.\n";
 
     static const char wrongmsg[] =
-	"**警告** - 潜在安全隐患！\n"
+	"WARNING - POTENTIAL SECURITY BREACH!\n"
 	"\n"
-	"在 %s 注册表缓存中不能匹配该服务器密钥。\n"
-	"这说明可能该服务器管理员更新了主机密钥，\n"
-	"或者更可能是连接到了一台伪装成该服务器的\n"
-	"虚假计算机系统。\n"
-	""
-	"新的 %s 密钥指纹为:\n"
+	"The server's host key does not match the one %s has\n"
+	"cached in the registry. This means that either the\n"
+	"server administrator has changed the host key, or you\n"
+	"have actually connected to another computer pretending\n"
+	"to be the server.\n"
+	"The new %s key fingerprint is:\n"
 	"%s\n"
-	"如果确信该密钥被更新同意接受新的密钥，\n"
-	"请点击 \"是\" 更新 %s 缓存并继续连接。\n"
-	"如果仅仅只希望继续本次连接，而不更新\n"
-	"系统缓存，请点击 \"否\"。\n"
-	"如果希望完全放弃本次连接，请点击\n"
-	" \"取消\"。点击 \"取消\" 是**唯一**可以保证的安全" "操作。\n";
+	"If you were expecting this change and trust the new key,\n"
+	"hit Yes to update %s's cache and continue connecting.\n"
+	"If you want to carry on connecting but without updating\n"
+	"the cache, hit No.\n"
+	"If you want to abandon the connection completely, hit\n"
+	"Cancel. Hitting Cancel is the ONLY guaranteed safe\n" "choice.\n";
 
-    static const char mbtitle[] = "%s 安全警告";
+    static const char mbtitle[] = "%s Security Alert";
 
     /*
      * Verify the key against the registry.
@@ -907,11 +907,12 @@ int win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
     void (*callback)(void *ctx, int result), void *ctx)
 {
-    static const char mbtitle[] = "%s 安全警告";
+    static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
-	"服务器支持的第一个 %s\n"
-	"是 %.64s，其低于配置的警告阀值。\n"
-	"你要继续连接么？\n";
+	"The first %s supported by the server\n"
+	"is %s, which is below the configured\n"
+	"warning threshold.\n"
+	"Do you want to continue with this connection?\n";
     char *message, *title;
     int mbret;
 
@@ -932,14 +933,14 @@ int win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx)
 {
-    static const char mbtitle[] = "%s 安全警告";
+    static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
-	"我们储存的此服务器第一个主机密钥类型\n"
-	"为 %s，其低于配置的警告阀值。\n"
-	"此服务器同时也提供有我们没有储存的高\n"
-        "于阀值的下列主机密钥类型：\n"
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
         "%s\n"
-	"你要继续连接么？\n";
+	"Do you want to continue with this connection?\n";
     char *message, *title;
     int mbret;
 
@@ -965,12 +966,12 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
                              void *ctx)
 {
     static const char msgtemplate[] =
-	"会话日志文件 \"%.*s\" 已经存在。\n"
-	"你可以使用新会话日志覆盖旧文件，\n"
-	"或者在旧日志文件结尾增加新日志，\n"
-	"或在此会话中禁止日志记录。\n"
-	"点击是覆盖为新文件，否附加到旧文件，\n"
-	"或者点击取消禁止日志记录。";
+	"The session log file \"%.*s\" already exists.\n"
+	"You can overwrite it with a new session log,\n"
+	"append your session log to the end of it,\n"
+	"or disable session logging for this session.\n"
+	"Hit Yes to wipe the file, No to append to it,\n"
+	"or Cancel to disable logging.";
     char *message;
     char *mbtitle;
     int mbret;
@@ -1013,17 +1014,17 @@ LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "%s 密钥文件警告";
+    static const char mbtitle[] = "%s Key File Warning";
     static const char message[] =
-	"现在载入的是一个旧版本文件格式的 SSH2\n"
-	" 私钥格式。这意味着该私钥文件不是\n"
-	"足够的安全。未来版本的 %s 可能会\n"
-	"停止支持此私钥格式，\n"
-	"建议将其转换为新的\n"
-	"格式。\n"
+	"You are loading an SSH-2 private key which has an\n"
+	"old version of the file format. This means your key\n"
+	"file is not fully tamperproof. Future versions of\n"
+	"%s may stop supporting this private key format,\n"
+	"so we recommend you convert your key to the new\n"
+	"format.\n"
 	"\n"
-	"请使用 PuTTYgen 载入该密钥进行转换\n"
-	"然后保存。";
+	"You can perform this conversion by loading the key\n"
+	"into PuTTYgen and then saving it again.";
 
     char *msg, *title;
     msg = dupprintf(message, appname);

@@ -64,7 +64,6 @@ Making a release candidate build
     * putty/LATEST.VER
     * putty/doc/plink.but
     * putty/doc/pscp.but
-    * putty/windows/putty.iss (four times, on consecutive lines)
 
    and also check that it has reset the definition of 'Epoch' in
    Buildscr.
@@ -139,7 +138,7 @@ Preparing to make the release
  - Sign the release in full. In the `build-X.YZ-rcN.out' directory,
    re-verify that the preliminary signed checksums file has a correct
    signature on it and also matches the files you're about to sign for real:
-     gpg -d sha512sums-preliminary.gpg | (cd putty; sha512sum -c)
+     gpg -d sha512sums-preliminary.gpg | (cd putty; grep -vF ' (installer version)' | grep . | sha512sum -c)
    If the combined output of that pipeline reports both a good
    signature (from the release key) and a successful verification of
    all the sha512sums, then all is well, so now run
@@ -161,6 +160,8 @@ locally, this is the procedure for putting it up on the web.
 
  - Check that downloads via version-numbered URLs all work:
       ../release.pl --version=X.YZ --precheck
+   If this has trouble accessing chiark's ftp server, that is
+   unfortunately normal; add --no-ftp and try again.
 
  - Switch the 'latest' links over to the new release:
     * Update the HTTP redirect at the:www/putty/htaccess .

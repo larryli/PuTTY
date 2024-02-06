@@ -293,7 +293,7 @@ static const TermWinVtable windows_termwin_vt = {
 static TermWin wintw[1];
 static HDC wintw_hdc;
 
-static HICON icon;
+static HICON trust_icon = INVALID_HANDLE_VALUE;
 
 const bool share_can_be_downstream = true;
 const bool share_can_be_upstream = true;
@@ -378,13 +378,14 @@ static void start_backend(void)
      */
     vt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
     if (!vt) {
-	char *str = dupprintf("%s 内部错误", appname);
-	MessageBox(NULL, "发现不支持的协议号",
+	char *str = dupprintf("%s Internal Error", appname);
+	MessageBox(NULL, "Unsupported protocol number found",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
 	cleanup_exit(1);
     }
 
+    seat_set_trust_status(win_seat, true);
     error = backend_init(vt, win_seat, &backend, logctx, conf,
                          conf_get_str(conf, CONF_host),
                          conf_get_int(conf, CONF_port),
@@ -392,8 +393,8 @@ static void start_backend(void)
                          conf_get_bool(conf, CONF_tcp_nodelay),
                          conf_get_bool(conf, CONF_tcp_keepalives));
     if (error) {
-	char *str = dupprintf("%s 错误", appname);
-        char *msg = dupprintf("无法打开到\n%s 的连接\n%s",
+	char *str = dupprintf("%s Error", appname);
+        char *msg = dupprintf("Unable to open connection to\n%s\n%s",
                               conf_dest(conf), error);
 	MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
 	sfree(str);
@@ -443,7 +444,7 @@ static void close_session(void *ignored_context)
     int i;
 
     session_closed = true;
-    newtitle = dupprintf("%s (不活动的)", appname);
+    newtitle = dupprintf("%s (inactive)", appname);
     win_set_icon_title(wintw, newtitle);
     win_set_title(wintw, newtitle);
     sfree(newtitle);
@@ -466,7 +467,7 @@ static void close_session(void *ignored_context)
     for (i = 0; i < lenof(popup_menus); i++) {
 	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
-		   IDM_RESTART, "重启会话(&R)");
+		   IDM_RESTART, "&Restart Session");
     }
 }
 
@@ -518,8 +519,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     hr = CoInitialize(NULL);
     if (hr != S_OK && hr != S_FALSE) {
-        char *str = dupprintf("%s 致命错误", appname);
-	MessageBox(NULL, "初始化 COM 子系统失败",
+        char *str = dupprintf("%s Fatal Error", appname);
+	MessageBox(NULL, "Failed to initialize COM subsystem",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
 	return 1;
@@ -638,15 +639,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		     * and delete the random seed file.
 		     */
 		    char *s1, *s2;
-		    s1 = dupprintf("此过程将删除所有与 %s 相关联\n"
-				   "注册表项目，并且还将删除随机\n"
-				   "种子文件。（这只会影响到当前\n"
-				   "登录的用户。）\n"
+		    s1 = dupprintf("This procedure will remove ALL Registry entries\n"
+				   "associated with %s, and will also remove\n"
+				   "the random seed file. (This only affects the\n"
+				   "currently logged-in user.)\n"
 				   "\n"
-				   "此操作将会摧毁你保存的会话。\n"
-				   "真的确定要继续么？",
+				   "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
+				   "Are you really sure you want to continue?",
 				   appname);
-		    s2 = dupprintf("%s 警告", appname);
+		    s2 = dupprintf("%s Warning", appname);
 		    if (message_box(s1, s2,
 				    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
 				    HELPCTXID(option_cleanup)) == IDYES) {
@@ -659,9 +660,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		    pgp_fingerprints();
 		    exit(1);
 		} else if (*p != '-') {
-		    cmdline_error("意外的参数 \"%s\"", p);
+		    cmdline_error("unexpected argument \"%s\"", p);
 		} else {
-		    cmdline_error("未知选项 \"%s\"", p);
+		    cmdline_error("unknown option \"%s\"", p);
 		}
 	    }
 	}
@@ -680,8 +681,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         prepare_session(conf);
     }
 
-    icon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-
     if (!prev) {
         WNDCLASSW wndclass;
 
@@ -690,7 +689,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	wndclass.cbClsExtra = 0;
 	wndclass.cbWndExtra = 0;
 	wndclass.hInstance = inst;
-	wndclass.hIcon = icon;
+	wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
 	wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
 	wndclass.hbrBackground = NULL;
 	wndclass.lpszMenuName = NULL;
@@ -833,8 +832,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	popup_menus[SYSMENU].menu = GetSystemMenu(hwnd, false);
 	popup_menus[CTXMENU].menu = CreatePopupMenu();
-	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_COPY, "复制(&C)");
-	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "粘贴(&P)");
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_COPY, "&Copy");
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "&Paste");
 
 	savedsess_menu = CreateMenu();
 	get_sesslist(&sesslist, true);
@@ -844,25 +843,25 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    m = popup_menus[j].menu;
 
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "事件日志记录(&E)");
+	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "新会话(&W)...");
-	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "复制会话(&D)");
+	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
+	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
 	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR) savedsess_menu,
-		       "保存会话(&V)");
-	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "修改设置(&G)...");
+		       "Sa&ved Sessions");
+	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "复制所有内容到剪贴板(&O)");
-	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "清除滚动条(&L)");
-	    AppendMenu(m, MF_ENABLED, IDM_RESET, "重启终端(&T)");
+	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
+	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
+	    AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, (conf_get_int(conf, CONF_resize_action)
 			   == RESIZE_DISABLED) ? MF_GRAYED : MF_ENABLED,
-		       IDM_FULLSCREEN, "全屏(&F)");
+		       IDM_FULLSCREEN, "&Full Screen");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    if (has_help())
-		AppendMenu(m, MF_ENABLED, IDM_HELP, "帮助(&H)");
-	    str = dupprintf("关于 %s(&A)", appname);
+		AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
+	    str = dupprintf("&About %s", appname);
 	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
 	    sfree(str);
 	}
@@ -1066,7 +1065,7 @@ static void update_savedsess_menu(void)
 		   IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
 		   sesslist.sessions[i]);
     if (sesslist.nsessions <= 1)
-	AppendMenu(savedsess_menu, MF_GRAYED, IDM_SAVED_MIN, "(没有会话)");
+	AppendMenu(savedsess_menu, MF_GRAYED, IDM_SAVED_MIN, "(No sessions)");
 }
 
 /*
@@ -1132,7 +1131,7 @@ static void win_seat_update_specials_menu(Seat *seat)
 	if (new_menu) {
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_POPUP | MF_ENABLED,
-		       (UINT_PTR) new_menu, "指定命令(&P)");
+		       (UINT_PTR) new_menu, "S&pecial Command");
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_SEPARATOR, IDM_SPECIALSEP, 0);
 	}
@@ -1199,7 +1198,7 @@ static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
  */
 static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
-    char *title = dupprintf("%s 致命错误", appname);
+    char *title = dupprintf("%s Fatal Error", appname);
     MessageBox(hwnd, msg, title, MB_ICONERROR | MB_OK);
     sfree(title);
 
@@ -1499,6 +1498,8 @@ static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
  * - verify that the underlined font is the same width as the
  *   ordinary one (manual underlining by means of line drawing can
  *   be done in a pinch).
+ *
+ * - find a trust sigil icon that will look OK with the chosen font.
  */
 static void init_fonts(int pick_width, int pick_height)
 {
@@ -1664,6 +1665,13 @@ static void init_fonts(int pick_width, int pick_height)
 
     ReleaseDC(hwnd, hdc);
 
+    if (trust_icon != INVALID_HANDLE_VALUE) {
+	DestroyIcon(trust_icon);
+    }
+    trust_icon = LoadImage(hinst, MAKEINTRESOURCE(IDI_MAINICON),
+			   IMAGE_ICON, font_width*2, font_height,
+			   LR_DEFAULTCOLOR);
+
     if (fontsize[FONT_UNDERLINE] != fontsize[FONT_NORMAL]) {
 	und_mode = UND_LINE;
 	DeleteObject(fonts[FONT_UNDERLINE]);
@@ -1746,6 +1754,11 @@ static void deinit_fonts(void)
 	fonts[i] = 0;
 	fontflag[i] = false;
     }
+
+    if (trust_icon != INVALID_HANDLE_VALUE) {
+	DestroyIcon(trust_icon);
+    }
+    trust_icon = INVALID_HANDLE_VALUE;
 }
 
 static void wintw_request_resize(TermWin *tw, int w, int h)
@@ -2195,10 +2208,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	{
 	    char *str;
 	    show_mouseptr(true);
-	    str = dupprintf("%s 退出确认", appname);
+	    str = dupprintf("%s Exit Confirmation", appname);
 	    if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
 		MessageBox(hwnd,
-			   "确定要关闭本会话么？",
+			   "Are you sure you want to close this session?",
 			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
 		== IDOK)
 		DestroyWindow(hwnd);
@@ -3232,9 +3245,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * messages. We _have_ to buffer everything
 		     * we're sent.
 		     */
-		    term_seen_key_event(term);
-		    if (ldisc)
-			ldisc_send(ldisc, buf, len, true);
+                    term_keyinput(term, -1, buf, len);
 		    show_mouseptr(false);
 		}
 	    }
@@ -3276,10 +3287,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		/*
 		 * Jaeyoun Chung reports that Korean character
 		 * input doesn't work correctly if we do a single
-		 * luni_send() covering the whole of buff. So
-		 * instead we luni_send the characters one by one.
+		 * term_keyinputw covering the whole of buff. So
+		 * instead we send the characters one by one.
 		 */
-		term_seen_key_event(term);
 		/* don't divide SURROGATE PAIR */
 		if (ldisc) {
                     for (i = 0; i < n; i += 2) {
@@ -3287,13 +3297,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			if (IS_HIGH_SURROGATE(hs) && i+2 < n) {
 			    WCHAR ls = *(unsigned short *)(buff+i+2);
 			    if (IS_LOW_SURROGATE(ls)) {
-				luni_send(ldisc, (unsigned short *)(buff+i),
-                                          2, true);
+                                term_keyinputw(
+                                    term, (unsigned short *)(buff+i), 2);
 				i += 2;
 				continue;
 			    }
 			}
-			luni_send(ldisc, (unsigned short *)(buff+i), 1, true);
+                        term_keyinputw(
+                            term, (unsigned short *)(buff+i), 1);
                     }
 		}
 		free(buff);
@@ -3308,14 +3319,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
-	    term_seen_key_event(term);
-	    if (ldisc)
-		lpage_send(ldisc, kbd_codepage, buf, 2, true);
+            term_keyinput(term, kbd_codepage, buf, 2);
 	} else {
 	    char c = (unsigned char) wParam;
 	    term_seen_key_event(term);
-	    if (ldisc)
-		lpage_send(ldisc, kbd_codepage, &c, 1, true);
+            term_keyinput(term, kbd_codepage, &c, 1);
 	}
 	return (0);
       case WM_CHAR:
@@ -3336,11 +3344,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 wchar_t pair[2];
                 pair[0] = pending_surrogate;
                 pair[1] = c;
-                term_seen_key_event(term);
-                luni_send(ldisc, pair, 2, true);
+                term_keyinputw(term, pair, 2);
             } else if (!IS_SURROGATE(c)) {
-                term_seen_key_event(term);
-                luni_send(ldisc, &c, 1, true);
+                term_keyinputw(term, &c, 1);
             }
 	}
 	return 0;
@@ -4001,7 +4007,7 @@ static void wintw_draw_trust_sigil(TermWin *tw, int x, int y)
     x += offset_width;
     y += offset_height;
 
-    DrawIconEx(wintw_hdc, x, y, icon, font_width * 2, font_height,
+    DrawIconEx(wintw_hdc, x, y, trust_icon, font_width * 2, font_height,
                0, NULL, DI_NORMAL);
 }
 
@@ -4101,6 +4107,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     bool no_applic_k = conf_get_bool(conf, CONF_no_applic_k);
     bool ctrlaltkeys = conf_get_bool(conf, CONF_ctrlaltkeys);
     bool nethack_keypad = conf_get_bool(conf, CONF_nethack_keypad);
+    char keypad_key = '\0';
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
@@ -4466,14 +4473,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = 0x1E;	       /* Ctrl-~ == Ctrl-^ in xterm at least */
 	    return p - output;
 	}
-	if (shift_state == 0 && wParam == VK_RETURN && term->cr_lf_return) {
-	    *p++ = '\r';
-	    *p++ = '\n';
-	    return p - output;
-	}
 
 	switch (wParam) {
-            char keypad_key;
           case VK_NUMPAD0: keypad_key = '0'; goto numeric_keypad;
           case VK_NUMPAD1: keypad_key = '1'; goto numeric_keypad;
           case VK_NUMPAD2: keypad_key = '2'; goto numeric_keypad;
@@ -4502,10 +4503,36 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                 break;
             }
 
-            p += format_numeric_keypad_key(
-                (char *)p, term, keypad_key,
-                shift_state & 1, shift_state & 2);
-            return p - output;
+            {
+                int nchars = format_numeric_keypad_key(
+                    (char *)p, term, keypad_key,
+                    shift_state & 1, shift_state & 2);
+                if (!nchars) {
+                    /*
+                     * If we didn't get an escape sequence out of the
+                     * numeric keypad key, then that must be because
+                     * we're in Num Lock mode without application
+                     * keypad enabled. In that situation we leave this
+                     * keypress to the ToUnicode/ToAsciiEx handler
+                     * below, which will translate it according to the
+                     * appropriate keypad layout (e.g. so that what a
+                     * Brit thinks of as keypad '.' can become ',' in
+                     * the German layout).
+                     *
+                     * An exception is the keypad Return key: if we
+                     * didn't get an escape sequence for that, we
+                     * treat it like ordinary Return, taking into
+                     * account Telnet special new line codes and
+                     * config options.
+                     */
+                    if (keypad_key == '\r')
+                        goto ordinary_return_key;
+                    break;
+                }
+
+                p += nchars;
+                return p - output;
+            }
 
             int fkey_number;
 	  case VK_F1: fkey_number = 1; goto numbered_function_key;
@@ -4563,9 +4590,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                 keypad_key = '\r';
                 goto numeric_keypad;
             }
-	    *p++ = 0x0D;
-	    *p++ = 0;
-	    return -2;
+          ordinary_return_key:
+            if (shift_state == 0 && term->cr_lf_return) {
+                *p++ = '\r';
+                *p++ = '\n';
+                return p - output;
+            } else {
+                *p++ = 0x0D;
+                *p++ = 0;
+                return -2;
+            }
 	}
     }
 
@@ -4650,9 +4684,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			return 0;
 		    }
 		    keybuf = nc;
-		    term_seen_key_event(term);
-		    if (ldisc)
-			luni_send(ldisc, &keybuf, 1, true);
+                    term_keyinputw(term, &keybuf, 1);
 		    continue;
 		}
 
@@ -4662,9 +4694,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    if (alt_sum) {
 			if (in_utf(term) || ucsdata.dbcs_screenfont) {
 			    keybuf = alt_sum;
-			    term_seen_key_event(term);
-			    if (ldisc)
-				luni_send(ldisc, &keybuf, 1, true);
+                            term_keyinputw(term, &keybuf, 1);
 			} else {
 			    char ch = (char) alt_sum;
 			    /*
@@ -4676,33 +4706,23 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * messages. We _have_ to buffer
 			     * everything we're sent.
 			     */
-			    term_seen_key_event(term);
-			    if (ldisc)
-				ldisc_send(ldisc, &ch, 1, true);
+			    term_keyinput(term, -1, &ch, 1);
 			}
 			alt_sum = 0;
 		    } else {
-			term_seen_key_event(term);
-			if (ldisc)
-			    luni_send(ldisc, &wch, 1, true);
+			term_keyinputw(term, &wch, 1);
 		    }
 		} else {
 		    if(capsOn && wch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(wch);
-			term_seen_key_event(term);
-			if (ldisc)
-			    luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt,
-                                      true);
+			term_keyinputw(term, cbuf+!left_alt, 1+!!left_alt);
 		    } else {
 			WCHAR cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = wch;
-			term_seen_key_event(term);
-			if (ldisc)
-			    luni_send(ldisc, cbuf +!left_alt, 1+!!left_alt,
-                                      true);
+			term_keyinputw(term, cbuf +!left_alt, 1+!!left_alt);
 		    }
 		}
 		show_mouseptr(false);
@@ -5402,7 +5422,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
-    title = dupprintf("%s 致命错误", appname);
+    title = dupprintf("%s Fatal Error", appname);
     MessageBox(hwnd, message, title, MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(message);
     sfree(title);
@@ -5420,7 +5440,7 @@ void nonfatal(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
-    title = dupprintf("%s 错误", appname);
+    title = dupprintf("%s Error", appname);
     MessageBox(hwnd, message, title, MB_ICONERROR | MB_OK);
     sfree(message);
     sfree(title);

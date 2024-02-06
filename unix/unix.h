@@ -267,7 +267,7 @@ int keysym_to_unicode(int keysym);
 char *x_get_default(const char *key);
 
 /* Things uxstore.c provides to gtkwin.c */
-void provide_xrm_string(char *string);
+void provide_xrm_string(const char *string, const char *progname);
 
 /* Function that {gtkapp,gtkmain}.c needs from ux{pterm,putty}.c. Does
  * early process setup that varies between applications (e.g.
@@ -369,6 +369,7 @@ bool init_ucs(struct unicode_data *ucsdata, char *line_codepage,
  * Spare functions exported directly from uxnet.c.
  */
 void *sk_getxdmdata(Socket *sock, int *lenp);
+int sk_net_get_fd(Socket *sock);
 SockAddr *unix_sock_addr(const char *path);
 Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
@@ -420,6 +421,16 @@ extern char **pty_argv;
  */
 char *gtk_askpass_main(const char *display, const char *wintitle,
                        const char *prompt, bool *success);
+
+/*
+ * procnet.c.
+ */
+bool socket_peer_is_same_user(int fd);
+static inline bool sk_peer_trusted(Socket *sock)
+{
+    int fd = sk_net_get_fd(sock);
+    return fd >= 0 && socket_peer_is_same_user(fd);
+}
 
 /*
  * uxsftpserver.c.

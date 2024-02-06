@@ -1,6 +1,6 @@
 /*
- * psftp.h: interface between psftp.c / scp.c and each
- * platform-specific SFTP module.
+ * psftp.h: interface between psftp.c / pscp.c, psftpcommon.c, and
+ * each platform-specific SFTP module.
  */
 
 #ifndef PUTTY_PSFTP_H
@@ -197,5 +197,31 @@ char *dir_file_cat(const char *dir, const char *file);
  * other const->const :-(
  */
 char *stripslashes(const char *str, bool local);
+
+/* ----------------------------------------------------------------------
+ * In psftpcommon.c
+ */
+
+/*
+ * qsort comparison routine for fxp_name structures. Sorts by real
+ * file name.
+ */
+int sftp_name_compare(const void *av, const void *bv);
+
+/*
+ * Shared code for outputting a directory listing in response to a
+ * stream of name structures from FXP_READDIR operations. Used by
+ * psftp's ls command and pscp -ls.
+ */
+struct list_directory_from_sftp_ctx;
+struct fxp_name; /* in sftp.h */
+struct list_directory_from_sftp_ctx *list_directory_from_sftp_new(void);
+void list_directory_from_sftp_feed(struct list_directory_from_sftp_ctx *ctx,
+                                   struct fxp_name *name);
+void list_directory_from_sftp_finish(struct list_directory_from_sftp_ctx *ctx);
+void list_directory_from_sftp_free(struct list_directory_from_sftp_ctx *ctx);
+/* Callbacks provided by the tool front end */
+void list_directory_from_sftp_warn_unsorted(void);
+void list_directory_from_sftp_print(struct fxp_name *name);
 
 #endif /* PUTTY_PSFTP_H */

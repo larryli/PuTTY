@@ -43,6 +43,7 @@ typedef struct sesschan {
     bufchain subsys_input;
     SftpServer *sftpsrv;
     ScpServer *scpsrv;
+    const SshServerConfig *ssc;
 
     Channel chan;
 } sesschan;
@@ -198,7 +199,8 @@ static const SeatVtable sesschan_seat_vt = {
 };
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
-                      const SftpServerVtable *sftpserver_vt)
+                      const SftpServerVtable *sftpserver_vt,
+                      const SshServerConfig *ssc)
 {
     sesschan *sess = snew(sesschan);
     memset(sess, 0, sizeof(sesschan));
@@ -207,6 +209,7 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
     sess->chan.vt = &sesschan_channelvt;
     sess->chan.initial_fixed_window_size = 0;
     sess->parent_logctx = logctx;
+    sess->ssc = ssc;
 
     /* Start with a completely default Conf */
     sess->conf = conf_new();
@@ -277,9 +280,25 @@ static void sesschan_set_input_wanted(Channel *chan, bool wanted)
 
 static void sesschan_start_backend(sesschan *sess, const char *cmd)
 {
+    /*
+     * List of environment variables that we should not pass through
+     * from the login session Uppity was run in (which, it being a
+     * test server, there will usually be one of). These variables
+     * will be set as part of X or agent forwarding, and shouldn't be
+     * confusingly set in the absence of that.
+     *
+     * (DISPLAY must also be cleared, but uxpty.c will do that anyway
+     * when our get_x_display method returns NULL.)
+     */
+    static const char *const env_to_unset[] = {
+        "XAUTHORITY", "SSH_AUTH_SOCK", "SSH_AGENT_PID",
+        NULL /* terminator */
+    };
+
     sess->backend = pty_backend_create(
         &sess->seat, sess->child_logctx, sess->conf, NULL, cmd,
-        sess->ttymodes, !sess->want_pty);
+        sess->ttymodes, !sess->want_pty, sess->ssc->session_starting_dir,
+        env_to_unset);
     backend_size(sess->backend, sess->wc, sess->hc);
 }
 
@@ -605,24 +624,38 @@ static bool sesschan_seat_eof(Seat *seat)
 static void sesschan_notify_remote_exit(Seat *seat)
 {
     sesschan *sess = container_of(seat, sesschan, seat);
-    ptrlen signame;
-    char *sigmsg;
 
     if (!sess->backend)
         return;
 
-    signame = pty_backend_exit_signame(sess->backend, &sigmsg);
-    if (signame.len) {
-        if (!sigmsg)
-            sigmsg = dupstr("");
+    bool got_signal = false;
+    if (!sess->ssc->exit_signal_numeric) {
+        char *sigmsg;
+        ptrlen signame = pty_backend_exit_signame(sess->backend, &sigmsg);
 
-        sshfwd_send_exit_signal(
-            sess->c, signame, false, ptrlen_from_asciz(sigmsg));
+        if (signame.len) {
+            if (!sigmsg)
+                sigmsg = dupstr("");
 
-        sfree(sigmsg);
+            sshfwd_send_exit_signal(
+                sess->c, signame, false, ptrlen_from_asciz(sigmsg));
+
+            sfree(sigmsg);
+
+            got_signal = true;
+        }
     } else {
-        sshfwd_send_exit_status(sess->c, backend_exitcode(sess->backend));
+        int signum = pty_backend_exit_signum(sess->backend);
+
+        if (signum >= 0) {
+            sshfwd_send_exit_signal_numeric(sess->c, signum, false,
+                                            PTRLEN_LITERAL(""));
+            got_signal = true;
+        }
     }
+
+    if (!got_signal)
+        sshfwd_send_exit_status(sess->c, backend_exitcode(sess->backend));
 
     sess->seen_exit = true;
     queue_toplevel_callback(sesschan_check_close_callback, sess);

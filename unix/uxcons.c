@@ -142,8 +142,10 @@ static int block_and_read(int fd, void *buf, size_t len)
             ret = pollwrap_poll_endless(pw);
         } while (ret < 0 && errno == EINTR);
         assert(ret != 0);
-        if (ret < 0)
+        if (ret < 0) {
+            pollwrap_free(pw);
             return ret;
+        }
         assert(pollwrap_check_fd_rwx(pw, fd, SELECT_R));
     }
 

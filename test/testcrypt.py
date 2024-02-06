@@ -22,10 +22,15 @@ def valbytes(b):
     b = list(b)
     return struct.pack("{:d}B".format(len(b)), *b)
 
+class ChildProcessFailure(Exception):
+    pass
+
 class ChildProcess(object):
     def __init__(self):
         self.sp = None
         self.debug = None
+        self.exitstatus = None
+        self.exception = None
 
         dbg = os.environ.get("PUTTY_TESTCRYPT_DEBUG")
         if dbg is not None:
@@ -46,12 +51,21 @@ class ChildProcess(object):
         self.sp = subprocess.Popen(
             cmd, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     def write_line(self, line):
+        if self.exception is not None:
+            # Re-raise our fatal-error exception, if it previously
+            # occurred in a context where it couldn't be propagated (a
+            # __del__ method).
+            raise self.exception
         if self.debug is not None:
             self.debug.write("send: {}\n".format(line))
         self.sp.stdin.write(line + b"\n")
         self.sp.stdin.flush()
     def read_line(self):
-        line = self.sp.stdout.readline().rstrip(b"\r\n")
+        line = self.sp.stdout.readline()
+        if len(line) == 0:
+            self.exception = ChildProcessFailure("received EOF from testcrypt")
+            raise self.exception
+        line = line.rstrip(b"\r\n")
         if self.debug is not None:
             self.debug.write("recv: {}\n".format(line))
         return line
@@ -62,12 +76,16 @@ class ChildProcess(object):
             unicode_to_bytes(arg) for arg in args))
         argcount = int(self.read_line())
         return [self.read_line() for arg in range(argcount)]
+    def wait_for_exit(self):
+        if self.sp is not None:
+            self.sp.stdin.close()
+            self.exitstatus = self.sp.wait()
+            self.sp = None
     def check_return_status(self):
-        assert self.sp is not None
-        self.sp.stdin.close()
-        status = self.sp.wait()
-        if status != 0:
-            raise Exception("testcrypt returned exit status {}".format(status))
+        self.wait_for_exit()
+        if self.exitstatus is not None and self.exitstatus != 0:
+            raise ChildProcessFailure("testcrypt returned exit status {}"
+                                      .format(self.exitstatus))
 
 childprocess = ChildProcess()
 
@@ -81,7 +99,22 @@ class Value(object):
         return "Value({!r}, {!r})".format(self.typename, self.ident)
     def __del__(self):
         if self.ident is not None:
-            childprocess.funcall("free", [self.ident])
+            try:
+                childprocess.funcall("free", [self.ident])
+            except ChildProcessFailure:
+                # If we see this exception now, we can't do anything
+                # about it, because exceptions don't propagate out of
+                # __del__ methods. Squelch it to prevent the annoying
+                # runtime warning from Python, and the
+                # 'self.exception' mechanism in the ChildProcess class
+                # will raise it again at the next opportunity.
+                #
+                # (This covers both the case where testcrypt crashes
+                # _during_ one of these free operations, and the
+                # silencing of cascade failures when we try to send a
+                # "free" command to testcrypt after it had already
+                # crashed for some other reason.)
+                pass
     def __long__(self):
         if self.typename != "val_mpint":
             raise TypeError("testcrypt values of types other than mpint"

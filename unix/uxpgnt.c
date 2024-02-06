@@ -52,7 +52,6 @@ void uxsel_input_remove(uxsel_id *id) { }
  */
 void random_save_seed(void) {}
 void random_destroy_seed(void) {}
-void noise_ultralight(NoiseSourceId id, unsigned long data) {}
 char *platform_default_s(const char *name) { return NULL; }
 bool platform_default_b(const char *name, bool def) { return def; }
 int platform_default_i(const char *name, int def) { return def; }
@@ -990,6 +989,7 @@ void run_agent(void)
     }
 
     conf_free(conf);
+    pollwrap_free(pw);
 }
 
 int main(int argc, char **argv)

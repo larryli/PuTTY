@@ -85,6 +85,12 @@ bool BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs)
     if (attrs->flags & SSH_FILEXFER_ATTR_EXTENDED) {
 	unsigned long count = get_uint32(src);
 	while (count--) {
+	    if (get_err(src)) {
+		/* Truncated packet. Don't waste time looking for
+		 * attributes that aren't there. Caller should spot
+		 * the truncation. */
+		break;
+	    }
 	    /*
 	     * We should try to analyse these, if we ever find one
 	     * we recognise.

@@ -1,6 +1,8 @@
+#include "putty.h"
 #include "ssh.h"
 
-#if defined __linux__ && (defined __arm__ || defined __aarch64__)
+#if defined __linux__ && (defined __arm__ || defined __aarch64__) && \
+    HAVE_SYS_AUXV_H && HAVE_ASM_HWCAP_H
 
 #include <sys/auxv.h>
 #include <asm/hwcap.h>

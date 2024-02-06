@@ -43,10 +43,6 @@ WSAEVENT netevent;
 static Backend *backend;
 Conf *conf;
 
-bool term_ldisc(Terminal *term, int mode)
-{
-    return false;
-}
 static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
@@ -128,60 +124,61 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  */
 static void usage(void)
 {
-    printf("Plink: 命令行连接工具\n");
+    printf("Plink: command-line connection utility\n");
     printf("%s\n", ver);
-    printf("用法: plink [选项] [用户@]主机 [命令]\n");
-    printf("       (\"主机\" 也可以是 PuTTY 已有的会话名称)\n");
-    printf("选项:\n");
-    printf("  -V        显示版本信息后退出\n");
-    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
-    printf("  -v        显示详细信息\n");
-    printf("  -load 会话名  载入保存的会话信息\n");
+    printf("Usage: plink [options] [user@]host [command]\n");
+    printf("       (\"host\" can also be a PuTTY saved session name)\n");
+    printf("Options:\n");
+    printf("  -V        print version information and exit\n");
+    printf("  -pgpfp    print PGP key fingerprints and exit\n");
+    printf("  -v        show verbose messages\n");
+    printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
-    printf("            强制使用特定协议\n");
-    printf("  -P 端口   连接指定的端口\n");
-    printf("  -l 用户   使用指定的用户名连接\n");
-    printf("  -batch    禁止所有交互提示\n");
-    printf("  -proxycmd 命令\n");
-    printf("            使用 '命令' 作为本地代理\n");
-    printf("  -sercfg 配置字符串 (例如: 19200,8,n,1,X)\n");
-    printf("            指定串口配置 (仅限串口)\n");
-    printf("以下选项仅适用于 SSH 连接:\n");
-    printf("  -pw 密码  使用指定的密码登录\n");
-    printf("  -D [监听-IP:]监听-端口\n");
-    printf("            基于 SOCKS 协议的动态端口转发\n");
-    printf("  -L [监听-IP:]监听-端口:主机:端口\n");
-    printf("            转发本地端口到远程地址\n");
-    printf("  -R [监听-IP:]监听-端口:主机:端口\n");
-    printf("            转发远程端口到本地地址\n");
-    printf("  -X -x     启禁用 X11 转发\n");
-    printf("  -A -a     启禁用 agent 转发\n");
-    printf("  -t -T     启禁用 pty 转发\n");
-    printf("  -1 -2     强制使用特定协议版本\n");
-    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
-    printf("  -C        允许压缩\n");
-    printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  禁用 Pageant 认证代理\n");
-    printf("  -agent    启用 Pageant 认证代理\n");
-    printf("  -noshare  禁用连接共享\n");
-    printf("  -share    启用连接共享\n");
+    printf("            force use of a particular protocol\n");
+    printf("  -P port   connect to specified port\n");
+    printf("  -l user   connect with specified username\n");
+    printf("  -batch    disable all interactive prompts\n");
+    printf("  -proxycmd command\n");
+    printf("            use 'command' as local proxy\n");
+    printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
+    printf("            Specify the serial configuration (serial only)\n");
+    printf("The following options only apply to SSH connections:\n");
+    printf("  -pw passw login with specified password\n");
+    printf("  -D [listen-IP:]listen-port\n");
+    printf("            Dynamic SOCKS-based port forwarding\n");
+    printf("  -L [listen-IP:]listen-port:host:port\n");
+    printf("            Forward local port to remote address\n");
+    printf("  -R [listen-IP:]listen-port:host:port\n");
+    printf("            Forward remote port to local address\n");
+    printf("  -X -x     enable / disable X11 forwarding\n");
+    printf("  -A -a     enable / disable agent forwarding\n");
+    printf("  -t -T     enable / disable pty allocation\n");
+    printf("  -1 -2     force use of particular protocol version\n");
+    printf("  -4 -6     force use of IPv4 or IPv6\n");
+    printf("  -C        enable compression\n");
+    printf("  -i key    private key file for user authentication\n");
+    printf("  -noagent  disable use of Pageant\n");
+    printf("  -agent    enable use of Pageant\n");
+    printf("  -noshare  disable use of connection sharing\n");
+    printf("  -share    enable use of connection sharing\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            手动指定主机密钥 (可能重复)\n");
+    printf("            manually specify a host key (may be repeated)\n");
     printf("  -sanitise-stderr, -sanitise-stdout, "
            "-no-sanitise-stderr, -no-sanitise-stdout\n");
-    printf("            要/不要 (-no) 从标准输出 (-stdout) /错误 (-stderr)中删除"
-           "控制字符\n");
-    printf("  -no-antispoof  认证后忽略反欺骗提示\n");
-    printf("  -m 文件   从文件读取远程命令\n");
-    printf("  -s        SSH 子系统远程命令 (仅限 SSH-2)\n");
-    printf("  -N        不启动 shell 或执行命令 (仅限 SSH-2)\n");
-    printf("  -nc 主机:端口\n");
-    printf("            打开隧道代替会话 (仅限 SSH-2)\n");
-    printf("  -sshlog 文件\n");
-    printf("  -sshrawlog 文件\n");
-    printf("            记录协议详细日志到指定文件\n");
+    printf("            do/don't strip control chars from standard "
+           "output/error\n");
+    printf("  -no-antispoof   omit anti-spoofing prompt after "
+           "authentication\n");
+    printf("  -m file   read remote command(s) from file\n");
+    printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
+    printf("  -N        don't start a shell/command (SSH-2 only)\n");
+    printf("  -nc host:port\n");
+    printf("            open tunnel in place of session (SSH-2 only)\n");
+    printf("  -sshlog file\n");
+    printf("  -sshrawlog file\n");
+    printf("            log protocol details to a file\n");
     printf("  -shareexists\n");
-    printf("            测试是否存在上游共享连接\n");
+    printf("            test whether a connection-sharing upstream exists\n");
     exit(1);
 }
 

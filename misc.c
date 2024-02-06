@@ -218,55 +218,84 @@ char *buildinfo(const char *newline)
 {
     strbuf *buf = strbuf_new();
 
-    strbuf_catf(buf, "构建平台: %d 位 %s",
+    strbuf_catf(buf, "Build platform: %d-bit %s",
                 (int)(CHAR_BIT * sizeof(void *)),
                 BUILDINFO_PLATFORM);
 
 #ifdef __clang_version__
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%编译器: clang %s", newline, __clang_version__);
+    strbuf_catf(buf, "%sCompiler: clang %s", newline, __clang_version__);
 #elif defined __GNUC__ && defined __VERSION__
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%编译器: gcc %s", newline, __VERSION__);
+    strbuf_catf(buf, "%sCompiler: gcc %s", newline, __VERSION__);
 #endif
 
 #if defined _MSC_VER
 #ifndef FOUND_COMPILER
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%编译器: ", newline);
+    strbuf_catf(buf, "%sCompiler: ", newline);
 #else
-    strbuf_catf(buf, ", 模拟的 ");
+    strbuf_catf(buf, ", emulating ");
 #endif
     strbuf_catf(buf, "Visual Studio", newline);
-#if _MSC_VER == 1900
-    strbuf_catf(buf, " 2015 / MSVC++ 14.0");
+
+#if 0
+    /*
+     * List of _MSC_VER values and their translations taken from
+     * https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros
+     * except for 1920, which is not yet listed on that page as of
+     * 2019-03-22, and was determined experimentally by Sean Kain.
+     *
+     * The pointless #if 0 branch containing this comment is there so
+     * that every real clause can start with #elif and there's no
+     * anomalous first clause. That way the patch looks nicer when you
+     * add extra ones.
+     */
+#elif _MSC_VER == 1920
+    strbuf_catf(buf, " 2019 (16.x)");
+#elif _MSC_VER == 1916
+    strbuf_catf(buf, " 2017 version 15.9");
+#elif _MSC_VER == 1915
+    strbuf_catf(buf, " 2017 version 15.8");
+#elif _MSC_VER == 1914
+    strbuf_catf(buf, " 2017 version 15.7");
+#elif _MSC_VER == 1913
+    strbuf_catf(buf, " 2017 version 15.6");
 #elif _MSC_VER == 1912
-    strbuf_catf(buf, " 2017 / MSVC++ 14.12");
+    strbuf_catf(buf, " 2017 version 15.5");
+#elif _MSC_VER == 1911
+    strbuf_catf(buf, " 2017 version 15.3");
+#elif _MSC_VER == 1910
+    strbuf_catf(buf, " 2017 RTW (15.0)");
+#elif _MSC_VER == 1900
+    strbuf_catf(buf, " 2015 (14.0)");
 #elif _MSC_VER == 1800
-    strbuf_catf(buf, " 2013 / MSVC++ 12.0");
+    strbuf_catf(buf, " 2013 (12.0)");
 #elif _MSC_VER == 1700
-    strbuf_catf(buf, " 2012 / MSVC++ 11.0");
+    strbuf_catf(buf, " 2012 (11.0)");
 #elif _MSC_VER == 1600
-    strbuf_catf(buf, " 2010 / MSVC++ 10.0");
+    strbuf_catf(buf, " 2010 (10.0)");
 #elif _MSC_VER == 1500
-    strbuf_catf(buf, " 2008 / MSVC++ 9.0");
+    strbuf_catf(buf, " 2008 (9.0)");
 #elif _MSC_VER == 1400
-    strbuf_catf(buf, " 2005 / MSVC++ 8.0");
+    strbuf_catf(buf, " 2005 (8.0)");
 #elif _MSC_VER == 1310
-    strbuf_catf(buf, " 2003 / MSVC++ 7.1");
+    strbuf_catf(buf, " .NET 2003 (7.1)");
 #elif _MSC_VER == 1300
-    strbuf_catf(buf, " 2003 / MSVC++ 7.0");
+    strbuf_catf(buf, " .NET 2002 (7.0)");
+#elif _MSC_VER == 1200
+    strbuf_catf(buf, " 6.0");
 #else
-    strbuf_catf(buf, ", 未知版本");
+    strbuf_catf(buf, ", unrecognised version");
 #endif
-    strbuf_catf(buf, " (_MSC_VER=%d)", (int)_MSC_VER);
+    strbuf_catf(buf, ", _MSC_VER=%d", (int)_MSC_VER);
 #endif
 
 #ifdef BUILDINFO_GTK
     {
         char *gtk_buildinfo = buildinfo_gtk_version();
         if (gtk_buildinfo) {
-            strbuf_catf(buf, "%s针对 GTK 版本编译 %s",
+            strbuf_catf(buf, "%sCompiled against GTK version %s",
                         newline, gtk_buildinfo);
             sfree(gtk_buildinfo);
         }
@@ -276,40 +305,40 @@ char *buildinfo(const char *newline)
     {
         int echm = has_embedded_chm();
         if (echm >= 0)
-            strbuf_catf(buf, "%s嵌入式 HTML 帮助文件: %s", newline,
-                        echm ? "是" : "否");
+            strbuf_catf(buf, "%sEmbedded HTML Help file: %s", newline,
+                        echm ? "yes" : "no");
     }
 #endif
 
 #if defined _WINDOWS && defined MINEFIELD
-    strbuf_catf(buf, "%s构建选项: MINEFIELD", newline);
+    strbuf_catf(buf, "%sBuild option: MINEFIELD", newline);
 #endif
 #ifdef NO_SECURITY
-    strbuf_catf(buf, "%s构建选项: NO_SECURITY", newline);
+    strbuf_catf(buf, "%sBuild option: NO_SECURITY", newline);
 #endif
 #ifdef NO_SECUREZEROMEMORY
-    strbuf_catf(buf, "%s构建选项: NO_SECUREZEROMEMORY", newline);
+    strbuf_catf(buf, "%sBuild option: NO_SECUREZEROMEMORY", newline);
 #endif
 #ifdef NO_IPV6
-    strbuf_catf(buf, "%s构建选项: NO_IPV6", newline);
+    strbuf_catf(buf, "%sBuild option: NO_IPV6", newline);
 #endif
 #ifdef NO_GSSAPI
-    strbuf_catf(buf, "%s构建选项: NO_GSSAPI", newline);
+    strbuf_catf(buf, "%sBuild option: NO_GSSAPI", newline);
 #endif
 #ifdef STATIC_GSSAPI
-    strbuf_catf(buf, "%s构建选项: STATIC_GSSAPI", newline);
+    strbuf_catf(buf, "%sBuild option: STATIC_GSSAPI", newline);
 #endif
 #ifdef UNPROTECT
-    strbuf_catf(buf, "%s构建选项: UNPROTECT", newline);
+    strbuf_catf(buf, "%sBuild option: UNPROTECT", newline);
 #endif
 #ifdef FUZZING
-    strbuf_catf(buf, "%s构建选项: FUZZING", newline);
+    strbuf_catf(buf, "%sBuild option: FUZZING", newline);
 #endif
 #ifdef DEBUG
-    strbuf_catf(buf, "%s构建选项: DEBUG", newline);
+    strbuf_catf(buf, "%sBuild option: DEBUG", newline);
 #endif
 
-    strbuf_catf(buf, "%s源代码提交: %s", newline, commitid);
+    strbuf_catf(buf, "%sSource commit: %s", newline, commitid);
 
     return strbuf_to_str(buf);
 }
@@ -357,5 +386,5 @@ void sk_free_peer_info(SocketPeerInfo *pi)
 
 void out_of_memory(void)
 {
-    modalfatalbox("内存不足");
+    modalfatalbox("Out of memory");
 }

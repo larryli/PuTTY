@@ -19,6 +19,8 @@
 #include "gtkcompat.h"
 #include "gtkmisc.h"
 
+#include "putty.h"
+#include "ssh.h"
 #include "misc.h"
 
 #define N_DRAWING_AREAS 3
@@ -55,12 +57,46 @@ struct askpass_ctx {
     int nattempts;
 };
 
+static prng *keypress_prng = NULL;
+static void feed_keypress_prng(void *data, int size)
+{
+    put_data(keypress_prng, data, size);
+}
+void random_add_noise(NoiseSourceId source, const void *noise, int length)
+{
+    if (keypress_prng)
+        prng_add_entropy(keypress_prng, source, make_ptrlen(noise, length));
+}
+static void setup_keypress_prng(void)
+{
+    keypress_prng = prng_new(&ssh_sha256);
+    prng_seed_begin(keypress_prng);
+    noise_get_heavy(feed_keypress_prng);
+    prng_seed_finish(keypress_prng);
+}
+static void cleanup_keypress_prng(void)
+{
+    prng_free(keypress_prng);
+}
+static int choose_new_area(int prev_area)
+{
+    /*
+     * Don't actually put the passphrase keystrokes themselves into
+     * the PRNG; that doesn't seem like the course of wisdom when
+     * that's precisely what the information displayed on the screen
+     * is trying _not_ to be correlated to.
+     */
+    noise_ultralight(NOISE_SOURCE_KEY, 0);
+    uint8_t data[8];
+    prng_read(keypress_prng, data, 8);
+    uint64_t randval = GET_64BIT_MSB_FIRST(data);
+    int reduced = randval % (N_DRAWING_AREAS - 1);
+    return (prev_area + 1 + reduced) % N_DRAWING_AREAS;
+}
+
 static void visually_acknowledge_keypress(struct askpass_ctx *ctx)
 {
-    int new_active;
-    new_active = rand() % (N_DRAWING_AREAS - 1);
-    if (new_active >= ctx->active_area)
-        new_active++;
+    int new_active = choose_new_area(ctx->active_area);
     ctx->drawingareas[ctx->active_area].state = NOT_CURRENT;
     gtk_widget_queue_draw(ctx->drawingareas[ctx->active_area].area);
     ctx->drawingareas[new_active].state = CURRENT;
@@ -546,7 +582,9 @@ char *gtk_askpass_main(const char *display, const char *wintitle,
         *success = false;
         return dupprintf("%s", err);
     }
+    setup_keypress_prng();
     gtk_main();
+    cleanup_keypress_prng();
     gtk_askpass_cleanup(ctx);
 
     if (ctx->passphrase) {
@@ -582,7 +620,6 @@ int main(int argc, char **argv)
         success = false;
         ret = dupprintf("usage: %s <prompt text>", argv[0]);
     } else {
-        srand(time(NULL));
         ret = gtk_askpass_main(NULL, "Enter passphrase", argv[1], &success);
     }
 

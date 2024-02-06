@@ -36,6 +36,7 @@
  *    I define another main() which calls the former repeatedly to
  *    run tests.
  */
+bool cgtest_verbose = false;
 #define get_random_data get_random_data_diagnostic
 char *get_random_data(int len, const char *device)
 {
@@ -53,9 +54,15 @@ int console_get_userpass_input(prompts_t *p)
     for (i = 0; i < p->n_prompts; i++) {
 	if (promptsgot < nprompts) {
 	    p->prompts[i]->result = dupstr(prompts[promptsgot++]);
+            if (cgtest_verbose)
+                printf("  prompt \"%s\": response \"%s\"\n",
+                       p->prompts[i]->prompt, p->prompts[i]->result);
 	} else {
 	    promptsgot++;	    /* track number of requests anyway */
 	    ret = 0;
+            if (cgtest_verbose)
+                printf("  prompt \"%s\": no response preloaded\n",
+                       p->prompts[i]->prompt);
 	}
     }
     return ret;
@@ -113,13 +120,13 @@ void showversion(void)
 void usage(bool standalone)
 {
     fprintf(standalone ? stderr : stdout,
-	    "用法: puttygen ( 密钥文件 | -t 类型 [ -b 位数 ] )\n"
-	    "                [ -C 注释 ] [ -P ] [ -q ]\n"
-	    "                [ -o 输出密钥文件 ] [ -O 类型 | -l | -L"
+	    "Usage: puttygen ( keyfile | -t type [ -b bits ] )\n"
+	    "                [ -C comment ] [ -P ] [ -q ]\n"
+	    "                [ -o output-keyfile ] [ -O type | -l | -L"
 	    " | -p ]\n");
     if (standalone)
 	fprintf(stderr,
-		"使用 \"puttygen --help\" 了解更多帮助。\n");
+		"Use \"puttygen --help\" for more detail.\n");
 }
 
 void help(void)
@@ -128,34 +135,34 @@ void help(void)
      * Help message is an extended version of the usage message. So
      * start with that, plus a version heading.
      */
-    printf("PuTTYgen: PuTTY 密钥生成与转换工具\n"
+    printf("PuTTYgen: key generator and converter for the PuTTY tools\n"
 	   "%s\n", ver);
     usage(false);
-    printf("  -t    指定生成的密钥类型 (ed25519, ecdsa, rsa, "
+    printf("  -t    specify key type when generating (ed25519, ecdsa, rsa, "
 							"dsa, rsa1)\n"
-	   "  -b    指定生成密钥的位数\n"
-	   "  -C    修改或指定密钥注释\n"
-	   "  -P    修改密钥密码\n"
-	   "  -q    静默: 不显示进度条\n"
-	   "  -O    指定输出类型:\n"
-	   "           private             输出 PuTTY 私钥格式\n"
-	   "           private-openssh     导出 OpenSSH 私钥格式\n"
-	   "           private-openssh-new 导出 OpenSSH 私钥格式 "
-                                             "(强制新格式)\n"
-	   "           private-sshcom      导出 ssh.com 私钥格式\n"
-	   "           public              RFC 4716 / ssh.com 公钥\n"
-	   "           public-openssh      OpenSSH 公钥\n"
-	   "           fingerprint         输出密钥指纹\n"
-	   "  -o    指定输出文件\n"
-	   "  -l    等价于 `-O fingerprint'\n"
-	   "  -L    等价于 `-O public-openssh'\n"
-	   "  -p    等价于 `-O public'\n"
-	   "  --old-passphrase 文件\n"
-	   "        指定包含旧密钥密码的文件\n"
-	   "  --new-passphrase 文件\n"
-	   "        指定包含新密钥密码的文件\n"
-	   "  --random-device 设备\n"
-	   "        指定用于读取熵的设备 (例如：/dev/urandom)\n"
+	   "  -b    specify number of bits when generating key\n"
+	   "  -C    change or specify key comment\n"
+	   "  -P    change key passphrase\n"
+	   "  -q    quiet: do not display progress bar\n"
+	   "  -O    specify output type:\n"
+	   "           private             output PuTTY private key format\n"
+	   "           private-openssh     export OpenSSH private key\n"
+	   "           private-openssh-new export OpenSSH private key "
+                                             "(force new format)\n"
+	   "           private-sshcom      export ssh.com private key\n"
+	   "           public              RFC 4716 / ssh.com public key\n"
+	   "           public-openssh      OpenSSH public key\n"
+	   "           fingerprint         output the key fingerprint\n"
+	   "  -o    specify output file\n"
+	   "  -l    equivalent to `-O fingerprint'\n"
+	   "  -L    equivalent to `-O public-openssh'\n"
+	   "  -p    equivalent to `-O public'\n"
+	   "  --old-passphrase file\n"
+	   "        specify file containing old key passphrase\n"
+	   "  --new-passphrase file\n"
+	   "        specify file containing new key passphrase\n"
+	   "  --random-device device\n"
+	   "        specify device to read entropy from (e.g. /dev/urandom)\n"
 	   );
 }
 
@@ -215,7 +222,8 @@ int main(int argc, char **argv)
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
     int bits = -1;
-    char *comment = NULL, *origcomment = NULL;
+    const char *comment = NULL;
+    char *origcomment = NULL;
     bool change_passphrase = false;
     bool errs = false, nogo = false;
     int intype = SSH_KEYTYPE_UNOPENABLE;
@@ -735,6 +743,9 @@ int main(int argc, char **argv)
 
 	assert(infile != NULL);
 
+	sfree(origcomment);
+	origcomment = NULL;
+
 	/*
 	 * Find out whether the input key is encrypted.
 	 */
@@ -781,7 +792,11 @@ int main(int argc, char **argv)
 		strbuf *blob;
                 BinarySource src[1];
 
+                sfree(origcomment);
+                origcomment = NULL;
+
                 blob = strbuf_new();
+
 		ret = rsa_ssh1_loadpub(infilename, BinarySink_UPCAST(blob),
                                        &origcomment, &error);
                 BinarySource_BARE_INIT(src, blob->u, blob->len);
@@ -807,6 +822,8 @@ int main(int argc, char **argv)
           case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716:
           case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH:
 	    if (!load_encrypted) {
+                sfree(origcomment);
+                origcomment = NULL;
                 ssh2blob = strbuf_new();
 		if (ssh2_userkey_loadpub(infilename, &ssh2alg, BinarySink_UPCAST(ssh2blob),
                                          &origcomment, &error)) {
@@ -933,6 +950,7 @@ int main(int argc, char **argv)
         int real_outtype;
 
       case PRIVATE:
+        random_ref(); /* we'll need a few random bytes in the save file */
 	if (sshver == 1) {
 	    assert(ssh1key);
 	    ret = rsa_ssh1_savekey(outfilename, ssh1key, new_passphrase);
@@ -1068,12 +1086,15 @@ int main(int argc, char **argv)
 
     if (ssh1key) {
 	freersakey(ssh1key);
+        sfree(ssh1key);
     }
     if (ssh2key) {
 	sfree(ssh2key->comment);
 	ssh_key_free(ssh2key->key);
 	sfree(ssh2key);
     }
+    if (ssh2blob)
+        strbuf_free(ssh2blob);
     sfree(origcomment);
     if (infilename)
         filename_free(infilename);
@@ -1126,7 +1147,33 @@ void test(int retval, ...)
     va_end(ap);
 
     promptsgot = 0;
+    if (cgtest_verbose) {
+        printf("run:");
+        for (int i = 0; i < argc; i++) {
+            static const char okchars[] =
+                "0123456789abcdefghijklmnopqrstuvwxyz"
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ%+,-./:=[]^_";
+            const char *arg = argv[i];
+
+            printf(" ");
+            if (arg[strspn(arg, okchars)]) {
+                printf("'");
+                for (const char *c = argv[i]; *c; c++) {
+                    if (*c == '\'') {
+                        printf("'\\''");
+                    } else {
+                        putchar(*c);
+                    }
+                }
+                printf("'");
+            } else {
+                fputs(arg, stdout);
+            }
+        }
+        printf("\n");
+    }
     ret = cmdgen_main(argc, argv);
+    random_clear();
 
     if (ret != retval) {
 	printf("FAILED retval (exp %d got %d):", retval, ret);
@@ -1180,19 +1227,21 @@ void filecmp(char *file1, char *file2, char *fmt, ...)
 
 char *cleanup_fp(char *s)
 {
-    char *p;
+    ptrlen pl = ptrlen_from_asciz(s);
+    static const char separators[] = " \n\t";
 
-    if (!strncmp(s, "ssh-", 4)) {
-	s += strcspn(s, " \n\t");
-	s += strspn(s, " \n\t");
-    }
+    /* Skip initial key type word if we find one */
+    if (ptrlen_startswith(pl, PTRLEN_LITERAL("ssh-"), NULL))
+        ptrlen_get_word(&pl, separators);
 
-    p = s;
-    s += strcspn(s, " \n\t");
-    s += strspn(s, " \n\t");
-    s += strcspn(s, " \n\t");
+    /* Expect two words giving the key length and the hash */
+    ptrlen bits = ptrlen_get_word(&pl, separators);
+    ptrlen hash = ptrlen_get_word(&pl, separators);
 
-    return dupprintf("%.*s", (int)(s - p), p);
+    /* Strip "MD5:" prefix if it's present, and do nothing if it isn't */
+    ptrlen_startswith(hash, PTRLEN_LITERAL("MD5:"), &hash);
+
+    return dupprintf("%.*s %.*s", PTRLEN_PRINTF(bits), PTRLEN_PRINTF(hash));
 }
 
 char *get_fp(char *filename)
@@ -1243,6 +1292,9 @@ int main(int argc, char **argv)
     int i;
     static char *const keytypes[] = { "rsa1", "dsa", "rsa" };
 
+    if (getenv("CGTEST_VERBOSE"))
+        cgtest_verbose = true;
+
     /*
      * Even when this thing is compiled for automatic test mode,
      * it's helpful to be able to invoke it with command-line
@@ -1279,7 +1331,7 @@ int main(int argc, char **argv)
 	{
 	    char *cmdbuf;
 	    fp = NULL;
-	    cmdbuf = dupprintf("ssh-keygen -l -f '%s' > '%s'",
+	    cmdbuf = dupprintf("ssh-keygen -E md5 -l -f '%s' > '%s'",
 		    pubfilename, tmpfilename1);
 	    if (system(cmdbuf) ||
 		(fp = get_fp(tmpfilename1)) == NULL) {

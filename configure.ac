@@ -100,25 +100,21 @@ gtk=none
 
 case "$gtk_version_desired:$gtk" in
   3:none | any:none)
-    ifdef([AM_PATH_GTK_3_0],[
-    AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])
-    ],[AC_WARNING([generating configure script without GTK 3 autodetection])])
+    ifdef([AM_PATH_GTK_3_0],[AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])],
+    [AC_WARNING([generating configure script without GTK 3 autodetection])])
     ;;
 esac
 
 case "$gtk_version_desired:$gtk" in
   2:none | any:none)
-    ifdef([AM_PATH_GTK_2_0],[
-    AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
-    ],[AC_WARNING([generating configure script without GTK 2 autodetection])])
+    ifdef([AM_PATH_GTK_2_0],[AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])],
+    [AC_WARNING([generating configure script without GTK 2 autodetection])])
     ;;
 esac
 
 case "$gtk_version_desired:$gtk" in
   1:none | any:none)
-    ifdef([AM_PATH_GTK],[
-    AM_PATH_GTK([1.2.0], [gtk=1], [])
-    ],[
+    ifdef([AM_PATH_GTK],[AM_PATH_GTK([1.2.0], [gtk=1], [])],[
     # manual check for gtk1
     AC_PATH_PROG(GTK1_CONFIG, gtk-config, absent)
     if test "$GTK1_CONFIG" != "absent"; then
@@ -173,8 +169,9 @@ AC_CHECK_LIB(X11, XOpenDisplay,
              [GTK_LIBS="-lX11 $GTK_LIBS"
               AC_DEFINE([HAVE_LIBX11],[],[Define if libX11.a is available])])
 
-AC_CHECK_FUNCS([getaddrinfo posix_openpt ptsname setresuid strsignal updwtmpx fstatat dirfd])
+AC_CHECK_FUNCS([getaddrinfo posix_openpt ptsname setresuid strsignal updwtmpx fstatat dirfd futimes setpwent endpwent])
 AC_CHECK_DECLS([CLOCK_MONOTONIC], [], [], [[#include <time.h>]])
+AC_CHECK_HEADERS([sys/auxv.h asm/hwcap.h glob.h])
 AC_SEARCH_LIBS([clock_gettime], [rt], [AC_DEFINE([HAVE_CLOCK_GETTIME],[],[Define if clock_gettime() is available])])
 
 AC_CACHE_CHECK([for SO_PEERCRED and dependencies], [x_cv_linux_so_peercred], [

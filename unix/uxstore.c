@@ -301,15 +301,16 @@ static int keycmp(void *av, void *bv)
     return strcmp(a->key, b->key);
 }
 
-void provide_xrm_string(char *string)
+void provide_xrm_string(const char *string, const char *progname)
 {
-    char *p, *q, *key;
+    const char *p, *q;
+    char *key;
     struct skeyval *xrms, *ret;
 
     p = q = strchr(string, ':');
     if (!q) {
-	fprintf(stderr, "pterm: expected a colon in resource string"
-		" \"%s\"\n", string);
+	fprintf(stderr, "%s: expected a colon in resource string"
+		" \"%s\"\n", progname, string);
 	return;
     }
     q++;
