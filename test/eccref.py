@@ -1,184 +1,10 @@
+import sys
 import numbers
 import itertools
 
-def jacobi(n,m):
-    """Compute the Jacobi symbol.
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
-    The special case of this when m is prime is the Legendre symbol,
-    which is 0 if n is congruent to 0 mod m; 1 if n is congruent to a
-    non-zero square number mod m; -1 if n is not congruent to any
-    square mod m.
-
-    """
-    assert m & 1
-    acc = 1
-    while True:
-        n %= m
-        if n == 0:
-            return 0
-        while not (n & 1):
-            n >>= 1
-            if (m & 7) not in {1,7}:
-                acc *= -1
-        if n == 1:
-            return acc
-        if (n & 3) == 3 and (m & 3) == 3:
-            acc *= -1
-        n, m = m, n
-
-class SqrtModP(object):
-    """Class for finding square roots of numbers mod p.
-
-    p must be an odd prime (but its primality is not checked)."""
-
-    def __init__(self, p):
-        p = abs(p)
-        assert p & 1
-        self.p = p
-
-        # Decompose p as 2^e k + 1 for odd k.
-        self.k = p-1
-        self.e = 0
-        while not (self.k & 1):
-            self.k >>= 1
-            self.e += 1
-
-        # Find a non-square mod p.
-        for self.z in itertools.count(1):
-            if jacobi(self.z, self.p) == -1:
-                break
-        self.zinv = ModP(self.p, self.z).invert()
-
-    def sqrt_recurse(self, a):
-        ak = pow(a, self.k, self.p)
-        for i in range(self.e, -1, -1):
-            if ak == 1:
-                break
-            ak = ak*ak % self.p
-        assert i > 0
-        if i == self.e:
-            return pow(a, (self.k+1) // 2, self.p)
-        r_prime = self.sqrt_recurse(a * pow(self.z, 2**i, self.p))
-        return r_prime * pow(self.zinv, 2**(i-1), self.p) % self.p
-
-    def sqrt(self, a):
-        j = jacobi(a, self.p)
-        if j == 0:
-            return 0
-        if j < 0:
-            raise ValueError("{} has no square root mod {}".format(a, self.p))
-        a %= self.p
-        r = self.sqrt_recurse(a)
-        assert r*r % self.p == a
-        # Normalise to the smaller (or 'positive') one of the two roots.
-        return min(r, self.p - r)
-
-    def __str__(self):
-        return "{}({})".format(type(self).__name__, self.p)
-    def __repr__(self):
-        return self.__str__()
-
-class ModP(object):
-    """Class that represents integers mod p as a field.
-
-    All the usual arithmetic operations are supported directly,
-    including division, so you can write formulas in a natural way
-    without having to keep saying '% p' everywhere or call a
-    cumbersome modular_inverse() function.
-
-    """
-    def __init__(self, p, n=0):
-        self.p = p
-        if isinstance(n, type(self)):
-            self.check(n)
-            n = n.n
-        self.n = n % p
-    def check(self, other):
-        assert isinstance(other, type(self))
-        assert isinstance(self, type(other))
-        assert self.p == other.p
-    def coerce_to(self, other):
-        if not isinstance(other, type(self)):
-            other = type(self)(self.p, other)
-        else:
-            self.check(other)
-        return other
-    def invert(self):
-        "Internal routine which returns the bare inverse."
-        if self.n % self.p == 0:
-            raise ZeroDivisionError("division by {!r}".format(self))
-        a = self.n, 1, 0
-        b = self.p, 0, 1
-        while b[0]:
-            q = a[0] // b[0]
-            a = a[0] - q*b[0], a[1] - q*b[1], a[2] - q*b[2]
-            b, a = a, b
-        assert abs(a[0]) == 1
-        return a[1]*a[0]
-    def __int__(self):
-        return self.n
-    def __add__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n + rhs.n) % self.p)
-    def __neg__(self):
-        return type(self)(self.p, -self.n % self.p)
-    def __radd__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n + rhs.n) % self.p)
-    def __sub__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n - rhs.n) % self.p)
-    def __rsub__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (rhs.n - self.n) % self.p)
-    def __mul__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n * rhs.n) % self.p)
-    def __rmul__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n * rhs.n) % self.p)
-    def __div__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n * rhs.invert()) % self.p)
-    def __rdiv__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (rhs.n * self.invert()) % self.p)
-    def __truediv__(self, rhs): return self.__div__(rhs)
-    def __rtruediv__(self, rhs): return self.__rdiv__(rhs)
-    def __pow__(self, exponent):
-        assert exponent >= 0
-        n, b_to_n = 1, self
-        total = type(self)(self.p, 1)
-        while True:
-            if exponent & n:
-                exponent -= n
-                total *= b_to_n
-            n *= 2
-            if n > exponent:
-                break
-            b_to_n *= b_to_n
-        return total
-    def __cmp__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return cmp(self.n, rhs.n)
-    def __eq__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return self.n == rhs.n
-    def __ne__(self, rhs):
-        rhs = self.coerce_to(rhs)
-        return self.n != rhs.n
-    def __lt__(self, rhs):
-        raise ValueError("Elements of a modular ring have no ordering")
-    def __le__(self, rhs):
-        raise ValueError("Elements of a modular ring have no ordering")
-    def __gt__(self, rhs):
-        raise ValueError("Elements of a modular ring have no ordering")
-    def __ge__(self, rhs):
-        raise ValueError("Elements of a modular ring have no ordering")
-    def __str__(self):
-        return "0x{:x}".format(self.n)
-    def __repr__(self):
-        return "{}(0x{:x},0x{:x})".format(type(self).__name__, self.p, self.n)
+from numbertheory import *
 
 class AffinePoint(object):
     """Base class for points on an elliptic curve."""
@@ -288,9 +114,9 @@ class WeierstrassCurve(CurveBase):
 
     def cpoint(self, x, yparity=0):
         if not hasattr(self, 'sqrtmodp'):
-            self.sqrtmodp = SqrtModP(self.p)
+            self.sqrtmodp = RootModP(2, self.p)
         rhs = x**3 + self.a.n * x + self.b.n
-        y = self.sqrtmodp.sqrt(rhs)
+        y = self.sqrtmodp.root(rhs)
         if (y - yparity) % 2:
             y = -y
         return self.point(x, y)
@@ -316,9 +142,13 @@ class MontgomeryCurve(CurveBase):
             xdiff = x2-x1
             if xdiff != 0:
                 slope = (y2-y1) / xdiff
-            else:
+            elif y1 != 0:
                 assert y1 == y2
                 slope = (3*x1*x1 + 2*self.curve.a*x1 + 1) / (2*self.curve.b*y1)
+            else:
+                # If y1 was 0 as well, then we must have found an
+                # order-2 point that doubles to the identity.
+                return self.curve.point()
             xp = self.curve.b*slope*slope - self.curve.a - x1 - x2
             yp = -(y1 + slope * (xp-x1))
             return self.curve.point(xp, yp)
@@ -330,9 +160,9 @@ class MontgomeryCurve(CurveBase):
 
     def cpoint(self, x, yparity=0):
         if not hasattr(self, 'sqrtmodp'):
-            self.sqrtmodp = SqrtModP(self.p)
+            self.sqrtmodp = RootModP(2, self.p)
         rhs = (x**3 + self.a.n * x**2 + x) / self.b
-        y = self.sqrtmodp.sqrt(int(rhs))
+        y = self.sqrtmodp.root(int(rhs))
         if (y - yparity) % 2:
             y = -y
         return self.point(x, y)
@@ -371,11 +201,11 @@ class TwistedEdwardsCurve(CurveBase):
 
     def cpoint(self, y, xparity=0):
         if not hasattr(self, 'sqrtmodp'):
-            self.sqrtmodp = SqrtModP(self.p)
+            self.sqrtmodp = RootModP(self.p)
         y = ModP(self.p, y)
         y2 = y**2
         radicand = (y2 - 1) / (self.d * y2 - self.a)
-        x = self.sqrtmodp.sqrt(radicand.n)
+        x = self.sqrtmodp.root(radicand.n)
         if (x - xparity) % 2:
             x = -x
         return self.point(x, y)
@@ -383,6 +213,96 @@ class TwistedEdwardsCurve(CurveBase):
     def __repr__(self):
         return "{}(0x{:x}, {}, {})".format(
             type(self).__name__, self.p, self.d, self.a)
+
+def find_montgomery_power2_order_x_values(p, a):
+    # Find points on a Montgomery elliptic curve that have order a
+    # power of 2.
+    #
+    # Motivation: both Curve25519 and Curve448 are abelian groups
+    # whose overall order is a large prime times a small factor of 2.
+    # The approved base point of each curve generates a cyclic
+    # subgroup whose order is the large prime. Outside that cyclic
+    # subgroup there are many other points that have large prime
+    # order, plus just a handful that have tiny order. If one of the
+    # latter is presented to you as a Diffie-Hellman public value,
+    # nothing useful is going to happen, and RFC 7748 says we should
+    # outlaw those values. And any actual attempt to outlaw them is
+    # going to need to know what they are, either to check for each
+    # one directly, or to use them as test cases for some other
+    # approach.
+    #
+    # In a group of order p 2^k, an obvious way to search for points
+    # with order dividing 2^k is to generate random group elements and
+    # raise them to the power p. That guarantees that you end up with
+    # _something_ with order dividing 2^k (even if it's boringly the
+    # identity). And you also know from theory how many such points
+    # you expect to exist, so you can count the distinct ones you've
+    # found, and stop once you've got the right number.
+    #
+    # But that isn't actually good enough to find all the public
+    # values that are problematic! The reason why not is that in
+    # Montgomery key exchange we don't actually use a full elliptic
+    # curve point: we only use its x-coordinate. And the formulae for
+    # doubling and differential addition on x-coordinates can accept
+    # some values that don't correspond to group elements _at all_
+    # without detecting any error - and some of those nonsense x
+    # coordinates can also behave like low-order points.
+    #
+    # (For example, the x-coordinate -1 in Curve25519 is such a value.
+    # The reference ECC code in this module will raise an exception if
+    # you call curve25519.cpoint(-1): it corresponds to no valid point
+    # at all. But if you feed it into the doubling formula _anyway_,
+    # it doubles to the valid curve point with x-coord 0, which in
+    # turn doubles to the curve identity. Bang.)
+    #
+    # So we use an alternative approach which discards the group
+    # theory of the actual elliptic curve, and focuses purely on the
+    # doubling formula as an algebraic transformation on Z_p. Our
+    # question is: what values of x have the property that if you
+    # iterate the doubling map you eventually end up dividing by zero?
+    # To answer that, we must solve cubics and quartics mod p, via the
+    # code in numbertheory.py for doing so.
+
+    E = EquationSolverModP(p)
+
+    def viableSolutions(it):
+        for x in it:
+            try:
+                yield int(x)
+            except ValueError:
+                pass # some field-extension element that isn't a real value
+
+    def valuesDoublingTo(y):
+        # The doubling formula for a Montgomery curve point given only
+        # by x coordinate is (x+1)^2(x-1)^2 / (4(x^3+ax^2+x)).
+        #
+        # If we want to find a point that doubles to some particular
+        # value, we can set that formula equal to y and expand to get the
+        # quartic equation x^4 + (-4y)x^3 + (-4ay-2)x^2 + (-4y)x + 1 = 0.
+        return viableSolutions(E.solve_monic_quartic(-4*y, -4*a*y-2, -4*y, 1))
+
+    queue = []
+    qset = set()
+    pos = 0
+    def insert(x):
+        if x not in qset:
+            queue.append(x)
+            qset.add(x)
+
+    # Our ultimate aim is to find points that end up going to the
+    # curve identity / point at infinity after some number of
+    # doublings. So our starting point is: what values of x make the
+    # denominator of the doubling formula zero?
+    for x in viableSolutions(E.solve_monic_cubic(a, 1, 0)):
+        insert(x)
+
+    while pos < len(queue):
+        y = queue[pos]
+        pos += 1
+        for x in valuesDoublingTo(y):
+            insert(x)
+
+    return queue
 
 p256 = WeierstrassCurve(0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, -3, 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b)
 p256.G = p256.point(0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296,0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5)
@@ -399,7 +319,13 @@ p521.G_order = 0x01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 curve25519 = MontgomeryCurve(2**255-19, 0x76d06, 1)
 curve25519.G = curve25519.cpoint(9)
 
+curve448 = MontgomeryCurve(2**448-2**224-1, 0x262a6, 1)
+curve448.G = curve448.cpoint(5)
+
 ed25519 = TwistedEdwardsCurve(2**255-19, 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3, -1)
 ed25519.G = ed25519.point(0x216936d3cd6e53fec0a4e231fdd6dc5c692cc7609525a7b2c9562d608f25d51a,0x6666666666666666666666666666666666666666666666666666666666666658)
 ed25519.G_order = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
 
+ed448 = TwistedEdwardsCurve(2**448-2**224-1, -39081, +1)
+ed448.G = ed448.point(0x4f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05e,0x693f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa14)
+ed448.G_order = 0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff7cca23e9c44edb49aed63690216cc2728dc58f552378c292ab5844f3

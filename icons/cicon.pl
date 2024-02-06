@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl
 
 # Given a list of input PNGs, create a C source file containing a
 # const array of XPMs, named by a given C identifier.

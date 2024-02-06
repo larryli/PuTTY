@@ -34,7 +34,10 @@
 #define g_object_get_data gtk_object_get_data
 #define g_object_set_data gtk_object_set_data
 #define g_object_set_data_full gtk_object_set_data_full
-#define g_object_ref_sink gtk_object_sink
+#define g_object_ref_sink(x) do {               \
+        gtk_object_ref(x);                      \
+        gtk_object_sink(x);                     \
+    } while (0)
 
 #define GDK_GRAB_SUCCESS GrabSuccess
 

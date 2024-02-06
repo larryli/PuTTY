@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "putty.h"
-#include "sftp.h"
+#include "ssh/sftp.h"
 #include "psftp.h"
 
 #define MAX_NAMES_MEMORY ((size_t)8 << 20)

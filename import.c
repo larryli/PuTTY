@@ -13,12 +13,12 @@
 #include "mpint.h"
 #include "misc.h"
 
-static bool openssh_pem_encrypted(const Filename *file);
-static bool openssh_new_encrypted(const Filename *file);
+static bool openssh_pem_encrypted(BinarySource *src);
+static bool openssh_new_encrypted(BinarySource *src);
 static ssh2_userkey *openssh_pem_read(
-    const Filename *file, const char *passphrase, const char **errmsg_p);
+    BinarySource *src, const char *passphrase, const char **errmsg_p);
 static ssh2_userkey *openssh_new_read(
-    const Filename *file, const char *passphrase, const char **errmsg_p);
+    BinarySource *src, const char *passphrase, const char **errmsg_p);
 static bool openssh_auto_write(
     const Filename *file, ssh2_userkey *key, const char *passphrase);
 static bool openssh_pem_write(
@@ -26,9 +26,9 @@ static bool openssh_pem_write(
 static bool openssh_new_write(
     const Filename *file, ssh2_userkey *key, const char *passphrase);
 
-static bool sshcom_encrypted(const Filename *file, char **comment);
+static bool sshcom_encrypted(BinarySource *src, char **comment);
 static ssh2_userkey *sshcom_read(
-    const Filename *file, const char *passphrase, const char **errmsg_p);
+    BinarySource *src, const char *passphrase, const char **errmsg_p);
 static bool sshcom_write(
     const Filename *file, ssh2_userkey *key, const char *passphrase);
 
@@ -38,11 +38,11 @@ static bool sshcom_write(
 bool import_possible(int type)
 {
     if (type == SSH_KEYTYPE_OPENSSH_PEM)
-	return true;
+        return true;
     if (type == SSH_KEYTYPE_OPENSSH_NEW)
-	return true;
+        return true;
     if (type == SSH_KEYTYPE_SSHCOM)
-	return true;
+        return true;
     return false;
 }
 
@@ -59,48 +59,95 @@ int import_target_type(int type)
     return SSH_KEYTYPE_SSH2;
 }
 
+static inline char *bsgetline(BinarySource *src)
+{
+    ptrlen line = get_chomped_line(src);
+    if (get_err(src))
+        return NULL;
+    return mkstr(line);
+}
+
 /*
  * Determine whether a foreign key is encrypted.
  */
-bool import_encrypted(const Filename *filename, int type, char **comment)
+bool import_encrypted_s(const Filename *filename, BinarySource *src,
+                        int type, char **comment)
 {
     if (type == SSH_KEYTYPE_OPENSSH_PEM) {
-	/* OpenSSH PEM format doesn't contain a key comment at all */
-	*comment = dupstr(filename_to_str(filename));
-	return openssh_pem_encrypted(filename);
+        /* OpenSSH PEM format doesn't contain a key comment at all */
+        *comment = dupstr(filename_to_str(filename));
+        return openssh_pem_encrypted(src);
     } else if (type == SSH_KEYTYPE_OPENSSH_NEW) {
-	/* OpenSSH new format does, but it's inside the encrypted
+        /* OpenSSH new format does, but it's inside the encrypted
          * section for some reason */
-	*comment = dupstr(filename_to_str(filename));
-	return openssh_new_encrypted(filename);
+        *comment = dupstr(filename_to_str(filename));
+        return openssh_new_encrypted(src);
     } else if (type == SSH_KEYTYPE_SSHCOM) {
-	return sshcom_encrypted(filename, comment);
+        return sshcom_encrypted(src, comment);
     }
     return false;
+}
+
+bool import_encrypted(const Filename *filename, int type, char **comment)
+{
+    LoadedFile *lf = lf_load_keyfile(filename, NULL);
+    if (!lf)
+        return false; /* couldn't even open the file */
+
+    bool toret = import_encrypted_s(filename, BinarySource_UPCAST(lf),
+                                    type, comment);
+    lf_free(lf);
+    return toret;
 }
 
 /*
  * Import an SSH-1 key.
  */
-int import_ssh1(const Filename *filename, int type,
-		RSAKey *key, char *passphrase, const char **errmsg_p)
+int import_ssh1_s(BinarySource *src, int type,
+                  RSAKey *key, char *passphrase, const char **errmsg_p)
 {
     return 0;
+}
+
+int import_ssh1(const Filename *filename, int type,
+                RSAKey *key, char *passphrase, const char **errmsg_p)
+{
+    LoadedFile *lf = lf_load_keyfile(filename, errmsg_p);
+    if (!lf)
+        return false;
+
+    int toret = import_ssh1_s(BinarySource_UPCAST(lf),
+                              type, key, passphrase, errmsg_p);
+    lf_free(lf);
+    return toret;
 }
 
 /*
  * Import an SSH-2 key.
  */
-ssh2_userkey *import_ssh2(const Filename *filename, int type,
-				 char *passphrase, const char **errmsg_p)
+ssh2_userkey *import_ssh2_s(BinarySource *src, int type,
+                            char *passphrase, const char **errmsg_p)
 {
     if (type == SSH_KEYTYPE_OPENSSH_PEM)
-	return openssh_pem_read(filename, passphrase, errmsg_p);
+        return openssh_pem_read(src, passphrase, errmsg_p);
     else if (type == SSH_KEYTYPE_OPENSSH_NEW)
-	return openssh_new_read(filename, passphrase, errmsg_p);
+        return openssh_new_read(src, passphrase, errmsg_p);
     if (type == SSH_KEYTYPE_SSHCOM)
-	return sshcom_read(filename, passphrase, errmsg_p);
+        return sshcom_read(src, passphrase, errmsg_p);
     return NULL;
+}
+
+ssh2_userkey *import_ssh2(const Filename *filename, int type,
+                          char *passphrase, const char **errmsg_p)
+{
+    LoadedFile *lf = lf_load_keyfile(filename, errmsg_p);
+    if (!lf)
+        return false;
+
+    ssh2_userkey *toret = import_ssh2_s(BinarySource_UPCAST(lf),
+                                        type, passphrase, errmsg_p);
+    lf_free(lf);
+    return toret;
 }
 
 /*
@@ -119,11 +166,11 @@ bool export_ssh2(const Filename *filename, int type,
                  ssh2_userkey *key, char *passphrase)
 {
     if (type == SSH_KEYTYPE_OPENSSH_AUTO)
-	return openssh_auto_write(filename, key, passphrase);
+        return openssh_auto_write(filename, key, passphrase);
     if (type == SSH_KEYTYPE_OPENSSH_NEW)
-	return openssh_new_write(filename, key, passphrase);
+        return openssh_new_write(filename, key, passphrase);
     if (type == SSH_KEYTYPE_SSHCOM)
-	return sshcom_write(filename, key, passphrase);
+        return sshcom_write(filename, key, passphrase);
     return false;
 }
 
@@ -135,7 +182,7 @@ void strip_crlf(char *str)
     char *p = str + strlen(str);
 
     while (p > str && (p[-1] == '\r' || p[-1] == '\n'))
-	*--p = '\0';
+        *--p = '\0';
 }
 
 /* ----------------------------------------------------------------------
@@ -150,9 +197,9 @@ void strip_crlf(char *str)
 
 /*
  * Read an ASN.1/BER identifier and length pair.
- * 
+ *
  * Flags are a combination of the #defines listed below.
- * 
+ *
  * Returns -1 if unsuccessful; otherwise returns the number of
  * bytes used out of the source data.
  */
@@ -177,42 +224,42 @@ static void BinarySink_put_ber_id_len(BinarySink *bs,
                                       int id, int length, int flags)
 {
     if (id <= 30) {
-	/*
-	 * Identifier is one byte.
-	 */
-	put_byte(bs, id | flags);
+        /*
+         * Identifier is one byte.
+         */
+        put_byte(bs, id | flags);
     } else {
-	int n;
-	/*
-	 * Identifier is multiple bytes: the first byte is 11111
-	 * plus the flags, and subsequent bytes encode the value of
-	 * the identifier, 7 bits at a time, with the top bit of
-	 * each byte 1 except the last one which is 0.
-	 */
-	put_byte(bs, 0x1F | flags);
-	for (n = 1; (id >> (7*n)) > 0; n++)
-	    continue;		       /* count the bytes */
-	while (n--)
-	    put_byte(bs, (n ? 0x80 : 0) | ((id >> (7*n)) & 0x7F));
+        int n;
+        /*
+         * Identifier is multiple bytes: the first byte is 11111
+         * plus the flags, and subsequent bytes encode the value of
+         * the identifier, 7 bits at a time, with the top bit of
+         * each byte 1 except the last one which is 0.
+         */
+        put_byte(bs, 0x1F | flags);
+        for (n = 1; (id >> (7*n)) > 0; n++)
+            continue;                  /* count the bytes */
+        while (n--)
+            put_byte(bs, (n ? 0x80 : 0) | ((id >> (7*n)) & 0x7F));
     }
 
     if (length < 128) {
-	/*
-	 * Length is one byte.
-	 */
+        /*
+         * Length is one byte.
+         */
         put_byte(bs, length);
     } else {
-	int n;
-	/*
-	 * Length is multiple bytes. The first is 0x80 plus the
-	 * number of subsequent bytes, and the subsequent bytes
-	 * encode the actual length.
-	 */
-	for (n = 1; (length >> (8*n)) > 0; n++)
-	    continue;		       /* count the bytes */
-	put_byte(bs, 0x80 | n);
-	while (n--)
-	    put_byte(bs, (length >> (8*n)) & 0xFF);
+        int n;
+        /*
+         * Length is multiple bytes. The first is 0x80 plus the
+         * number of subsequent bytes, and the subsequent bytes
+         * encode the actual length.
+         */
+        for (n = 1; (length >> (8*n)) > 0; n++)
+            continue;                  /* count the bytes */
+        put_byte(bs, 0x80 | n);
+        while (n--)
+            put_byte(bs, (length >> (8*n)) & 0xFF);
     }
 }
 
@@ -236,23 +283,23 @@ static ber_item BinarySource_get_ber(BinarySource *src)
     if ((leadbyte & 0x1F) == 0x1F) {
         unsigned char idbyte;
 
-	toret.id = 0;
+        toret.id = 0;
         do {
             idbyte = get_byte(src);
-	    toret.id = (toret.id << 7) | (idbyte & 0x7F);
+            toret.id = (toret.id << 7) | (idbyte & 0x7F);
         } while (idbyte & 0x80);
     } else {
-	toret.id = leadbyte & 0x1F;
+        toret.id = leadbyte & 0x1F;
     }
 
     lenbyte = get_byte(src);
     if (lenbyte & 0x80) {
         int nbytes = lenbyte & 0x7F;
         length = 0;
-	while (nbytes-- > 0)
-	    length = (length << 8) | get_byte(src);
+        while (nbytes-- > 0)
+            length = (length << 8) | get_byte(src);
     } else {
-	length = lenbyte;
+        length = lenbyte;
     }
 
     toret.data = get_data(src, length);
@@ -300,11 +347,10 @@ void BinarySink_put_mp_ssh2_from_string(BinarySink *bs, ptrlen str)
 #define put_mp_ssh2_from_string(bs, str) \
     BinarySink_put_mp_ssh2_from_string(BinarySink_UPCAST(bs), str)
 
-static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
+static struct openssh_pem_key *load_openssh_pem_key(BinarySource *src,
                                                     const char **errmsg_p)
 {
     struct openssh_pem_key *ret;
-    FILE *fp = NULL;
     char *line = NULL;
     const char *errmsg;
     char *p;
@@ -315,21 +361,14 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
     ret = snew(struct openssh_pem_key);
     ret->keyblob = strbuf_new_nm();
 
-    fp = f_open(filename, "r", false);
-    if (!fp) {
-	errmsg = "unable to open key file";
-	goto error;
+    if (!(line = bsgetline(src))) {
+        errmsg = "unexpected end of file";
+        goto error;
     }
-
-    if (!(line = fgetline(fp))) {
-	errmsg = "unexpected end of file";
-	goto error;
-    }
-    strip_crlf(line);
     if (!strstartswith(line, "-----BEGIN ") ||
         !strendswith(line, "PRIVATE KEY-----")) {
-	errmsg = "file does not begin with OpenSSH key header";
-	goto error;
+        errmsg = "file does not begin with OpenSSH key header";
+        goto error;
     }
     /*
      * Parse the BEGIN line. For old-format keys, this tells us the
@@ -338,17 +377,17 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
      * base64.
      */
     if (!strcmp(line, "-----BEGIN RSA PRIVATE KEY-----")) {
-	ret->keytype = OP_RSA;
+        ret->keytype = OP_RSA;
     } else if (!strcmp(line, "-----BEGIN DSA PRIVATE KEY-----")) {
-	ret->keytype = OP_DSA;
+        ret->keytype = OP_DSA;
     } else if (!strcmp(line, "-----BEGIN EC PRIVATE KEY-----")) {
         ret->keytype = OP_ECDSA;
     } else if (!strcmp(line, "-----BEGIN OPENSSH PRIVATE KEY-----")) {
-	errmsg = "this is a new-style OpenSSH key";
-	goto error;
+        errmsg = "this is a new-style OpenSSH key";
+        goto error;
     } else {
-	errmsg = "unrecognised key type";
-	goto error;
+        errmsg = "unrecognised key type";
+        goto error;
     }
     smemclr(line, strlen(line));
     sfree(line);
@@ -359,65 +398,64 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
 
     headers_done = false;
     while (1) {
-	if (!(line = fgetline(fp))) {
-	    errmsg = "unexpected end of file";
-	    goto error;
-	}
-	strip_crlf(line);
-	if (strstartswith(line, "-----END ") &&
-	    strendswith(line, "PRIVATE KEY-----")) {
+        if (!(line = bsgetline(src))) {
+            errmsg = "unexpected end of file";
+            goto error;
+        }
+        if (strstartswith(line, "-----END ") &&
+            strendswith(line, "PRIVATE KEY-----")) {
             sfree(line);
             line = NULL;
-	    break;		       /* done */
+            break;                     /* done */
         }
-	if ((p = strchr(line, ':')) != NULL) {
-	    if (headers_done) {
-		errmsg = "header found in body of key data";
-		goto error;
-	    }
-	    *p++ = '\0';
-	    while (*p && isspace((unsigned char)*p)) p++;
-	    if (!strcmp(line, "Proc-Type")) {
-		if (p[0] != '4' || p[1] != ',') {
-		    errmsg = "Proc-Type is not 4 (only 4 is supported)";
-		    goto error;
-		}
-		p += 2;
-		if (!strcmp(p, "ENCRYPTED"))
-		    ret->encrypted = true;
-	    } else if (!strcmp(line, "DEK-Info")) {
-		int i, ivlen;
+        if ((p = strchr(line, ':')) != NULL) {
+            if (headers_done) {
+                errmsg = "header found in body of key data";
+                goto error;
+            }
+            *p++ = '\0';
+            while (*p && isspace((unsigned char)*p)) p++;
+            if (!strcmp(line, "Proc-Type")) {
+                if (p[0] != '4' || p[1] != ',') {
+                    errmsg = "Proc-Type is not 4 (only 4 is supported)";
+                    goto error;
+                }
+                p += 2;
+                if (!strcmp(p, "ENCRYPTED"))
+                    ret->encrypted = true;
+            } else if (!strcmp(line, "DEK-Info")) {
+                int i, ivlen;
 
-		if (!strncmp(p, "DES-EDE3-CBC,", 13)) {
-		    ret->encryption = OP_E_3DES;
-		    ivlen = 8;
-		} else if (!strncmp(p, "AES-128-CBC,", 12)) {
-		    ret->encryption = OP_E_AES;
-		    ivlen = 16;
-		} else {
-		    errmsg = "unsupported cipher";
-		    goto error;
-		}
-		p = strchr(p, ',') + 1;/* always non-NULL, by above checks */
-		for (i = 0; i < ivlen; i++) {
+                if (!strncmp(p, "DES-EDE3-CBC,", 13)) {
+                    ret->encryption = OP_E_3DES;
+                    ivlen = 8;
+                } else if (!strncmp(p, "AES-128-CBC,", 12)) {
+                    ret->encryption = OP_E_AES;
+                    ivlen = 16;
+                } else {
+                    errmsg = "unsupported cipher";
+                    goto error;
+                }
+                p = strchr(p, ',') + 1;/* always non-NULL, by above checks */
+                for (i = 0; i < ivlen; i++) {
                     unsigned j;
-		    if (1 != sscanf(p, "%2x", &j)) {
-			errmsg = "expected more iv data in DEK-Info";
-			goto error;
-		    }
-		    ret->iv[i] = j;
-		    p += 2;
-		}
-		if (*p) {
-		    errmsg = "more iv data than expected in DEK-Info";
-		    goto error;
-		}
-	    }
-	} else {
-	    headers_done = true;
+                    if (1 != sscanf(p, "%2x", &j)) {
+                        errmsg = "expected more iv data in DEK-Info";
+                        goto error;
+                    }
+                    ret->iv[i] = j;
+                    p += 2;
+                }
+                if (*p) {
+                    errmsg = "more iv data than expected in DEK-Info";
+                    goto error;
+                }
+            }
+        } else {
+            headers_done = true;
 
-	    p = line;
-	    while (isbase64(*p)) {
+            p = line;
+            while (isbase64(*p)) {
                 base64_bit[base64_chars++] = *p;
                 if (base64_chars == 4) {
                     unsigned char out[3];
@@ -437,20 +475,17 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
                     smemclr(out, sizeof(out));
                 }
 
-		p++;
-	    }
-	}
-	smemclr(line, strlen(line));
-	sfree(line);
-	line = NULL;
+                p++;
+            }
+        }
+        smemclr(line, strlen(line));
+        sfree(line);
+        line = NULL;
     }
 
-    fclose(fp);
-    fp = NULL;
-
     if (!ret->keyblob || ret->keyblob->len == 0) {
-	errmsg = "key body not present";
-	goto error;
+        errmsg = "key body not present";
+        goto error;
     }
 
     if (ret->encrypted && ret->keyblob->len % 8 != 0) {
@@ -465,29 +500,28 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
 
     error:
     if (line) {
-	smemclr(line, strlen(line));
-	sfree(line);
-	line = NULL;
+        smemclr(line, strlen(line));
+        sfree(line);
+        line = NULL;
     }
     smemclr(base64_bit, sizeof(base64_bit));
     if (ret) {
-	if (ret->keyblob)
+        if (ret->keyblob)
             strbuf_free(ret->keyblob);
         smemclr(ret, sizeof(*ret));
-	sfree(ret);
+        sfree(ret);
     }
     if (errmsg_p) *errmsg_p = errmsg;
-    if (fp) fclose(fp);
     return NULL;
 }
 
-static bool openssh_pem_encrypted(const Filename *filename)
+static bool openssh_pem_encrypted(BinarySource *src)
 {
-    struct openssh_pem_key *key = load_openssh_pem_key(filename, NULL);
+    struct openssh_pem_key *key = load_openssh_pem_key(src, NULL);
     bool ret;
 
     if (!key)
-	return false;
+        return false;
     ret = key->encrypted;
     strbuf_free(key->keyblob);
     smemclr(key, sizeof(*key));
@@ -516,9 +550,9 @@ static void openssh_pem_derivekey(
     h = ssh_hash_new(&ssh_md5);
     put_datapl(h, passphrase);
     put_data(h, iv, 8);
-    ssh_hash_final(h, keybuf);
+    ssh_hash_digest(h, keybuf);
 
-    h = ssh_hash_new(&ssh_md5);
+    ssh_hash_reset(h);
     put_data(h, keybuf, 16);
     put_datapl(h, passphrase);
     put_data(h, iv, 8);
@@ -526,9 +560,9 @@ static void openssh_pem_derivekey(
 }
 
 static ssh2_userkey *openssh_pem_read(
-    const Filename *filename, const char *passphrase, const char **errmsg_p)
+    BinarySource *filesrc, const char *passphrase, const char **errmsg_p)
 {
-    struct openssh_pem_key *key = load_openssh_pem_key(filename, errmsg_p);
+    struct openssh_pem_key *key = load_openssh_pem_key(filesrc, errmsg_p);
     ssh2_userkey *retkey;
     const ssh_keyalg *alg;
     BinarySource src[1];
@@ -538,8 +572,10 @@ static ssh2_userkey *openssh_pem_read(
     strbuf *blob = strbuf_new_nm();
     int privptr = 0, publen;
 
-    if (!key)
-	return NULL;
+    if (!key) {
+        strbuf_free(blob);
+        return NULL;
+    }
 
     if (key->encrypted) {
         unsigned char keybuf[32];
@@ -583,7 +619,7 @@ static ssh2_userkey *openssh_pem_read(
      *    SEQUENCE, but beneath is an INTEGER 1, OCTET STRING priv
      *    EXPLICIT [0] OID curve, EXPLICIT [1] BIT STRING pubPoint
      */
-    
+
     BinarySource_BARE_INIT(src, key->keyblob->u, key->keyblob->len);
 
     {
@@ -607,7 +643,7 @@ static ssh2_userkey *openssh_pem_read(
     else if (key->keytype == OP_DSA)
         num_integers = 6;
     else
-        num_integers = 0;	       /* placate compiler warnings */
+        num_integers = 0;              /* placate compiler warnings */
 
 
     if (key->keytype == OP_ECDSA) {
@@ -739,7 +775,7 @@ static ssh2_userkey *openssh_pem_read(
          */
         assert(privptr > 0);          /* should have bombed by now if not */
         retkey = snew(ssh2_userkey);
-        alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dss);
+        alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dsa);
         retkey->key = ssh_key_new_priv(
             alg, make_ptrlen(blob->u, privptr),
             make_ptrlen(blob->u+privptr, blob->len-privptr));
@@ -752,8 +788,8 @@ static ssh2_userkey *openssh_pem_read(
 
     } else {
         unreachable("Bad key type from load_openssh_pem_key");
-	errmsg = "Bad key type from load_openssh_pem_key";
-	goto error;
+        errmsg = "Bad key type from load_openssh_pem_key";
+        goto error;
     }
 
     /*
@@ -805,11 +841,11 @@ static bool openssh_pem_write(
      * line.
      */
     if (ssh_key_alg(key->key) == &ssh_rsa ||
-        ssh_key_alg(key->key) == &ssh_dss) {
+        ssh_key_alg(key->key) == &ssh_dsa) {
         strbuf *seq;
 
         /*
-         * The RSA and DSS handlers share some code because the two
+         * The RSA and DSA handlers share some code because the two
          * key types have very similar ASN.1 representations, as a
          * plain SEQUENCE of big integers. So we set up a list of
          * bignums per key type and then construct the actual blob in
@@ -984,7 +1020,7 @@ static bool openssh_pem_write(
      * old-style 3DES.
      */
     if (passphrase) {
-	unsigned char keybuf[32];
+        unsigned char keybuf[32];
         int origlen, outlen, pad;
 
         /*
@@ -1009,17 +1045,17 @@ static bool openssh_pem_write(
         pad = outlen - origlen;
         put_padding(outblob, pad, pad);
 
-	/*
-	 * Invent an iv, and derive the encryption key.
-	 */
+        /*
+         * Invent an iv, and derive the encryption key.
+         */
         random_read(iv, 8);
 
         openssh_pem_derivekey(ptrlen_from_asciz(passphrase), iv, keybuf);
 
-	/*
-	 * Now encrypt the key blob.
-	 */
-	des3_encrypt_pubkey_ossh(keybuf, iv,
+        /*
+         * Now encrypt the key blob.
+         */
+        des3_encrypt_pubkey_ossh(keybuf, iv,
                                  outblob->u, outlen);
 
         smemclr(keybuf, sizeof(keybuf));
@@ -1031,13 +1067,13 @@ static bool openssh_pem_write(
      */
     fp = f_open(filename, "wb", true);      /* ensure Unix line endings */
     if (!fp)
-	goto error;
+        goto error;
     fputs(header, fp);
     if (passphrase) {
-	fprintf(fp, "Proc-Type: 4,ENCRYPTED\nDEK-Info: DES-EDE3-CBC,");
-	for (i = 0; i < 8; i++)
-	    fprintf(fp, "%02X", iv[i]);
-	fprintf(fp, "\n\n");
+        fprintf(fp, "Proc-Type: 4,ENCRYPTED\nDEK-Info: DES-EDE3-CBC,");
+        for (i = 0; i < 8; i++)
+            fprintf(fp, "%02X", iv[i]);
+        fprintf(fp, "\n\n");
     }
     base64_encode(fp, outblob->u, outblob->len, 64);
     fputs(footer, fp);
@@ -1087,11 +1123,10 @@ struct openssh_new_key {
     strbuf *keyblob;
 };
 
-static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
+static struct openssh_new_key *load_openssh_new_key(BinarySource *filesrc,
                                                     const char **errmsg_p)
 {
     struct openssh_new_key *ret;
-    FILE *fp = NULL;
     char *line = NULL;
     const char *errmsg;
     char *p;
@@ -1104,35 +1139,27 @@ static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
     ret = snew(struct openssh_new_key);
     ret->keyblob = strbuf_new_nm();
 
-    fp = f_open(filename, "r", false);
-    if (!fp) {
-	errmsg = "unable to open key file";
-	goto error;
+    if (!(line = bsgetline(filesrc))) {
+        errmsg = "unexpected end of file";
+        goto error;
     }
-
-    if (!(line = fgetline(fp))) {
-	errmsg = "unexpected end of file";
-	goto error;
-    }
-    strip_crlf(line);
     if (0 != strcmp(line, "-----BEGIN OPENSSH PRIVATE KEY-----")) {
-	errmsg = "file does not begin with OpenSSH new-style key header";
-	goto error;
+        errmsg = "file does not begin with OpenSSH new-style key header";
+        goto error;
     }
     smemclr(line, strlen(line));
     sfree(line);
     line = NULL;
 
     while (1) {
-	if (!(line = fgetline(fp))) {
-	    errmsg = "unexpected end of file";
-	    goto error;
-	}
-	strip_crlf(line);
-	if (0 == strcmp(line, "-----END OPENSSH PRIVATE KEY-----")) {
+        if (!(line = bsgetline(filesrc))) {
+            errmsg = "unexpected end of file";
+            goto error;
+        }
+        if (0 == strcmp(line, "-----END OPENSSH PRIVATE KEY-----")) {
             sfree(line);
             line = NULL;
-	    break;		       /* done */
+            break;                     /* done */
         }
 
         p = line;
@@ -1158,17 +1185,14 @@ static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
 
             p++;
         }
-	smemclr(line, strlen(line));
-	sfree(line);
-	line = NULL;
+        smemclr(line, strlen(line));
+        sfree(line);
+        line = NULL;
     }
 
-    fclose(fp);
-    fp = NULL;
-
     if (ret->keyblob->len == 0) {
-	errmsg = "key body not present";
-	goto error;
+        errmsg = "key body not present";
+        goto error;
     }
 
     BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(ret->keyblob));
@@ -1213,20 +1237,19 @@ static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
             goto error;
         }
         break;
-      case ON_K_BCRYPT:
-        {
-            BinarySource opts[1];
+      case ON_K_BCRYPT: {
+        BinarySource opts[1];
 
-            BinarySource_BARE_INIT_PL(opts, str);
-            ret->kdfopts.bcrypt.salt = get_string(opts);
-            ret->kdfopts.bcrypt.rounds = get_uint32(opts);
+        BinarySource_BARE_INIT_PL(opts, str);
+        ret->kdfopts.bcrypt.salt = get_string(opts);
+        ret->kdfopts.bcrypt.rounds = get_uint32(opts);
 
-            if (get_err(opts)) {
-                errmsg = "failed to parse bcrypt options string";
-                goto error;
-            }
+        if (get_err(opts)) {
+          errmsg = "failed to parse bcrypt options string";
+          goto error;
         }
         break;
+      }
     }
 
     /*
@@ -1273,28 +1296,27 @@ static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
 
     error:
     if (line) {
-	smemclr(line, strlen(line));
-	sfree(line);
-	line = NULL;
+        smemclr(line, strlen(line));
+        sfree(line);
+        line = NULL;
     }
     smemclr(base64_bit, sizeof(base64_bit));
     if (ret) {
         strbuf_free(ret->keyblob);
         smemclr(ret, sizeof(*ret));
-	sfree(ret);
+        sfree(ret);
     }
     if (errmsg_p) *errmsg_p = errmsg;
-    if (fp) fclose(fp);
     return NULL;
 }
 
-static bool openssh_new_encrypted(const Filename *filename)
+static bool openssh_new_encrypted(BinarySource *src)
 {
-    struct openssh_new_key *key = load_openssh_new_key(filename, NULL);
+    struct openssh_new_key *key = load_openssh_new_key(src, NULL);
     bool ret;
 
     if (!key)
-	return false;
+        return false;
     ret = (key->cipher != ON_E_NONE);
     strbuf_free(key->keyblob);
     smemclr(key, sizeof(*key));
@@ -1303,9 +1325,9 @@ static bool openssh_new_encrypted(const Filename *filename)
 }
 
 static ssh2_userkey *openssh_new_read(
-    const Filename *filename, const char *passphrase, const char **errmsg_p)
+    BinarySource *filesrc, const char *passphrase, const char **errmsg_p)
 {
-    struct openssh_new_key *key = load_openssh_new_key(filename, errmsg_p);
+    struct openssh_new_key *key = load_openssh_new_key(filesrc, errmsg_p);
     ssh2_userkey *retkey = NULL;
     ssh2_userkey *retval = NULL;
     const char *errmsg;
@@ -1315,7 +1337,7 @@ static ssh2_userkey *openssh_new_read(
     const ssh_keyalg *alg = NULL;
 
     if (!key)
-	return NULL;
+        return NULL;
 
     if (key->cipher != ON_E_NONE) {
         unsigned char keybuf[48];
@@ -1341,9 +1363,8 @@ static ssh2_userkey *openssh_new_read(
             memset(keybuf, 0, keysize);
             break;
           case ON_K_BCRYPT:
-            openssh_bcrypt(passphrase,
-                           key->kdfopts.bcrypt.salt.ptr,
-                           key->kdfopts.bcrypt.salt.len,
+            openssh_bcrypt(ptrlen_from_asciz(passphrase),
+                           key->kdfopts.bcrypt.salt,
                            key->kdfopts.bcrypt.rounds,
                            keybuf, keysize);
             break;
@@ -1561,9 +1582,9 @@ static bool openssh_new_write(
             unsigned char keybuf[48];
             ssh_cipher *cipher;
 
-            openssh_bcrypt(passphrase,
-                           bcrypt_salt, sizeof(bcrypt_salt), bcrypt_rounds,
-                           keybuf, sizeof(keybuf));
+            openssh_bcrypt(ptrlen_from_asciz(passphrase),
+                           make_ptrlen(bcrypt_salt, sizeof(bcrypt_salt)),
+                           bcrypt_rounds, keybuf, sizeof(keybuf));
 
             cipher = ssh_cipher_new(&ssh_aes256_sdctr);
             ssh_cipher_setkey(cipher, keybuf);
@@ -1583,7 +1604,7 @@ static bool openssh_new_write(
      */
     fp = f_open(filename, "wb", true);      /* ensure Unix line endings */
     if (!fp)
-	goto error;
+        goto error;
     fputs("-----BEGIN OPENSSH PRIVATE KEY-----\n", fp);
     base64_encode(fp, cblob->u, cblob->len, 64);
     fputs("-----END OPENSSH PRIVATE KEY-----\n", fp);
@@ -1612,7 +1633,7 @@ static bool openssh_auto_write(
      * assume that anything not in that fixed list is newer, and hence
      * will use the new format.
      */
-    if (ssh_key_alg(key->key) == &ssh_dss ||
+    if (ssh_key_alg(key->key) == &ssh_dsa ||
         ssh_key_alg(key->key) == &ssh_rsa ||
         ssh_key_alg(key->key) == &ssh_ecdsa_nistp256 ||
         ssh_key_alg(key->key) == &ssh_ecdsa_nistp384 ||
@@ -1631,26 +1652,26 @@ static bool openssh_auto_write(
  * except that mpints are a bit different: they're more like the
  * old SSH-1 mpint. You have a 32-bit bit count N, followed by
  * (N+7)/8 bytes of data.
- * 
+ *
  * So. The blob contains:
- * 
+ *
  *  - uint32 0x3f6ff9eb       (magic number)
  *  - uint32 size             (total blob size)
  *  - string key-type         (see below)
  *  - string cipher-type      (tells you if key is encrypted)
  *  - string encrypted-blob
- * 
+ *
  * (The first size field includes the size field itself and the
  * magic number before it. All other size fields are ordinary SSH-2
  * strings, so the size field indicates how much data is to
  * _follow_.)
- * 
+ *
  * The encrypted blob, once decrypted, contains a single string
  * which in turn contains the payload. (This allows padding to be
  * added after that string while still making it clear where the
  * real payload ends. Also it probably makes for a reasonable
  * decryption check.)
- * 
+ *
  * The payload blob, for an RSA key, contains:
  *  - mpint e
  *  - mpint d
@@ -1658,7 +1679,7 @@ static bool openssh_auto_write(
  *  - mpint u  (presumably inverse of p mod q)
  *  - mpint p  (p is the smaller prime)
  *  - mpint q  (q is the larger)
- * 
+ *
  * For a DSA key, the payload blob contains:
  *  - uint32 0
  *  - mpint p
@@ -1666,30 +1687,30 @@ static bool openssh_auto_write(
  *  - mpint q
  *  - mpint y
  *  - mpint x
- * 
+ *
  * Alternatively, if the parameters are `predefined', that
  * (0,p,g,q) sequence can be replaced by a uint32 1 and a string
  * containing some predefined parameter specification. *shudder*,
  * but I doubt we'll encounter this in real life.
- * 
+ *
  * The key type strings are ghastly. The RSA key I looked at had a
  * type string of
- * 
+ *
  *   `if-modn{sign{rsa-pkcs1-sha1},encrypt{rsa-pkcs1v2-oaep}}'
- * 
+ *
  * and the DSA key wasn't much better:
- * 
+ *
  *   `dl-modp{sign{dsa-nist-sha1},dh{plain}}'
- * 
+ *
  * It isn't clear that these will always be the same. I think it
  * might be wise just to look at the `if-modn{sign{rsa' and
  * `dl-modp{sign{dsa' prefixes.
- * 
+ *
  * Finally, the encryption. The cipher-type string appears to be
  * either `none' or `3des-cbc'. Looks as if this is SSH-2-style
  * 3des-cbc (i.e. outer cbc rather than inner). The key is created
  * from the passphrase by means of yet another hashing faff:
- * 
+ *
  *  - first 16 bytes are MD5(passphrase)
  *  - next 16 bytes are MD5(passphrase || first 16 bytes)
  *  - if there were more, they'd be MD5(passphrase || first 32),
@@ -1703,11 +1724,10 @@ struct sshcom_key {
     strbuf *keyblob;
 };
 
-static struct sshcom_key *load_sshcom_key(const Filename *filename,
-					  const char **errmsg_p)
+static struct sshcom_key *load_sshcom_key(BinarySource *src,
+                                          const char **errmsg_p)
 {
     struct sshcom_key *ret;
-    FILE *fp;
     char *line = NULL;
     int hdrstart, len;
     const char *errmsg;
@@ -1720,19 +1740,13 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
     ret->comment[0] = '\0';
     ret->keyblob = strbuf_new_nm();
 
-    fp = f_open(filename, "r", false);
-    if (!fp) {
-	errmsg = "unable to open key file";
-	goto error;
+    if (!(line = bsgetline(src))) {
+        errmsg = "unexpected end of file";
+        goto error;
     }
-    if (!(line = fgetline(fp))) {
-	errmsg = "unexpected end of file";
-	goto error;
-    }
-    strip_crlf(line);
     if (0 != strcmp(line, "---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----")) {
-	errmsg = "file does not begin with ssh.com key header";
-	goto error;
+        errmsg = "file does not begin with ssh.com key header";
+        goto error;
     }
     smemclr(line, strlen(line));
     sfree(line);
@@ -1740,54 +1754,51 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 
     headers_done = false;
     while (1) {
-	if (!(line = fgetline(fp))) {
-	    errmsg = "unexpected end of file";
-	    goto error;
-	}
-	strip_crlf(line);
+        if (!(line = bsgetline(src))) {
+            errmsg = "unexpected end of file";
+            goto error;
+        }
         if (!strcmp(line, "---- END SSH2 ENCRYPTED PRIVATE KEY ----")) {
             sfree(line);
             line = NULL;
             break;                     /* done */
         }
-	if ((p = strchr(line, ':')) != NULL) {
-	    if (headers_done) {
-		errmsg = "header found in body of key data";
-		goto error;
-	    }
-	    *p++ = '\0';
-	    while (*p && isspace((unsigned char)*p)) p++;
-	    hdrstart = p - line;
+        if ((p = strchr(line, ':')) != NULL) {
+            if (headers_done) {
+                errmsg = "header found in body of key data";
+                goto error;
+            }
+            *p++ = '\0';
+            while (*p && isspace((unsigned char)*p)) p++;
+            hdrstart = p - line;
 
             /*
              * Header lines can end in a trailing backslash for
              * continuation.
              */
-	    len = hdrstart + strlen(line+hdrstart);
-	    assert(!line[len]);
+            len = hdrstart + strlen(line+hdrstart);
+            assert(!line[len]);
             while (line[len-1] == '\\') {
-		char *line2;
-		int line2len;
+                char *line2;
+                int line2len;
 
-		line2 = fgetline(fp);
-		if (!line2) {
+                line2 = bsgetline(src);
+                if (!line2) {
                     errmsg = "unexpected end of file";
                     goto error;
                 }
-		strip_crlf(line2);
 
-		line2len = strlen(line2);
-		line = sresize(line, len + line2len + 1, char);
-		strcpy(line + len - 1, line2);
-		len += line2len - 1;
-		assert(!line[len]);
+                line2len = strlen(line2);
+                line = sresize(line, len + line2len + 1, char);
+                strcpy(line + len - 1, line2);
+                len += line2len - 1;
+                assert(!line[len]);
 
-		smemclr(line2, strlen(line2));
-		sfree(line2);
-		line2 = NULL;
+                smemclr(line2, strlen(line2));
+                sfree(line2);
+                line2 = NULL;
             }
-	    p = line + hdrstart;
-	    strip_crlf(p);
+            p = line + hdrstart;
             if (!strcmp(line, "Comment")) {
                 /* Strip quotes in comment if present. */
                 if (p[0] == '"' && p[strlen(p)-1] == '"') {
@@ -1797,11 +1808,11 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
                 strncpy(ret->comment, p, sizeof(ret->comment));
                 ret->comment[sizeof(ret->comment)-1] = '\0';
             }
-	} else {
-	    headers_done = true;
+        } else {
+            headers_done = true;
 
-	    p = line;
-	    while (isbase64(*p)) {
+            p = line;
+            while (isbase64(*p)) {
                 base64_bit[base64_chars++] = *p;
                 if (base64_chars == 4) {
                     unsigned char out[3];
@@ -1818,44 +1829,40 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
                     put_data(ret->keyblob, out, len);
                 }
 
-		p++;
-	    }
-	}
-	smemclr(line, strlen(line));
-	sfree(line);
-	line = NULL;
+                p++;
+            }
+        }
+        smemclr(line, strlen(line));
+        sfree(line);
+        line = NULL;
     }
 
     if (ret->keyblob->len == 0) {
-	errmsg = "key body not present";
-	goto error;
+        errmsg = "key body not present";
+        goto error;
     }
 
-    fclose(fp);
     if (errmsg_p) *errmsg_p = NULL;
     return ret;
 
     error:
-    if (fp)
-        fclose(fp);
-
     if (line) {
-	smemclr(line, strlen(line));
-	sfree(line);
-	line = NULL;
+        smemclr(line, strlen(line));
+        sfree(line);
+        line = NULL;
     }
     if (ret) {
         strbuf_free(ret->keyblob);
         smemclr(ret, sizeof(*ret));
-	sfree(ret);
+        sfree(ret);
     }
     if (errmsg_p) *errmsg_p = errmsg;
     return NULL;
 }
 
-static bool sshcom_encrypted(const Filename *filename, char **comment)
+static bool sshcom_encrypted(BinarySource *filesrc, char **comment)
 {
-    struct sshcom_key *key = load_sshcom_key(filename, NULL);
+    struct sshcom_key *key = load_sshcom_key(filesrc, NULL);
     BinarySource src[1];
     ptrlen str;
     bool answer = false;
@@ -1895,10 +1902,10 @@ void BinarySink_put_mp_sshcom_from_string(BinarySink *bs, ptrlen str)
     int bits = nbytes * 8 - 1;
 
     while (bits > 0) {
-	if (*bytes & (1 << (bits & 7)))
-	    break;
-	if (!(bits-- & 7))
-	    bytes++, nbytes--;
+        if (*bytes & (1 << (bits & 7)))
+            break;
+        if (!(bits-- & 7))
+            bytes++, nbytes--;
     }
 
     put_uint32(bs, bits+1);
@@ -1922,7 +1929,7 @@ static void sshcom_derivekey(ptrlen passphrase, uint8_t *keybuf)
     /*
      * Derive the encryption key for an ssh.com key file from the
      * passphrase and iv/salt:
-     * 
+     *
      *  - let block A equal MD5(passphrase)
      *  - let block B equal MD5(passphrase || A)
      *  - block C would be MD5(passphrase || A || B) and so on
@@ -1932,15 +1939,15 @@ static void sshcom_derivekey(ptrlen passphrase, uint8_t *keybuf)
 
     h = ssh_hash_new(&ssh_md5);
     put_datapl(h, passphrase);
-    ssh_hash_final(ssh_hash_copy(h), keybuf);
+    ssh_hash_digest_nondestructive(h, keybuf);
     put_data(h, keybuf, 16);
     ssh_hash_final(h, keybuf + 16);
 }
 
 static ssh2_userkey *sshcom_read(
-    const Filename *filename, const char *passphrase, const char **errmsg_p)
+    BinarySource *filesrc, const char *passphrase, const char **errmsg_p)
 {
-    struct sshcom_key *key = load_sshcom_key(filename, errmsg_p);
+    struct sshcom_key *key = load_sshcom_key(filesrc, errmsg_p);
     const char *errmsg;
     BinarySource src[1];
     ptrlen str, ciphertext;
@@ -2005,15 +2012,15 @@ static ssh2_userkey *sshcom_read(
      * Decrypt it if necessary.
      */
     if (encrypted) {
-	/*
-	 * Derive encryption key from passphrase and iv/salt:
-	 * 
-	 *  - let block A equal MD5(passphrase)
-	 *  - let block B equal MD5(passphrase || A)
-	 *  - block C would be MD5(passphrase || A || B) and so on
-	 *  - encryption key is the first N bytes of A || B
-	 */
-	unsigned char keybuf[32], iv[8];
+        /*
+         * Derive encryption key from passphrase and iv/salt:
+         *
+         *  - let block A equal MD5(passphrase)
+         *  - let block B equal MD5(passphrase || A)
+         *  - block C would be MD5(passphrase || A || B) and so on
+         *  - encryption key is the first N bytes of A || B
+         */
+        unsigned char keybuf[32], iv[8];
 
         if (ciphertext.len % 8 != 0) {
             errmsg = "encrypted part of key is not a multiple of cipher block"
@@ -2023,12 +2030,12 @@ static ssh2_userkey *sshcom_read(
 
         sshcom_derivekey(ptrlen_from_asciz(passphrase), keybuf);
 
-	/*
-	 * Now decrypt the key blob in place (casting away const from
-	 * ciphertext being a ptrlen).
-	 */
+        /*
+         * Now decrypt the key blob in place (casting away const from
+         * ciphertext being a ptrlen).
+         */
         memset(iv, 0, sizeof(iv));
-	des3_decrypt_pubkey_ossh(keybuf, iv,
+        des3_decrypt_pubkey_ossh(keybuf, iv,
                                  (char *)ciphertext.ptr, ciphertext.len);
 
         smemclr(keybuf, sizeof(keybuf));
@@ -2103,7 +2110,7 @@ static ssh2_userkey *sshcom_read(
             goto error;
         }
 
-        alg = &ssh_dss;
+        alg = &ssh_dsa;
         put_stringz(blob, "ssh-dss");
         put_mp_ssh2_from_string(blob, p);
         put_mp_ssh2_from_string(blob, q);
@@ -2118,9 +2125,9 @@ static ssh2_userkey *sshcom_read(
         alg, make_ptrlen(blob->u, publen),
         make_ptrlen(blob->u + publen, blob->len - publen));
     if (!retkey->key) {
-	sfree(retkey);
-	errmsg = "unable to create key data structure";
-	goto error;
+        sfree(retkey);
+        errmsg = "unable to create key data structure";
+        goto error;
     }
     retkey->comment = dupstr(key->comment);
 
@@ -2192,9 +2199,9 @@ static bool sshcom_write(
         numbers[5] = p;
 
         nnumbers = 6;
-	initial_zero = false;
-	type = "if-modn{sign{rsa-pkcs1-sha1},encrypt{rsa-pkcs1v2-oaep}}";
-    } else if (ssh_key_alg(key->key) == &ssh_dss) {
+        initial_zero = false;
+        type = "if-modn{sign{rsa-pkcs1-sha1},encrypt{rsa-pkcs1v2-oaep}}";
+    } else if (ssh_key_alg(key->key) == &ssh_dsa) {
         ptrlen p, q, g, y, x;
 
         /*
@@ -2219,8 +2226,8 @@ static bool sshcom_write(
         numbers[4] = x;
 
         nnumbers = 5;
-	initial_zero = true;
-	type = "dl-modp{sign{dsa-nist-sha1},dh{plain}}";
+        initial_zero = true;
+        type = "dl-modp{sign{dsa-nist-sha1},dh{plain}}";
     } else {
         goto error;                    /* unsupported key type */
     }
@@ -2240,13 +2247,13 @@ static bool sshcom_write(
     if (initial_zero)
         put_uint32(outblob, 0);
     for (i = 0; i < nnumbers; i++)
-	put_mp_sshcom_from_string(outblob, numbers[i]);
+        put_mp_sshcom_from_string(outblob, numbers[i]);
     /* Now wrap up the encrypted payload. */
     PUT_32BIT_MSB_FIRST(outblob->s + lenpos + 4,
                         outblob->len - (lenpos + 8));
     /* Pad encrypted blob to a multiple of cipher block size. */
     if (passphrase) {
-	int padding = -(outblob->len - (lenpos+4)) & 7;
+        int padding = -(outblob->len - (lenpos+4)) & 7;
         uint8_t padding_buf[8];
         random_read(padding_buf, padding);
         put_data(outblob, padding_buf, padding);
@@ -2263,15 +2270,15 @@ static bool sshcom_write(
      * Encrypt the key.
      */
     if (passphrase) {
-	unsigned char keybuf[32], iv[8];
+        unsigned char keybuf[32], iv[8];
 
         sshcom_derivekey(ptrlen_from_asciz(passphrase), keybuf);
 
-	/*
-	 * Now decrypt the key blob.
-	 */
+        /*
+         * Now decrypt the key blob.
+         */
         memset(iv, 0, sizeof(iv));
-	des3_encrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
+        des3_encrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
 
         smemclr(keybuf, sizeof(keybuf));
     }
@@ -2282,7 +2289,7 @@ static bool sshcom_write(
      */
     fp = f_open(filename, "wb", true);      /* ensure Unix line endings */
     if (!fp)
-	goto error;
+        goto error;
     fputs("---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);
     fprintf(fp, "Comment: \"");
     /*
@@ -2292,14 +2299,14 @@ static bool sshcom_write(
      * Don't ask me, I didn't design it.
      */
     {
-	int slen = 60;		       /* starts at 60 due to "Comment: " */
-	char *c = key->comment;
-	while ((int)strlen(c) > slen) {
-	    fprintf(fp, "%.*s\\\n", slen, c);
-	    c += slen;
-	    slen = 70;		       /* allow 70 chars on subsequent lines */
-	}
-	fprintf(fp, "%s\"\n", c);
+        int slen = 60;                 /* starts at 60 due to "Comment: " */
+        char *c = key->comment;
+        while ((int)strlen(c) > slen) {
+            fprintf(fp, "%.*s\\\n", slen, c);
+            c += slen;
+            slen = 70;                 /* allow 70 chars on subsequent lines */
+        }
+        fprintf(fp, "%s\"\n", c);
     }
     base64_encode(fp, outblob->u, outblob->len, 70);
     fputs("---- END SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);

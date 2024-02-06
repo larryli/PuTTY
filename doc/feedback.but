@@ -51,7 +51,9 @@ actually need it, and only one of us needs to download it instead of
 it being automatically copied to all the developers.
 
 (If the file contains confidential information, then you could encrypt
-it with our Secure Contact Key; see \k{pgpkeys-pubkey} for details.)
+it with our Secure Contact Key; see \k{pgpkeys-pubkey} for details.
+Please \e{only} use this for information that \e{needs} to be
+confidential.)
 
 Some people like to send mail in MS Word format. Please \e{don't}
 send us bug reports, or any other mail, as a Word document. Word
@@ -148,7 +150,7 @@ information:
 use the \q{About PuTTY} option from the System menu. Please \e{do
 not} just tell us \q{I'm running the latest version}; e-mail can be
 delayed and it may not be obvious which version was the latest at
-the time you sent the message. 
+the time you sent the message.
 
 \b PuTTY is a multi-platform application; tell us what version of what
 OS you are running PuTTY on. (If you're running on Unix, or Windows
@@ -156,7 +158,7 @@ for Arm, tell us, or we'll assume you're running on Windows for
 Intel as this is overwhelmingly the case.)
 
 \b Tell us what protocol you are connecting with: SSH, Telnet,
-Rlogin, or Raw mode, or a serial connection.
+Rlogin, SUPDUP, or Raw mode, or a serial connection.
 
 \b Tell us what kind of server you are connecting to; what OS, and
 if possible what SSH server (if you're using SSH). You can get some
@@ -218,7 +220,7 @@ Secure Contact Key. See \k{pgpkeys-pubkey} for details of this.
 much information as possible about them, the same way you would with
 any other bug report.)
 
-\H{feedback-features} Requesting extra features 
+\H{feedback-features} Requesting extra features
 
 If you want to request a new feature in PuTTY, the very first things
 you should do are:

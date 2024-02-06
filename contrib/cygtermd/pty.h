@@ -5,7 +5,7 @@
 #ifndef CYGTERMD_PTY_H
 #define CYGTERMD_PTY_H
 
-#include "telnet.h"		       /* for struct shdata */
+#include "telnet.h"                    /* for struct shdata */
 
 /*
  * Called at program startup to actually allocate a pty, so that

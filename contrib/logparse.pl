@@ -36,78 +36,78 @@ my %chan_by_id = (); # indexed by 'c%d' or 's%d' for client and server ids
 my %globalreq = (); # indexed by 'i' or 'o'
 
 my %packets = (
-#define SSH2_MSG_DISCONNECT                       1	/* 0x1 */
+#define SSH2_MSG_DISCONNECT                       1     /* 0x1 */
     'SSH2_MSG_DISCONNECT' => sub {
         my ($direction, $seq, $data) = @_;
         my ($reason, $description, $lang) = &parse("uss", $data);
         printf "%s\n", &str($description);
     },
-#define SSH2_MSG_IGNORE                           2	/* 0x2 */
+#define SSH2_MSG_IGNORE                           2     /* 0x2 */
     'SSH2_MSG_IGNORE' => sub {
         my ($direction, $seq, $data) = @_;
         my ($str) = &parse("s", $data);
         printf "(%d bytes)\n", length $str;
     },
-#define SSH2_MSG_UNIMPLEMENTED                    3	/* 0x3 */
+#define SSH2_MSG_UNIMPLEMENTED                    3     /* 0x3 */
     'SSH2_MSG_UNIMPLEMENTED' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rseq) = &parse("u", $data);
         printf "i%d\n", $rseq;
     },
-#define SSH2_MSG_DEBUG                            4	/* 0x4 */
+#define SSH2_MSG_DEBUG                            4     /* 0x4 */
     'SSH2_MSG_DEBUG' => sub {
         my ($direction, $seq, $data) = @_;
         my ($disp, $message, $lang) = &parse("bss", $data);
         printf "%s\n", &str($message);
     },
-#define SSH2_MSG_SERVICE_REQUEST                  5	/* 0x5 */
+#define SSH2_MSG_SERVICE_REQUEST                  5     /* 0x5 */
     'SSH2_MSG_SERVICE_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
         my ($service) = &parse("s", $data);
         printf "%s\n", &str($service);
     },
-#define SSH2_MSG_SERVICE_ACCEPT                   6	/* 0x6 */
+#define SSH2_MSG_SERVICE_ACCEPT                   6     /* 0x6 */
     'SSH2_MSG_SERVICE_ACCEPT' => sub {
         my ($direction, $seq, $data) = @_;
         my ($service) = &parse("s", $data);
         printf "%s\n", &str($service);
     },
-#define SSH2_MSG_KEXINIT                          20	/* 0x14 */
+#define SSH2_MSG_KEXINIT                          20    /* 0x14 */
     'SSH2_MSG_KEXINIT' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_NEWKEYS                          21	/* 0x15 */
+#define SSH2_MSG_NEWKEYS                          21    /* 0x15 */
     'SSH2_MSG_NEWKEYS' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_KEXDH_INIT                       30	/* 0x1e */
+#define SSH2_MSG_KEXDH_INIT                       30    /* 0x1e */
     'SSH2_MSG_KEXDH_INIT' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_KEXDH_REPLY                      31	/* 0x1f */
+#define SSH2_MSG_KEXDH_REPLY                      31    /* 0x1f */
     'SSH2_MSG_KEXDH_REPLY' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_KEX_DH_GEX_REQUEST               30	/* 0x1e */
+#define SSH2_MSG_KEX_DH_GEX_REQUEST               30    /* 0x1e */
     'SSH2_MSG_KEX_DH_GEX_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_KEX_DH_GEX_GROUP                 31	/* 0x1f */
+#define SSH2_MSG_KEX_DH_GEX_GROUP                 31    /* 0x1f */
     'SSH2_MSG_KEX_DH_GEX_GROUP' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_KEX_DH_GEX_INIT                  32	/* 0x20 */
+#define SSH2_MSG_KEX_DH_GEX_INIT                  32    /* 0x20 */
     'SSH2_MSG_KEX_DH_GEX_INIT' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_KEX_DH_GEX_REPLY                 33	/* 0x21 */
+#define SSH2_MSG_KEX_DH_GEX_REPLY                 33    /* 0x21 */
     'SSH2_MSG_KEX_DH_GEX_REPLY' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
@@ -172,7 +172,7 @@ my %packets = (
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_USERAUTH_REQUEST                 50	/* 0x32 */
+#define SSH2_MSG_USERAUTH_REQUEST                 50    /* 0x32 */
     'SSH2_MSG_USERAUTH_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
         my ($user, $service, $method) = &parse("sss", $data);
@@ -187,43 +187,43 @@ my %packets = (
         }
         print "$out\n";
     },
-#define SSH2_MSG_USERAUTH_FAILURE                 51	/* 0x33 */
+#define SSH2_MSG_USERAUTH_FAILURE                 51    /* 0x33 */
     'SSH2_MSG_USERAUTH_FAILURE' => sub {
         my ($direction, $seq, $data) = @_;
         my ($options) = &parse("s", $data);
         printf "%s\n", &str($options);
     },
-#define SSH2_MSG_USERAUTH_SUCCESS                 52	/* 0x34 */
+#define SSH2_MSG_USERAUTH_SUCCESS                 52    /* 0x34 */
     'SSH2_MSG_USERAUTH_SUCCESS' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_USERAUTH_BANNER                  53	/* 0x35 */
+#define SSH2_MSG_USERAUTH_BANNER                  53    /* 0x35 */
     'SSH2_MSG_USERAUTH_BANNER' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_USERAUTH_PK_OK                   60	/* 0x3c */
+#define SSH2_MSG_USERAUTH_PK_OK                   60    /* 0x3c */
     'SSH2_MSG_USERAUTH_PK_OK' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ        60	/* 0x3c */
+#define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ        60    /* 0x3c */
     'SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_USERAUTH_INFO_REQUEST            60	/* 0x3c */
+#define SSH2_MSG_USERAUTH_INFO_REQUEST            60    /* 0x3c */
     'SSH2_MSG_USERAUTH_INFO_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_USERAUTH_INFO_RESPONSE           61	/* 0x3d */
+#define SSH2_MSG_USERAUTH_INFO_RESPONSE           61    /* 0x3d */
     'SSH2_MSG_USERAUTH_INFO_RESPONSE' => sub {
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
-#define SSH2_MSG_GLOBAL_REQUEST                   80	/* 0x50 */
+#define SSH2_MSG_GLOBAL_REQUEST                   80    /* 0x50 */
     'SSH2_MSG_GLOBAL_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
         my ($type, $wantreply) = &parse("sb", $data);
@@ -237,7 +237,7 @@ my %packets = (
         }
         print "\n";
     },
-#define SSH2_MSG_REQUEST_SUCCESS                  81	/* 0x51 */
+#define SSH2_MSG_REQUEST_SUCCESS                  81    /* 0x51 */
     'SSH2_MSG_REQUEST_SUCCESS' => sub {
         my ($direction, $seq, $data) = @_;
         my $otherdir = ($direction eq "i" ? "o" : "i");
@@ -253,7 +253,7 @@ my %packets = (
         }
         print "\n";
     },
-#define SSH2_MSG_REQUEST_FAILURE                  82	/* 0x52 */
+#define SSH2_MSG_REQUEST_FAILURE                  82    /* 0x52 */
     'SSH2_MSG_REQUEST_FAILURE' => sub {
         my ($direction, $seq, $data) = @_;
         my $otherdir = ($direction eq "i" ? "o" : "i");
@@ -265,7 +265,7 @@ my %packets = (
         }
         print "\n";
     },
-#define SSH2_MSG_CHANNEL_OPEN                     90	/* 0x5a */
+#define SSH2_MSG_CHANNEL_OPEN                     90    /* 0x5a */
     'SSH2_MSG_CHANNEL_OPEN' => sub {
         my ($direction, $seq, $data) = @_;
         my ($type, $sid, $winsize, $packet) = &parse("suuu", $data);
@@ -275,14 +275,14 @@ my %packets = (
         # quote the _recipient's_ id of the channel.
         $sid = ($direction eq "i" ? "s" : "c") . $sid;
         my $chan = {'id'=>$sid, 'state'=>'halfopen',
-		    'i'=>{'win'=>0, 'seq'=>0},
-		    'o'=>{'win'=>0, 'seq'=>0}};
-	$chan->{$direction}{'win'} = $winsize;
+                    'i'=>{'win'=>0, 'seq'=>0},
+                    'o'=>{'win'=>0, 'seq'=>0}};
+        $chan->{$direction}{'win'} = $winsize;
         push @channels, $chan;
         my $index = $#channels;
         $chan_by_id{$sid} = $index;
         printf "ch%d (%s) %s (--%d)", $index, $chan->{'id'}, $type,
-	    $chan->{$direction}{'win'};
+            $chan->{$direction}{'win'};
         if ($type eq "x11") {
             my ($addr, $port) = &parse("su", $data);
             printf " from %s:%s", $addr, $port;
@@ -295,7 +295,7 @@ my %packets = (
         }
         print "\n";
     },
-#define SSH2_MSG_CHANNEL_OPEN_CONFIRMATION        91	/* 0x5b */
+#define SSH2_MSG_CHANNEL_OPEN_CONFIRMATION        91    /* 0x5b */
     'SSH2_MSG_CHANNEL_OPEN_CONFIRMATION' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid, $sid, $winsize, $packet) = &parse("uuuu", $data);
@@ -310,11 +310,11 @@ my %packets = (
         my $chan = $channels[$index];
         $chan->{'id'} = ($direction eq "i" ? "$rid/$sid" : "$sid/$rid");
         $chan->{'state'} = 'open';
-	$chan->{$direction}{'win'} = $winsize;
+        $chan->{$direction}{'win'} = $winsize;
         printf "ch%d (%s) (--%d)\n", $index, $chan->{'id'},
-	    $chan->{$direction}{'win'};
+            $chan->{$direction}{'win'};
     },
-#define SSH2_MSG_CHANNEL_OPEN_FAILURE             92	/* 0x5c */
+#define SSH2_MSG_CHANNEL_OPEN_FAILURE             92    /* 0x5c */
     'SSH2_MSG_CHANNEL_OPEN_FAILURE' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid, $reason, $desc, $lang) = &parse("uuss", $data);
@@ -328,7 +328,7 @@ my %packets = (
         $chan->{'state'} = 'rejected';
         printf "ch%d (%s) %s\n", $index, $chan->{'id'}, &str($reason);
     },
-#define SSH2_MSG_CHANNEL_WINDOW_ADJUST            93	/* 0x5d */
+#define SSH2_MSG_CHANNEL_WINDOW_ADJUST            93    /* 0x5d */
     'SSH2_MSG_CHANNEL_WINDOW_ADJUST' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid, $bytes) = &parse("uu", $data);
@@ -339,11 +339,11 @@ my %packets = (
             return;
         }
         my $chan = $channels[$index];
-	$chan->{$direction}{'win'} += $bytes;
+        $chan->{$direction}{'win'} += $bytes;
         printf "ch%d (%s) +%d (--%d)\n", $index, $chan->{'id'}, $bytes,
-	    $chan->{$direction}{'win'};
+            $chan->{$direction}{'win'};
     },
-#define SSH2_MSG_CHANNEL_DATA                     94	/* 0x5e */
+#define SSH2_MSG_CHANNEL_DATA                     94    /* 0x5e */
     'SSH2_MSG_CHANNEL_DATA' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid, $bytes) = &parse("uu", $data);
@@ -354,9 +354,9 @@ my %packets = (
             return;
         }
         my $chan = $channels[$index];
-	$chan->{$direction}{'seq'} += $bytes;
+        $chan->{$direction}{'seq'} += $bytes;
         printf "ch%d (%s), %s bytes (%d--%d)\n", $index, $chan->{'id'}, $bytes,
-	    $chan->{$direction}{'seq'}-$bytes, $chan->{$direction}{'seq'};
+            $chan->{$direction}{'seq'}-$bytes, $chan->{$direction}{'seq'};
         my @realdata = splice @$data, 0, $bytes;
         if ($dumpdata) {
             my $filekey = $direction . "file";
@@ -377,7 +377,7 @@ my %packets = (
             $chan->{$direction."data"}->($chan, $index, $direction, $rawdata);
         }
     },
-#define SSH2_MSG_CHANNEL_EXTENDED_DATA            95	/* 0x5f */
+#define SSH2_MSG_CHANNEL_EXTENDED_DATA            95    /* 0x5f */
     'SSH2_MSG_CHANNEL_EXTENDED_DATA' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid, $type, $bytes) = &parse("uuu", $data);
@@ -392,7 +392,7 @@ my %packets = (
             return;
         }
         my $chan = $channels[$index];
-	$chan->{$direction}{'seq'} += $bytes;
+        $chan->{$direction}{'seq'} += $bytes;
         printf "ch%d (%s), type %s, %s bytes (%d--%d)\n", $index,$chan->{'id'},
             $type, $bytes, $chan->{$direction}{'seq'}-$bytes,
             $chan->{$direction}{'seq'};
@@ -421,7 +421,7 @@ my %packets = (
             $chan->{$direction."data"}->($chan, $index, $direction, $rawdata);
         }
     },
-#define SSH2_MSG_CHANNEL_EOF                      96	/* 0x60 */
+#define SSH2_MSG_CHANNEL_EOF                      96    /* 0x60 */
     'SSH2_MSG_CHANNEL_EOF' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid) = &parse("uu", $data);
@@ -434,7 +434,7 @@ my %packets = (
         my $chan = $channels[$index];
         printf "ch%d (%s)\n", $index, $chan->{'id'};
     },
-#define SSH2_MSG_CHANNEL_CLOSE                    97	/* 0x61 */
+#define SSH2_MSG_CHANNEL_CLOSE                    97    /* 0x61 */
     'SSH2_MSG_CHANNEL_CLOSE' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid) = &parse("uu", $data);
@@ -454,7 +454,7 @@ my %packets = (
         }
         printf "ch%d (%s)\n", $index, $chan->{'id'};
     },
-#define SSH2_MSG_CHANNEL_REQUEST                  98	/* 0x62 */
+#define SSH2_MSG_CHANNEL_REQUEST                  98    /* 0x62 */
     'SSH2_MSG_CHANNEL_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid, $type, $wantreply) = &parse("usb", $data);
@@ -469,7 +469,7 @@ my %packets = (
             printf "ch%d (%s) %s (%s)", $index, $chan->{'id'},
                 $type, $wantreply eq "yes" ? "reply" : "noreply";
             push @{$chan->{'requests_'.$direction}}, [$seq, $type]
-	        if $wantreply eq "yes";
+                if $wantreply eq "yes";
         }
         if ($type eq "pty-req") {
             my ($term, $w, $h, $pw, $ph, $modes) = &parse("suuuus", $data);
@@ -506,7 +506,7 @@ my %packets = (
         }
         print "\n";
     },
-#define SSH2_MSG_CHANNEL_SUCCESS                  99	/* 0x63 */
+#define SSH2_MSG_CHANNEL_SUCCESS                  99    /* 0x63 */
     'SSH2_MSG_CHANNEL_SUCCESS' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid) = &parse("uu", $data);
@@ -527,7 +527,7 @@ my %packets = (
         }
         print "\n";
     },
-#define SSH2_MSG_CHANNEL_FAILURE                  100	/* 0x64 */
+#define SSH2_MSG_CHANNEL_FAILURE                  100   /* 0x64 */
     'SSH2_MSG_CHANNEL_FAILURE' => sub {
         my ($direction, $seq, $data) = @_;
         my ($rid) = &parse("uu", $data);
@@ -796,19 +796,19 @@ my %verbose_packet_dump_functions = (
 );
 
 my %sftp_packets = (
-#define SSH_FXP_INIT                              1	/* 0x1 */
+#define SSH_FXP_INIT                              1     /* 0x1 */
     0x1 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($ver) = &parse("u", $data);
         printf "SSH_FXP_INIT %d\n", $ver;
     },
-#define SSH_FXP_VERSION                           2	/* 0x2 */
+#define SSH_FXP_VERSION                           2     /* 0x2 */
     0x2 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($ver) = &parse("u", $data);
         printf "SSH_FXP_VERSION %d\n", $ver;
     },
-#define SSH_FXP_OPEN                              3	/* 0x3 */
+#define SSH_FXP_OPEN                              3     /* 0x3 */
     0x3 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path, $pflags) = &parse("usu", $data);
@@ -828,7 +828,7 @@ my %sftp_packets = (
         }
         print "\n";
     },
-#define SSH_FXP_CLOSE                             4	/* 0x4 */
+#define SSH_FXP_CLOSE                             4     /* 0x4 */
     0x4 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle) = &parse("us", $data);
@@ -836,7 +836,7 @@ my %sftp_packets = (
         printf " \"%s\"", &stringescape($handle);
         print "\n";
     },
-#define SSH_FXP_READ                              5	/* 0x5 */
+#define SSH_FXP_READ                              5     /* 0x5 */
     0x5 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle, $offset, $len) = &parse("usUu", $data);
@@ -844,7 +844,7 @@ my %sftp_packets = (
         printf " \"%s\" %d %d", &stringescape($handle), $offset, $len;
         print "\n";
     },
-#define SSH_FXP_WRITE                             6	/* 0x6 */
+#define SSH_FXP_WRITE                             6     /* 0x6 */
     0x6 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle, $offset, $wdata) = &parse("usUs", $data);
@@ -852,7 +852,7 @@ my %sftp_packets = (
         printf " \"%s\" %d [%d bytes]", &stringescape($handle), $offset, length $wdata;
         print "\n";
     },
-#define SSH_FXP_LSTAT                             7	/* 0x7 */
+#define SSH_FXP_LSTAT                             7     /* 0x7 */
     0x7 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -860,7 +860,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_FSTAT                             8	/* 0x8 */
+#define SSH_FXP_FSTAT                             8     /* 0x8 */
     0x8 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle) = &parse("us", $data);
@@ -868,7 +868,7 @@ my %sftp_packets = (
         printf " \"%s\"", &stringescape($handle);
         print "\n";
     },
-#define SSH_FXP_SETSTAT                           9	/* 0x9 */
+#define SSH_FXP_SETSTAT                           9     /* 0x9 */
     0x9 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -877,7 +877,7 @@ my %sftp_packets = (
         printf " \"%s\" %s", $path, $attrs;
         print "\n";
     },
-#define SSH_FXP_FSETSTAT                          10	/* 0xa */
+#define SSH_FXP_FSETSTAT                          10    /* 0xa */
     0xa => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle) = &parse("us", $data);
@@ -886,7 +886,7 @@ my %sftp_packets = (
         printf " \"%s\" %s", &stringescape($handle), $attrs;
         print "\n";
     },
-#define SSH_FXP_OPENDIR                           11	/* 0xb */
+#define SSH_FXP_OPENDIR                           11    /* 0xb */
     0xb => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -894,7 +894,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_READDIR                           12	/* 0xc */
+#define SSH_FXP_READDIR                           12    /* 0xc */
     0xc => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle) = &parse("us", $data);
@@ -902,7 +902,7 @@ my %sftp_packets = (
         printf " \"%s\"", &stringescape($handle);
         print "\n";
     },
-#define SSH_FXP_REMOVE                            13	/* 0xd */
+#define SSH_FXP_REMOVE                            13    /* 0xd */
     0xd => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -910,7 +910,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_MKDIR                             14	/* 0xe */
+#define SSH_FXP_MKDIR                             14    /* 0xe */
     0xe => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -918,7 +918,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_RMDIR                             15	/* 0xf */
+#define SSH_FXP_RMDIR                             15    /* 0xf */
     0xf => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -926,7 +926,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_REALPATH                          16	/* 0x10 */
+#define SSH_FXP_REALPATH                          16    /* 0x10 */
     0x10 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -934,7 +934,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_STAT                              17	/* 0x11 */
+#define SSH_FXP_STAT                              17    /* 0x11 */
     0x11 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $path) = &parse("us", $data);
@@ -942,7 +942,7 @@ my %sftp_packets = (
         printf " \"%s\"", $path;
         print "\n";
     },
-#define SSH_FXP_RENAME                            18	/* 0x12 */
+#define SSH_FXP_RENAME                            18    /* 0x12 */
     0x12 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $srcpath, $dstpath) = &parse("uss", $data);
@@ -950,7 +950,7 @@ my %sftp_packets = (
         printf " \"%s\" \"%s\"", $srcpath, $dstpath;
         print "\n";
     },
-#define SSH_FXP_STATUS                            101	/* 0x65 */
+#define SSH_FXP_STATUS                            101   /* 0x65 */
     0x65 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $status) = &parse("uu", $data);
@@ -968,7 +968,7 @@ my %sftp_packets = (
         else { printf "[unknown status %d]", $status; }
         print "\n";
     },
-#define SSH_FXP_HANDLE                            102	/* 0x66 */
+#define SSH_FXP_HANDLE                            102   /* 0x66 */
     0x66 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $handle) = &parse("us", $data);
@@ -976,7 +976,7 @@ my %sftp_packets = (
         printf " \"%s\"", &stringescape($handle);
         print "\n";
     },
-#define SSH_FXP_DATA                              103	/* 0x67 */
+#define SSH_FXP_DATA                              103   /* 0x67 */
     0x67 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $retdata) = &parse("us", $data);
@@ -984,7 +984,7 @@ my %sftp_packets = (
         printf " [%d bytes]", length $retdata;
         print "\n";
     },
-#define SSH_FXP_NAME                              104	/* 0x68 */
+#define SSH_FXP_NAME                              104   /* 0x68 */
     0x68 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $count) = &parse("uu", $data);
@@ -996,7 +996,7 @@ my %sftp_packets = (
         }
         print "\n";
     },
-#define SSH_FXP_ATTRS                             105	/* 0x69 */
+#define SSH_FXP_ATTRS                             105   /* 0x69 */
     0x69 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid) = &parse("u", $data);
@@ -1005,7 +1005,7 @@ my %sftp_packets = (
         printf " %s", $attrs;
         print "\n";
     },
-#define SSH_FXP_EXTENDED                          200	/* 0xc8 */
+#define SSH_FXP_EXTENDED                          200   /* 0xc8 */
     0xc8 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid, $type) = &parse("us", $data);
@@ -1013,7 +1013,7 @@ my %sftp_packets = (
         printf " \"%s\"", $type;
         print "\n";
     },
-#define SSH_FXP_EXTENDED_REPLY                    201	/* 0xc9 */
+#define SSH_FXP_EXTENDED_REPLY                    201   /* 0xc9 */
     0xc9 => sub {
         my ($chan, $index, $direction, $id, $data) = @_;
         my ($reqid) = &parse("u", $data);

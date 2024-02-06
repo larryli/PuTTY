@@ -1,6 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
+from __future__ import division
+
+import sys
+import decimal
 import math
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 # Python code which draws the PuTTY icon components at a range of
 # sizes.
@@ -12,6 +18,11 @@ import math
 #     + try for variable-transparency borders
 #
 #  - can we integrate the Mac icons into all this? Do we want to?
+
+# Python 3 prefers round-to-even.  Emulate Python 2's behaviour instead.
+def round(number):
+    return float(
+        decimal.Decimal(number).to_integral(rounding=decimal.ROUND_HALF_UP))
 
 def pixel(x, y, colour, canvas):
     canvas[(int(x),int(y))] = colour
@@ -62,11 +73,11 @@ def render(canvas, minx, miny, maxx, maxy):
 
 sqrthash = {}
 def memoisedsqrt(x):
-    if not sqrthash.has_key(x):
+    if x not in sqrthash:
         sqrthash[x] = math.sqrt(x)
     return sqrthash[x]
 
-BR, TR, BL, TL = range(4) # enumeration of quadrants for border()
+BR, TR, BL, TL = list(range(4)) # enumeration of quadrants for border()
 
 def border(canvas, thickness, squarecorners, out={}):
     # I haven't yet worked out exactly how to do borders in a
@@ -157,7 +168,7 @@ def border(canvas, thickness, squarecorners, out={}):
                     bvalues[(x+dx,y+dy)] = bval
 
     for (x, y), value in bvalues.items():
-        if not canvas.has_key((x,y)):
+        if (x,y) not in canvas:
             canvas[(x,y)] = dark(value)
 
 def sysbox(size, out={}):
@@ -215,7 +226,7 @@ def sysbox(size, out={}):
         for y in range(depth):
             grey = 3
             if x >= width-1 - highlight:
-                grey = grey + 1         
+                grey = grey + 1
             pixel(x+(y+1), -(y+1), greypix(grey/4.0), canvas)
 
     # And draw a border.
@@ -244,8 +255,8 @@ def monitor(size):
             if x >= surround and y >= surround and \
             x < surround+swidth and y < surround+sheight:
                 # Screen.
-                sx = (float(x-surround) - swidth/3) / swidth
-                sy = (float(y-surround) - sheight/3) / sheight
+                sx = (float(x-surround) - swidth//3) / swidth
+                sy = (float(y-surround) - sheight//3) / sheight
                 shighlight = 1.0 - (sx*sx+sy*sy)*0.27
                 pix = bluepix(shighlight)
                 if x < surround+shadow or y < surround+shadow:
@@ -400,8 +411,8 @@ def document(size):
         # Decide where this line of text begins.
         if line == 0:
             start = round(4*size)
-        elif line < 5*nlines/7:
-            start = round((line - (nlines/7)) * size)
+        elif line < 5*nlines//7:
+            start = round((line - (nlines//7)) * size)
         else:
             start = round(1*size)
         if start < round(1*size):
@@ -475,11 +486,11 @@ def hat(size):
             grey = bothere - tophere
             # Only draw brim pixels over pixels which are (a) part
             # of the main hat, and (b) not right on its edge.
-            if canvas.has_key((x,y)) and \
-            canvas.has_key((x,y-1)) and \
-            canvas.has_key((x,y+1)) and \
-            canvas.has_key((x-1,y)) and \
-            canvas.has_key((x+1,y)):
+            if (x,y) in canvas and \
+            (x,y-1) in canvas and \
+            (x,y+1) in canvas and \
+            (x-1,y) in canvas and \
+            (x+1,y) in canvas:
                 pixel(x, y, greypix(grey), canvas)
 
     return canvas
@@ -845,7 +856,7 @@ def pageant_icon(size):
 
     # Determine the relative y-coordinates of the computer and hat.
     # We just centre the one on the other.
-    xrel = (cbb[0]+cbb[2]-hbb[0]-hbb[2])/2
+    xrel = (cbb[0]+cbb[2]-hbb[0]-hbb[2])//2
 
     # Determine the relative y-coordinates of the computer and hat.
     # We do this by sitting the hat as low down on the computer as
@@ -857,7 +868,7 @@ def pageant_icon(size):
     yrelmin = None
     for cx in cty.keys():
         hx = cx - xrel
-        assert hty.has_key(hx)
+        assert hx in hty
         yrel = cty[cx] - hty[hx]
         if yrelmin == None:
             yrelmin = yrel
@@ -893,9 +904,9 @@ def testrun(func, fname):
     for canvas in canvases:
         minx, miny, maxx, maxy = bbox(canvas)
         block.extend(render(canvas, minx-2, miny-2, minx-2+wid, maxy+2))
-    with open(fname, "w") as f:
-        f.write(("P7\nWIDTH %d\nHEIGHT %d\nDEPTH 3\nMAXVAL 255\n" +
-                 "TUPLTYPE RGB\nENDHDR\n") % (wid, ht))
+    with open(fname, "wb") as f:
+        f.write((("P7\nWIDTH %d\nHEIGHT %d\nDEPTH 3\nMAXVAL 255\n" +
+                  "TUPLTYPE RGB\nENDHDR\n") % (wid, ht)).encode('ASCII'))
         assert len(block) == ht
         for line in block:
             assert len(line) == wid
@@ -904,7 +915,7 @@ def testrun(func, fname):
                 r = int(round((r * a + 255 * (255-a)) / 255.0))
                 g = int(round((g * a + 128 * (255-a)) / 255.0))
                 b = int(round((b * a +   0 * (255-a)) / 255.0))
-                f.write("%c%c%c" % (r,g,b))
+                f.write(bytes(bytearray([r, g, b])))
 
 def drawicon(func, width, fname, orangebackground = 0):
     canvas = func(width / 32.0)
@@ -913,9 +924,10 @@ def drawicon(func, width, fname, orangebackground = 0):
     assert minx >= 0 and miny >= 0 and maxx <= width and maxy <= width
 
     block = render(canvas, 0, 0, width, width)
-    with open(fname, "w") as f:
-        f.write(("P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\n" +
-                 "TUPLTYPE RGB_ALPHA\nENDHDR\n") % (width, width))
+    with open(fname, "wb") as f:
+        f.write((("P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\n" +
+                  "TUPLTYPE RGB_ALPHA\nENDHDR\n") %
+                 (width, width)).encode('ASCII'))
         assert len(block) == width
         for line in block:
             assert len(line) == width
@@ -926,7 +938,7 @@ def drawicon(func, width, fname, orangebackground = 0):
                     g = int(round((g * a + 128 * (255-a)) / 255.0))
                     b = int(round((b * a +   0 * (255-a)) / 255.0))
                     a = 255
-                f.write("%c%c%c%c" % (r,g,b,a))
+                f.write(bytes(bytearray([r, g, b, a])))
 
 args = sys.argv[1:]
 
@@ -984,7 +996,7 @@ if colours == 0:
         return (col1, col2)
 elif colours == 1:
     # Windows 16-colour palette.
-    cK,cr,cg,cy,cb,cm,cc,cP,cw,cR,cG,cY,cB,cM,cC,cW = range(16)
+    cK,cr,cg,cy,cb,cm,cc,cP,cw,cR,cG,cY,cB,cM,cC,cW = list(range(16))
     cT = -1
     cD = -2 # special translucent half-darkening value used internally
     def greypix(value):
@@ -1086,7 +1098,7 @@ else:
     def halftone(col1, col2):
         r1,g1,b1,a1 = col1
         r2,g2,b2,a2 = col2
-        colret = (int(r1+r2)/2, int(g1+g2)/2, int(b1+b2)/2, int(a1+a2)/2)
+        colret = (int(r1+r2)//2, int(g1+g2)//2, int(b1+b2)//2, int(a1+a2)//2)
         return (colret, colret)
 
 if test:

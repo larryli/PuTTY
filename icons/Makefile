@@ -14,7 +14,7 @@ MONOPNGS = $(patsubst %.pam,%.png,$(MONOPAMS))
 TRUEPNGS = $(patsubst %.pam,%.png,$(TRUEPAMS))
 
 ICOS = putty.ico puttygen.ico pscp.ico pageant.ico pageants.ico puttycfg.ico \
-       puttyins.ico
+       puttyins.ico pterm.ico ptermcfg.ico
 ICNS = PuTTY.icns Pterm.icns
 CICONS = xpmputty.c xpmpucfg.c xpmpterm.c xpmptcfg.c
 
@@ -67,6 +67,14 @@ pageants.ico: pageant-16.png pageant-16-mono.png
 
 pscp.ico: pscp-16.png pscp-32.png pscp-48.png \
           pscp-16-mono.png pscp-32-mono.png pscp-48-mono.png
+	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
+
+pterm.ico: pterm-16.png pterm-32.png pterm-48.png \
+           pterm-16-mono.png pterm-32-mono.png pterm-48-mono.png
+	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
+
+ptermcfg.ico: ptermcfg-16.png ptermcfg-32.png ptermcfg-48.png \
+              ptermcfg-16-mono.png ptermcfg-32-mono.png ptermcfg-48-mono.png
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
 # Because the installer icon makes heavy use of brown when drawing

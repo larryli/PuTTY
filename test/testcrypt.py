@@ -3,24 +3,18 @@ import os
 import numbers
 import subprocess
 import re
+import string
 import struct
 from binascii import hexlify
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 # Expect to be run from the 'test' subdirectory, one level down from
 # the main source
 putty_srcdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def unicode_to_bytes(arg):
-    # Slightly fiddly way to do this which should work in Python 2 and 3
-    if isinstance(arg, type(u'a')) and not isinstance(arg, type(b'a')):
-        arg = arg.encode("UTF-8")
-    return arg
-
-def bytevals(b):
-    return struct.unpack("{:d}B".format(len(b)), b)
-def valbytes(b):
-    b = list(b)
-    return struct.pack("{:d}B".format(len(b)), *b)
+def coerce_to_bytes(arg):
+    return arg.encode("UTF-8") if isinstance(arg, str) else arg
 
 class ChildProcessFailure(Exception):
     pass
@@ -69,11 +63,14 @@ class ChildProcess(object):
         if self.debug is not None:
             self.debug.write("recv: {}\n".format(line))
         return line
+    def already_terminated(self):
+        return self.sp is None and self.exitstatus is not None
     def funcall(self, cmd, args):
         if self.sp is None:
+            assert self.exitstatus is None
             self.start()
-        self.write_line(unicode_to_bytes(cmd) + b" " + b" ".join(
-            unicode_to_bytes(arg) for arg in args))
+        self.write_line(coerce_to_bytes(cmd) + b" " + b" ".join(
+            coerce_to_bytes(arg) for arg in args))
         argcount = int(self.read_line())
         return [self.read_line() for arg in range(argcount)]
     def wait_for_exit(self):
@@ -89,18 +86,40 @@ class ChildProcess(object):
 
 childprocess = ChildProcess()
 
+method_prefixes = {
+    'val_wpoint': 'ecc_weierstrass_',
+    'val_mpoint': 'ecc_montgomery_',
+    'val_epoint': 'ecc_edwards_',
+    'val_hash': 'ssh_hash_',
+    'val_mac': 'ssh2_mac_',
+    'val_key': 'ssh_key_',
+    'val_cipher': 'ssh_cipher_',
+    'val_dh': 'dh_',
+    'val_ecdh': 'ssh_ecdhkex_',
+    'val_rsakex': 'ssh_rsakex_',
+    'val_prng': 'prng_',
+    'val_pcs': 'pcs_',
+    'val_pockle': 'pockle_',
+}
+method_lists = {t: [] for t in method_prefixes}
+
+checked_enum_values = {}
+
 class Value(object):
     def __init__(self, typename, ident):
-        self.typename = typename
-        self.ident = ident
-    def consumed(self):
-        self.ident = None
+        self._typename = typename
+        self._ident = ident
+        for methodname, function in method_lists.get(self._typename, []):
+            setattr(self, methodname,
+                    (lambda f: lambda *args: f(self, *args))(function))
+    def _consumed(self):
+        self._ident = None
     def __repr__(self):
-        return "Value({!r}, {!r})".format(self.typename, self.ident)
+        return "Value({!r}, {!r})".format(self._typename, self._ident)
     def __del__(self):
-        if self.ident is not None:
+        if self._ident is not None and not childprocess.already_terminated():
             try:
-                childprocess.funcall("free", [self.ident])
+                childprocess.funcall("free", [self._ident])
             except ChildProcessFailure:
                 # If we see this exception now, we can't do anything
                 # about it, because exceptions don't propagate out of
@@ -116,52 +135,84 @@ class Value(object):
                 # crashed for some other reason.)
                 pass
     def __long__(self):
-        if self.typename != "val_mpint":
+        if self._typename != "val_mpint":
             raise TypeError("testcrypt values of types other than mpint"
                             " cannot be converted to integer")
-        hexval = childprocess.funcall("mp_dump", [self.ident])[0]
+        hexval = childprocess.funcall("mp_dump", [self._ident])[0]
         return 0 if len(hexval) == 0 else int(hexval, 16)
     def __int__(self):
         return int(self.__long__())
 
-def make_argword(arg, argtype, fnname, argindex, to_preserve):
+def marshal_string(val):
+    val = coerce_to_bytes(val)
+    assert isinstance(val, bytes), "Bad type for val_string input"
+    return "".join(
+        chr(b) if (0x20 <= b < 0x7F and b != 0x25)
+        else "%{:02x}".format(b)
+        for b in val)
+
+def make_argword(arg, argtype, fnname, argindex, argname, to_preserve):
     typename, consumed = argtype
     if typename.startswith("opt_"):
         if arg is None:
             return "NULL"
         typename = typename[4:]
     if typename == "val_string":
-        arg = unicode_to_bytes(arg)
-        if isinstance(arg, bytes):
-            retwords = childprocess.funcall(
-                "newstring", ["".join("%{:02x}".format(b)
-                                      for b in bytevals(arg))])
-            arg = make_retvals([typename], retwords, unpack_strings=False)[0]
-            to_preserve.append(arg)
+        retwords = childprocess.funcall("newstring", [marshal_string(arg)])
+        arg = make_retvals([typename], retwords, unpack_strings=False)[0]
+        to_preserve.append(arg)
     if typename == "val_mpint" and isinstance(arg, numbers.Integral):
         retwords = childprocess.funcall("mp_literal", ["0x{:x}".format(arg)])
         arg = make_retvals([typename], retwords)[0]
         to_preserve.append(arg)
     if isinstance(arg, Value):
-        if arg.typename != typename:
+        if arg._typename != typename:
             raise TypeError(
-                "{}() argument {:d} should be {} ({} given)".format(
-                fnname, argindex, typename, arg.typename))
-        ident = arg.ident
+                "{}() argument #{:d} ({}) should be {} ({} given)".format(
+                fnname, argindex, argname, typename, arg._typename))
+        ident = arg._ident
         if consumed:
-            arg.consumed()
+            arg._consumed()
         return ident
     if typename == "uint" and isinstance(arg, numbers.Integral):
         return "0x{:x}".format(arg)
+    if typename == "boolean":
+        return "true" if arg else "false"
     if typename in {
             "hashalg", "macalg", "keyalg", "cipheralg",
-            "dh_group", "ecdh_alg", "rsaorder"}:
-        arg = unicode_to_bytes(arg)
+            "dh_group", "ecdh_alg", "rsaorder", "primegenpolicy",
+            "argon2flavour", "fptype", "httpdigesthash"}:
+        arg = coerce_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:
-            return arg
+            dictkey = (typename, arg)
+            if dictkey not in checked_enum_values:
+                retwords = childprocess.funcall("checkenum", [typename, arg])
+                assert len(retwords) == 1
+                checked_enum_values[dictkey] = (retwords[0] == b"ok")
+            if checked_enum_values[dictkey]:
+                return arg
+    if typename == "mpint_list":
+        sublist = [make_argword(len(arg), ("uint", False),
+                                fnname, argindex, argname, to_preserve)]
+        for val in arg:
+            sublist.append(make_argword(val, ("val_mpint", False),
+                                        fnname, argindex, argname, to_preserve))
+        return b" ".join(coerce_to_bytes(sub) for sub in sublist)
     raise TypeError(
-        "Can't convert {}() argument {:d} to {} (value was {!r})".format(
-            fnname, argindex, typename, arg))
+        "Can't convert {}() argument #{:d} ({}) to {} (value was {!r})".format(
+            fnname, argindex, argname, typename, arg))
+
+def unpack_string(identifier):
+    retwords = childprocess.funcall("getstring", [identifier])
+    childprocess.funcall("free", [identifier])
+    return re.sub(b"%[0-9A-F][0-9A-F]",
+                  lambda m: bytes([int(m.group(0)[1:], 16)]),
+                  retwords[0])
+
+def unpack_mp(identifier):
+    retwords = childprocess.funcall("mp_dump", [identifier])
+    childprocess.funcall("free", [identifier])
+    return int(retwords[0], 16)
 
 def make_retval(rettype, word, unpack_strings):
     if rettype.startswith("opt_"):
@@ -169,20 +220,34 @@ def make_retval(rettype, word, unpack_strings):
             return None
         rettype = rettype[4:]
     if rettype == "val_string" and unpack_strings:
-        retwords = childprocess.funcall("getstring", [word])
+        return unpack_string(word)
+    if rettype == "val_keycomponents":
+        kc = {}
+        retwords = childprocess.funcall("key_components_count", [word])
+        for i in range(int(retwords[0], 0)):
+            args = [word, "{:d}".format(i)]
+            retwords = childprocess.funcall("key_components_nth_name", args)
+            kc_key = unpack_string(retwords[0])
+            retwords = childprocess.funcall("key_components_nth_str", args)
+            if retwords[0] != b"NULL":
+                kc_value = unpack_string(retwords[0]).decode("ASCII")
+            else:
+                retwords = childprocess.funcall("key_components_nth_mp", args)
+                kc_value = unpack_mp(retwords[0])
+            kc[kc_key.decode("ASCII")] = kc_value
         childprocess.funcall("free", [word])
-        return re.sub(b"%[0-9A-F][0-9A-F]",
-                      lambda m: valbytes([int(m.group(0)[1:], 16)]),
-                      retwords[0])
+        return kc
     if rettype.startswith("val_"):
         return Value(rettype, word)
-    elif rettype == "uint":
+    elif rettype == "int" or rettype == "uint":
         return int(word, 0)
     elif rettype == "boolean":
         assert word == b"true" or word == b"false"
         return word == b"true"
+    elif rettype in {"pocklestatus", "mr_result"}:
+        return word.decode("ASCII")
     raise TypeError("Can't deal with return value {!r} of type {!r}"
-                    .format(rettype, word))
+                    .format(word, rettype))
 
 def make_retvals(rettypes, retwords, unpack_strings=True):
     assert len(rettypes) == len(retwords) # FIXME: better exception
@@ -190,12 +255,20 @@ def make_retvals(rettypes, retwords, unpack_strings=True):
             for rettype, word in zip(rettypes, retwords)]
 
 class Function(object):
-    def __init__(self, fnname, rettypes, argtypes):
+    def __init__(self, fnname, rettypes, retnames, argtypes, argnames):
         self.fnname = fnname
         self.rettypes = rettypes
+        self.retnames = retnames
         self.argtypes = argtypes
+        self.argnames = argnames
     def __repr__(self):
-        return "<Function {}>".format(self.fnname)
+        return "<Function {}({}) -> ({})>".format(
+            self.fnname,
+            ", ".join(("consumed " if c else "")+t+" "+n
+                       for (t,c),n in zip(self.argtypes, self.argnames)),
+            ", ".join((t+" "+n if n is not None else t)
+                      for t,n in zip(self.rettypes, self.retnames)),
+    )
     def __call__(self, *args):
         if len(args) != len(self.argtypes):
             raise TypeError(
@@ -204,7 +277,8 @@ class Function(object):
         to_preserve = []
         retwords = childprocess.funcall(
             self.fnname, [make_argword(args[i], self.argtypes[i],
-                                       self.fnname, i, to_preserve)
+                                       self.fnname, i, self.argnames[i],
+                                       to_preserve)
                           for i in range(len(args))])
         retvals = make_retvals(self.rettypes, retwords)
         if len(retvals) == 0:
@@ -213,10 +287,94 @@ class Function(object):
             return retvals[0]
         return tuple(retvals)
 
-def _setup(scope):
-    header_file = os.path.join(putty_srcdir, "testcrypt.h")
+def _lex_testcrypt_header(header):
+    pat = re.compile(
+        # Skip any combination of whitespace and comments
+        '(?:{})*'.format('|'.join((
+            '[ \t\n]',             # whitespace
+            '/\\*(?:.|\n)*?\\*/',  # C90-style /* ... */ comment, ended eagerly
+            '//[^\n]*\n',          # C99-style comment to end-of-line
+        ))) +
+        # And then match a token
+        '({})'.format('|'.join((
+            # Punctuation
+            '\(',
+            '\)',
+            ',',
+            # Identifier
+            '[A-Za-z_][A-Za-z0-9_]*',
+            # End of string
+            '$',
+        )))
+    )
 
-    linere = re.compile(r'^FUNC\d+\((.*)\)$')
+    pos = 0
+    end = len(header)
+    while pos < end:
+        m = pat.match(header, pos)
+        assert m is not None, (
+            "Failed to lex testcrypt-func.h at byte position {:d}".format(pos))
+
+        pos = m.end()
+        tok = m.group(1)
+        if len(tok) == 0:
+            assert pos == end, (
+                "Empty token should only be returned at end of string")
+        yield tok, m.start(1)
+
+def _parse_testcrypt_header(tokens):
+    def is_id(tok):
+        return tok[0] in string.ascii_letters+"_"
+    def expect(what, why, eof_ok=False):
+        tok, pos = next(tokens)
+        if tok == '' and eof_ok:
+            return None
+        if hasattr(what, '__call__'):
+            description = lambda: ""
+            ok = what(tok)
+        elif isinstance(what, set):
+            description = lambda: " or ".join("'"+x+"' " for x in sorted(what))
+            ok = tok in what
+        else:
+            description = lambda: "'"+what+"' "
+            ok = tok == what
+        if not ok:
+            sys.exit("testcrypt-func.h:{:d}: expected {}{}".format(
+                pos, description(), why))
+        return tok
+
+    while True:
+        tok = expect({"FUNC", "FUNC_WRAPPED"},
+                     "at start of function specification", eof_ok=True)
+        if tok is None:
+            break
+
+        expect("(", "after FUNC")
+        rettype = expect(is_id, "return type")
+        expect(",", "after return type")
+        funcname = expect(is_id, "function name")
+        expect(",", "after function name")
+        args = []
+        firstargkind = expect({"ARG", "VOID"}, "at start of argument list")
+        if firstargkind == "VOID":
+            expect(")", "after VOID")
+        else:
+            while True:
+                # Every time we come back to the top of this loop, we've
+                # just seen 'ARG'
+                expect("(", "after ARG")
+                argtype = expect(is_id, "argument type")
+                expect(",", "after argument type")
+                argname = expect(is_id, "argument name")
+                args.append((argtype, argname))
+                expect(")", "at end of ARG")
+                punct = expect({",", ")"}, "after argument")
+                if punct == ")":
+                    break
+                expect("ARG", "to begin next argument")
+        yield funcname, rettype, args
+
+def _setup(scope):
     valprefix = "val_"
     outprefix = "out_"
     optprefix = "opt_"
@@ -232,29 +390,40 @@ def _setup(scope):
             arg = arg[:arg.index("_", len(valprefix))]
         return arg
 
-    with open(header_file) as f:
-        for line in iter(f.readline, ""):
-            line = line.rstrip("\r\n").replace(" ", "")
-            m = linere.match(line)
-            if m is not None:
-                words = m.group(1).split(",")
-                function = words[1]
-                rettypes = []
-                argtypes = []
-                argsconsumed = []
-                if words[0] != "void":
-                    rettypes.append(trim_argtype(words[0]))
-                for arg in words[2:]:
-                    if arg.startswith(outprefix):
-                        rettypes.append(trim_argtype(arg[len(outprefix):]))
-                    else:
-                        consumed = False
-                        if arg.startswith(consprefix):
-                            arg = arg[len(consprefix):]
-                            consumed = True
-                        arg = trim_argtype(arg)
-                        argtypes.append((arg, consumed))
-                scope[function] = Function(function, rettypes, argtypes)
+    with open(os.path.join(putty_srcdir, "test", "testcrypt-func.h")) as f:
+        header = f.read()
+    tokens = _lex_testcrypt_header(header)
+    for function, rettype, arglist in _parse_testcrypt_header(tokens):
+        rettypes = []
+        retnames = []
+        if rettype != "void":
+            rettypes.append(trim_argtype(rettype))
+            retnames.append(None)
+
+        argtypes = []
+        argnames = []
+        argsconsumed = []
+        for arg, argname in arglist:
+            if arg.startswith(outprefix):
+                rettypes.append(trim_argtype(arg[len(outprefix):]))
+                retnames.append(argname)
+            else:
+                consumed = False
+                if arg.startswith(consprefix):
+                    arg = arg[len(consprefix):]
+                    consumed = True
+                arg = trim_argtype(arg)
+                argtypes.append((arg, consumed))
+                argnames.append(argname)
+        func = Function(function, rettypes, retnames,
+                        argtypes, argnames)
+        scope[function] = func
+        if len(argtypes) > 0:
+            t = argtypes[0][0]
+            if (t in method_prefixes and
+                function.startswith(method_prefixes[t])):
+                methodname = function[len(method_prefixes[t]):]
+                method_lists[t].append((methodname, func))
 
 _setup(globals())
 del _setup

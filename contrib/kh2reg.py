@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python3
 
 # Convert OpenSSH known_hosts and known_hosts2 files to "new format" PuTTY
 # host keys.
@@ -73,8 +73,8 @@ class HMAC(object):
 def openssh_hashed_host_match(hashed_host, try_host):
     if hashed_host.startswith(b'|1|'):
         salt, expected = hashed_host[3:].split(b'|')
-        salt = base64.decodestring(salt)
-        expected = base64.decodestring(expected)
+        salt = base64.decodebytes(salt)
+        expected = base64.decodebytes(expected)
         mac = HMAC(hashlib.sha1, 64)
     else:
         return False # unrecognised magic number prefix
@@ -225,14 +225,14 @@ def handle_line(line, output_formatter, try_hosts):
             # Treat as SSH-1-type host key.
             # Format: hostpat bits10 exp10 mod10 comment...
             # (PuTTY doesn't store the number of bits.)
-            keyparams = map (int, fields[2:4])
+            keyparams = list(map(int, fields[2:4]))
             keytype = "rsa"
 
         else:
 
             # Treat as SSH-2-type host key.
             # Format: hostpat keytype keyblob64 comment...
-            sshkeytype, blob = fields[1], base64.decodestring(
+            sshkeytype, blob = fields[1], base64.decodebytes(
                 fields[2].encode("ASCII"))
 
             # 'blob' consists of a number of
@@ -259,12 +259,12 @@ def handle_line(line, output_formatter, try_hosts):
                 keytype = "rsa2"
                 # The rest of the subfields we can treat as an opaque list
                 # of bignums (same numbers and order as stored by PuTTY).
-                keyparams = map (strtoint, subfields[1:])
+                keyparams = list(map(strtoint, subfields[1:]))
 
             elif sshkeytype == "ssh-dss":
                 keytype = "dss"
                 # Same again.
-                keyparams = map (strtoint, subfields[1:])
+                keyparams = list(map(strtoint, subfields[1:]))
 
             elif sshkeytype in nist_curves:
                 keytype = sshkeytype
@@ -302,7 +302,7 @@ def handle_line(line, output_formatter, try_hosts):
 
                 keyparams = [curvename, x, y]
 
-            elif sshkeytype == "ssh-ed25519":
+            elif sshkeytype in { "ssh-ed25519",  "ssh-ed448" }:
                 keytype = sshkeytype
 
                 if len(subfields) != 2:
@@ -314,12 +314,14 @@ def handle_line(line, output_formatter, try_hosts):
                 x_parity = y >> 255
                 y &= ~(1 << 255)
 
-                # Standard Ed25519 parameters.
-                p = 2**255 - 19
-                d = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3
+                # Curve parameters.
+                p, d, a = {
+                    "ssh-ed25519": (2**255 - 19, 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3, -1),
+                    "ssh-ed448": (2**448-2**224-1, -39081, +1),
+                }[sshkeytype]
 
-                # Recover x^2 = (y^2 - 1) / (d y^2 + 1).
-                xx = (y*y - 1) * invert(d*y*y + 1, p) % p
+                # Recover x^2 = (y^2 - 1) / (d y^2 - a).
+                xx = (y*y - 1) * invert(d*y*y - a, p) % p
 
                 # Take the square root.
                 x = SqrtModP.root(xx, p)

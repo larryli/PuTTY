@@ -1,0 +1,54 @@
+#cmakedefine NO_IPV6
+#cmakedefine NO_GSSAPI
+#cmakedefine STATIC_GSSAPI
+
+#cmakedefine NO_MULTIMON
+
+#cmakedefine01 HAVE_WINRESRC_H
+#cmakedefine01 HAVE_WINRES_H
+#cmakedefine01 HAVE_WIN_H
+#cmakedefine01 HAVE_NO_STDINT_H
+#cmakedefine01 HAVE_GCP_RESULTSW
+#cmakedefine01 HAVE_ADDDLLDIRECTORY
+#cmakedefine01 HAVE_GETNAMEDPIPECLIENTPROCESSID
+#cmakedefine01 HAVE_SETDEFAULTDLLDIRECTORIES
+#cmakedefine01 HAVE_STRTOUMAX
+#cmakedefine01 HAVE_DWMAPI_H
+
+#cmakedefine NOT_X_WINDOWS
+#cmakedefine OMIT_UTMP
+
+#cmakedefine01 HAVE_ASM_HWCAP_H
+#cmakedefine01 HAVE_SYS_AUXV_H
+#cmakedefine01 HAVE_SYS_SYSCTL_H
+#cmakedefine01 HAVE_SYS_TYPES_H
+#cmakedefine01 HAVE_GLOB_H
+#cmakedefine01 HAVE_UTMP_H
+#cmakedefine01 HAVE_FUTIMES
+#cmakedefine01 HAVE_GETADDRINFO
+#cmakedefine01 HAVE_POSIX_OPENPT
+#cmakedefine01 HAVE_PTSNAME
+#cmakedefine01 HAVE_SETRESUID
+#cmakedefine01 HAVE_SETRESGID
+#cmakedefine01 HAVE_STRSIGNAL
+#cmakedefine01 HAVE_UPDWTMPX
+#cmakedefine01 HAVE_FSTATAT
+#cmakedefine01 HAVE_DIRFD
+#cmakedefine01 HAVE_SETPWENT
+#cmakedefine01 HAVE_ENDPWENT
+#cmakedefine01 HAVE_GETAUXVAL
+#cmakedefine01 HAVE_ELF_AUX_INFO
+#cmakedefine01 HAVE_SYSCTLBYNAME
+#cmakedefine01 HAVE_CLOCK_MONOTONIC
+#cmakedefine01 HAVE_CLOCK_GETTIME
+#cmakedefine01 HAVE_SO_PEERCRED
+#cmakedefine01 HAVE_PANGO_FONT_FAMILY_IS_MONOSPACE
+#cmakedefine01 HAVE_PANGO_FONT_MAP_LIST_FAMILIES
+
+#cmakedefine01 HAVE_AES_NI
+#cmakedefine01 HAVE_SHA_NI
+#cmakedefine01 HAVE_SHAINTRIN_H
+#cmakedefine01 HAVE_NEON_CRYPTO
+#cmakedefine01 HAVE_NEON_SHA512
+#cmakedefine01 HAVE_NEON_SHA512_INTRINSICS
+#cmakedefine01 USE_ARM64_NEON_H

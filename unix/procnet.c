@@ -170,8 +170,8 @@ static char *format_sockaddr(const void *addr, int family)
 
         const uint32_t *addrwords = (const uint32_t *)a->sin6_addr.s6_addr;
         for (int i = 0; i < 4; i++)
-            strbuf_catf(sb, "%08X", addrwords[i]);
-        strbuf_catf(sb, ":%04X", ntohs(a->sin6_port));
+            put_fmt(sb, "%08X", addrwords[i]);
+        put_fmt(sb, ":%04X", ntohs(a->sin6_port));
 
         return strbuf_to_str(sb);
     } else {

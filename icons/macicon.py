@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Generate Mac OS X .icns files, or at least the simple subformats
 # that don't involve JPEG encoding and the like.
@@ -9,6 +9,8 @@
 import sys
 import struct
 import subprocess
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 # The file format has a typical IFF-style (type, length, data) chunk
 # structure, with one outer chunk containing subchunks for various
@@ -33,18 +35,18 @@ def make_mono_icon(size, rgba):
               for index in range(len(rgba))]
 
     # Encode in 1-bit big-endian format.
-    data = ""
+    data = b''
     for i in range(0, len(pixels), 8):
         byte = 0
         for j in range(8):
             if pixels[i+j] >= 0x80:
                 byte |= 0x80 >> j
-        data += chr(byte)
+        data += bytes(byte)
 
     # This size-32 chunk id is an anomaly in what would otherwise be a
     # consistent system of using {s,l,h,t} for {16,32,48,128}-pixel
     # icon sizes.
-    chunkid = { 16: "ics#", 32: "ICN#", 48: "ich#" }[size]
+    chunkid = { 16: b"ics#", 32: b"ICN#", 48: b"ich#" }[size]
     return make_chunk(chunkid, data)
 
 # Mask for full-colour icons: a chunk containing an 8 bpp alpha
@@ -52,9 +54,9 @@ def make_mono_icon(size, rgba):
 def make_colour_mask(size, rgba):
     assert len(rgba) == size * size
 
-    data = "".join(map(lambda pix: chr(pix[3]), rgba))
+    data = bytes(map(lambda pix: pix[3], rgba))
 
-    chunkid = { 16: "s8mk", 32: "l8mk", 48: "h8mk", 128: "t8mk" }[size]
+    chunkid = { 16: b"s8mk", 32: b"l8mk", 48: b"h8mk", 128: b"t8mk" }[size]
     return make_chunk(chunkid, data)
 
 # Helper routine for deciding when to start and stop run-length
@@ -69,19 +71,18 @@ def runof3(string, position):
 def make_colour_icon(size, rgba):
     assert len(rgba) == size * size
 
-    data = ""
+    data = b""
 
     # Mysterious extra zero header word appearing only in the size-128
     # icon chunk. libicns doesn't know what it's for, and neither do
     # I.
     if size == 128:
-        data += "\0\0\0\0"
+        data += b"\0\0\0\0"
 
     # Handle R,G,B channels in sequence. (Ignore the alpha channel; it
     # goes into the separate mask chunk constructed above.)
     for chan in range(3):
-        pixels = "".join([chr(rgba[index][chan])
-                          for index in range(len(rgba))])
+        pixels = bytes([rgba[index][chan] for index in range(len(rgba))])
 
         # Run-length encode each channel using the following format:
         #  * byte 0x80-0xFF followed by one literal byte means repeat
@@ -98,15 +99,15 @@ def make_colour_icon(size, rgba):
                        pos < len(pixels) and
                        pixels[pos] == pixval):
                     pos += 1
-                data += chr(0x80 + pos-start - 3) + pixval
+                data += bytes(0x80 + pos-start - 3) + pixval
             else:
                 while (pos - start < 128 and
                        pos < len(pixels) and
                        not runof3(pixels, pos)):
                     pos += 1
-                data += chr(0x00 + pos-start - 1) + pixels[start:pos]
+                data += bytes(0x00 + pos-start - 1) + pixels[start:pos]
 
-    chunkid = { 16: "is32", 32: "il32", 48: "ih32", 128: "it32" }[size]
+    chunkid = { 16: b"is32", 32: b"il32", 48: b"ih32", 128: b"it32" }[size]
     return make_chunk(chunkid, data)
 
 # Load an image file from disk and turn it into a simple list of
@@ -117,10 +118,10 @@ def make_colour_icon(size, rgba):
 # here that the file is in RGBA .pam format (as mkicon.py will have
 # generated it).
 def load_rgba(filename):
-    with open(filename) as f:
-        assert f.readline() == "P7\n"
+    with open(filename, "rb") as f:
+        assert f.readline() == b"P7\n"
         for line in iter(f.readline, ''):
-            words = line.rstrip("\n").split()
+            words = line.decode("ASCII").rstrip("\n").split()
             if words[0] == "WIDTH":
                 width = int(words[1])
             elif words[0] == "HEIGHT":
@@ -135,10 +136,10 @@ def load_rgba(filename):
         assert width == height
         data = f.read()
         assert len(data) == width*height*4
-        rgba = [map(ord, data[i:i+4]) for i in range(0, len(data), 4)]
+        rgba = [list(data[i:i+4]) for i in range(0, len(data), 4)]
         return width, rgba
 
-data = ""
+data = b""
 
 # Trivial argument format: each argument is a filename prefixed with
 # "mono:", "colour:" or "output:". The first two indicate image files
@@ -157,7 +158,7 @@ for arg in sys.argv[1:]:
         else:
             assert False, "bad argument '%s'" % arg
 
-data = make_chunk("icns", data)
+data = make_chunk(b"icns", data)
 
-with open(outfile, "w") as f:
+with open(outfile, "wb") as f:
     f.write(data)

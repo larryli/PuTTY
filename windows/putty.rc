@@ -1,10 +1,14 @@
 #include "rcstuff.h"
+#include "putty-rc.h"
 
 #define APPNAME "PuTTY"
-#define APPDESC "SSH, Telnet and Rlogin client"
+#define APPDESC "SSH、Telnet、Rlogin 和 SUPDUP 客户端"
 
-#include "winhelp.rc2"
-#include "win_res.rc2"
+IDI_MAINICON ICON "putty.ico"
+IDI_CFGICON ICON "puttycfg.ico"
+
+#include "help.rc2"
+#include "putty-common.rc2"
 
 #ifndef NO_MANIFESTS
 1 RT_MANIFEST "putty.mft"

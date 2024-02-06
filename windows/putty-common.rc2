@@ -1,0 +1,133 @@
+/*
+ * Windows resources shared between PuTTY and PuTTYtel, to be #include'd
+ * after defining appropriate macros.
+ *
+ * Note that many of these strings mention PuTTY. Due to restrictions in
+ * VC's handling of string concatenation, this can't easily be fixed.
+ * It's fixed up at runtime.
+ *
+ * This file has the more or less arbitrary extension '.rc2' to avoid
+ * IDEs taking it to be a top-level resource script in its own right
+ * (which has been known to happen if the extension was '.rc'), and
+ * also to avoid the resource compiler ignoring everything included
+ * from it (which happens if the extension is '.h').
+ */
+
+/* Accelerators used: clw */
+IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 270, 136
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "关于 PuTTY"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    DEFPUSHBUTTON "关闭(&C)", IDOK, 216, 118, 48, 14
+    PUSHBUTTON "查看许可证(&L)", IDA_LICENCE, 6, 118, 70, 14
+    PUSHBUTTON "访问网站(&W)", IDA_WEB, 140, 118, 70, 14
+    EDITTEXT IDA_TEXT, 10, 6, 250, 110, ES_READONLY | ES_MULTILINE | ES_CENTER, WS_EX_STATICEDGE
+END
+
+/* Accelerators used: aco */
+IDD_MAINBOX DIALOG DISCARDABLE 0, 0, 300, 252
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY 配置"
+FONT 8, "MS Shell Dlg"
+CLASS "PuTTYConfigBox"
+BEGIN
+END
+
+/* Accelerators used: co */
+IDD_LOGBOX DIALOG DISCARDABLE 100, 20, 300, 119
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY 事件日志"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    DEFPUSHBUTTON "关闭(&C)", IDOK, 135, 102, 44, 14
+    PUSHBUTTON "复制(&O)", IDN_COPY, 81, 102, 44, 14
+    LISTBOX IDN_LIST, 3, 3, 294, 95, LBS_HASSTRINGS | LBS_USETABSTOPS | WS_VSCROLL | LBS_EXTENDEDSEL
+END
+
+/* No accelerators used */
+IDD_LICENCEBOX DIALOG DISCARDABLE 50, 50, 326, 239
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY 许可证"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    DEFPUSHBUTTON "确定", IDOK, 148, 219, 44, 14
+
+    EDITTEXT IDA_TEXT, 10, 10, 306, 200, ES_READONLY | ES_MULTILINE | ES_LEFT, WS_EX_STATICEDGE
+END
+
+/* No accelerators used */
+IDD_HK_ABSENT DIALOG DISCARDABLE 50, 50, 340, 160
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY 安全警告"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT "该服务器密钥未缓存:", 100, 40, 20, 300, 8
+    LTEXT "不能保证该服务器是能够正确访问的计算机。", 101, 40, 40, 300, 8
+    LTEXT "该服务器的 {KEYTYPE} 密钥指纹为:", 102, 40, 52, 300, 8
+    LTEXT "如果信任该主机，请点击“接受”增加密钥到 {APPNAME} 缓存中，", 103, 40, 72, 300, 8
+    LTEXT "并继续连接。", 104, 40, 80, 300, 8
+    LTEXT "如果仅仅只希望进行本次连接，而不将密钥储存，", 105, 40, 92, 300, 8
+    LTEXT "请点击“只连接一次”。", 106, 40, 100, 300, 8
+    LTEXT "如果不信任该主机，请点击“取消”放弃此连接。", 107, 40, 112, 300, 8
+
+    ICON "", IDC_HK_ICON, 10, 18, 0, 0
+
+    PUSHBUTTON "取消", IDCANCEL, 288, 140, 40, 14
+    PUSHBUTTON "接受", IDC_HK_ACCEPT, 168, 140, 40, 14
+    PUSHBUTTON "只连接一次", IDC_HK_ONCE, 216, 140, 64, 14
+    PUSHBUTTON "更多信息...", IDC_HK_MOREINFO, 60, 140, 64, 14
+    PUSHBUTTON "帮助", IDHELP, 12, 140, 40, 14
+
+    EDITTEXT IDC_HK_HOST, 40, 28, 300, 12, ES_READONLY | ES_LEFT, 0
+    EDITTEXT IDC_HK_FINGERPRINT, 40, 60, 300, 12, ES_READONLY | ES_LEFT, 0
+END
+
+/* No accelerators used */
+IDD_HK_WRONG DIALOG DISCARDABLE 50, 50, 340, 200
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY 安全警告"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT "**警告** - 潜在安全隐患！", IDC_HK_TITLE, 40, 20, 300, 12
+
+    LTEXT "在 {APPNAME} 缓存中不能匹配该服务器密钥:", 100, 40, 36, 300, 8
+    LTEXT "这说明可能该服务器管理员更新了主机密钥，", 101, 40, 56, 300, 8
+    LTEXT "或者更可能是连接到了一台伪装成该服务器的虚假计算机系统。", 102, 40, 64, 300, 8
+    LTEXT "", 103, 40, 72, 300, 8
+    LTEXT "新的 {KEYTYPE} 密钥指纹为:", 104, 40, 84, 300, 8
+    LTEXT "如果确信该密钥被更新并同意接受新的密钥，", 105, 40, 104, 300, 8
+    LTEXT "请点击“接受”更新 {APPNAME} 缓存并继续连接。", 106, 40, 112, 300, 8
+    LTEXT "如果仅仅只希望继续本次连接，而不更新系统缓存，", 107, 40, 124, 300, 8
+    LTEXT "请点击“只连接一次”。", 108, 40, 132, 300, 8
+    LTEXT "如果希望完全放弃本次连接，请点击“取消”。", 109, 40, 144, 300, 8
+    LTEXT "点击“取消”是**唯一**可以保证的安全选择。", 110, 40, 152, 300, 8
+
+    ICON "", IDC_HK_ICON, 10, 16, 0, 0
+
+    PUSHBUTTON "取消", IDCANCEL, 288, 180, 40, 14
+    PUSHBUTTON "接受", IDC_HK_ACCEPT, 168, 180, 40, 14
+    PUSHBUTTON "只连接一次", IDC_HK_ONCE, 216, 180, 64, 14
+    PUSHBUTTON "更多信息...", IDC_HK_MOREINFO, 60, 180, 64, 14
+    PUSHBUTTON "帮助", IDHELP, 12, 180, 40, 14
+
+    EDITTEXT IDC_HK_HOST, 40, 44, 300, 12, ES_READONLY | ES_LEFT, 0
+    EDITTEXT IDC_HK_FINGERPRINT, 40, 92, 300, 12, ES_READONLY | ES_LEFT, 0
+END
+
+/* Accelerators used: clw */
+IDD_HK_MOREINFO DIALOG DISCARDABLE 140, 40, 400, 156
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "PuTTY: 服务器主机密钥详细信息"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT "SHA256 指纹：", 100, 12, 12, 80, 8
+    EDITTEXT IDC_HKI_SHA256, 100, 10, 288, 12, ES_READONLY
+    LTEXT "MD5 指纹：", 101, 12, 28, 80, 8
+    EDITTEXT IDC_HKI_MD5, 100, 26, 288, 12, ES_READONLY
+    LTEXT "完整公钥：", 102, 12, 44, 376, 8
+    EDITTEXT IDC_HKI_PUBKEY, 12, 54, 376, 64, ES_READONLY | ES_MULTILINE | ES_LEFT | ES_AUTOVSCROLL, WS_EX_STATICEDGE
+    DEFPUSHBUTTON "关闭(&C)", IDOK, 176, 130, 48, 14
+END
+
+#include "version.rc2"

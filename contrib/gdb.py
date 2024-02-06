@@ -203,7 +203,7 @@ class List234(gdb.Function):
 
     Arguments are a tree234, and optionally a value type. If no value
     type is given, the result is a list of the raw void * pointers
-    stored in the tree. Othewise, each one is cast to a pointer to the
+    stored in the tree. Otherwise, each one is cast to a pointer to the
     value type and dereferenced.
 
     Due to limitations of GDB's convenience function syntax, the value

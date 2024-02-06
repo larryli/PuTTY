@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Example Python script to synthesise the server end of an SSH key exchange.
 
@@ -27,6 +27,8 @@
 import sys, random
 from encodelib import *
 
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
+
 # A random Diffie-Hellman group, taken from an SSH server I made a
 # test connection to.
 groupgen = 5
@@ -37,7 +39,7 @@ rsaexp = 0x10001
 rsamod = 0xB98FE0C0BEE1E05B35FDDF5517B3E29D8A9A6A7834378B6783A19536968968F755E341B5822CAE15B465DECB80EE4116CF8D22DB5A6C85444A68D0D45D9D42008329619BE3CAC3B192EF83DD2B75C4BB6B567E11B841073BACE92108DA7E97E543ED7F032F454F7AC3C6D3F27DB34BC9974A85C7963C546662AE300A61CBABEE274481FD041C41D0145704F5FA9C77A5A442CD7A64827BB0F21FB56FDE388B596A20D7A7D1C5F22DA96C6C2171D90A673DABC66596CD99499D75AD82FEFDBE04DEC2CC7E1414A95388F668591B3F4D58249F80489646ED2C318E77D4F4E37EE8A588E79F2960620E6D28BF53653F1C974C91845F0BABFE5D167E1CA7044EE20D
 
 # 16 bytes of random data for the start of KEXINIT.
-cookie = "".join([chr(random.randint(0,255)) for i in range(16)])
+cookie = bytes(random.randint(0,255) for i in range(16))
 
 def expect(var, expr):
     expected_val = eval(expr)
@@ -46,12 +48,12 @@ def expect(var, expr):
             expr, repr(expected_val), repr(var)))
         sys.exit(1)
 
-sys.stdout.write(greeting("SSH-2.0-Example KEX synthesis"))
+sys.stdout.buffer.write(greeting("SSH-2.0-Example KEX synthesis"))
 
-greeting = sys.stdin.readline()
-expect(greeting[:8], '"SSH-2.0-"')
+greeting = sys.stdin.buffer.readline()
+expect(greeting[:8].decode("ASCII"), '"SSH-2.0-"')
 
-sys.stdout.write(
+sys.stdout.buffer.write(
     clearpkt(SSH2_MSG_KEXINIT,
              cookie,
              name_list(("diffie-hellman-group-exchange-sha256",)), # kex
@@ -66,27 +68,27 @@ sys.stdout.write(
              name_list(()), # server->client languages
              boolean(False), # first kex packet does not follow
              uint32(0)))
-sys.stdout.flush()
+sys.stdout.buffer.flush()
 
-intype, inpkt = read_clearpkt(sys.stdin)
+intype, inpkt = read_clearpkt(sys.stdin.buffer)
 expect(intype, "SSH2_MSG_KEXINIT")
 
-intype, inpkt = read_clearpkt(sys.stdin)
+intype, inpkt = read_clearpkt(sys.stdin.buffer)
 expect(intype, "SSH2_MSG_KEX_DH_GEX_REQUEST")
 expect(inpkt, "uint32(0x400) + uint32(0x400) + uint32(0x2000)")
 
-sys.stdout.write(
+sys.stdout.buffer.write(
     clearpkt(SSH2_MSG_KEX_DH_GEX_GROUP,
              mpint(group),
              mpint(groupgen)))
-sys.stdout.flush()
+sys.stdout.buffer.flush()
 
-intype, inpkt = read_clearpkt(sys.stdin)
+intype, inpkt = read_clearpkt(sys.stdin.buffer)
 expect(intype, "SSH2_MSG_KEX_DH_GEX_INIT")
 
-sys.stdout.write(
+sys.stdout.buffer.write(
     clearpkt(SSH2_MSG_KEX_DH_GEX_REPLY,
              ssh_rsa_key_blob(rsaexp, rsamod),
              mpint(random.randint(2, group-2)),
              ssh_rsa_signature_blob(random.randint(2, rsamod-2))))
-sys.stdout.flush()
+sys.stdout.buffer.flush()

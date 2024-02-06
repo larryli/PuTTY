@@ -1,0 +1,8 @@
+#include "putty-rc.h"
+
+#ifdef EMBEDDED_CHM_FILE
+ID_CUSTOM_CHMFILE TYPE_CUSTOM_CHMFILE EMBEDDED_CHM_FILE
+#define HELPVER " (包含内置帮助)"
+#else
+#define HELPVER " (未含内置帮助)"
+#endif

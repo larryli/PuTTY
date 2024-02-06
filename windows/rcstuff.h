@@ -5,20 +5,15 @@
 #ifndef PUTTY_RCSTUFF_H
 #define PUTTY_RCSTUFF_H
 
-#ifdef __LCC__
-#include <win.h>
-#else
+#ifdef HAVE_CMAKE_H
+#include "cmake.h"
+#endif
 
-/* Some compilers don't have winresrc.h */
-#ifndef NO_WINRESRC_H
-#ifndef MSVC4
+#if HAVE_WINRESRC_H
 #include <winresrc.h>
-#else
+#elif HAVE_WINRES_H
 #include <winres.h>
 #endif
-#endif
-
-#endif /* end #ifdef __LCC__ */
 
 /* Some systems don't define this, so I do it myself if necessary */
 #ifndef TCS_MULTILINE

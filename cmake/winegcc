@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Wrapper for winegcc that allows it to be used in a build generated
+# from PuTTY's CMakeLists.txt, by bodging around the command-line
+# options that CMake gets wrong.
+
+init=true
+for arg in init "$@"; do
+    if $init; then
+        set --
+        init=false
+        continue
+    fi
+
+    case "$arg" in
+        # The Windows build definition for PuTTY specifies all the
+        # system API libraries by names like kernel32.lib. When CMake
+        # reads that file and thinks it's compiling for Linux, it will
+        # generate link options such as -lkernel32.lib. But in fact
+        # winegcc expects -lkernel32, so we need to strip the ".lib"
+        # suffix.
+        -l*.lib) set -- "$@" "${arg%.lib}";;
+
+        # Anything else, we leave unchanged.
+        *) set -- "$@" "$arg";;
+    esac
+done
+
+exec winegcc "$@"

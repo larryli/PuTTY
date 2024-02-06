@@ -10,8 +10,8 @@ self-explanatory. If you get an error message which is not listed in
 this chapter and which you don't understand, report it to us as a
 bug (see \k{feedback}) and we will add documentation for it.
 
-\H{errors-hostkey-absent} \q{The server's host key is not cached in
-the registry}
+\H{errors-hostkey-absent} \q{The host key is not cached for this
+server}
 
 This error message occurs when PuTTY connects to a new SSH server.
 Every server identifies itself by means of a host key; once PuTTY
@@ -35,7 +35,7 @@ See \k{gs-hostkey} for more information on host keys.
 \H{errors-hostkey-wrong} \q{WARNING - POTENTIAL SECURITY BREACH!}
 
 This message, followed by \q{The server's host key does not match
-the one PuTTY has cached in the registry}, means that PuTTY has
+the one PuTTY has cached for this server}, means that PuTTY has
 connected to the SSH server before, knows what its host key
 \e{should} be, but has found a different one.
 
@@ -193,7 +193,7 @@ Various forms of this error are printed in the PuTTY window, or
 written to the PuTTY Event Log (see \k{using-eventlog}) during
 authentication.
 
-If you see one of these messages, it means that the server has refused 
+If you see one of these messages, it means that the server has refused
 all the forms of authentication PuTTY has tried and it has no further
 ideas.
 
@@ -231,7 +231,7 @@ noticed.
 
 Occasionally this has been caused by server bugs. An example is the
 bug described at \k{config-ssh-bug-hmac2}, although you're very
-unlikely to encounter that one these days. 
+unlikely to encounter that one these days.
 
 In this context MAC stands for \ii{Message Authentication Code}. It's a
 cryptographic term, and it has nothing at all to do with Ethernet
@@ -332,8 +332,8 @@ your server was rejected by the server. Usually this happens because
 the server does not provide the service which PuTTY is trying to
 access.
 
-Check that you are connecting with the correct protocol (SSH, Telnet
-or Rlogin), and check that the port number is correct. If that
+Check that you are connecting with the correct protocol (SSH, Telnet,
+etc), and check that the port number is correct. If that
 fails, consult the administrator of your server.
 
 \H{errors-conntimedout} \q{Network error: Connection timed out}
