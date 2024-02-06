@@ -147,11 +147,13 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
 	    if (c->generic.type == CTRL_RADIO &&
 		c->generic.handler == config_protocolbuttons_handler) {
 		c->radio.nbuttons++;
-		c->radio.ncolumns++;
+		if (c->radio.ncolumns < 4) {
+		    c->radio.ncolumns++;
+		}
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
-		    dupstr("´®¿Ú");
+		    dupstr("´®¿Ú(R)");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(PROT_SERIAL);

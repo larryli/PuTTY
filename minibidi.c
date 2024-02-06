@@ -3,7 +3,7 @@
  * ------------
  * Description:
  * ------------
- * This is an implemention of Unicode's Bidirectional Algorithm
+ * This is an implementation of Unicode's Bidirectional Algorithm
  * (known as UAX #9).
  *
  *   http://www.unicode.org/reports/tr9/
@@ -89,7 +89,7 @@ enum {
 
 /* Shaping Types */
 enum {
-    SL, /* Left-Joining, doesnt exist in U+0600 - U+06FF */
+    SL, /* Left-Joining, doesn't exist in U+0600 - U+06FF */
     SR, /* Right-Joining, ie has Isolated, Final */
     SD, /* Dual-Joining, ie has Isolated, Final, Initial, Medial */
     SU, /* Non-Joining */

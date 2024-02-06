@@ -72,12 +72,12 @@ if ($upload) {
     -d "putty" or die "no putty directory in cwd";
 
     0 == system("rsync", "-av", "maps/",
-                "atreus:src/putty-local/maps-$version")
+                "thyestes:src/putty-local/maps-$version")
         or die "could not upload link maps";
 
-    for my $location (["atreus", "www/putty/$version"],
-                      ["the",    "www/putty/$version"],
-                      ["chiark", "ftp/putty-$version"]) {
+    for my $location (["thyestes", "www/putty/$version"],
+                      ["the",      "www/putty/$version"],
+                      ["chiark",   "ftp/putty-$version"]) {
         my ($host, $path) = @$location;
         0 == system("rsync", "-av", "putty/", "$host:$path")
             or die "could not upload release to $host";

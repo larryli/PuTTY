@@ -359,7 +359,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     sk_init();
 
-    InitCommonControls();
+    init_common_controls();
 
     /* Set Explicit App User Model Id so that jump lists don't cause
        PuTTY to hang on to removable media. */
@@ -1700,7 +1700,7 @@ void request_resize(void *frontend, int w, int h)
 {
     int width, height;
 
-    /* If the window is maximized supress resizing attempts */
+    /* If the window is maximized suppress resizing attempts */
     if (IsZoomed(hwnd)) {
 	if (conf_get_int(conf, CONF_resize_action) == RESIZE_TERM)
 	    return;
@@ -3949,12 +3949,14 @@ int char_width(Context ctx, int uc) {
 DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 DECL_WINDOWS_FUNCTION(static, BOOL, ToUnicodeEx,
                       (UINT, UINT, const BYTE *, LPWSTR, int, UINT, HKL));
+DECL_WINDOWS_FUNCTION(static, BOOL, PlaySound, (LPCTSTR, HMODULE, DWORD));
 
 static void init_winfuncs(void)
 {
     HMODULE user32_module = load_system32_dll("user32.dll");
+    HMODULE winmm_module = load_system32_dll("winmm.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
-    GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
+    GET_WINDOWS_FUNCTION_PP(winmm_module, PlaySound);
 }
 
 /*
@@ -4777,7 +4779,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	    return p - output;
 	}
-	/* If we're definitly not building up an ALT-54321 then clear it */
+	/* If we're definitely not building up an ALT-54321 then clear it */
 	if (!left_alt)
 	    keys_unicode[0] = 0;
 	/* If we will be using alt_sum fix the 256s */
@@ -5540,8 +5542,8 @@ void do_beep(void *frontend, int mode)
 	lastbeep = GetTickCount();
     } else if (mode == BELL_WAVEFILE) {
 	Filename *bell_wavefile = conf_get_filename(conf, CONF_bell_wavefile);
-	if (!PlaySound(bell_wavefile->path, NULL,
-		       SND_ASYNC | SND_FILENAME)) {
+	if (!p_PlaySound || !p_PlaySound(bell_wavefile->path, NULL,
+                         SND_ASYNC | SND_FILENAME)) {
 	    char buf[sizeof(bell_wavefile->path) + 80];
 	    char otherbuf[100];
 	    sprintf(buf, "Unable to play sound file\n%s\n"

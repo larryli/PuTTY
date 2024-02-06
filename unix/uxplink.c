@@ -607,6 +607,8 @@ void frontend_net_error_pending(void) {}
 const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
+const int buildinfo_gtk_relevant = FALSE;
+
 int main(int argc, char **argv)
 {
     int sending;

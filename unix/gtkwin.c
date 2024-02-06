@@ -524,7 +524,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
             inst->surface = NULL;
         }
 
-        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
+        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
                                                    backing_w, backing_h);
 #endif
     }
@@ -1817,56 +1817,58 @@ gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
 }
 #endif
 
-gboolean button_internal(struct gui_data *inst, guint32 timestamp,
-			 GdkEventType type, guint ebutton, guint state,
-			 gdouble ex, gdouble ey)
+static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
 {
     int shift, ctrl, alt, x, y, button, act, raw_mouse_mode;
 
     /* Remember the timestamp. */
-    inst->input_event_time = timestamp;
+    inst->input_event_time = event->time;
 
     show_mouseptr(inst, 1);
 
-    shift = state & GDK_SHIFT_MASK;
-    ctrl = state & GDK_CONTROL_MASK;
-    alt = state & inst->meta_mod_mask;
+    shift = event->state & GDK_SHIFT_MASK;
+    ctrl = event->state & GDK_CONTROL_MASK;
+    alt = event->state & inst->meta_mod_mask;
 
     raw_mouse_mode =
         send_raw_mouse && !(shift && conf_get_int(inst->conf,
                                                   CONF_mouse_override));
 
     if (!raw_mouse_mode) {
-        if (ebutton == 4 && type == GDK_BUTTON_PRESS) {
+        if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
             term_scroll(inst->term, 0, -SCROLL_INCREMENT_LINES);
             return TRUE;
         }
-        if (ebutton == 5 && type == GDK_BUTTON_PRESS) {
+        if (event->button == 5 && event->type == GDK_BUTTON_PRESS) {
             term_scroll(inst->term, 0, +SCROLL_INCREMENT_LINES);
             return TRUE;
         }
     }
 
-    if (ebutton == 3 && ctrl) {
+    if (event->button == 3 && ctrl) {
+#if GTK_CHECK_VERSION(3,22,0)
+	gtk_menu_popup_at_pointer(GTK_MENU(inst->menu), (GdkEvent *)event);
+#else
 	gtk_menu_popup(GTK_MENU(inst->menu), NULL, NULL, NULL, NULL,
-		       ebutton, timestamp);
+		       event->button, event->time);
+#endif
 	return TRUE;
     }
 
-    if (ebutton == 1)
+    if (event->button == 1)
 	button = MBT_LEFT;
-    else if (ebutton == 2)
+    else if (event->button == 2)
 	button = MBT_MIDDLE;
-    else if (ebutton == 3)
+    else if (event->button == 3)
 	button = MBT_RIGHT;
-    else if (ebutton == 4)
+    else if (event->button == 4)
 	button = MBT_WHEEL_UP;
-    else if (ebutton == 5)
+    else if (event->button == 5)
 	button = MBT_WHEEL_DOWN;
     else
 	return FALSE;		       /* don't even know what button! */
 
-    switch (type) {
+    switch (event->type) {
       case GDK_BUTTON_PRESS: act = MA_CLICK; break;
       case GDK_BUTTON_RELEASE: act = MA_RELEASE; break;
       case GDK_2BUTTON_PRESS: act = MA_2CLK; break;
@@ -1877,8 +1879,8 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
     if (raw_mouse_mode && act != MA_CLICK && act != MA_RELEASE)
 	return TRUE;		       /* we ignore these in raw mouse mode */
 
-    x = (ex - inst->window_border) / inst->font_width;
-    y = (ey - inst->window_border) / inst->font_height;
+    x = (event->x - inst->window_border) / inst->font_width;
+    y = (event->y - inst->window_border) / inst->font_height;
 
     term_mouse(inst->term, button, translate_button(button), act,
 	       x, y, shift, ctrl, alt);
@@ -1889,8 +1891,7 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    return button_internal(inst, event->time, event->type, event->button,
-			   event->state, event->x, event->y);
+    return button_internal(inst, event);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
@@ -1911,6 +1912,9 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
         return FALSE;
 #else
     guint button;
+    GdkEventButton *event_button;
+    gboolean ret;
+
     if (event->direction == GDK_SCROLL_UP)
 	button = 4;
     else if (event->direction == GDK_SCROLL_DOWN)
@@ -1918,8 +1922,21 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     else
 	return FALSE;
 
-    return button_internal(inst, event->time, GDK_BUTTON_PRESS,
-			   button, event->state, event->x, event->y);
+    event_button = (GdkEventButton *)gdk_event_new(GDK_BUTTON_PRESS);
+    event_button->window = event->window;
+    event_button->send_event = event->send_event;
+    event_button->time = event->time;
+    event_button->x = event->x;
+    event_button->y = event->y;
+    event_button->axes = NULL;
+    event_button->state = event->state;
+    event_button->button = button;
+    event_button->device = event->device;
+    event_button->x_root = event->x_root;
+    event_button->y_root = event->y_root;
+    ret = button_internal(inst, event_button);
+    gdk_event_free(event_button);
+    return ret;
 #endif
 }
 #endif
@@ -2145,35 +2162,47 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 #endif
 }
 
-void set_gdk_window_background(GdkWindow *win, const GdkColor *col)
-{
 #if GTK_CHECK_VERSION(3,0,0)
-    /* gdk_window_set_background is deprecated; work around its
-     * absence. */
+char *colour_to_css(const GdkColor *col)
+{
     GdkRGBA rgba;
     rgba.red = col->red / 65535.0;
     rgba.green = col->green / 65535.0;
     rgba.blue = col->blue / 65535.0;
     rgba.alpha = 1.0;
-    gdk_window_set_background_rgba(win, &rgba);
+    return gdk_rgba_to_string(&rgba);
+}
+#endif
+
+void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
+{
+#if GTK_CHECK_VERSION(3,0,0)
+    GtkCssProvider *provider = gtk_css_provider_new();
+    char *col_css = colour_to_css(col);
+    char *data = dupprintf(
+	"#drawing-area, #top-level { background-color: %s; }\n", col_css);
+    gtk_css_provider_load_from_data(provider, data, -1, NULL);
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider),
+				   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    free(data);
+    free(col_css);
 #else
-    {
+    if (gtk_widget_get_window(win)) {
         /* For GTK1, which doesn't have a 'const' on
          * gdk_window_set_background's second parameter type. */
         GdkColor col_mutable = *col;
-        gdk_window_set_background(win, &col_mutable);
+        gdk_window_set_background(gtk_widget_get_window(win), &col_mutable);
     }
 #endif
 }
 
 void set_window_background(struct gui_data *inst)
 {
-    if (inst->area && gtk_widget_get_window(inst->area))
-	set_gdk_window_background(gtk_widget_get_window(inst->area),
-                                  &inst->cols[258]);
-    if (inst->window && gtk_widget_get_window(inst->window))
-	set_gdk_window_background(gtk_widget_get_window(inst->window),
-                                  &inst->cols[258]);
+    if (inst->area)
+	set_gtk_widget_background(GTK_WIDGET(inst->area), &inst->cols[258]);
+    if (inst->window)
+	set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
 void palette_set(void *frontend, int n, int r, int g, int b)
@@ -4273,6 +4302,30 @@ static void start_backend(struct gui_data *inst)
     gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
 
+static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
+{
+#if GTK_CHECK_VERSION(3,4,0)
+    GdkDisplay *display = gtk_widget_get_display(widget);
+    GdkWindow *gdkwindow = gtk_widget_get_window(widget);
+# if GTK_CHECK_VERSION(3,22,0)
+    GdkMonitor *monitor;
+    if (gdkwindow)
+	monitor = gdk_display_get_monitor_at_window(display, gdkwindow);
+    else
+	monitor = gdk_display_get_monitor(display, 0);
+    gdk_monitor_get_geometry(monitor, geometry);
+# else
+    GdkScreen *screen = gdk_display_get_default_screen(display);
+    gint monitor_num = gdk_screen_get_monitor_at_window(screen, gdkwindow);
+    gdk_screen_get_monitor_geometry(screen, monitor_num, geometry);
+# endif
+#else
+    geometry->x = geometry->y = 0;
+    geometry->width = gdk_screen_width();
+    geometry->height = gdk_screen_height();
+#endif
+}
+
 struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 {
     struct gui_data *inst;
@@ -4317,6 +4370,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
     inst->area = gtk_drawing_area_new();
+    gtk_widget_set_name(GTK_WIDGET(inst->area), "drawing-area");
 
 #if GTK_CHECK_VERSION(2,0,0)
     inst->imc = gtk_im_multicontext_new();
@@ -4330,11 +4384,37 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         }
     }
     inst->window = make_gtk_toplevel_window(inst);
+    gtk_widget_set_name(GTK_WIDGET(inst->window), "top-level");
     {
         const char *winclass = conf_get_str(inst->conf, CONF_winclass);
-        if (*winclass)
+        if (*winclass) {
+#if GTK_CHECK_VERSION(3,22,0)
+#ifndef NOT_X_WINDOWS
+            GdkWindow *gdkwin;
+            gtk_widget_realize(GTK_WIDGET(inst->window));
+            gdkwin = gtk_widget_get_window(GTK_WIDGET(inst->window));
+            if (gdk_window_ensure_native(gdkwin)) {
+                Display *disp =
+                    GDK_DISPLAY_XDISPLAY(gdk_window_get_display(gdkwin));
+                XClassHint *xch = XAllocClassHint();
+                xch->res_name = (char *)winclass;
+                xch->res_class = (char *)winclass;
+                XSetClassHint(disp, GDK_WINDOW_XID(gdkwin), xch);
+                XFree(xch);
+            }
+#endif
+            /*
+             * If we do have NOT_X_WINDOWS set, then we don't have any
+             * function in GTK 3.22 equivalent to the above. But then,
+             * surely in that situation the deprecated
+             * gtk_window_set_wmclass wouldn't have done anything
+             * meaningful in previous GTKs either.
+             */
+#else
             gtk_window_set_wmclass(GTK_WINDOW(inst->window),
                                    winclass, winclass);
+#endif
+        }
     }
 
     /*
@@ -4405,9 +4485,11 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         };
         int x = inst->xpos, y = inst->ypos;
         int wp, hp;
+        GdkRectangle monitor_geometry;
         compute_whole_window_size(inst, inst->width, inst->height, &wp, &hp);
-        if (inst->gravity & 1) x += (gdk_screen_width() - wp);
-        if (inst->gravity & 2) y += (gdk_screen_height() - hp);
+        get_monitor_geometry(GTK_WIDGET(inst->window), &monitor_geometry);
+        if (inst->gravity & 1) x += (monitor_geometry.width - wp);
+        if (inst->gravity & 2) y += (monitor_geometry.height - hp);
         gtk_window_set_gravity(GTK_WINDOW(inst->window),
                                gravities[inst->gravity & 3]);
 	gtk_window_move(GTK_WINDOW(inst->window), x, y);

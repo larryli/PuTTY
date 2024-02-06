@@ -257,3 +257,14 @@ for line in fileinput.input(args):
         warn("trouble parsing key (%s), skipping" % k.msg)
     except BlankInputLine:
         pass
+
+# The spec at http://support.microsoft.com/kb/310516 says we need
+# a blank line at the end of the reg file:
+#
+#   Note the registry file should contain a blank line at the
+#   bottom of the file.
+#
+if output_type == 'windows':
+    # Output REG file header.
+    sys.stdout.write("\n")
+            

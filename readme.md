@@ -6,7 +6,7 @@ PuTTY 是自由的跨平台 Telnet/SSH 客户端，同时在 Win32 和 Unix 系�
 
 ## 有限维护
 
-此项目目前处于有限维护状态，建议 Windows 下用户使用 [Git for Windows](https://git-for-windows.github.io/) 下 Git Bash 提供的 SSH 工具。msysgit 内置有基于 PuTTY 6.0 改造的 [Mintty](https://mintty.github.io/) 终端，并且提供有完整 Linux/Unix 环境。
+此项目目前处于有限维护状态，建议 Windows 下用户使用 [Git for Windows](https://git-for-windows.github.io/) 下 Git Bash 提供的 SSH 工具。msysgit 内置有基于 PuTTY 0.60 改造的 [Mintty](https://mintty.github.io/) 终端，并且提供有完整 Linux/Unix 环境。
 
 ## MIT 许可证
 

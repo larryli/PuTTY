@@ -319,6 +319,12 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	    EnableWindow(hwnd, 1);
 	    SetActiveWindow(hwnd);
 	    return 0;
+	  case 102:
+	    /* Load web browser */
+	    ShellExecute(hwnd, "open",
+			 "https://github.com/larryli/PuTTY",
+			 0, 0, SW_SHOWDEFAULT);
+	    return 0;
 	}
 	return 0;
       case WM_CLOSE:
@@ -409,8 +415,8 @@ static void setupbigedit2(HWND hwnd, int id, int idstatic,
 {
     char *buffer = ssh2_pubkey_openssh_str(key);
     SetDlgItemText(hwnd, id, buffer);
-    SetDlgItemText(hwnd, idstatic, "显示的公钥(&P)由 "
-		   "OpenSSH 认可：");
+    SetDlgItemText(hwnd, idstatic, "显示的公钥由 "
+		   "OpenSSH 认可(&P)：");
     sfree(buffer);
 }
 
@@ -1523,7 +1529,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     dll_hijacking_protection();
 
-    InitCommonControls();
+    init_common_controls();
     hinst = inst;
     hwnd = NULL;
 

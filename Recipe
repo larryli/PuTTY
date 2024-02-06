@@ -156,6 +156,7 @@ CFLAGS += /DHAS_GSSAPI
 !begin gtk
 install:
 	mkdir -p $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir)
+	$(INSTALL_PROGRAM) -m 755 pageant $(DESTDIR)$(bindir)/pageant
 	$(INSTALL_PROGRAM) -m 755 plink $(DESTDIR)$(bindir)/plink
 	$(INSTALL_PROGRAM) -m 755 pscp $(DESTDIR)$(bindir)/pscp
 	$(INSTALL_PROGRAM) -m 755 psftp $(DESTDIR)$(bindir)/psftp
@@ -170,6 +171,7 @@ install:
 	$(INSTALL_PROGRAM) -m 755 putty $(DESTDIR)$(bindir)/putty
 	$(INSTALL_PROGRAM) -m 755 puttygen $(DESTDIR)$(bindir)/puttygen
 	$(INSTALL_PROGRAM) -m 755 puttytel $(DESTDIR)$(bindir)/puttytel
+	$(INSTALL_DATA) -m 644 ../doc/pageant.1 $(DESTDIR)$(man1dir)/pageant.1
 	$(INSTALL_DATA) -m 644 ../doc/plink.1 $(DESTDIR)$(man1dir)/plink.1
 	$(INSTALL_DATA) -m 644 ../doc/pscp.1 $(DESTDIR)$(man1dir)/pscp.1
 	$(INSTALL_DATA) -m 644 ../doc/psftp.1 $(DESTDIR)$(man1dir)/psftp.1
@@ -184,8 +186,12 @@ install-strip:
 
 # List the man pages for the automake makefile.
 !begin am
-man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/pterm.1 \
-            doc/putty.1 doc/puttygen.1 doc/puttytel.1
+if HAVE_GTK
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 \
+	    doc/pageant.1 doc/pterm.1 doc/putty.1 doc/puttytel.1
+else
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1
+endif
 !end
 
 # In automake, chgrp/chmod pterm after installation, if configured to.
@@ -229,8 +235,8 @@ TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
          + config dialog conf
 
 # GUI front end and terminal emulator (putty, puttytel).
-GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
-         + winutils wincfg sercfg winhelp winjump miscucs
+GUITERM  = TERMINAL window windlg winctrls sizetip winprint winutils
+	 + wincfg sercfg winhelp winjump
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
@@ -256,7 +262,7 @@ SFTP     = sftp int64 logging
 # Pageant or PuTTYgen).
 MISC     = timing callback misc version settings tree234 proxy conf be_misc
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
-         + wintime winhsock errsock winsecur
+         + wintime winhsock errsock winsecur winucs miscucs
 UXMISC   = MISC uxstore uxsel uxnet uxpeer cmdline uxmisc uxproxy time
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
@@ -267,8 +273,8 @@ IMPORT   = import sshbcrypt sshblowf
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
 
 # Standard libraries.
-LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib
-         + shell32.lib winmm.lib imm32.lib winspool.lib ole32.lib
+LIBS     = advapi32.lib user32.lib gdi32.lib comdlg32.lib
+         + shell32.lib imm32.lib ole32.lib
 
 # Network backend sets. This also brings in the relevant attachment
 # to proxy.c depending on whether we're crypto-avoidant or not.

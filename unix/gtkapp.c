@@ -127,6 +127,8 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 
 char *x_get_default(const char *key) { return NULL; }
 
+const int buildinfo_gtk_relevant = TRUE;
+
 #if !GTK_CHECK_VERSION(3,0,0)
 /* This front end only works in GTK 3. If that's not what we've got,
  * it's easier to just turn this program into a trivial stub by ifdef

@@ -139,7 +139,15 @@
                   Source="$(var.Builddir)putty.exe" KeyPath="yes">
               <Shortcut Id="startmenuPuTTY" Directory="ProgramMenuDir"
                         WorkingDirectory="INSTALLDIR"
-                        Name="PuTTY" Advertise="no" />
+                        Name="PuTTY" Advertise="no">
+                <!-- Set AppUserModelId to match what PuTTY sets at runtime.
+                     Source for the GUID key:
+https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
+                     via http://stackoverflow.com/questions/2820983/ -->
+                <ShortcutProperty
+                    Key="{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5"
+                    Value="SimonTatham.PuTTY" />
+              </Shortcut>
             </File>
           </Component>
           <Component Id="Pageant_Component"
@@ -292,7 +300,17 @@
                    Guid="$(var.Desktop_Shortcut_Component_GUID)">
           <Shortcut Id="DesktopPuTTY"
                     WorkingDirectory="INSTALLDIR" Target="[INSTALLDIR]putty.exe"
-                    Name="$(var.ProgramName)" Advertise="no" />
+                    Name="$(var.ProgramName)" Advertise="no">
+            <!-- Set AppUserModelId to match what PuTTY sets at
+                 runtime. I don't know if this does anything directly
+                 useful on the desktop version of the shortcut, but we
+                 might as well keep it consistent with the Start Menu
+                 version in case someone starts manually moving or
+                 copying shortcuts around. -->
+            <ShortcutProperty
+                Key="{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5"
+                Value="SimonTatham.PuTTY" />
+          </Shortcut>
           <RegistryValue Root="HKLM"
                          Key="$(var.RegKeyPathLocation)\DesktopEntry"
                          Type="string" Value="" KeyPath="yes" />

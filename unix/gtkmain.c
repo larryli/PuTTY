@@ -542,6 +542,8 @@ GtkWidget *make_gtk_toplevel_window(void *frontend)
 
 extern int cfgbox(Conf *conf);
 
+const int buildinfo_gtk_relevant = TRUE;
+
 int main(int argc, char **argv)
 {
     Conf *conf;

@@ -143,7 +143,7 @@ void usage(int standalone)
 	    " | -p ]\n");
     if (standalone)
 	fprintf(stderr,
-		"Use \"puttygen --help\" for more detail.\n");
+		"使用 \"puttygen --help\" 了解更多帮助。\n");
 }
 
 void help(void)
@@ -152,34 +152,34 @@ void help(void)
      * Help message is an extended version of the usage message. So
      * start with that, plus a version heading.
      */
-    printf("PuTTYgen: key generator and converter for the PuTTY tools\n"
+    printf("PuTTYgen: PuTTY 密钥生成与转换工具\n"
 	   "%s\n", ver);
     usage(FALSE);
-    printf("  -t    specify key type when generating (ed25519, ecdsa, rsa, "
+    printf("  -t    指定生成的密钥类型 (ed25519, ecdsa, rsa, "
 							"dsa, rsa1)\n"
 	   "  -b    指定生成密钥的位数\n"
 	   "  -C    修改或指定密钥注释\n"
 	   "  -P    修改密钥密码\n"
-	   "  -q    quiet: do not display progress bar\n"
+	   "  -q    静默: 不显示进度条\n"
 	   "  -O    指定输出类型:\n"
-	   "           private             output PuTTY private key format\n"
-	   "           private-openssh     export OpenSSH private key\n"
-	   "           private-openssh-new export OpenSSH private key "
-                                             "(force new format)\n"
-	   "           private-sshcom      export ssh.com private key\n"
-	   "           public              RFC 4716 / ssh.com public key\n"
-	   "           public-openssh      OpenSSH public key\n"
-	   "           fingerprint         output the key fingerprint\n"
-	   "  -o    specify output file\n"
-	   "  -l    equivalent to `-O fingerprint'\n"
-	   "  -L    equivalent to `-O public-openssh'\n"
-	   "  -p    equivalent to `-O public'\n"
-	   "  --old-passphrase file\n"
-	   "        specify file containing old key passphrase\n"
-	   "  --new-passphrase file\n"
-	   "        specify file containing new key passphrase\n"
-	   "  --random-device device\n"
-	   "        specify device to read entropy from (e.g. /dev/urandom)\n"
+	   "           private             输出 PuTTY 私钥格式\n"
+	   "           private-openssh     导出 OpenSSH 私钥格式\n"
+	   "           private-openssh-new 导出 OpenSSH 私钥格式 "
+                                             "(强制新格式)\n"
+	   "           private-sshcom      导出 ssh.com 私钥格式\n"
+	   "           public              RFC 4716 / ssh.com 公钥\n"
+	   "           public-openssh      OpenSSH 公钥\n"
+	   "           fingerprint         输出密钥指纹\n"
+	   "  -o    指定输出文件\n"
+	   "  -l    等价于 `-O fingerprint'\n"
+	   "  -L    等价于 `-O public-openssh'\n"
+	   "  -p    等价于 `-O public'\n"
+	   "  --old-passphrase 文件\n"
+	   "        指定包含旧密钥密码的文件\n"
+	   "  --new-passphrase 文件\n"
+	   "        指定包含新密钥密码的文件\n"
+	   "  --random-device 设备\n"
+	   "        指定用于读取熵的设备 (例如：/dev/urandom)\n"
 	   );
 }
 
@@ -226,6 +226,9 @@ static char *readpassphrase(const char *filename)
 }
 
 #define DEFAULT_RSADSA_BITS 2048
+
+/* For Unix in particular, but harmless if this main() is reused elsewhere */
+const int buildinfo_gtk_relevant = FALSE;
 
 int main(int argc, char **argv)
 {

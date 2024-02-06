@@ -189,7 +189,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		    "字体设置");
     ctrl_checkbox(s, "允许选择可变宽度字体", NO_SHORTCUT,
                   HELPCTX(appearance_font), variable_pitch_handler, I(0));
-    ctrl_radiobuttons(s, "字体品质：", 'q', 2,
+    ctrl_radiobuttons(s, "字体品质(Q)：", 'q', 2,
 		      HELPCTX(appearance_font),
 		      conf_radiobutton_handler,
 		      I(CONF_font_quality),
@@ -270,7 +270,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      */
     s = ctrl_getset(b, "窗口/选择", "format",
 		    "格式化要传送的字符");
-    ctrl_checkbox(s, "粘贴 RTF 文本到剪贴板(F)", 'f',
+    ctrl_checkbox(s, "粘贴 RTF 文本到剪贴板", 'f',
 		  HELPCTX(selection_rtf),
 		  conf_checkbox_handler, I(CONF_rtf_paste));
 
@@ -335,7 +335,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     ctrl_checkbox(s, "Alt+空格显示系统菜单(Y)", 'y',
 		  HELPCTX(behaviour_altspace),
 		  conf_checkbox_handler, I(CONF_alt_space));
-    ctrl_checkbox(s, "Alt键显示系统菜单", 'l',
+    ctrl_checkbox(s, "Alt 键显示系统菜单", 'l',
 		  HELPCTX(behaviour_altonly),
 		  conf_checkbox_handler, I(CONF_alt_only));
     ctrl_checkbox(s, "窗口总在最上层(E)", 'e',
@@ -362,7 +362,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
-		    dupstr("本地(L)");
+		    dupstr("本地");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_CMD);

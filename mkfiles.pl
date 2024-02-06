@@ -1966,7 +1966,7 @@ if (defined $makefiles{'devcppproj'}) {
       "# ** DO NOT EDIT **\r\n".
       "\r\n".
       # No difference between DEBUG and RELEASE here as in 'vcproj', because
-      # Dev-C++ does not support mutiple compilation profiles in one single project.
+      # Dev-C++ does not support multiple compilation profiles in one single project.
       # (At least I can say this for Dev-C++ 5 Beta)
       "[Project]\r\n".
       "FileName=$windows_project.dev\r\n".

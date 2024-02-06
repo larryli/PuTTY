@@ -622,6 +622,8 @@ void frontend_net_error_pending(void) {}
 
 void platform_psftp_pre_conn_setup(void) {}
 
+const int buildinfo_gtk_relevant = FALSE;
+
 /*
  * Main program: do platform-specific initialisation and then call
  * psftp_main().

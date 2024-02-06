@@ -65,7 +65,6 @@
 #define gtk_adjustment_set_page_increment(a, val) ((a)->page_increment = (val))
 #define gtk_adjustment_set_step_increment(a, val) ((a)->step_increment = (val))
 #define gtk_adjustment_get_value(a) ((a)->value)
-#define gdk_visual_get_depth(v) ((v)->depth)
 
 #define gtk_widget_set_has_window(w, b)                 \
     gtk1_widget_set_unset_flag(w, GTK_NO_WINDOW, !(b))
@@ -83,6 +82,16 @@
  * GTK1 it makes sense to omit the contained function call and just
  * return the GDK default display. */
 #define GDK_DISPLAY_XDISPLAY(x) GDK_DISPLAY()
+
+#endif /* 2.0 */
+
+#if !GTK_CHECK_VERSION(2,22,0)
+
+#define gdk_visual_get_depth(v) ((v)->depth)
+
+#endif /* 2.22 */
+
+#if !GTK_CHECK_VERSION(2,24,0)
 
 #define GDK_KEY_Alt_L                GDK_Alt_L
 #define GDK_KEY_Alt_R                GDK_Alt_R
@@ -156,7 +165,10 @@
 #define GDK_KEY_greater              GDK_greater
 #define GDK_KEY_less                 GDK_less
 
-#endif
+#define gdk_window_get_screen(w) gdk_drawable_get_screen(w)
+#define gtk_combo_box_new_with_model_and_entry(t) gtk_combo_box_entry_new_with_model(t, 1)
+
+#endif /* 2.24 */
 
 #if GTK_CHECK_VERSION(3,0,0)
 #define STANDARD_OK_LABEL "_OK"
@@ -185,4 +197,4 @@
 #define gdk_cursor_new(cur) \
     gdk_cursor_new_for_display(gdk_display_get_default(), cur)
 
-#endif
+#endif /* 3.0 */

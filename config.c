@@ -946,8 +946,7 @@ static void colour_handler(union control *ctrl, void *dlg,
 }
 
 struct ttymodes_data {
-    union control *modelist, *valradio, *valbox;
-    union control *addbutton, *rembutton, *listbox;
+    union control *valradio, *valbox, *setbutton, *listbox;
 };
 
 static void ttymodes_handler(union control *ctrl, void *dlg,
@@ -966,69 +965,67 @@ static void ttymodes_handler(union control *ctrl, void *dlg,
 		 val != NULL;
 		 val = conf_get_str_strs(conf, CONF_ttymodes, key, &key)) {
 		char *disp = dupprintf("%s\t%s", key,
-				       (val[0] == 'A') ? "(自动)" : val+1);
+				       (val[0] == 'A') ? "(自动)" :
+				       ((val[0] == 'N') ? "(不发送)"
+							: val+1));
 		dlg_listbox_add(ctrl, dlg, disp);
 		sfree(disp);
 	    }
 	    dlg_update_done(ctrl, dlg);
-	} else if (ctrl == td->modelist) {
-	    int i;
-	    dlg_update_start(ctrl, dlg);
-	    dlg_listbox_clear(ctrl, dlg);
-	    for (i = 0; ttymodes[i]; i++)
-		dlg_listbox_add(ctrl, dlg, ttymodes[i]);
-	    dlg_listbox_select(ctrl, dlg, 0); /* *shrug* */
-	    dlg_update_done(ctrl, dlg);
 	} else if (ctrl == td->valradio) {
 	    dlg_radiobutton_set(ctrl, dlg, 0);
 	}
+    } else if (event == EVENT_SELCHANGE) {
+	if (ctrl == td->listbox) {
+	    int ind = dlg_listbox_index(td->listbox, dlg);
+	    char *val;
+	    if (ind < 0) {
+		return; /* no item selected */
+	    }
+	    val = conf_get_str_str(conf, CONF_ttymodes,
+				   conf_get_str_nthstrkey(conf, CONF_ttymodes,
+							  ind));
+	    assert(val != NULL);
+	    /* Do this first to defuse side-effects on radio buttons: */
+	    dlg_editbox_set(td->valbox, dlg, val+1);
+	    dlg_radiobutton_set(td->valradio, dlg,
+				val[0] == 'A' ? 0 : (val[0] == 'N' ? 1 : 2));
+	}
+    } else if (event == EVENT_VALCHANGE) {
+	if (ctrl == td->valbox) {
+	    /* If they're editing the text box, we assume they want its
+	     * value to be used. */
+	    dlg_radiobutton_set(td->valradio, dlg, 2);
+	}
     } else if (event == EVENT_ACTION) {
-	if (ctrl == td->addbutton) {
-	    int ind = dlg_listbox_index(td->modelist, dlg);
+	if (ctrl == td->setbutton) {
+	    int ind = dlg_listbox_index(td->listbox, dlg);
+	    const char *key;
+	    char *str, *val;
+	    char type;
+
+	    {
+		const char *types = "ANV";
+		int button = dlg_radiobutton_get(td->valradio, dlg);
+		assert(button >= 0 && button < lenof(types));
+		type = types[button];
+	    }
+
+	    /* Construct new entry */
 	    if (ind >= 0) {
-		char type = dlg_radiobutton_get(td->valradio, dlg) ? 'V' : 'A';
-		const char *key;
-		char *str, *val;
-		/* Construct new entry */
-		key = ttymodes[ind];
-		str = dlg_editbox_get(td->valbox, dlg);
+		key = conf_get_str_nthstrkey(conf, CONF_ttymodes, ind);
+		str = (type == 'V' ? dlg_editbox_get(td->valbox, dlg)
+				   : dupstr(""));
 		val = dupprintf("%c%s", type, str);
 		sfree(str);
 		conf_set_str_str(conf, CONF_ttymodes, key, val);
 		sfree(val);
 		dlg_refresh(td->listbox, dlg);
-	    } else
+		dlg_listbox_select(td->listbox, dlg, ind);
+	    } else {
+		/* Not a multisel listbox, so this means nothing selected */
 		dlg_beep(dlg);
-	} else if (ctrl == td->rembutton) {
-	    int i = 0;
-	    char *key, *val;
-	    int multisel = dlg_listbox_index(td->listbox, dlg) < 0;
-	    for (val = conf_get_str_strs(conf, CONF_ttymodes, NULL, &key);
-		 val != NULL;
-		 val = conf_get_str_strs(conf, CONF_ttymodes, key, &key)) {
-		if (dlg_listbox_issel(td->listbox, dlg, i)) {
-		    if (!multisel) {
-			/* Populate controls with entry we're about to
-			 * delete, for ease of editing.
-			 * (If multiple entries were selected, don't
-			 * touch the controls.) */
-			int ind = 0;
-			val++;
-			while (ttymodes[ind]) {
-			    if (!strcmp(ttymodes[ind], key))
-				break;
-			    ind++;
-			}
-			dlg_listbox_select(td->modelist, dlg, ind);
-			dlg_radiobutton_set(td->valradio, dlg,
-					    (*val == 'V'));
-			dlg_editbox_set(td->valbox, dlg, val+1);
-		    }
-		    conf_del_str_str(conf, CONF_ttymodes, key);
-		}
-		i++;
 	    }
-	    dlg_refresh(td->listbox, dlg);
 	}
     }
 }
@@ -1368,7 +1365,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     s = ctrl_getset(b, "", "", "");
     ctrl_columns(s, 5, 20, 20, 20, 20, 20);
     ssd->okbutton = ctrl_pushbutton(s,
-				    (midsession ? "应用" : "打开(O)"),
+				    (midsession ? "应用(A)" : "打开(O)"),
 				    (char)(midsession ? 'a' : 'o'),
 				    HELPCTX(no_help),
 				    sessionsaver_handler, P(ssd));
@@ -1477,7 +1474,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "会话", "otheropts", NULL);
-    ctrl_radiobuttons(s, "退出时关闭窗口(W)：", 'x', 4,
+    ctrl_radiobuttons(s, "退出时关闭窗口(X)：", 'x', 4,
                       HELPCTX(session_coe),
                       conf_radiobutton_handler,
                       I(CONF_close_on_exit),
@@ -1509,7 +1506,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(logging_main),
 			  loggingbuttons_handler,
 			  I(CONF_logtype),
-			  "无", 't', I(LGTYP_NONE),
+			  "无(T)", 't', I(LGTYP_NONE),
 			  "可打印输出(P)", 'p', I(LGTYP_ASCII),
 			  "所有会话输出(L)", 'l', I(LGTYP_DEBUG),
 			  sshlogname, 's', I(LGTYP_PACKETS),
@@ -1640,7 +1637,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_radiobuttons(s, "发生响铃时动作(B)：", 'b', 1,
 		      HELPCTX(bell_style),
 		      conf_radiobutton_handler, I(CONF_beep),
-		      "无 (禁止)", I(BELL_DISABLED),
+		      "无 (禁止响铃)", I(BELL_DISABLED),
 		      "使用系统默认警告声音", I(BELL_DEFAULT),
 		      "可视响铃 (闪动窗口)", I(BELL_VISUAL), NULL);
 
@@ -1786,7 +1783,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
     s = ctrl_getset(b, "窗口/外观", "border",
 		    "调整窗口边框");
-    ctrl_editbox(s, "文本与窗口边界的距离：", 'e', 20,
+    ctrl_editbox(s, "文本与窗口边界的距离(E)：", 'e', 20,
 		 HELPCTX(appearance_border),
 		 conf_editbox_handler,
 		 I(CONF_window_border), I(-1));
@@ -1860,7 +1857,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      HELPCTX(selection_rect),
 		      conf_radiobutton_handler,
 		      I(CONF_rect_select),
-		      "常规", 'n', I(0),
+		      "常规(N)", 'n', I(0),
 		      "矩形框(R)", 'r', I(1), NULL);
 
     s = ctrl_getset(b, "窗口/选择", "charclass",
@@ -1970,7 +1967,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(connection_ipversion),
 			  conf_radiobutton_handler,
 			  I(CONF_addressfamily),
-			  "自动", 'u', I(ADDRTYPE_UNSPEC),
+			  "自动(U)", 'u', I(ADDRTYPE_UNSPEC),
 			  "IPv4", '4', I(ADDRTYPE_IPV4),
 			  "IPv6", '6', I(ADDRTYPE_IPV6),
 			  NULL);
@@ -1978,8 +1975,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    {
 		const char *label = backend_from_proto(PROT_SSH) ?
-		    "远程主机的注册名字（如：使用 ssh 密钥寻找）：" :
-		    "Logical 远程主机的注册名字：";
+		    "远程主机的注册名字（比如用 ssh 密钥寻找）(M)：" :
+		    "Logical 远程主机的注册名字(M)：";
 		s = ctrl_getset(b, "连接", "identity",
 				"远程主机的注册名字");
 		ctrl_editbox(s, label, 'm', 100,
@@ -2007,7 +2004,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		char *userlabel = dupprintf("使用系统用户名 (%s)",
 					    user ? user : "");
 		sfree(user);
-		ctrl_radiobuttons(s, "未指定用户名时：", 'n', 4,
+		ctrl_radiobuttons(s, "未指定用户名时(N)：", 'n', 4,
 				  HELPCTX(connection_username_from_env),
 				  conf_radiobutton_handler,
 				  I(CONF_username_from_env),
@@ -2043,7 +2040,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 					    HELPCTX(telnet_environ),
 					    environ_handler, P(ed));
 	    ed->addbutton->generic.column = 1;
-	    ed->rembutton = ctrl_pushbutton(s, "删除(E)", 'r',
+	    ed->rembutton = ctrl_pushbutton(s, "删除(R)", 'r',
 					    HELPCTX(telnet_environ),
 					    environ_handler, P(ed));
 	    ed->rembutton->generic.column = 1;
@@ -2110,7 +2107,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     HELPCTX(proxy_auth),
 		     conf_editbox_handler,
 		     I(CONF_proxy_username), I(1));
-	c = ctrl_editbox(s, "密码(P)：", 'w', 60,
+	c = ctrl_editbox(s, "密码(W)：", 'w', 60,
 			 HELPCTX(proxy_auth),
 			 conf_editbox_handler,
 			 I(CONF_proxy_password), I(1));
@@ -2121,7 +2118,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     I(CONF_proxy_telnet_command), I(1));
 
 	ctrl_radiobuttons(s, "在终端窗口"
-                          "输出代理诊断信息", 'r', 5,
+                          "输出代理诊断信息(R)", 'r', 5,
 			  HELPCTX(proxy_logging),
 			  conf_radiobutton_handler,
 			  I(CONF_proxy_log_to_term),
@@ -2303,7 +2300,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "连接/SSH/主机密钥", "main",
 			    "主机密钥算法偏好");
-	    c = ctrl_draglist(s, "算法选择优先级：", 's',
+	    c = ctrl_draglist(s, "算法选择优先级(S)：", 's',
 			      HELPCTX(ssh_hklist),
 			      hklist_handler, P(NULL));
 	    c->listbox.height = 5;
@@ -2315,7 +2312,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	 * same as that used at the start of the session.
 	 */
 	if (!midsession) {
-	    s = ctrl_getset(b, "连接/SSH/密钥", "hostkeys",
+	    s = ctrl_getset(b, "连接/SSH/主机密钥", "hostkeys",
 			    "手动配置本连接的主机密钥");
 
             ctrl_columns(s, 2, 75, 25);
@@ -2341,11 +2338,11 @@ void setup_config_box(struct controlbox *b, int midsession,
             mh->listbox->listbox.height = 2;
             mh->listbox->listbox.hscroll = FALSE;
             ctrl_tabdelay(s, mh->rembutton);
-	    mh->keybox = ctrl_editbox(s, "密钥(K)", 'k', 80,
+	    mh->keybox = ctrl_editbox(s, "密钥(K)", 'k', 75,
                                       HELPCTX(ssh_kex_manual_hostkeys),
                                       manual_hostkey_handler, P(mh), P(NULL));
             mh->keybox->generic.column = 0;
-            mh->addbutton = ctrl_pushbutton(s, "增加密钥(Y)", 'y',
+            mh->addbutton = ctrl_pushbutton(s, "增加(Y)", 'y',
                                             HELPCTX(ssh_kex_manual_hostkeys),
                                             manual_hostkey_handler, P(mh));
             mh->addbutton->generic.column = 1;
@@ -2410,7 +2407,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_checkbox(s, "允许代理映射(F)", 'f',
 			  HELPCTX(ssh_auth_agentfwd),
 			  conf_checkbox_handler, I(CONF_agentfwd));
-	    ctrl_checkbox(s, "允许尝试在 SSH-2 中修改用户名(U)", NO_SHORTCUT,
+	    ctrl_checkbox(s, "允许尝试在 SSH-2 中修改用户名", NO_SHORTCUT,
 			  HELPCTX(ssh_auth_changeuser),
 			  conf_checkbox_handler,
 			  I(CONF_change_username));
@@ -2428,7 +2425,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  "控制 GSSAPI 认证选项");
 	    s = ctrl_getset(b, "连接/SSH/认证/GSSAPI", "gssapi", NULL);
 
-	    ctrl_checkbox(s, "尝试使用 GSSAPI 认证，只限于 SSH-2",
+	    ctrl_checkbox(s, "尝试使用 GSSAPI 认证，只限于 SSH-2(T)",
 			  't', HELPCTX(ssh_gssapi),
 			  conf_checkbox_handler,
 			  I(CONF_try_gssapi_auth));
@@ -2442,7 +2439,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	     * GSSAPI library selection.
 	     */
 	    if (ngsslibs > 1) {
-		c = ctrl_draglist(s, "GSSAPI 库优先级(P)：",
+		c = ctrl_draglist(s, "GSSAPI 库优先级：",
 				  'p', HELPCTX(ssh_gssapi_libraries),
 				  gsslist_handler, P(NULL));
 		c->listbox.height = ngsslibs;
@@ -2466,7 +2463,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 * displayed. 
 		 */
 
-		ctrl_filesel(s, "用户支持的 GSSAPI 库路径(S)：", 's',
+		ctrl_filesel(s, "用户支持的 GSSAPI 库路径：", 's',
 			     FILTER_DYNLIB_FILES, FALSE, "选择库文件",
 			     HELPCTX(ssh_gssapi_libraries),
 			     conf_filesel_handler,
@@ -2491,54 +2488,40 @@ void setup_config_box(struct controlbox *b, int midsession,
 			    "终端模式");
 	    td = (struct ttymodes_data *)
 		ctrl_alloc(b, sizeof(struct ttymodes_data));
-	    ctrl_columns(s, 2, 75, 25);
-	    c = ctrl_text(s, "发送的终端模式：", HELPCTX(ssh_ttymodes));
-	    c->generic.column = 0;
-	    td->rembutton = ctrl_pushbutton(s, "删除(E)", 'r',
-					    HELPCTX(ssh_ttymodes),
-					    ttymodes_handler, P(td));
-	    td->rembutton->generic.column = 1;
-	    td->rembutton->generic.tabdelay = 1;
-	    ctrl_columns(s, 1, 100);
+	    c = ctrl_text(s, "终端模式用于发送：", HELPCTX(ssh_ttymodes));
 	    td->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
 				       HELPCTX(ssh_ttymodes),
 				       ttymodes_handler, P(td));
-	    td->listbox->listbox.multisel = 1;
-	    td->listbox->listbox.height = 4;
+	    td->listbox->listbox.height = 8;
 	    td->listbox->listbox.ncols = 2;
 	    td->listbox->listbox.percentages = snewn(2, int);
 	    td->listbox->listbox.percentages[0] = 40;
 	    td->listbox->listbox.percentages[1] = 60;
-	    ctrl_tabdelay(s, td->rembutton);
 	    ctrl_columns(s, 2, 75, 25);
-	    td->modelist = ctrl_droplist(s, "模式(M)：", 'm', 67,
-					 HELPCTX(ssh_ttymodes),
-					 ttymodes_handler, P(td));
-	    td->modelist->generic.column = 0;
-	    td->addbutton = ctrl_pushbutton(s, "增加(D)", 'd',
+	    c = ctrl_text(s, "选择的模式，发送：", HELPCTX(ssh_ttymodes));
+	    c->generic.column = 0;
+	    td->setbutton = ctrl_pushbutton(s, "设置(S)", 's',
 					    HELPCTX(ssh_ttymodes),
 					    ttymodes_handler, P(td));
-	    td->addbutton->generic.column = 1;
-	    td->addbutton->generic.tabdelay = 1;
+	    td->setbutton->generic.column = 1;
+	    td->setbutton->generic.tabdelay = 1;
 	    ctrl_columns(s, 1, 100);	    /* column break */
 	    /* Bit of a hack to get the value radio buttons and
 	     * edit-box on the same row. */
-	    ctrl_columns(s, 3, 25, 50, 25);
-	    c = ctrl_text(s, "值：", HELPCTX(ssh_ttymodes));
-	    c->generic.column = 0;
-	    td->valradio = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 2,
+	    ctrl_columns(s, 2, 75, 25);
+	    td->valradio = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 					     HELPCTX(ssh_ttymodes),
 					     ttymodes_handler, P(td),
 					     "自动", NO_SHORTCUT, P(NULL),
+					     "无", NO_SHORTCUT, P(NULL),
 					     "指定：", NO_SHORTCUT, P(NULL),
 					     NULL);
-	    td->valradio->generic.column = 1;
+	    td->valradio->generic.column = 0;
 	    td->valbox = ctrl_editbox(s, NULL, NO_SHORTCUT, 100,
 				      HELPCTX(ssh_ttymodes),
 				      ttymodes_handler, P(td), P(NULL));
-	    td->valbox->generic.column = 2;
-	    ctrl_tabdelay(s, td->addbutton);
-
+	    td->valbox->generic.column = 1;
+	    ctrl_tabdelay(s, td->setbutton);
 	}
 
 	if (!midsession) {
@@ -2555,7 +2538,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_editbox(s, "X 显示位置：", 'x', 50,
 			 HELPCTX(ssh_tunnels_x11),
 			 conf_editbox_handler, I(CONF_x11_display), I(1));
-	    ctrl_radiobuttons(s, "远程 X11 认证协议", 'u', 2,
+	    ctrl_radiobuttons(s, "远程 X11 认证协议(U)", 'u', 1,
 			      HELPCTX(ssh_tunnels_x11auth),
 			      conf_radiobutton_handler,
 			      I(CONF_x11_auth),
@@ -2586,7 +2569,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/* You want to select from the list, _then_ hit Remove. So tab order
 	 * should be that way round. */
 	pfd = (struct portfwd_data *)ctrl_alloc(b,sizeof(struct portfwd_data));
-	pfd->rembutton = ctrl_pushbutton(s, "删除(E)", 'r',
+	pfd->rembutton = ctrl_pushbutton(s, "删除(R)", 'r',
 					 HELPCTX(ssh_tunnels_portfwd),
 					 portfwd_handler, P(pfd));
 	pfd->rembutton->generic.column = 2;
@@ -2627,7 +2610,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 			      HELPCTX(ssh_tunnels_portfwd_ipversion),
 			      portfwd_handler, P(pfd),
-			      "自动", 'u', I(ADDRTYPE_UNSPEC),
+			      "自动(U)", 'u', I(ADDRTYPE_UNSPEC),
 			      "IPv4", '4', I(ADDRTYPE_IPV4),
 			      "IPv6", '6', I(ADDRTYPE_IPV6),
 			      NULL);
@@ -2644,7 +2627,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "连接/SSH/查错", "main",
 			    "检测已知的 SSH 服务器错误");
-	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息(2)", '2', 20,
+	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息", '2', 20,
 			  HELPCTX(ssh_bugs_ignore2),
 			  sshbug_handler, I(CONF_sshbug_ignore2));
 	    ctrl_droplist(s, "严格 SSH-2 密钥再次验证操作(K)", 'k', 20,
@@ -2656,7 +2639,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "回复已关闭通道的请求(Q)", 'q', 20,
 			  HELPCTX(ssh_bugs_chanreq),
 			  sshbug_handler, I(CONF_sshbug_chanreq));
-	    ctrl_droplist(s, "忽略 SSH-2 最大包大小", 'x', 20,
+	    ctrl_droplist(s, "忽略 SSH-2 最大包大小(X)", 'x', 20,
 			  HELPCTX(ssh_bugs_maxpkt2),
 			  sshbug_handler, I(CONF_sshbug_maxpkt2));
 
@@ -2671,7 +2654,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "只支持 pre-RFC4419 SSH-2 DH GEX", 'd', 20,
 			  HELPCTX(ssh_bugs_oldgex2),
 			  sshbug_handler, I(CONF_sshbug_oldgex2));
-	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥(M)", 'm', 20,
+	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥", 'm', 20,
 			  HELPCTX(ssh_bugs_hmac2),
 			  sshbug_handler, I(CONF_sshbug_hmac2));
 	    ctrl_droplist(s, "错误 SSH-2 PK 认证会话 ID(N)", 'n', 20,
@@ -2683,10 +2666,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "阻塞 SSH-1 忽略信息(I)", 'i', 20,
 			  HELPCTX(ssh_bugs_ignore1),
 			  sshbug_handler, I(CONF_sshbug_ignore1));
-	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装(S)", 's', 20,
+	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装", 's', 20,
 			  HELPCTX(ssh_bugs_plainpw1),
 			  sshbug_handler, I(CONF_sshbug_plainpw1));
-	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证(R)", 'r', 20,
+	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证", 'r', 20,
 			  HELPCTX(ssh_bugs_rsa1),
 			  sshbug_handler, I(CONF_sshbug_rsa1));
 	}

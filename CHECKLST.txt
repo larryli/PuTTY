@@ -74,7 +74,7 @@ for it:
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
-   atreus:src/putty-local/announce-<ver> in case it's needed again
+   thyestes:src/putty-local/announce-<ver> in case it's needed again
    within days of the release going out.
 
  - Update the website, in a local checkout:
@@ -159,18 +159,19 @@ locally, this is the procedure for putting it up on the web.
         git push origin --tags        # should push the new release tag
         git push origin :pre-X.YZ     # delete the pre-release branch
 
- - Run ~/adm/puttyweb.sh on atreus to update the website after all
+ - Run ~/adm/puttyweb.sh on thyestes to update the website after all
    those git pushes.
 
- - Check that the unpublished website on atreus looks sensible.
+ - Check that the unpublished website on thyestes looks sensible.
 
- - Run webupdate, so that all the changes on atreus propagate to
+ - Run webupdate, so that all the changes on thyestes propagate to
    chiark. Important to do this _before_ announcing that the release
    is available.
 
  - After running webupdate, run update-rsync on chiark and verify that
    the rsync mirror package (~/ftp/putty-website-mirror) contains a
-   subdirectory for the new version and mentions it in its .htaccess.
+   subdirectory for the new version and that the links from its
+   latest.html point into that subdirectory.
 
  - Announce the release!
     + Construct a release announcement email whose message body is the

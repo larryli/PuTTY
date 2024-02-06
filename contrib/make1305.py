@@ -338,16 +338,20 @@ static void bigval_mul_mod_p(bigval *r, const bigval *a, const bigval *b)
 \n""" % target.text()
 
 def gen_final_reduce(target):
-    # We take our input number n, and compute k = n + 5*(n >> 130).
-    # Then k >> 130 is precisely the multiple of p that needs to be
-    # subtracted from n to reduce it to strictly less than p.
+    # Given our input number n, n >> 130 is usually precisely the
+    # multiple of p that needs to be subtracted from n to reduce it to
+    # strictly less than p, but it might be too low by 1 (but not more
+    # than 1, given the range of our input is nowhere near the square
+    # of the modulus). So we add another 5, which will push a carry
+    # into the 130th bit if and only if that has happened, and then
+    # use that to decide whether to subtract one more copy of p.
 
     a = target.bigval_input("n", 133)
-    a1 = a.extract_bits(130, 130)
-    k = a + target.const(5) * a1
-    q = k.extract_bits(130)
-    adjusted = a + target.const(5) * q
-    ret = adjusted.extract_bits(0, 130)
+    q = a.extract_bits(130)
+    adjusted = a.extract_bits(0, 130) + target.const(5) * q
+    final_subtract = (adjusted + target.const(5)).extract_bits(130)
+    adjusted2 = adjusted + target.const(5) * final_subtract
+    ret = adjusted2.extract_bits(0, 130)
     target.write_bigval("n", ret)
     return """\
 static void bigval_final_reduce(bigval *n)
