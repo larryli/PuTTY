@@ -1084,14 +1084,14 @@ SeatPromptResult confirm_weak_crypto_primitive(
     const SeatDialogPromptDescriptions *pds =
         seat_prompt_descriptions(iseat.seat);
 
-    seat_dialog_text_append(text, SDT_TITLE, "%s Security Alert", appname);
+    seat_dialog_text_append(text, SDT_TITLE, "%s 安全警告", appname);
 
     switch (wcr) {
       case WCR_BELOW_THRESHOLD:
         seat_dialog_text_append(
             text, SDT_PARA,
-            "The first %s supported by the server is %s, "
-            "which is below the configured warning threshold.",
+            "服务器支持的第一个 %s 为 %s，"
+            "其低于配置的警告阀值。",
             algtype, algname);
         break;
       case WCR_TERRAPIN:
@@ -1124,14 +1124,14 @@ SeatPromptResult confirm_weak_crypto_primitive(
 
     /* In batch mode, we print the above information and then this
      * abort message, and stop. */
-    seat_dialog_text_append(text, SDT_BATCH_ABORT, "Connection abandoned.");
+    seat_dialog_text_append(text, SDT_BATCH_ABORT, "连接已放弃。");
 
     seat_dialog_text_append(
         text, SDT_PARA, "To accept the risk and continue, %s. "
         "To abandon the connection, %s.",
         pds->weak_accept_action, pds->weak_cancel_action);
 
-    seat_dialog_text_append(text, SDT_PROMPT, "Continue with connection?");
+    seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接?");
 
     SeatPromptResult toret = seat_confirm_weak_crypto_primitive(
         iseat, text, callback, ctx);
@@ -1147,31 +1147,31 @@ SeatPromptResult confirm_weak_cached_hostkey(
     const SeatDialogPromptDescriptions *pds =
         seat_prompt_descriptions(iseat.seat);
 
-    seat_dialog_text_append(text, SDT_TITLE, "%s Security Alert", appname);
+    seat_dialog_text_append(text, SDT_TITLE, "%s 安全警告", appname);
 
     seat_dialog_text_append(
         text, SDT_PARA,
-        "The first host key type we have stored for this server "
-        "is %s, which is below the configured warning threshold.", algname);
+        "此服务器要存储的第一个主机密钥类型"
+        "为 %s，其低于配置的警告阀值。", algname);
 
     seat_dialog_text_append(
         text, SDT_PARA,
-        "The server also provides the following types of host key "
-        "above the threshold, which we do not have stored:");
+        "此服务器同时也提供有下列高于阀值的"
+        "主机密钥类型（不会存储）：");
 
     for (const char **p = betteralgs; *p; p++)
         seat_dialog_text_append(text, SDT_DISPLAY, "%s", *p);
 
     /* In batch mode, we print the above information and then this
      * abort message, and stop. */
-    seat_dialog_text_append(text, SDT_BATCH_ABORT, "Connection abandoned.");
+    seat_dialog_text_append(text, SDT_BATCH_ABORT, "连接已放弃。");
 
     seat_dialog_text_append(
         text, SDT_PARA, "To accept the risk and continue, %s. "
         "To abandon the connection, %s.",
         pds->weak_accept_action, pds->weak_cancel_action);
 
-    seat_dialog_text_append(text, SDT_PROMPT, "Continue with connection?");
+    seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接?");
 
     SeatPromptResult toret = seat_confirm_weak_cached_hostkey(
         iseat, text, callback, ctx);
