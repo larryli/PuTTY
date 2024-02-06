@@ -1284,7 +1284,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppi(sesskey, "SerialDataBits", 8, conf, CONF_serdatabits);
     gppi(sesskey, "SerialStopHalfbits", 2, conf, CONF_serstopbits);
     gppi(sesskey, "SerialParity", SER_PAR_NONE, conf, CONF_serparity);
-    gppi(sesskey, "SerialFlowControl", SER_FLOW_XONXOFF, conf, CONF_serflow);
+    gppi(sesskey, "SerialFlowControl", SER_FLOW_NONE, conf, CONF_serflow);
     gpps(sesskey, "WindowClass", "", conf, CONF_winclass);
     gppb(sesskey, "ConnectionSharing", false,
          conf, CONF_ssh_connection_sharing);
