@@ -41,11 +41,14 @@ static void gss_init(struct ssh_gss_library *lib, void *dlhandle,
     BIND_GSS_FN(delete_sec_context);
     BIND_GSS_FN(display_status);
     BIND_GSS_FN(get_mic);
+    BIND_GSS_FN(verify_mic);
     BIND_GSS_FN(import_name);
     BIND_GSS_FN(init_sec_context);
     BIND_GSS_FN(release_buffer);
     BIND_GSS_FN(release_cred);
     BIND_GSS_FN(release_name);
+    BIND_GSS_FN(acquire_cred);
+    BIND_GSS_FN(inquire_cred_by_mech);
 
 #undef BIND_GSS_FN
 
@@ -145,11 +148,14 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
     BIND_GSS_FN(delete_sec_context);
     BIND_GSS_FN(display_status);
     BIND_GSS_FN(get_mic);
+    BIND_GSS_FN(verify_mic);
     BIND_GSS_FN(import_name);
     BIND_GSS_FN(init_sec_context);
     BIND_GSS_FN(release_buffer);
     BIND_GSS_FN(release_cred);
     BIND_GSS_FN(release_name);
+    BIND_GSS_FN(acquire_cred);
+    BIND_GSS_FN(inquire_cred_by_mech);
 
 #undef BIND_GSS_FN
 

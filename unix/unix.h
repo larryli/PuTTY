@@ -29,7 +29,6 @@
 /* this potential one of the Meta keys needs manual handling */
 #define META_MANUAL_MASK (GDK_MOD1_MASK)
 #define JUST_USE_GTK_CLIPBOARD_UTF8 /* low-level gdk_selection_* fails */
-#define DEFAULT_CLIPBOARD GDK_SELECTION_CLIPBOARD /* OS X has no PRIMARY */
 
 #define BUILDINFO_PLATFORM_GTK "OS X (GTK)"
 #define BUILDINFO_GTK
@@ -50,7 +49,7 @@
  * pure-CLI utilities, so that Unix Plink, PSFTP etc don't announce
  * themselves incongruously as having something to do with GTK. */
 #define BUILDINFO_PLATFORM_CLI "Unix"
-extern const int buildinfo_gtk_relevant;
+extern const bool buildinfo_gtk_relevant;
 #define BUILDINFO_PLATFORM (buildinfo_gtk_relevant ? \
                             BUILDINFO_PLATFORM_GTK : BUILDINFO_PLATFORM_CLI)
 
@@ -59,21 +58,16 @@ char *buildinfo_gtk_version(void);
 struct Filename {
     char *path;
 };
-FILE *f_open(const struct Filename *, char const *, int);
+FILE *f_open(const struct Filename *, char const *, bool);
 
 struct FontSpec {
     char *name;    /* may be "" to indicate no selected font at all */
 };
 struct FontSpec *fontspec_new(const char *name);
 
-typedef void *Context;                 /* FIXME: probably needs changing */
-
-extern Backend pty_backend;
+extern const struct BackendVtable pty_backend;
 
 #define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in sshshare.c */
-
-typedef uint32_t uint32; /* C99: uint32_t defined in stdint.h */
-#define PUTTY_UINT32_DEFINED
 
 /*
  * Under GTK, we send MA_CLICK _and_ MA_2CLK, or MA_CLICK _and_
@@ -119,57 +113,195 @@ unsigned long getticks(void);
  */
 #define FLAG_STDERR_TTY 0x1000
 
+#define PLATFORM_CLIPBOARDS(X)                            \
+    X(CLIP_PRIMARY, "X11 primary selection")              \
+    X(CLIP_CLIPBOARD, "XDG clipboard")                    \
+    X(CLIP_CUSTOM_1, "<custom#1>")                        \
+    X(CLIP_CUSTOM_2, "<custom#2>")                        \
+    X(CLIP_CUSTOM_3, "<custom#3>")                        \
+    /* end of list */
+
+#ifdef OSX_GTK
+/* OS X has no PRIMARY selection */
+#define MOUSE_SELECT_CLIPBOARD CLIP_NULL
+#define MOUSE_PASTE_CLIPBOARD CLIP_LOCAL
+#define CLIPNAME_IMPLICIT "Last selected text"
+#define CLIPNAME_EXPLICIT "System clipboard"
+#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
+/* These defaults are the ones that more or less comply with the OS X
+ * Human Interface Guidelines, i.e. copy/paste to the system clipboard
+ * is _not_ implicit but requires a specific UI action. This is at
+ * odds with all other PuTTY front ends' defaults, but on OS X there
+ * is no multi-decade precedent for PuTTY working the other way. */
+#define CLIPUI_DEFAULT_AUTOCOPY false
+#define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
+#define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
+#define MENU_CLIPBOARD CLIP_CLIPBOARD
+#define COPYALL_CLIPBOARDS CLIP_CLIPBOARD
+#else
+#define MOUSE_SELECT_CLIPBOARD CLIP_PRIMARY
+#define MOUSE_PASTE_CLIPBOARD CLIP_PRIMARY
+#define CLIPNAME_IMPLICIT "PRIMARY"
+#define CLIPNAME_EXPLICIT "CLIPBOARD"
+#define CLIPNAME_EXPLICIT_OBJECT "CLIPBOARD"
+/* These defaults are the ones Unix PuTTY has historically had since
+ * it was first thought of in 2002 */
+#define CLIPUI_DEFAULT_AUTOCOPY false
+#define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
+#define CLIPUI_DEFAULT_INS CLIPUI_IMPLICIT
+#define MENU_CLIPBOARD CLIP_CLIPBOARD
+#define COPYALL_CLIPBOARDS CLIP_PRIMARY, CLIP_CLIPBOARD
+/* X11 supports arbitrary named clipboards */
+#define NAMED_CLIPBOARDS
+#endif
+
 /* The per-session frontend structure managed by gtkwin.c */
-struct gui_data;
-struct gui_data *new_session_window(Conf *conf, const char *geometry_string);
+typedef struct GtkFrontend GtkFrontend;
+
+/* Callback when a dialog box finishes, and a no-op implementation of it */
+typedef void (*post_dialog_fn_t)(void *ctx, int result);
+void trivial_post_dialog_fn(void *vctx, int result);
+
+/* Start up a session window, with or without a preliminary config box */
+void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx);
+void new_session_window(Conf *conf, const char *geometry_string);
 
 /* Defined in gtkmain.c */
 void launch_duplicate_session(Conf *conf);
 void launch_new_session(void);
 void launch_saved_session(const char *str);
+void session_window_closed(void);
+void window_setup_error(const char *errmsg);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-GtkWidget *make_gtk_toplevel_window(void *frontend);
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend);
 #endif
+
+const struct BackendVtable *select_backend(Conf *conf);
 
 /* Defined in gtkcomm.c */
 void gtkcomm_setup(void);
 
-/* Things pty.c needs from pterm.c */
-const char *get_x_display(void *frontend);
-int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
-long get_windowid(void *frontend);
+/* Used to pass application-menu operations from gtkapp.c to gtkwin.c */
+enum MenuAction {
+    MA_COPY, MA_PASTE, MA_COPY_ALL, MA_DUPLICATE_SESSION,
+    MA_RESTART_SESSION, MA_CHANGE_SETTINGS, MA_CLEAR_SCROLLBACK,
+    MA_RESET_TERMINAL, MA_EVENT_LOG
+};
+void app_menu_action(GtkFrontend *frontend, enum MenuAction);
 
-/* Things gtkdlg.c needs from pterm.c */
-void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
-void post_main(void);     /* called after any subsidiary gtk_main() */
+/* Arrays of pixmap data used for GTK window icons. (main_icon is for
+ * the process's main window; cfg_icon is the modified icon used for
+ * its config box.) */
+extern const char *const *const main_icon[];
+extern const char *const *const cfg_icon[];
+extern const int n_main_icon, n_cfg_icon;
 
-/* Things pterm.c needs from gtkdlg.c */
-int do_config_box(const char *title, Conf *conf,
-		  int midsession, int protcfginfo);
-void fatal_message_box(void *window, const char *msg);
-void nonfatal_message_box(void *window, const char *msg);
-void about_box(void *window);
-void *eventlogstuff_new(void);
-void showeventlog(void *estuff, void *parentwin);
-void logevent_dlg(void *estuff, const char *string);
-int reallyclose(void *frontend);
+/* Things gtkdlg.c needs from gtkwin.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-int messagebox(GtkWidget *parentwin, const char *title,
-               const char *msg, int minwid, int selectable, ...);
+enum DialogSlot {
+    DIALOG_SLOT_RECONFIGURE,
+    DIALOG_SLOT_NETWORK_PROMPT,
+    DIALOG_SLOT_LOGFILE_PROMPT,
+    DIALOG_SLOT_WARN_ON_CLOSE,
+    DIALOG_SLOT_CONNECTION_FATAL,
+    DIALOG_SLOT_LIMIT /* must remain last */
+};
+GtkWidget *gtk_seat_get_window(Seat *seat);
+void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog);
+void unregister_dialog(Seat *seat, enum DialogSlot slot);
+void set_window_icon(GtkWidget *window, const char *const *const *icon,
+                     int n_icon);
+extern GdkAtom compound_text_atom;
 #endif
 
-/* Things pterm.c needs from {ptermm,uxputty}.c */
-char *make_default_wintitle(char *hostname);
-int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch);
+/* Things gtkwin.c needs from gtkdlg.c */
+#ifdef MAY_REFER_TO_GTK_IN_HEADERS
+GtkWidget *create_config_box(const char *title, Conf *conf,
+                             bool midsession, int protcfginfo,
+                             post_dialog_fn_t after, void *afterctx);
+#endif
+void nonfatal_message_box(void *window, const char *msg);
+void about_box(void *window);
+typedef struct eventlog_stuff eventlog_stuff;
+eventlog_stuff *eventlogstuff_new(void);
+void eventlogstuff_free(eventlog_stuff *);
+void showeventlog(eventlog_stuff *estuff, void *parentwin);
+void logevent_dlg(eventlog_stuff *estuff, const char *string);
+int gtkdlg_askappend(Seat *seat, Filename *filename,
+                     void (*callback)(void *ctx, int result), void *ctx);
+int gtk_seat_verify_ssh_host_key(
+    Seat *seat, const char *host, int port,
+    const char *keytype, char *keystr, char *fingerprint,
+    void (*callback)(void *ctx, int result), void *ctx);
+int gtk_seat_confirm_weak_crypto_primitive(
+    Seat *seat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, int result), void *ctx);
+int gtk_seat_confirm_weak_cached_hostkey(
+    Seat *seat, const char *algname, const char *betteralgs,
+    void (*callback)(void *ctx, int result), void *ctx);
+#ifdef MAY_REFER_TO_GTK_IN_HEADERS
+struct message_box_button {
+    const char *title;
+    char shortcut;
+    int type; /* more negative means more appropriate to be the Esc action */
+    int value;     /* message box's return value if this is pressed */
+};
+struct message_box_buttons {
+    const struct message_box_button *buttons;
+    int nbuttons;
+};
+extern const struct message_box_buttons buttons_yn, buttons_ok;
+GtkWidget *create_message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    bool selectable, const struct message_box_buttons *buttons,
+    post_dialog_fn_t after, void *afterctx);
+#endif
 
-/* pterm.c needs this special function in xkeysym.c */
+/* Things gtkwin.c needs from {ptermm,uxputty}.c */
+char *make_default_wintitle(char *hostname);
+
+/* gtkwin.c needs this special function in xkeysym.c */
 int keysym_to_unicode(int keysym);
 
-/* Things uxstore.c needs from pterm.c */
+/* Things uxstore.c needs from gtkwin.c */
 char *x_get_default(const char *key);
 
-/* Things uxstore.c provides to pterm.c */
+/* Things uxstore.c provides to gtkwin.c */
 void provide_xrm_string(char *string);
+
+/* Function that {gtkapp,gtkmain}.c needs from ux{pterm,putty}.c. Does
+ * early process setup that varies between applications (e.g.
+ * pty_pre_init or sk_init), and is passed a boolean by the caller
+ * indicating whether this is an OS X style multi-session monolithic
+ * process or an ordinary Unix one-shot. */
+void setup(bool single_session_in_this_process);
+
+/*
+ * Per-application constants that affect behaviour of shared modules.
+ */
+/* Do we need an Event Log menu item? (yes for PuTTY, no for pterm) */
+extern const bool use_event_log;
+/* Do we need a New Session menu item? (yes for PuTTY, no for pterm) */
+extern const bool new_session;
+/* Do we need a Saved Sessions menu item? (yes for PuTTY, no for pterm) */
+extern const bool saved_sessions;
+/* When we Duplicate Session, do we need to double-check that the Conf
+ * is in a launchable state? (no for pterm, because conf_launchable
+ * returns an irrelevant answer, since we'll force use of the pty
+ * backend which ignores all the relevant settings) */
+extern const bool dup_check_launchable;
+/* In the Duplicate Session serialised data, do we send/receive an
+ * argv array after the main Conf? (yes for pterm, no for PuTTY) */
+extern const bool use_pty_argv;
+
+/*
+ * OS X environment munging: this is the prefix we expect to find on
+ * environment variable names that were changed by osxlaunch.
+ * Extracted from the command line of the OS X pterm main binary, and
+ * used in uxpty.c to restore the original environment before
+ * launching its subprocess.
+ */
+extern char *pty_osx_envrestore_prefix;
 
 /* Things provided by uxcons.c */
 struct termios;
@@ -183,6 +315,7 @@ void uxsel_init(void);
 typedef void (*uxsel_callback_fn)(int fd, int event);
 void uxsel_set(int fd, int rwx, uxsel_callback_fn callback);
 void uxsel_del(int fd);
+enum { SELECT_R = 1, SELECT_W = 2, SELECT_X = 4 };
 void select_result(int fd, int event);
 int first_fd(int *state, int *rwx);
 int next_fd(int *state, int *rwx);
@@ -192,10 +325,12 @@ void uxsel_input_remove(uxsel_id *id);
 
 /* uxcfg.c */
 struct controlbox;
-void unix_setup_config_box(struct controlbox *b, int midsession, int protocol);
+void unix_setup_config_box(
+    struct controlbox *b, bool midsession, int protocol);
 
 /* gtkcfg.c */
-void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
+void gtk_setup_config_box(
+    struct controlbox *b, bool midsession, void *window);
 
 /*
  * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
@@ -213,13 +348,13 @@ void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
 
 /* BSD-semantics version of signal(), and another helpful function */
 void (*putty_signal(int sig, void (*func)(int)))(int);
-void block_signal(int sig, int block_it);
+void block_signal(int sig, bool block_it);
 
 /* uxmisc.c */
 void cloexec(int);
 void noncloexec(int);
-int nonblock(int);
-int no_nonblock(int);
+bool nonblock(int);
+bool no_nonblock(int);
 char *make_dir_and_check_ours(const char *dirname);
 char *make_dir_path(const char *path, mode_t mode);
 
@@ -227,13 +362,15 @@ char *make_dir_path(const char *path, mode_t mode);
  * Exports from unicode.c.
  */
 struct unicode_data;
-int init_ucs(struct unicode_data *ucsdata, char *line_codepage,
-	     int utf8_override, int font_charset, int vtmode);
+bool init_ucs(struct unicode_data *ucsdata, char *line_codepage,
+              bool utf8_override, int font_charset, int vtmode);
 
 /*
- * Spare function exported directly from uxnet.c.
+ * Spare functions exported directly from uxnet.c.
  */
-void *sk_getxdmdata(void *sock, int *lenp);
+void *sk_getxdmdata(Socket *sock, int *lenp);
+SockAddr *unix_sock_addr(const char *path);
+Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
 /*
  * General helpful Unix stuff: more helpful version of the FD_SET
@@ -245,14 +382,19 @@ void *sk_getxdmdata(void *sock, int *lenp);
 } while (0)
 
 /*
- * Exports from winser.c.
+ * Exports from uxser.c.
  */
-extern Backend serial_backend;
+extern const struct BackendVtable serial_backend;
 
 /*
  * uxpeer.c, wrapping getsockopt(SO_PEERCRED).
  */
-int so_peercred(int fd, int *pid, int *uid, int *gid);
+bool so_peercred(int fd, int *pid, int *uid, int *gid);
+
+/*
+ * uxfdsock.c.
+ */
+Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug);
 
 /*
  * Default font setting, which can vary depending on NOT_X_WINDOWS.
@@ -263,4 +405,44 @@ int so_peercred(int fd, int *pid, int *uid, int *gid);
 #define DEFAULT_GTK_FONT "server:fixed"
 #endif
 
-#endif
+/*
+ * uxpty.c.
+ */
+void pty_pre_init(void);    /* pty+utmp setup before dropping privilege */
+/* Pass in the argv[] for an instance of the pty backend created by
+ * the standard vtable constructor. Only called from (non-OSX) pterm,
+ * which will construct exactly one such instance, and initialises
+ * this from the command line. */
+extern char **pty_argv;
+
+/*
+ * gtkask.c.
+ */
+char *gtk_askpass_main(const char *display, const char *wintitle,
+                       const char *prompt, bool *success);
+
+/*
+ * uxsftpserver.c.
+ */
+extern const SftpServerVtable unix_live_sftpserver_vt;
+
+/*
+ * uxpoll.c.
+ */
+typedef struct pollwrapper pollwrapper;
+pollwrapper *pollwrap_new(void);
+void pollwrap_free(pollwrapper *pw);
+void pollwrap_clear(pollwrapper *pw);
+void pollwrap_add_fd_events(pollwrapper *pw, int fd, int events);
+void pollwrap_add_fd_rwx(pollwrapper *pw, int fd, int rwx);
+int pollwrap_poll_instant(pollwrapper *pw);
+int pollwrap_poll_endless(pollwrapper *pw);
+int pollwrap_poll_timeout(pollwrapper *pw, int milliseconds);
+int pollwrap_get_fd_events(pollwrapper *pw, int fd);
+int pollwrap_get_fd_rwx(pollwrapper *pw, int fd);
+static inline bool pollwrap_check_fd_rwx(pollwrapper *pw, int fd, int rwx)
+{
+    return (pollwrap_get_fd_rwx(pw, fd) & rwx) != 0;
+}
+
+#endif /* PUTTY_UNIX_H */

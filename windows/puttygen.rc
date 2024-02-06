@@ -5,7 +5,9 @@
 #include "rcstuff.h"
 
 #define APPNAME "PuTTYgen"
-#define APPDESC "PuTTY SSH 密钥生成工具"
+#define APPDESC "PuTTY SSH key generation utility"
+
+#include "winhelp.rc2"
 
 200 ICON "puttygen.ico"
 
@@ -36,7 +38,7 @@ FONT 9, "宋体"
 BEGIN
     DEFPUSHBUTTON "关闭(&C)", IDOK, 216, 88, 48, 14
     PUSHBUTTON "查看许可证(&L)", 101, 6, 88, 70, 14
-    PUSHBUTTON "查看网站 (&W)", 102, 140, 88, 70, 14
+    PUSHBUTTON "查看网站(&W)", 102, 140, 88, 70, 14
     EDITTEXT 1000, 10, 6, 250, 80, ES_READONLY | ES_MULTILINE | ES_CENTER, WS_EX_STATICEDGE
 END
 

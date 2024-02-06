@@ -4,8 +4,8 @@
  * This module is a sort of all-purpose interchange for file
  * descriptors. At one end it talks to uxnet.c and pty.c and
  * anything else which might have one or more fds that need
- * select()-type things doing to them during an extended program
- * run; at the other end it talks to pterm.c or uxplink.c or
+ * select() or poll()-type things doing to them during an extended
+ * program run; at the other end it talks to pterm.c or uxplink.c or
  * anything else which might have its own means of actually doing
  * those select()-type things.
  */
@@ -114,6 +114,9 @@ int first_fd(int *state, int *rwx)
 void select_result(int fd, int event)
 {
     struct fd *fdstruct = find234(fds, &fd, uxsel_fd_findcmp);
+
+    noise_ultralight(NOISE_SOURCE_IOID, fd);
+
     /*
      * Apparently this can sometimes be NULL. Can't see how, but I
      * assume it means I need to ignore the event since it's on an

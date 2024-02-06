@@ -86,7 +86,7 @@ void ctrl_free_set(struct controlset *s)
  * path. If that path doesn't exist, return the index where it
  * should be inserted.
  */
-static int ctrl_find_set(struct controlbox *b, const char *path, int start)
+static int ctrl_find_set(struct controlbox *b, const char *path, bool start)
 {
     int i, last, thisone;
 
@@ -115,7 +115,7 @@ static int ctrl_find_set(struct controlbox *b, const char *path, int start)
 int ctrl_find_path(struct controlbox *b, const char *path, int index)
 {
     if (index < 0)
-	index = ctrl_find_set(b, path, 1);
+	index = ctrl_find_set(b, path, true);
     else
 	index++;
 
@@ -131,17 +131,14 @@ struct controlset *ctrl_settitle(struct controlbox *b,
 {
     
     struct controlset *s = snew(struct controlset);
-    int index = ctrl_find_set(b, path, 1);
+    int index = ctrl_find_set(b, path, true);
     s->pathname = dupstr(path);
     s->boxname = NULL;
     s->boxtitle = dupstr(title);
     s->ncontrols = s->ctrlsize = 0;
     s->ncolumns = 0;		       /* this is a title! */
     s->ctrls = NULL;
-    if (b->nctrlsets >= b->ctrlsetsize) {
-	b->ctrlsetsize = b->nctrlsets + 32;
-	b->ctrlsets = sresize(b->ctrlsets, b->ctrlsetsize,struct controlset *);
-    }
+    sgrowarray(b->ctrlsets, b->ctrlsetsize, b->nctrlsets);
     if (index < b->nctrlsets)
 	memmove(&b->ctrlsets[index+1], &b->ctrlsets[index],
 		(b->nctrlsets-index) * sizeof(*b->ctrlsets));
@@ -155,7 +152,7 @@ struct controlset *ctrl_getset(struct controlbox *b, const char *path,
                                const char *name, const char *boxtitle)
 {
     struct controlset *s;
-    int index = ctrl_find_set(b, path, 1);
+    int index = ctrl_find_set(b, path, true);
     while (index < b->nctrlsets &&
 	   !strcmp(b->ctrlsets[index]->pathname, path)) {
 	if (b->ctrlsets[index]->boxname &&
@@ -170,10 +167,7 @@ struct controlset *ctrl_getset(struct controlbox *b, const char *path,
     s->ncolumns = 1;
     s->ncontrols = s->ctrlsize = 0;
     s->ctrls = NULL;
-    if (b->nctrlsets >= b->ctrlsetsize) {
-	b->ctrlsetsize = b->nctrlsets + 32;
-	b->ctrlsets = sresize(b->ctrlsets, b->ctrlsetsize,struct controlset *);
-    }
+    sgrowarray(b->ctrlsets, b->ctrlsetsize, b->nctrlsets);
     if (index < b->nctrlsets)
 	memmove(&b->ctrlsets[index+1], &b->ctrlsets[index],
 		(b->nctrlsets-index) * sizeof(*b->ctrlsets));
@@ -192,11 +186,8 @@ void *ctrl_alloc_with_free(struct controlbox *b, size_t size,
      * use smalloc directly.
      */
     p = smalloc(size);
-    if (b->nfrees >= b->freesize) {
-	b->freesize = b->nfrees + 32;
-	b->frees = sresize(b->frees, b->freesize, void *);
-	b->freefuncs = sresize(b->freefuncs, b->freesize, ctrl_freefn_t);
-    }
+    sgrowarray(b->frees, b->freesize, b->nfrees);
+    b->freefuncs = sresize(b->freefuncs, b->freesize, ctrl_freefn_t);
     b->frees[b->nfrees] = p;
     b->freefuncs[b->nfrees] = freefunc;
     b->nfrees++;
@@ -218,16 +209,13 @@ static union control *ctrl_new(struct controlset *s, int type,
 			       intorptr context)
 {
     union control *c = snew(union control);
-    if (s->ncontrols >= s->ctrlsize) {
-	s->ctrlsize = s->ncontrols + 32;
-	s->ctrls = sresize(s->ctrls, s->ctrlsize, union control *);
-    }
+    sgrowarray(s->ctrls, s->ctrlsize, s->ncontrols);
     s->ctrls[s->ncontrols++] = c;
     /*
      * Fill in the standard fields.
      */
     c->generic.type = type;
-    c->generic.tabdelay = 0;
+    c->generic.tabdelay = false;
     c->generic.column = COLUMN_FIELD(0, s->ncolumns);
     c->generic.helpctx = helpctx;
     c->generic.handler = handler;
@@ -266,8 +254,8 @@ union control *ctrl_editbox(struct controlset *s, const char *label,
     c->editbox.label = label ? dupstr(label) : NULL;
     c->editbox.shortcut = shortcut;
     c->editbox.percentwidth = percentage;
-    c->editbox.password = 0;
-    c->editbox.has_list = 0;
+    c->editbox.password = false;
+    c->editbox.has_list = false;
     c->editbox.context2 = context2;
     return c;
 }
@@ -281,8 +269,8 @@ union control *ctrl_combobox(struct controlset *s, const char *label,
     c->editbox.label = label ? dupstr(label) : NULL;
     c->editbox.shortcut = shortcut;
     c->editbox.percentwidth = percentage;
-    c->editbox.password = 0;
-    c->editbox.has_list = 1;
+    c->editbox.password = false;
+    c->editbox.has_list = true;
     c->editbox.context2 = context2;
     return c;
 }
@@ -346,8 +334,8 @@ union control *ctrl_pushbutton(struct controlset *s, const char *label,
     union control *c = ctrl_new(s, CTRL_BUTTON, helpctx, handler, context);
     c->button.label = label ? dupstr(label) : NULL;
     c->button.shortcut = shortcut;
-    c->button.isdefault = 0;
-    c->button.iscancel = 0;
+    c->button.isdefault = false;
+    c->button.iscancel = false;
     return c;
 }
 
@@ -359,12 +347,12 @@ union control *ctrl_listbox(struct controlset *s, const char *label,
     c->listbox.label = label ? dupstr(label) : NULL;
     c->listbox.shortcut = shortcut;
     c->listbox.height = 5;	       /* *shrug* a plausible default */
-    c->listbox.draglist = 0;
+    c->listbox.draglist = false;
     c->listbox.multisel = 0;
     c->listbox.percentwidth = 100;
     c->listbox.ncols = 0;
     c->listbox.percentages = NULL;
-    c->listbox.hscroll = TRUE;
+    c->listbox.hscroll = true;
     return c;
 }
 
@@ -376,12 +364,12 @@ union control *ctrl_droplist(struct controlset *s, const char *label,
     c->listbox.label = label ? dupstr(label) : NULL;
     c->listbox.shortcut = shortcut;
     c->listbox.height = 0;	       /* means it's a drop-down list */
-    c->listbox.draglist = 0;
+    c->listbox.draglist = false;
     c->listbox.multisel = 0;
     c->listbox.percentwidth = percentage;
     c->listbox.ncols = 0;
     c->listbox.percentages = NULL;
-    c->listbox.hscroll = FALSE;
+    c->listbox.hscroll = false;
     return c;
 }
 
@@ -393,17 +381,17 @@ union control *ctrl_draglist(struct controlset *s, const char *label,
     c->listbox.label = label ? dupstr(label) : NULL;
     c->listbox.shortcut = shortcut;
     c->listbox.height = 5;	       /* *shrug* a plausible default */
-    c->listbox.draglist = 1;
+    c->listbox.draglist = true;
     c->listbox.multisel = 0;
     c->listbox.percentwidth = 100;
     c->listbox.ncols = 0;
     c->listbox.percentages = NULL;
-    c->listbox.hscroll = FALSE;
+    c->listbox.hscroll = false;
     return c;
 }
 
 union control *ctrl_filesel(struct controlset *s, const char *label,
-                            char shortcut, const char *filter, int write,
+                            char shortcut, const char *filter, bool write,
                             const char *title, intorptr helpctx,
                             handler_fn handler, intorptr context)
 {

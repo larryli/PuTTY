@@ -49,9 +49,9 @@
 /*
  * Exports from gtkfont.c.
  */
-struct unifont_vtable;		       /* contents internal to gtkfont.c */
+struct UnifontVtable;		       /* contents internal to gtkfont.c */
 typedef struct unifont {
-    const struct unifont_vtable *vt;
+    const struct UnifontVtable *vt;
     /*
      * `Non-static data members' of the `class', accessible to
      * external code.
@@ -74,7 +74,7 @@ typedef struct unifont {
      * missing glyphs from other fonts), or whether it would like a
      * fallback font to cope with missing glyphs.
      */
-    int want_fallback;
+    bool want_fallback;
 
     /*
      * Preferred drawing API to use when this class of font is active.
@@ -134,18 +134,18 @@ typedef struct unifont_drawctx {
 } unifont_drawctx;
 
 unifont *unifont_create(GtkWidget *widget, const char *name,
-			int wide, int bold,
-			int shadowoffset, int shadowalways);
+			bool wide, bool bold,
+			int shadowoffset, bool shadowalways);
 void unifont_destroy(unifont *font);
 void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
                        int x, int y, const wchar_t *string, int len,
-                       int wide, int bold, int cellwidth);
+                       bool wide, bool bold, int cellwidth);
 /* Same as unifont_draw_text, but expects 'string' to contain one
  * normal char plus combining chars, and overdraws them all in the
  * same character cell. */
 void unifont_draw_combining(unifont_drawctx *ctx, unifont *font,
                             int x, int y, const wchar_t *string, int len,
-                            int wide, int bold, int cellwidth);
+                            bool wide, bool bold, int cellwidth);
 /* Return a name that will select a bigger/smaller font than this one,
  * or NULL if no such name is available. */
 char *unifont_size_increment(unifont *font, int increment);
@@ -159,8 +159,8 @@ char *unifont_size_increment(unifont *font, int increment);
  * as if it were an ordinary unifont.
  */
 unifont *multifont_create(GtkWidget *widget, const char *name,
-                          int wide, int bold,
-                          int shadowoffset, int shadowalways);
+                          bool wide, bool bold,
+                          int shadowoffset, bool shadowalways);
 
 /*
  * Unified font selector dialog. I can't be bothered to do a

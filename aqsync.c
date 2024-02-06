@@ -11,11 +11,11 @@
 
 #include "putty.h"
 
-void agent_query_synchronous(void *in, int inlen, void **out, int *outlen)
+void agent_query_synchronous(strbuf *query, void **out, int *outlen)
 {
     agent_pending_query *pending;
 
-    pending = agent_query(in, inlen, out, outlen, NULL, 0);
+    pending = agent_query(query, out, outlen, NULL, 0);
     assert(!pending);
 }
 

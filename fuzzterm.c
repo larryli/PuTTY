@@ -7,7 +7,9 @@
 #include "terminal.h"
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = FALSE;
+const bool buildinfo_gtk_relevant = false;
+
+static const TermWinVtable fuzz_termwin_vt;
 
 int main(int argc, char **argv)
 {
@@ -16,14 +18,17 @@ int main(int argc, char **argv)
 	Terminal *term;
 	Conf *conf;
 	struct unicode_data ucsdata;
+        TermWin termwin;
+
+        termwin.vt = &fuzz_termwin_vt;
 
 	conf = conf_new();
 	do_defaults(NULL, conf);
 	init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
-		 conf_get_int(conf, CONF_utf8_override),
+		 conf_get_bool(conf, CONF_utf8_override),
 		 CS_NONE, conf_get_int(conf, CONF_vtmode));
 
-	term = term_init(conf, &ucsdata, NULL);
+	term = term_init(conf, &ucsdata, &termwin);
 	term_size(term, 24, 80, 10000);
 	term->ldisc = NULL;
 	/* Tell american fuzzy lop that this is a good place to fork. */
@@ -32,20 +37,17 @@ int main(int argc, char **argv)
 #endif
 	while (!feof(stdin)) {
 		len = fread(blk, 1, sizeof(blk), stdin);
-		term_data(term, 0, blk, len);
+		term_data(term, false, blk, len);
 	}
 	term_update(term);
 	return 0;
 }
 
-int from_backend(void *frontend, int is_stderr, const char *data, int len)
-{ return 0; }
-
 /* functions required by terminal.c */
-
-void request_resize(void *frontend, int x, int y) { }
-void do_text(Context ctx, int x, int y, wchar_t * text, int len,
-	     unsigned long attr, int lattr)
+static bool fuzz_setup_draw_ctx(TermWin *tw) { return true; }
+static void fuzz_draw_text(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour tc)
 {
     int i;
 
@@ -55,8 +57,9 @@ void do_text(Context ctx, int x, int y, wchar_t * text, int len,
     }
     printf("\n");
 }
-void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
-	     unsigned long attr, int lattr)
+static void fuzz_draw_cursor(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour tc)
 {
     int i;
 
@@ -66,41 +69,73 @@ void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
     }
     printf("\n");
 }
-int char_width(Context ctx, int uc) { return 1; }
-void set_title(void *frontend, char *t) { }
-void set_icon(void *frontend, char *t) { }
-void set_sbar(void *frontend, int a, int b, int c) { }
-
-void ldisc_send(void *handle, const char *buf, int len, int interactive) {}
-void ldisc_echoedit_update(void *handle) {}
-Context get_ctx(void *frontend) { 
-    static char x;
-
-    return &x;
+static void fuzz_draw_trust_sigil(TermWin *tw, int x, int y)
+{
+    printf("TRUST@(%d,%d)\n", x, y);
 }
-void free_ctx(Context ctx) { }
-void palette_set(void *frontend, int a, int b, int c, int d) { }
-void palette_reset(void *frontend) { }
-void write_clip(void *frontend, wchar_t *a, int *b, int c, int d) { }
-void get_clip(void *frontend, wchar_t **w, int *i) { }
-void set_raw_mouse_mode(void *frontend, int m) { }
-void request_paste(void *frontend) { }
-void do_beep(void *frontend, int a) { }
-void sys_cursor(void *frontend, int x, int y) { }
-void fatalbox(const char *fmt, ...) { exit(0); }
+static int fuzz_char_width(TermWin *tw, int uc) { return 1; }
+static void fuzz_free_draw_ctx(TermWin *tw) {}
+static void fuzz_set_cursor_pos(TermWin *tw, int x, int y) {}
+static void fuzz_set_raw_mouse_mode(TermWin *tw, bool enable) {}
+static void fuzz_set_scrollbar(TermWin *tw, int total, int start, int page) {}
+static void fuzz_bell(TermWin *tw, int mode) {}
+static void fuzz_clip_write(
+    TermWin *tw, int clipboard, wchar_t *text, int *attrs,
+    truecolour *colours, int len, bool must_deselect) {}
+static void fuzz_clip_request_paste(TermWin *tw, int clipboard) {}
+static void fuzz_refresh(TermWin *tw) {}
+static void fuzz_request_resize(TermWin *tw, int w, int h) {}
+static void fuzz_set_title(TermWin *tw, const char *title) {}
+static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
+static void fuzz_set_minimised(TermWin *tw, bool minimised) {}
+static bool fuzz_is_minimised(TermWin *tw) { return false; }
+static void fuzz_set_maximised(TermWin *tw, bool maximised) {}
+static void fuzz_move(TermWin *tw, int x, int y) {}
+static void fuzz_set_zorder(TermWin *tw, bool top) {}
+static bool fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+{ return false; }
+static void fuzz_palette_set(TermWin *tw, int n, int r, int g, int b) {}
+static void fuzz_palette_reset(TermWin *tw) {}
+static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
+static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }
+static const char *fuzz_get_title(TermWin *tw, bool icon) { return "moo"; }
+static bool fuzz_is_utf8(TermWin *tw) { return true; }
+
+static const TermWinVtable fuzz_termwin_vt = {
+    fuzz_setup_draw_ctx,
+    fuzz_draw_text,
+    fuzz_draw_cursor,
+    fuzz_draw_trust_sigil,
+    fuzz_char_width,
+    fuzz_free_draw_ctx,
+    fuzz_set_cursor_pos,
+    fuzz_set_raw_mouse_mode,
+    fuzz_set_scrollbar,
+    fuzz_bell,
+    fuzz_clip_write,
+    fuzz_clip_request_paste,
+    fuzz_refresh,
+    fuzz_request_resize,
+    fuzz_set_title,
+    fuzz_set_icon_title,
+    fuzz_set_minimised,
+    fuzz_is_minimised,
+    fuzz_set_maximised,
+    fuzz_move,
+    fuzz_set_zorder,
+    fuzz_palette_get,
+    fuzz_palette_set,
+    fuzz_palette_reset,
+    fuzz_get_pos,
+    fuzz_get_pixels,
+    fuzz_get_title,
+    fuzz_is_utf8,
+};
+
+void ldisc_send(Ldisc *ldisc, const void *buf, int len, bool interactive) {}
+void ldisc_echoedit_update(Ldisc *ldisc) {}
 void modalfatalbox(const char *fmt, ...) { exit(0); }
 void nonfatal(const char *fmt, ...) { }
-
-void set_iconic(void *frontend, int iconic) { }
-void move_window(void *frontend, int x, int y) { }
-void set_zorder(void *frontend, int top) { }
-void refresh_window(void *frontend) { }
-void set_zoomed(void *frontend, int zoomed) { }
-int is_iconic(void *frontend) { return 0; }
-void get_window_pos(void *frontend, int *x, int *y) { *x = 0; *y = 0; }
-void get_window_pixels(void *frontend, int *x, int *y) { *x = 0; *y = 0; }
-char *get_window_title(void *frontend, int icon) { return "moo"; }
-int frontend_is_utf8(void *frontend) { return TRUE; }
 
 /* needed by timing.c */
 void timer_change_notify(unsigned long next) { }
@@ -137,14 +172,9 @@ void dlg_error_msg(void *dlg, const char *msg) { }
 void dlg_end(void *dlg, int value) { }
 void dlg_coloursel_start(union control *ctrl, void *dlg,
 			 int r, int g, int b) { }
-int dlg_coloursel_results(union control *ctrl, void *dlg,
-			  int *r, int *g, int *b) { return 0; }
+bool dlg_coloursel_results(union control *ctrl, void *dlg,
+                           int *r, int *g, int *b) { return false; }
 void dlg_refresh(union control *ctrl, void *dlg) { }
-
-/* miscellany */
-void logevent(void *frontend, const char *msg) { }
-int askappend(void *frontend, Filename *filename,
-	      void (*callback)(void *ctx, int result), void *ctx) { return 0; }
 
 const char *const appname = "FuZZterm";
 const int ngsslibs = 0;
@@ -161,6 +191,11 @@ char *platform_default_s(const char *name)
     if (!strcmp(name, "SerialLine"))
 	return dupstr("/dev/ttyS0");
     return NULL;
+}
+
+bool platform_default_b(const char *name, bool def)
+{
+    return def;
 }
 
 int platform_default_i(const char *name, int def)
@@ -185,5 +220,3 @@ char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */
 }
-
-

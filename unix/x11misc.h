@@ -12,4 +12,9 @@
  */
 void x11_ignore_error(Display *disp, unsigned char errcode);
 
+/*
+ * gtkmisc.c
+ */
+Display *get_x11_display(void);
+
 #endif

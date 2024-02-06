@@ -33,14 +33,10 @@ enum {
 
 static const char hex[16] = "0123456789ABCDEF";
 
-static char *mungestr(const char *in)
+static void make_session_filename(const char *in, strbuf *out)
 {
-    char *out, *ret;
-
     if (!in || !*in)
         in = "Default Settings";
-
-    ret = out = snewn(3*strlen(in)+1, char);
 
     while (*in) {
         /*
@@ -54,21 +50,17 @@ static char *mungestr(const char *in)
             !(*in >= '0' && *in <= '9') &&
             !(*in >= 'A' && *in <= 'Z') &&
             !(*in >= 'a' && *in <= 'z')) {
-	    *out++ = '%';
-	    *out++ = hex[((unsigned char) *in) >> 4];
-	    *out++ = hex[((unsigned char) *in) & 15];
+	    put_byte(out, '%');
+	    put_byte(out, hex[((unsigned char) *in) >> 4]);
+	    put_byte(out, hex[((unsigned char) *in) & 15]);
 	} else
-	    *out++ = *in;
+	    put_byte(out, *in);
 	in++;
     }
-    *out = '\0';
-    return ret;
 }
 
-static char *unmungestr(const char *in)
+static void decode_session_filename(const char *in, strbuf *out)
 {
-    char *out, *ret;
-    out = ret = snewn(strlen(in)+1, char);
     while (*in) {
 	if (*in == '%' && in[1] && in[2]) {
 	    int i, j;
@@ -78,14 +70,12 @@ static char *unmungestr(const char *in)
 	    j = in[2] - '0';
 	    j -= (j > 9 ? 7 : 0);
 
-	    *out++ = (i << 4) + j;
+	    put_byte(out, (i << 4) + j);
 	    in += 3;
 	} else {
-	    *out++ = *in++;
+	    put_byte(out, *in++);
 	}
     }
-    *out = '\0';
-    return ret;
 }
 
 static char *make_filename(int index, const char *subname)
@@ -181,12 +171,12 @@ static char *make_filename(int index, const char *subname)
 	return ret;
     }
     if (index == INDEX_SESSION) {
-        char *munged = mungestr(subname);
+        strbuf *sb = strbuf_new();
 	tmp = make_filename(INDEX_SESSIONDIR, NULL);
-	ret = dupprintf("%s/%s", tmp, munged);
+	strbuf_catf(sb, "%s/", tmp);
 	sfree(tmp);
-	sfree(munged);
-	return ret;
+        make_session_filename(subname, sb);
+        return strbuf_to_str(sb);
     }
     if (index == INDEX_HOSTKEYS) {
 	env = getenv("PUTTYSSHHOSTKEYS");
@@ -218,7 +208,11 @@ static char *make_filename(int index, const char *subname)
     return ret;
 }
 
-void *open_settings_w(const char *sessionname, char **errmsg)
+struct settings_w {
+    FILE *fp;
+};
+
+settings_w *open_settings_w(const char *sessionname, char **errmsg)
 {
     char *filename, *err;
     FILE *fp;
@@ -256,35 +250,41 @@ void *open_settings_w(const char *sessionname, char **errmsg)
 	return NULL;                   /* can't open */
     }
     sfree(filename);
-    return fp;
+
+    settings_w *toret = snew(settings_w);
+    toret->fp = fp;
+    return toret;
 }
 
-void write_setting_s(void *handle, const char *key, const char *value)
+void write_setting_s(settings_w *handle, const char *key, const char *value)
 {
-    FILE *fp = (FILE *)handle;
-    fprintf(fp, "%s=%s\n", key, value);
+    fprintf(handle->fp, "%s=%s\n", key, value);
 }
 
-void write_setting_i(void *handle, const char *key, int value)
+void write_setting_i(settings_w *handle, const char *key, int value)
 {
-    FILE *fp = (FILE *)handle;
-    fprintf(fp, "%s=%d\n", key, value);
+    fprintf(handle->fp, "%s=%d\n", key, value);
 }
 
-void close_settings_w(void *handle)
+void close_settings_w(settings_w *handle)
 {
-    FILE *fp = (FILE *)handle;
-    fclose(fp);
+    fclose(handle->fp);
+    sfree(handle);
 }
 
-/*
- * Reading settings, for the moment, is done by retrieving X
- * resources from the X display. When we introduce disk files, I
- * think what will happen is that the X resources will override
- * PuTTY's inbuilt defaults, but that the disk files will then
- * override those. This isn't optimal, but it's the best I can
- * immediately work out.
- * FIXME: the above comment is a bit out of date. Did it happen?
+/* ----------------------------------------------------------------------
+ * System for treating X resources as a fallback source of defaults,
+ * after data read from a saved-session disk file.
+ *
+ * The read_setting_* functions will call get_setting(key) as a
+ * fallback if the setting isn't in the file they loaded. That in turn
+ * will hand on to x_get_default, which the front end application
+ * provides, and which actually reads resources from the X server (if
+ * appropriate). In between, there's a tree234 of X-resource shaped
+ * settings living locally in this file: the front end can call
+ * provide_xrm_string() to insert a setting into this tree (typically
+ * in response to an -xrm command line option or similar), and those
+ * will override the actual X resources.
  */
 
 struct skeyval {
@@ -294,7 +294,7 @@ struct skeyval {
 
 static tree234 *xrmtree = NULL;
 
-int keycmp(void *av, void *bv)
+static int keycmp(void *av, void *bv)
 {
     struct skeyval *a = (struct skeyval *)av;
     struct skeyval *b = (struct skeyval *)bv;
@@ -335,7 +335,7 @@ void provide_xrm_string(char *string)
     }
 }
 
-const char *get_setting(const char *key)
+static const char *get_setting(const char *key)
 {
     struct skeyval tmp, *ret;
     tmp.key = key;
@@ -347,12 +347,21 @@ const char *get_setting(const char *key)
     return x_get_default(key);
 }
 
-void *open_settings_r(const char *sessionname)
+/* ----------------------------------------------------------------------
+ * Main code for reading settings from a disk file, calling the above
+ * get_setting() as a fallback if necessary.
+ */
+
+struct settings_r {
+    tree234 *t;
+};
+
+settings_r *open_settings_r(const char *sessionname)
 {
     char *filename;
     FILE *fp;
     char *line;
-    tree234 *ret;
+    settings_r *toret;
 
     filename = make_filename(INDEX_SESSION, sessionname);
     fp = fopen(filename, "r");
@@ -360,7 +369,8 @@ void *open_settings_r(const char *sessionname)
     if (!fp)
 	return NULL;		       /* can't open */
 
-    ret = newtree234(keycmp);
+    toret = snew(settings_r);
+    toret->t = newtree234(keycmp);
 
     while ( (line = fgetline(fp)) ) {
         char *value = strchr(line, '=');
@@ -376,25 +386,24 @@ void *open_settings_r(const char *sessionname)
         kv = snew(struct skeyval);
         kv->key = dupstr(line);
         kv->value = dupstr(value);
-        add234(ret, kv);
+        add234(toret->t, kv);
 
         sfree(line);
     }
 
     fclose(fp);
 
-    return ret;
+    return toret;
 }
 
-char *read_setting_s(void *handle, const char *key)
+char *read_setting_s(settings_r *handle, const char *key)
 {
-    tree234 *tree = (tree234 *)handle;
     const char *val;
     struct skeyval tmp, *kv;
 
     tmp.key = key;
-    if (tree != NULL &&
-        (kv = find234(tree, &tmp, NULL)) != NULL) {
+    if (handle != NULL &&
+        (kv = find234(handle->t, &tmp, NULL)) != NULL) {
         val = kv->value;
         assert(val != NULL);
     } else
@@ -406,15 +415,14 @@ char *read_setting_s(void *handle, const char *key)
 	return dupstr(val);
 }
 
-int read_setting_i(void *handle, const char *key, int defvalue)
+int read_setting_i(settings_r *handle, const char *key, int defvalue)
 {
-    tree234 *tree = (tree234 *)handle;
     const char *val;
     struct skeyval tmp, *kv;
 
     tmp.key = key;
-    if (tree != NULL &&
-        (kv = find234(tree, &tmp, NULL)) != NULL) {
+    if (handle != NULL &&
+        (kv = find234(handle->t, &tmp, NULL)) != NULL) {
         val = kv->value;
         assert(val != NULL);
     } else
@@ -426,7 +434,7 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 	return atoi(val);
 }
 
-FontSpec *read_setting_fontspec(void *handle, const char *name)
+FontSpec *read_setting_fontspec(settings_r *handle, const char *name)
 {
     /*
      * In GTK1-only PuTTY, we used to store font names simply as a
@@ -464,7 +472,7 @@ FontSpec *read_setting_fontspec(void *handle, const char *name)
 	return NULL;
     }
 }
-Filename *read_setting_filename(void *handle, const char *name)
+Filename *read_setting_filename(settings_r *handle, const char *name)
 {
     char *tmp = read_setting_s(handle, name);
     if (tmp) {
@@ -475,7 +483,7 @@ Filename *read_setting_filename(void *handle, const char *name)
 	return NULL;
 }
 
-void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
+void write_setting_fontspec(settings_w *handle, const char *name, FontSpec *fs)
 {
     /*
      * read_setting_fontspec had to handle two cases, but when
@@ -486,27 +494,28 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
     write_setting_s(handle, suffname, fs->name);
     sfree(suffname);
 }
-void write_setting_filename(void *handle, const char *name, Filename *result)
+void write_setting_filename(settings_w *handle,
+                            const char *name, Filename *result)
 {
     write_setting_s(handle, name, result->path);
 }
 
-void close_settings_r(void *handle)
+void close_settings_r(settings_r *handle)
 {
-    tree234 *tree = (tree234 *)handle;
     struct skeyval *kv;
 
-    if (!tree)
+    if (!handle)
         return;
 
-    while ( (kv = index234(tree, 0)) != NULL) {
-        del234(tree, kv);
+    while ( (kv = index234(handle->t, 0)) != NULL) {
+        del234(handle->t, kv);
         sfree((char *)kv->key);
         sfree((char *)kv->value);
         sfree(kv);
     }
 
-    freetree234(tree);
+    freetree234(handle->t);
+    sfree(handle);
 }
 
 void del_settings(const char *sessionname)
@@ -517,7 +526,11 @@ void del_settings(const char *sessionname)
     sfree(filename);
 }
 
-void *enum_settings_start(void)
+struct settings_e {
+    DIR *dp;
+};
+
+settings_e *enum_settings_start(void)
 {
     DIR *dp;
     char *filename;
@@ -526,50 +539,50 @@ void *enum_settings_start(void)
     dp = opendir(filename);
     sfree(filename);
 
-    return dp;
+    settings_e *toret = snew(settings_e);
+    toret->dp = dp;
+    return toret;
 }
 
-char *enum_settings_next(void *handle, char *buffer, int buflen)
+bool enum_settings_next(settings_e *handle, strbuf *out)
 {
-    DIR *dp = (DIR *)handle;
     struct dirent *de;
     struct stat st;
-    char *fullpath;
-    int maxlen, thislen, len;
-    char *unmunged;
+    strbuf *fullpath;
 
-    fullpath = make_filename(INDEX_SESSIONDIR, NULL);
-    maxlen = len = strlen(fullpath);
+    if (!handle->dp)
+        return NULL;
 
-    while ( (de = readdir(dp)) != NULL ) {
-        thislen = len + 1 + strlen(de->d_name);
-	if (maxlen < thislen) {
-	    maxlen = thislen;
-	    fullpath = sresize(fullpath, maxlen+1, char);
-	}
-	fullpath[len] = '/';
-	strncpy(fullpath+len+1, de->d_name, thislen - (len+1));
-	fullpath[thislen] = '\0';
+    fullpath = strbuf_new();
 
-        if (stat(fullpath, &st) < 0 || !S_ISREG(st.st_mode))
+    char *sessiondir = make_filename(INDEX_SESSIONDIR, NULL);
+    put_datapl(fullpath, ptrlen_from_asciz(sessiondir));
+    sfree(sessiondir);
+    put_byte(fullpath, '/');
+
+    size_t baselen = fullpath->len;
+
+    while ( (de = readdir(handle->dp)) != NULL ) {
+        fullpath->len = baselen;
+	put_datapl(fullpath, ptrlen_from_asciz(de->d_name));
+
+        if (stat(fullpath->s, &st) < 0 || !S_ISREG(st.st_mode))
             continue;                  /* try another one */
 
-        unmunged = unmungestr(de->d_name);
-        strncpy(buffer, unmunged, buflen);
-        buffer[buflen-1] = '\0';
-        sfree(unmunged);
-	sfree(fullpath);
-        return buffer;
+        decode_session_filename(de->d_name, out);
+	strbuf_free(fullpath);
+        return true;
     }
 
-    sfree(fullpath);
-    return NULL;
+    strbuf_free(fullpath);
+    return false;
 }
 
-void enum_settings_finish(void *handle)
+void enum_settings_finish(settings_e *handle)
 {
-    DIR *dp = (DIR *)handle;
-    closedir(dp);
+    if (handle->dp)
+        closedir(handle->dp);
+    sfree(handle);
 }
 
 /*
@@ -650,8 +663,8 @@ int verify_host_key(const char *hostname, int port,
     return ret;
 }
 
-int have_ssh_host_key(const char *hostname, int port,
-		      const char *keytype)
+bool have_ssh_host_key(const char *hostname, int port,
+                       const char *keytype)
 {
     /*
      * If we have a host key, verify_host_key will return 0 or 2.

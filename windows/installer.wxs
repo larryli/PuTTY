@@ -2,11 +2,27 @@
 
 <!-- WiX source code for the PuTTY installer. -->
 
-<?if $(var.Win64) = yes ?>
+<?if $(var.RealPlatform) = x64 ?>
   <?define Bitness = " (64-bit)" ?>
   <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY64" ?>
+<?else ?>
+  <?define Bitness = "" ?>
+  <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY" ?>
+<?endif ?>
+
+<?if $(var.RealPlatform) = x86 ?>
+  <?define InstallerVersion = "100" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?elseif $(var.RealPlatform) = x64 ?>
   <?define InstallerVersion = "200" ?>
   <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define InstallerVersion = "500" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?endif ?>
+
+<?if $(var.RealPlatform) = x64 ?>
+  <?define ProductNameSuffix = " (64-bit)" ?>
   <?define UpgradeCode_GUID = "C9EAA861-2B72-4FAF-9FEE-EEB1AD5FD15E" ?>
   <?define PuTTY_Component_GUID = "C673C970-25AE-4659-9621-A1FE0598E9DC" ?>
   <?define Pageant_Component_GUID = "BA37328A-9A9C-4912-B84D-9C4A21B4E79A" ?>
@@ -22,11 +38,8 @@
   <?define Path_Component_GUID = "A0CFC986-489D-452B-8A8F-F9DBEF6916F4" ?>
   <?define ProgramMenuDir_GUID = "3B2B7A2B-25F1-4EC4-987F-75BFD038632E" ?>
   <?define Desktop_Shortcut_Component_GUID = "0A715416-EA6E-4A1C-8670-838307083EE5" ?>
-<?else ?>
-  <?define Bitness = "" ?>
-  <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY" ?>
-  <?define InstallerVersion = "100" ?>
-  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?elseif $(var.RealPlatform) = x86 ?>
+  <?define ProductNameSuffix = "" ?>
   <?define UpgradeCode_GUID = "DCE70C63-8808-4646-B16B-A677BD298385" ?>
   <?define PuTTY_Component_GUID = "07ACF511-6DF6-4883-AABA-33BC14901324" ?>
   <?define Pageant_Component_GUID = "649F963E-21C4-4755-8CE4-D80598DCEE6D" ?>
@@ -42,6 +55,40 @@
   <?define Path_Component_GUID = "D1F68AAA-D20D-4047-828F-D0AC443FAF64" ?>
   <?define ProgramMenuDir_GUID = "C12C3BB3-EC24-4883-8349-4AC8017C9E6A" ?>
   <?define Desktop_Shortcut_Component_GUID = "D039E3D1-CE42-488D-96CC-90E1DE3796F8" ?>
+<?elseif $(var.RealPlatform) = Arm ?>
+  <?define ProductNameSuffix = " (32-bit Arm)" ?>
+  <?define UpgradeCode_GUID = "B8E49D4D-7C56-400D-85B4-DF953C227207" ?>
+  <?define PuTTY_Component_GUID = "207B46FA-0554-4DB4-AA87-F85464FA065E" ?>
+  <?define Pageant_Component_GUID = "F20A76A8-C4D5-4447-A345-C52F437BDEDC" ?>
+  <?define PSFTP_Component_GUID = "F868395D-2135-419B-AB97-B782D7FBA468" ?>
+  <?define PuTTYgen_Component_GUID = "FC558E64-D17D-4297-8694-92F5284965FF" ?>
+  <?define Plink_Component_GUID = "E2ECE65F-4D41-4B17-AF24-A90B6649E732" ?>
+  <?define PSCP_Component_GUID = "5C6A332C-9D9C-4097-94DB-995994B29B51" ?>
+  <?define HelpFile_Component_GUID = "9C666B10-5F6F-41D3-AFF3-F746DB785CF5" ?>
+  <?define Website_Component_GUID = "C520868B-9EC8-4CEC-B740-40D947F23928" ?>
+  <?define LICENCE_Component_GUID = "14A5A99F-C347-4D6B-8E3F-2B7297D94C64" ?>
+  <?define README_Component_GUID = "E1C9357C-7524-4B8B-A2AE-6FB9A1B4AE0B" ?>
+  <?define PPK_Assoc_Component_GUID = "8A1E556E-8E39-465E-BAE5-9E112F7DCBFD" ?>
+  <?define Path_Component_GUID = "425860FA-B31E-440E-99AD-C2CCFC195092" ?>
+  <?define ProgramMenuDir_GUID = "0F2F67F1-FB69-4D0F-8A7F-A6BA2CD79F00" ?>
+  <?define Desktop_Shortcut_Component_GUID = "63CA2A72-4B56-4207-9E2B-1FC4E3C883AE" ?>
+<?elseif $(var.RealPlatform) = Arm64 ?>
+  <?define ProductNameSuffix = " (64-bit Arm)" ?>
+  <?define UpgradeCode_GUID = "2125AD39-A960-4377-AD41-99E50D842AE5" ?>
+  <?define PuTTY_Component_GUID = "43A61725-EC31-4F8C-8BF3-3C988E53185B" ?>
+  <?define Pageant_Component_GUID = "8D36F326-F1BC-42E4-AC42-925449782B5A" ?>
+  <?define PSFTP_Component_GUID = "E3C7B364-35F9-4B25-A0FB-B86B4E4949EE" ?>
+  <?define PuTTYgen_Component_GUID = "BE5F4873-152E-477B-B8F8-2F7FDD6186BC" ?>
+  <?define Plink_Component_GUID = "46382105-49C3-4B59-B250-C889F03BD73E" ?>
+  <?define PSCP_Component_GUID = "CB738CC0-7F19-457B-9B32-A3665E0E46CB" ?>
+  <?define HelpFile_Component_GUID = "F5170725-418F-448B-A9F2-C484E43E1C56" ?>
+  <?define Website_Component_GUID = "87D4BA0A-0DDC-4D82-A58A-F32B4E9B898F" ?>
+  <?define LICENCE_Component_GUID = "AAD0A8B0-FAB0-4712-87F9-336FEF2629BF" ?>
+  <?define README_Component_GUID = "9D20B714-5E8A-40A3-AE65-DFE21C2270C9" ?>
+  <?define PPK_Assoc_Component_GUID = "B967F31F-25C6-4586-B042-DA7E448BA773" ?>
+  <?define Path_Component_GUID = "12E0B4AA-C8AF-4917-AFB5-DD8143A1A784" ?>
+  <?define ProgramMenuDir_GUID = "A9C3DFD6-682F-4B9F-B6AE-B2FFA8050CB5" ?>
+  <?define Desktop_Shortcut_Component_GUID = "8999BBE1-F99E-4301-B7A6-480C19DE13B9" ?>
 <?endif ?>
 
 <?define ProgramName = "PuTTY$(var.Bitness)" ?>
@@ -63,7 +110,7 @@
       Buildscr.
   -->
   <Product
-      Name="$(var.Puttytextver)$(var.Bitness)"
+      Name="$(var.Puttytextver)$(var.ProductNameSuffix)"
       Manufacturer="Simon Tatham"
       Id="*"
       UpgradeCode="$(var.UpgradeCode_GUID)"
@@ -196,7 +243,11 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
                         Name="PuTTY Manual"
                         Advertise="no" />
             </File>
+            <RegistryValue Root="HKLM"
+                           Key="$(var.RegKeyPathLocation)\CHMPath"
+                           Type="string" Value="[#HelpFile_File]"/>
           </Component>
+
           <Component Id="Website_Component"
                      Guid="$(var.Website_Component_GUID)">
             <File Id="Website_File"
@@ -452,8 +503,10 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
       <DialogRef Id="UserExit" />
       <DialogRef Id="FeaturesDlg" />
 
+<?if $(var.DllOk) = yes ?>
       <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
       <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+<?endif ?>
 
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
 
@@ -462,9 +515,13 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
 
       <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
       <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+<?if $(var.DllOk) = yes ?>
       <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
       <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
       <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="FeaturesDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+<?else ?>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="FeaturesDlg" Order="2">1</Publish>
+<?endif ?>
       <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
       <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
 
@@ -482,8 +539,10 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
       <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
 
+<?if $(var.DllOk) = yes ?>
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" 
                Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+<?endif ?>
 
       <!--
           This ARPNOMODIFY flag prohibits changing the set of
@@ -509,6 +568,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
       <Property Id="ARPNOMODIFY" Value="1" />
     </UI>
 
+<?if $(var.DllOk) = yes ?>
     <!--
         Offer to display README after installation.
     -->
@@ -518,6 +578,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
     <Property Id="WixShellExecTarget" Value="[#README_File]" />
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA"
                   DllEntry="WixShellExec" Impersonate="yes" />
+<?endif ?>
 
     <!-- Glue: tell the install dir part of the UI what id my actual
          install dir is known by. Otherwise the former won't know how

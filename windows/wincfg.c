@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, void *dlg,
+static void about_handler(union control *ctrl, dlgparam *dlg,
 			  void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -20,7 +20,7 @@ static void about_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void help_handler(union control *ctrl, void *dlg,
+static void help_handler(union control *ctrl, dlgparam *dlg,
 			 void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -30,7 +30,7 @@ static void help_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void variable_pitch_handler(union control *ctrl, void *dlg,
+static void variable_pitch_handler(union control *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     if (event == EVENT_REFRESH) {
@@ -40,8 +40,8 @@ static void variable_pitch_handler(union control *ctrl, void *dlg,
     }
 }
 
-void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
-			  int midsession, int protocol)
+void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
+			  bool midsession, int protocol)
 {
     struct controlset *s;
     union control *c;
@@ -157,7 +157,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	}
     }
     ctrl_filesel(s, "响铃时播放的声音文件：", NO_SHORTCUT,
-		 FILTER_WAVE_FILES, FALSE, "选择声音文件",
+		 FILTER_WAVE_FILES, false, "选择声音文件",
 		 HELPCTX(bell_style),
 		 conf_filesel_handler, I(CONF_bell_wavefile));
 
@@ -268,10 +268,10 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * RTF paste is Windows-specific.
      */
-    s = ctrl_getset(b, "窗口/选择", "format",
-		    "格式化要传送的字符");
-    ctrl_checkbox(s, "粘贴 RTF 文本到剪贴板", 'f',
-		  HELPCTX(selection_rtf),
+    s = ctrl_getset(b, "窗口/选择/复制", "format",
+		    "格式化复制的字符");
+    ctrl_checkbox(s, "同时复制 RTF 富文本和纯文本到剪贴板", 'f',
+		  HELPCTX(copy_rtf),
 		  conf_checkbox_handler, I(CONF_rtf_paste));
 
     /*
@@ -393,10 +393,10 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * $XAUTHORITY is not reliable on Windows, so we provide a
      * means to override it.
      */
-    if (!midsession && backend_from_proto(PROT_SSH)) {
+    if (!midsession && backend_vt_from_proto(PROT_SSH)) {
 	s = ctrl_getset(b, "连接/SSH/X11", "x11", "X11 映射");
 	ctrl_filesel(s, "用于本地显示的 X 认证文件(T)", 't',
-		     NULL, FALSE, "选择 X 认证文件",
+		     NULL, false, "选择 X 认证文件",
 		     HELPCTX(ssh_tunnels_xauthority),
 		     conf_filesel_handler, I(CONF_xauthfile));
     }

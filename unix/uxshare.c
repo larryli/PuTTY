@@ -13,7 +13,6 @@
 #include <sys/types.h>
 #include <sys/file.h>
 
-#define DEFINE_PLUG_METHOD_MACROS
 #include "tree234.h"
 #include "putty.h"
 #include "network.h"
@@ -23,12 +22,6 @@
 #define CONNSHARE_SOCKETDIR_PREFIX "/tmp/putty-connshare"
 #define SALT_FILENAME "salt"
 #define SALT_SIZE 64
-
-/*
- * Functions provided by uxnet.c to help connection sharing.
- */
-SockAddr unix_sock_addr(const char *path);
-Socket new_unix_listener(SockAddr listenaddr, Plug plug);
 
 static char *make_parentdir_name(void)
 {
@@ -123,9 +116,7 @@ static char *make_dirname(const char *pi_name, char **logtext)
             /*
              * Invent some random data.
              */
-            for (i = 0; i < SALT_SIZE; i++) {
-                saltbuf[i] = random_byte();
-            }
+            random_read(saltbuf, SALT_SIZE);
             ret = write(saltfd, saltbuf, SALT_SIZE);
             /* POSIX atomicity guarantee: because we wrote less than
              * PIPE_BUF bytes, the write either completed in full or
@@ -218,21 +209,13 @@ static char *make_dirname(const char *pi_name, char **logtext)
          * identifier to produce our actual socket name.
          */
         {
-            SHA256_State sha;
-            unsigned len;
-            unsigned char lenbuf[4];
             unsigned char digest[32];
             char retbuf[65];
 
-            SHA256_Init(&sha);
-            PUT_32BIT(lenbuf, SALT_SIZE);
-            SHA256_Bytes(&sha, lenbuf, 4);
-            SHA256_Bytes(&sha, saltbuf, SALT_SIZE);
-            len = strlen(pi_name);
-            PUT_32BIT(lenbuf, len);
-            SHA256_Bytes(&sha, lenbuf, 4);
-            SHA256_Bytes(&sha, pi_name, len);
-            SHA256_Final(&sha, digest);
+            ssh_hash *h = ssh_hash_new(&ssh_sha256);
+            put_string(h, saltbuf, SALT_SIZE);
+            put_stringz(h, pi_name);
+            ssh_hash_final(h, digest);
 
             /*
              * And make it printable.
@@ -256,13 +239,13 @@ static char *make_dirname(const char *pi_name, char **logtext)
 }
 
 int platform_ssh_share(const char *pi_name, Conf *conf,
-                       Plug downplug, Plug upplug, Socket *sock,
+                       Plug *downplug, Plug *upplug, Socket **sock,
                        char **logtext, char **ds_err, char **us_err,
-                       int can_upstream, int can_downstream)
+                       bool can_upstream, bool can_downstream)
 {
     char *dirname, *lockname, *sockname, *err;
     int lockfd;
-    Socket retsock;
+    Socket *retsock;
 
     /*
      * Sort out what we're going to call the directory in which we
@@ -310,7 +293,8 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
 
     if (can_downstream) {
         retsock = new_connection(unix_sock_addr(sockname),
-                                 "", 0, 0, 1, 0, 0, downplug, conf);
+                                 "", 0, false, true, false, false,
+                                 downplug, conf);
         if (sk_socket_error(retsock) == NULL) {
             sfree(*logtext);
             *logtext = sockname;

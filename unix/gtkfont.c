@@ -31,6 +31,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include "x11misc.h"
 #endif
 
 /*
@@ -51,10 +52,8 @@
  * polymorphic.
  * 
  * Any instance of `unifont' used in the vtable functions will
- * actually be the first element of a larger structure containing
- * data specific to the subtype. This is permitted by the ISO C
- * provision that one may safely cast between a pointer to a
- * structure and a pointer to its first element.
+ * actually be an element of a larger structure containing data
+ * specific to the subtype.
  */
 
 #define FONTFLAG_CLIENTSIDE    0x0001
@@ -68,28 +67,29 @@ typedef void (*fontsel_add_entry)(void *ctx, const char *realfontname,
 				  const char *family, const char *charset,
 				  const char *style, const char *stylekey,
 				  int size, int flags,
-				  const struct unifont_vtable *fontclass);
+				  const struct UnifontVtable *fontclass);
 
-struct unifont_vtable {
+struct UnifontVtable {
     /*
      * `Methods' of the `class'.
      */
-    unifont *(*create)(GtkWidget *widget, const char *name, int wide, int bold,
-		       int shadowoffset, int shadowalways);
-    unifont *(*create_fallback)(GtkWidget *widget, int height, int wide,
-                                int bold, int shadowoffset, int shadowalways);
+    unifont *(*create)(GtkWidget *widget, const char *name, bool wide,
+                       bool bold, int shadowoffset, bool shadowalways);
+    unifont *(*create_fallback)(GtkWidget *widget, int height, bool wide,
+                                bool bold, int shadowoffset,
+                                bool shadowalways);
     void (*destroy)(unifont *font);
-    int (*has_glyph)(unifont *font, wchar_t glyph);
+    bool (*has_glyph)(unifont *font, wchar_t glyph);
     void (*draw_text)(unifont_drawctx *ctx, unifont *font,
                       int x, int y, const wchar_t *string, int len,
-                      int wide, int bold, int cellwidth);
+                      bool wide, bool bold, int cellwidth);
     void (*draw_combining)(unifont_drawctx *ctx, unifont *font,
                            int x, int y, const wchar_t *string, int len,
-                           int wide, int bold, int cellwidth);
+                           bool wide, bool bold, int cellwidth);
     void (*enum_fonts)(GtkWidget *widget,
 		       fontsel_add_entry callback, void *callback_ctx);
     char *(*canonify_fontname)(GtkWidget *widget, const char *name, int *size,
-			       int *flags, int resolve_aliases);
+			       int *flags, bool resolve_aliases);
     char *(*scale_fontname)(GtkWidget *widget, const char *name, int size);
     char *(*size_increment)(unifont *font, int increment);
 
@@ -107,22 +107,23 @@ struct unifont_vtable {
  * back end other than X).
  */
 
-static int x11font_has_glyph(unifont *font, wchar_t glyph);
+static bool x11font_has_glyph(unifont *font, wchar_t glyph);
 static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
                               int x, int y, const wchar_t *string, int len,
-                              int wide, int bold, int cellwidth);
+                              bool wide, bool bold, int cellwidth);
 static void x11font_draw_combining(unifont_drawctx *ctx, unifont *font,
                                    int x, int y, const wchar_t *string,
-                                   int len, int wide, int bold, int cellwidth);
+                                   int len, bool wide, bool bold,
+                                   int cellwidth);
 static unifont *x11font_create(GtkWidget *widget, const char *name,
-			       int wide, int bold,
-			       int shadowoffset, int shadowalways);
+			       bool wide, bool bold,
+			       int shadowoffset, bool shadowalways);
 static void x11font_destroy(unifont *font);
 static void x11font_enum_fonts(GtkWidget *widget,
 			       fontsel_add_entry callback, void *callback_ctx);
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
 				       int *size, int *flags,
-				       int resolve_aliases);
+				       bool resolve_aliases);
 static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 				    int size);
 static char *x11font_size_increment(unifont *font, int increment);
@@ -148,7 +149,7 @@ typedef struct x11font_individual {
      * haven't tried yet from xfs==NULL because we tried and failed,
      * so that we don't keep trying and failing subsequently).
      */
-    int allocated;
+    bool allocated;
 
 #ifdef DRAW_TEXT_CAIRO
     /*
@@ -176,7 +177,11 @@ typedef struct x11font_individual {
 } x11font_individual;
 
 struct x11font {
-    struct unifont u;
+    /*
+     * Copy of the X display handle, so we don't have to keep
+     * extracting it from GDK.
+     */
+    Display *disp;
     /*
      * Individual physical X fonts. We store a number of these, for
      * automatically guessed bold and wide variants.
@@ -187,13 +192,13 @@ struct x11font {
      * values larger than a byte. That is, this flag tells us
      * whether we use XDrawString or XDrawString16, etc.
      */
-    int sixteen_bit;
+    bool sixteen_bit;
     /*
      * `variable' is true iff the font is non-fixed-pitch. This
      * enables some code which takes greater care over character
      * positioning during text drawing.
      */
-    int variable;
+    bool variable;
     /*
      * real_charset is the charset used when translating text into the
      * font's internal encoding inside draw_text(). This need not be
@@ -205,10 +210,13 @@ struct x11font {
     /*
      * Data passed in to unifont_create().
      */
-    int wide, bold, shadowoffset, shadowalways;
+    int shadowoffset;
+    bool wide, bold, shadowalways;
+
+    unifont u;
 };
 
-static const struct unifont_vtable x11font_vtable = {
+static const struct UnifontVtable x11font_vtable = {
     x11font_create,
     NULL,                              /* no fallback fonts in X11 */
     x11font_destroy,
@@ -252,7 +260,6 @@ struct xlfd_decomposed {
 
 static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
 {
-    void *mem;
     char *p, *components[14];
     struct xlfd_decomposed *dec;
     int i;
@@ -260,15 +267,14 @@ static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
     if (!xlfd)
         return NULL;
 
-    mem = smalloc(sizeof(struct xlfd_decomposed) + strlen(xlfd) + 1);
-    p = ((char *)mem) + sizeof(struct xlfd_decomposed);
+    dec = snew_plus(struct xlfd_decomposed, strlen(xlfd) + 1);
+    p = snew_plus_get_aux(dec);
     strcpy(p, xlfd);
-    dec = (struct xlfd_decomposed *)mem;
 
     for (i = 0; i < 14; i++) {
         if (*p != '-') {
             /* Malformed XLFD: not enough '-' */
-            sfree(mem);
+            sfree(dec);
             return NULL;
         }
         *p++ = '\0';
@@ -277,7 +283,7 @@ static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
     }
     if (*p) {
         /* Malformed XLFD: too many '-' */
-        sfree(mem);
+        sfree(dec);
         return NULL;
     }
 
@@ -308,9 +314,9 @@ static char *xlfd_recompose(const struct xlfd_decomposed *dec)
 #undef ARG_INT
 }
 
-static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
+static char *x11_guess_derived_font_name(Display *disp, XFontStruct *xfs,
+                                         bool bold, bool wide)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     Atom fontprop = XInternAtom(disp, "FONT", False);
     unsigned long ret;
     if (XGetFontProperty(xfs, fontprop, &ret)) {
@@ -340,7 +346,7 @@ static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
     return NULL;
 }
 
-static int x11_font_width(XFontStruct *xfs, int sixteen_bit)
+static int x11_font_width(XFontStruct *xfs, bool sixteen_bit)
 {
     if (sixteen_bit) {
 	XChar2b space;
@@ -385,13 +391,13 @@ static const XCharStruct *x11_char_struct(
      */
 
     if (byte2 < xfs->min_char_or_byte2 || byte2 > xfs->max_char_or_byte2)
-        return FALSE;
+        return NULL;
 
     if (xfs->min_byte1 == 0 && xfs->max_byte1 == 0) {
         index = byte2 - xfs->min_char_or_byte2;
     } else {
         if (byte1 < xfs->min_byte1 || byte1 > xfs->max_byte1)
-            return FALSE;
+            return NULL;
         index = ((byte2 - xfs->min_char_or_byte2) +
                  ((byte1 - xfs->min_byte1) *
                   (xfs->max_char_or_byte2 - xfs->min_char_or_byte2 + 1)));
@@ -403,7 +409,7 @@ static const XCharStruct *x11_char_struct(
     return &xfs->per_char[index];
 }
 
-static int x11_font_has_glyph(
+static bool x11_font_has_glyph(
     XFontStruct *xfs, unsigned char byte1, unsigned char byte2)
 {
     /*
@@ -423,16 +429,20 @@ static int x11_font_has_glyph(
 }
 
 static unifont *x11font_create(GtkWidget *widget, const char *name,
-			       int wide, int bold,
-			       int shadowoffset, int shadowalways)
+			       bool wide, bool bold,
+			       int shadowoffset, bool shadowalways)
 {
     struct x11font *xfont;
     XFontStruct *xfs;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp;
     Atom charset_registry, charset_encoding, spacing;
     unsigned long registry_ret, encoding_ret, spacing_ret;
-    int pubcs, realcs, sixteen_bit, variable;
+    int pubcs, realcs;
+    bool sixteen_bit, variable;
     int i;
+
+    if ((disp = get_x11_display()) == NULL)
+        return NULL;
 
     xfs = XLoadQueryFont(disp, name);
     if (!xfs)
@@ -442,8 +452,8 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     charset_encoding = XInternAtom(disp, "CHARSET_ENCODING", False);
 
     pubcs = realcs = CS_NONE;
-    sixteen_bit = FALSE;
-    variable = TRUE;
+    sixteen_bit = false;
+    variable = true;
 
     if (XGetFontProperty(xfs, charset_registry, &registry_ret) &&
 	XGetFontProperty(xfs, charset_encoding, &encoding_ret)) {
@@ -461,7 +471,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 	     * into 16-bit Unicode.
 	     */
 	    if (!strcasecmp(encoding, "iso10646-1")) {
-		sixteen_bit = TRUE;
+		sixteen_bit = true;
 		pubcs = realcs = CS_UTF8;
 	    }
 
@@ -490,7 +500,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 	spc = XGetAtomName(disp, (Atom)spacing_ret);
 
 	if (spc && strchr("CcMm", spc[0]))
-	    variable = FALSE;
+	    variable = false;
     }
 
     xfont = snew(struct x11font);
@@ -500,7 +510,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     xfont->u.descent = xfs->descent;
     xfont->u.height = xfont->u.ascent + xfont->u.descent;
     xfont->u.public_charset = pubcs;
-    xfont->u.want_fallback = TRUE;
+    xfont->u.want_fallback = true;
 #ifdef DRAW_TEXT_GDK
     xfont->u.preferred_drawtype = DRAWTYPE_GDK;
 #elif defined DRAW_TEXT_CAIRO
@@ -508,6 +518,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 #else
 #error No drawtype available at all
 #endif
+    xfont->disp = disp;
     xfont->real_charset = realcs;
     xfont->sixteen_bit = sixteen_bit;
     xfont->variable = variable;
@@ -518,7 +529,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 
     for (i = 0; i < lenof(xfont->fonts); i++) {
 	xfont->fonts[i].xfs = NULL;
-	xfont->fonts[i].allocated = FALSE;
+	xfont->fonts[i].allocated = false;
 #ifdef DRAW_TEXT_CAIRO
 	xfont->fonts[i].glyphcache = NULL;
 	xfont->fonts[i].nglyphs = 0;
@@ -527,15 +538,15 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 #endif
     }
     xfont->fonts[0].xfs = xfs;
-    xfont->fonts[0].allocated = TRUE;
+    xfont->fonts[0].allocated = true;
 
-    return (unifont *)xfont;
+    return &xfont->u;
 }
 
 static void x11font_destroy(unifont *font)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = container_of(font, struct x11font, u);
+    Display *disp = xfont->disp;
     int i;
 
     for (i = 0; i < lenof(xfont->fonts); i++) {
@@ -556,23 +567,23 @@ static void x11font_destroy(unifont *font)
         }
 #endif
     }
-    sfree(font);
+    sfree(xfont);
 }
 
 static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp = xfont->disp;
     char *derived_name = x11_guess_derived_font_name
-	(xfont->fonts[0].xfs, sfid & 1, !!(sfid & 2));
+	(disp, xfont->fonts[0].xfs, sfid & 1, !!(sfid & 2));
     xfont->fonts[sfid].xfs = XLoadQueryFont(disp, derived_name);
-    xfont->fonts[sfid].allocated = TRUE;
+    xfont->fonts[sfid].allocated = true;
     sfree(derived_name);
     /* Note that xfont->fonts[sfid].xfs may still be NULL, if XLQF failed. */
 }
 
-static int x11font_has_glyph(unifont *font, wchar_t glyph)
+static bool x11font_has_glyph(unifont *font, wchar_t glyph)
 {
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = container_of(font, struct x11font, u);
 
     if (xfont->sixteen_bit) {
 	/*
@@ -588,9 +599,9 @@ static int x11font_has_glyph(unifont *font, wchar_t glyph)
          */
         char sbstring[2];
         int sblen = wc_to_mb(xfont->real_charset, 0, &glyph, 1,
-                             sbstring, 2, "", NULL, NULL);
+                             sbstring, 2, "", NULL);
         if (sblen == 0 || !sbstring[0])
-            return FALSE;              /* not even in the charset */
+            return false;              /* not even in the charset */
 
         return x11_font_has_glyph(xfont->fonts[0].xfs, 0,
                                   (unsigned char)sbstring[0]);
@@ -618,27 +629,25 @@ static int x11font_width_8(unifont_drawctx *ctx, x11font_individual *xfi,
 }
 
 #ifdef DRAW_TEXT_GDK
-static void x11font_gdk_setup(unifont_drawctx *ctx, x11font_individual *xfi)
+static void x11font_gdk_setup(unifont_drawctx *ctx, x11font_individual *xfi,
+                              Display *disp)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     XSetFont(disp, GDK_GC_XGC(ctx->u.gdk.gc), xfi->xfs->fid);
 }
 
-static void x11font_gdk_draw_16(unifont_drawctx *ctx,
-                                x11font_individual *xfi, int x, int y,
+static void x11font_gdk_draw_16(unifont_drawctx *ctx, x11font_individual *xfi,
+                                Display *disp, int x, int y,
                                 const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const XChar2b *string = (const XChar2b *)vstring;
     XDrawString16(disp, GDK_DRAWABLE_XID(ctx->u.gdk.target),
                   GDK_GC_XGC(ctx->u.gdk.gc), x, y, string+start, length);
 }
 
-static void x11font_gdk_draw_8(unifont_drawctx *ctx,
-                               x11font_individual *xfi, int x, int y,
+static void x11font_gdk_draw_8(unifont_drawctx *ctx, x11font_individual *xfi,
+                               Display *disp, int x, int y,
                                const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const char *string = (const char *)vstring;
     XDrawString(disp, GDK_DRAWABLE_XID(ctx->u.gdk.target),
                 GDK_GC_XGC(ctx->u.gdk.gc), x, y, string+start, length);
@@ -646,10 +655,10 @@ static void x11font_gdk_draw_8(unifont_drawctx *ctx,
 #endif
 
 #ifdef DRAW_TEXT_CAIRO
-static void x11font_cairo_setup(unifont_drawctx *ctx, x11font_individual *xfi)
+static void x11font_cairo_setup(
+    unifont_drawctx *ctx, x11font_individual *xfi, Display *disp)
 {
     if (xfi->pixmap == None) {
-        Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
         XGCValues gcvals;
         GdkWindow *widgetwin = gtk_widget_get_window(ctx->u.cairo.widget);
         int widgetscr = GDK_SCREEN_XNUMBER(gdk_window_get_screen(widgetwin));
@@ -693,12 +702,12 @@ static void x11font_cairo_setup(unifont_drawctx *ctx, x11font_individual *xfi)
     }
 }
 
-static void x11font_cairo_cache_glyph(x11font_individual *xfi, int glyphindex)
+static void x11font_cairo_cache_glyph(
+    Display *disp, x11font_individual *xfi, int glyphindex)
 {
     XImage *image;
     int x, y;
     unsigned char *bitmap;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const XCharStruct *xcs = x11_char_struct(xfi->xfs, glyphindex >> 8,
                                              glyphindex & 0xFF);
 
@@ -752,11 +761,10 @@ static void x11font_cairo_draw_glyph(unifont_drawctx *ctx,
     }
 }
 
-static void x11font_cairo_draw_16(unifont_drawctx *ctx,
-                                  x11font_individual *xfi, int x, int y,
-                                  const void *vstring, int start, int length)
+static void x11font_cairo_draw_16(
+    unifont_drawctx *ctx, x11font_individual *xfi, Display *disp,
+    int x, int y, const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const XChar2b *string = (const XChar2b *)vstring + start;
     int i;
     for (i = 0; i < length; i++) {
@@ -768,7 +776,7 @@ static void x11font_cairo_draw_16(unifont_drawctx *ctx,
                 XDrawImageString16(disp, xfi->pixmap, xfi->gc,
                                    xfi->pixoriginx, xfi->pixoriginy,
                                    string+i, 1);
-                x11font_cairo_cache_glyph(xfi, glyphindex);
+                x11font_cairo_cache_glyph(disp, xfi, glyphindex);
             }
             x11font_cairo_draw_glyph(ctx, xfi, x, y, glyphindex);
             x += XTextWidth16(xfi->xfs, string+i, 1);
@@ -776,11 +784,10 @@ static void x11font_cairo_draw_16(unifont_drawctx *ctx,
     }
 }
 
-static void x11font_cairo_draw_8(unifont_drawctx *ctx,
-                                 x11font_individual *xfi, int x, int y,
-                                 const void *vstring, int start, int length)
+static void x11font_cairo_draw_8(
+    unifont_drawctx *ctx, x11font_individual *xfi, Display *disp,
+    int x, int y, const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const char *string = (const char *)vstring + start;
     int i;
     for (i = 0; i < length; i++) {
@@ -791,7 +798,7 @@ static void x11font_cairo_draw_8(unifont_drawctx *ctx,
                 XDrawImageString(disp, xfi->pixmap, xfi->gc,
                                  xfi->pixoriginx, xfi->pixoriginy,
                                  string+i, 1);
-                x11font_cairo_cache_glyph(xfi, glyphindex);
+                x11font_cairo_cache_glyph(disp, xfi, glyphindex);
             }
             x11font_cairo_draw_glyph(ctx, xfi, x, y, glyphindex);
             x += XTextWidth(xfi->xfs, string+i, 1);
@@ -803,9 +810,10 @@ static void x11font_cairo_draw_8(unifont_drawctx *ctx,
 struct x11font_drawfuncs {
     int (*width)(unifont_drawctx *ctx, x11font_individual *xfi,
                  const void *vstring, int start, int length);
-    void (*setup)(unifont_drawctx *ctx, x11font_individual *xfi);
-    void (*draw)(unifont_drawctx *ctx, x11font_individual *xfi, int x, int y,
-                 const void *vstring, int start, int length);
+    void (*setup)(unifont_drawctx *ctx, x11font_individual *xfi,
+                  Display *disp);
+    void (*draw)(unifont_drawctx *ctx, x11font_individual *xfi, Display *disp,
+                 int x, int y, const void *vstring, int start, int length);
 };
 
 /*
@@ -843,14 +851,14 @@ static const struct x11font_drawfuncs x11font_drawfuncs[2*DRAWTYPE_NTYPES] = {
 #endif
 };
 
-static void x11font_really_draw_text(const struct x11font_drawfuncs *dfns,
-                                     unifont_drawctx *ctx,
-                                     x11font_individual *xfi, int x, int y,
-                                     const void *string, int nchars,
-                                     int shadowoffset,
-                                     int fontvariable, int cellwidth)
+static void x11font_really_draw_text(
+    const struct x11font_drawfuncs *dfns, unifont_drawctx *ctx,
+    x11font_individual *xfi, Display *disp,
+    int x, int y, const void *string, int nchars,
+    int shadowoffset, bool fontvariable, int cellwidth)
 {
-    int start = 0, step, nsteps, centre;
+    int start = 0, step, nsteps;
+    bool centre;
 
     if (fontvariable) {
 	/*
@@ -859,26 +867,27 @@ static void x11font_really_draw_text(const struct x11font_drawfuncs *dfns,
 	 */
 	step = 1;
 	nsteps = nchars;
-	centre = TRUE;
+	centre = true;
     } else {
         /*
          * In a fixed-pitch font, we can draw the whole lot in one go.
          */
         step = nchars;
         nsteps = 1;
-        centre = FALSE;
+        centre = false;
     }
 
-    dfns->setup(ctx, xfi);
+    dfns->setup(ctx, xfi, disp);
 
     while (nsteps-- > 0) {
 	int X = x;
 	if (centre)
 	    X += (cellwidth - dfns->width(ctx, xfi, string, start, step)) / 2;
 
-        dfns->draw(ctx, xfi, X, y, string, start, step);
+        dfns->draw(ctx, xfi, disp, X, y, string, start, step);
 	if (shadowoffset)
-            dfns->draw(ctx, xfi, X + shadowoffset, y, string, start, step);
+            dfns->draw(ctx, xfi, disp, X + shadowoffset, y,
+                       string, start, step);
 
 	x += cellwidth;
         start += step;
@@ -887,16 +896,16 @@ static void x11font_really_draw_text(const struct x11font_drawfuncs *dfns,
 
 static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
 			      int x, int y, const wchar_t *string, int len,
-			      int wide, int bold, int cellwidth)
+			      bool wide, bool bold, int cellwidth)
 {
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = container_of(font, struct x11font, u);
     int sfid;
     int shadowoffset = 0;
     int mult = (wide ? 2 : 1);
     int index = 2 * (int)ctx->type;
 
-    wide -= xfont->wide;
-    bold -= xfont->bold;
+    wide = wide && !xfont->wide;
+    bold = bold && !xfont->bold;
 
     /*
      * Decide which subfont we're using, and whether we have to
@@ -904,13 +913,13 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
      */
     if (xfont->shadowalways && bold) {
 	shadowoffset = xfont->shadowoffset;
-	bold = 0;
+	bold = false;
     }
     sfid = 2 * wide + bold;
     if (!xfont->fonts[sfid].allocated)
 	x11_alloc_subfont(xfont, sfid);
     if (bold && !xfont->fonts[sfid].xfs) {
-	bold = 0;
+	bold = false;
 	shadowoffset = xfont->shadowoffset;
 	sfid = 2 * wide + bold;
 	if (!xfont->fonts[sfid].allocated)
@@ -935,7 +944,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
 	}
 
 	x11font_really_draw_text(x11font_drawfuncs + index + 1, ctx,
-                                 &xfont->fonts[sfid], x, y,
+                                 &xfont->fonts[sfid], xfont->disp, x, y,
                                  xcs, len, shadowoffset,
                                  xfont->variable, cellwidth * mult);
 	sfree(xcs);
@@ -946,9 +955,9 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
          */
         char *sbstring = snewn(len+1, char);
         int sblen = wc_to_mb(xfont->real_charset, 0, string, len,
-                             sbstring, len+1, ".", NULL, NULL);
+                             sbstring, len+1, ".", NULL);
 	x11font_really_draw_text(x11font_drawfuncs + index + 0, ctx,
-                                 &xfont->fonts[sfid], x, y,
+                                 &xfont->fonts[sfid], xfont->disp, x, y,
 				 sbstring, sblen, shadowoffset,
 				 xfont->variable, cellwidth * mult);
         sfree(sbstring);
@@ -957,7 +966,8 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
 
 static void x11font_draw_combining(unifont_drawctx *ctx, unifont *font,
                                    int x, int y, const wchar_t *string,
-                                   int len, int wide, int bold, int cellwidth)
+                                   int len, bool wide, bool bold,
+                                   int cellwidth)
 {
     /*
      * For server-side fonts, there's no sophisticated system for
@@ -972,10 +982,13 @@ static void x11font_draw_combining(unifont_drawctx *ctx, unifont *font,
 static void x11font_enum_fonts(GtkWidget *widget,
 			       fontsel_add_entry callback, void *callback_ctx)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp;
     char **fontnames;
     char *tmp = NULL;
     int nnames, i, max, tmpsize;
+
+    if ((disp = get_x11_display()) == NULL)
+        return;
 
     max = 32768;
     while (1) {
@@ -1131,7 +1144,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
 
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
 				       int *size, int *flags,
-				       int resolve_aliases)
+				       bool resolve_aliases)
 {
     /*
      * When given an X11 font name to try to make sense of for a
@@ -1145,9 +1158,12 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
      * selector treats them as worthwhile in their own right.
      */
     XFontStruct *xfs;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp;
     Atom fontprop, fontprop2;
     unsigned long ret;
+
+    if ((disp = get_x11_display()) == NULL)
+        return NULL;
 
     xfs = XLoadQueryFont(disp, name);
 
@@ -1190,8 +1206,8 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 
 static char *x11font_size_increment(unifont *font, int increment)
 {
-    struct x11font *xfont = (struct x11font *)font;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    struct x11font *xfont = container_of(font, struct x11font, u);
+    Display *disp = xfont->disp;
     Atom fontprop = XInternAtom(disp, "FONT", False);
     char *returned_name = NULL;
     unsigned long ret;
@@ -1288,32 +1304,31 @@ static char *x11font_size_increment(unifont *font, int increment)
 #define PANGO_PRE_1POINT6	       /* make life easier for pre-1.4 folk */
 #endif
 
-static int pangofont_has_glyph(unifont *font, wchar_t glyph);
+static bool pangofont_has_glyph(unifont *font, wchar_t glyph);
 static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
                                 int x, int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth);
+                                bool wide, bool bold, int cellwidth);
 static void pangofont_draw_combining(unifont_drawctx *ctx, unifont *font,
                                      int x, int y, const wchar_t *string,
-                                     int len, int wide, int bold,
+                                     int len, bool wide, bool bold,
                                      int cellwidth);
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
-				 int wide, int bold,
-				 int shadowoffset, int shadowalways);
+				 bool wide, bool bold,
+				 int shadowoffset, bool shadowalways);
 static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
-                                          int wide, int bold,
-                                          int shadowoffset, int shadowalways);
+                                          bool wide, bool bold,
+                                          int shadowoffset, bool shadowalways);
 static void pangofont_destroy(unifont *font);
 static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 				 void *callback_ctx);
 static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
 					 int *size, int *flags,
-					 int resolve_aliases);
+					 bool resolve_aliases);
 static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 				      int size);
 static char *pangofont_size_increment(unifont *font, int increment);
 
 struct pangofont {
-    struct unifont u;
     /*
      * Pango objects.
      */
@@ -1326,7 +1341,8 @@ struct pangofont {
     /*
      * Data passed in to unifont_create().
      */
-    int bold, shadowoffset, shadowalways;
+    int shadowoffset;
+    bool bold, shadowalways;
     /*
      * Cache of character widths, indexed by Unicode code point. In
      * pixels; -1 means we haven't asked Pango about this character
@@ -1334,9 +1350,11 @@ struct pangofont {
      */
     int *widthcache;
     unsigned nwidthcache;
+
+    struct unifont u;
 };
 
-static const struct unifont_vtable pangofont_vtable = {
+static const struct UnifontVtable pangofont_vtable = {
     pangofont_create,
     pangofont_create_fallback,
     pangofont_destroy,
@@ -1363,14 +1381,15 @@ static const struct unifont_vtable pangofont_vtable = {
  * if it doesn't. So we check that the font family is actually one
  * supported by Pango.
  */
-static int pangofont_check_desc_makes_sense(PangoContext *ctx,
-					    PangoFontDescription *desc)
+static bool pangofont_check_desc_makes_sense(PangoContext *ctx,
+                                             PangoFontDescription *desc)
 {
 #ifndef PANGO_PRE_1POINT6
     PangoFontMap *map;
 #endif
     PangoFontFamily **families;
-    int i, nfamilies, matched;
+    int i, nfamilies;
+    bool matched;
 
     /*
      * Ask Pango for a list of font families, and iterate through
@@ -1380,17 +1399,17 @@ static int pangofont_check_desc_makes_sense(PangoContext *ctx,
 #ifndef PANGO_PRE_1POINT6
     map = pango_context_get_font_map(ctx);
     if (!map)
-	return FALSE;
+	return false;
     pango_font_map_list_families(map, &families, &nfamilies);
 #else
     pango_context_list_families(ctx, &families, &nfamilies);
 #endif
 
-    matched = FALSE;
+    matched = false;
     for (i = 0; i < nfamilies; i++) {
 	if (!g_ascii_strcasecmp(pango_font_family_get_name(families[i]),
 				pango_font_description_get_family(desc))) {
-	    matched = TRUE;
+	    matched = true;
 	    break;
 	}
     }
@@ -1402,8 +1421,8 @@ static int pangofont_check_desc_makes_sense(PangoContext *ctx,
 static unifont *pangofont_create_internal(GtkWidget *widget,
                                           PangoContext *ctx,
                                           PangoFontDescription *desc,
-                                          int wide, int bold,
-                                          int shadowoffset, int shadowalways)
+                                          bool wide, bool bold,
+                                          int shadowoffset, bool shadowalways)
 {
     struct pangofont *pfont;
 #ifndef PANGO_PRE_1POINT6
@@ -1443,7 +1462,7 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
     pfont->u.ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
     pfont->u.descent = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
-    pfont->u.want_fallback = FALSE;
+    pfont->u.want_fallback = false;
 #ifdef DRAW_TEXT_CAIRO
     pfont->u.preferred_drawtype = DRAWTYPE_CAIRO;
 #elif defined DRAW_TEXT_GDK
@@ -1464,12 +1483,12 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
 
     pango_font_metrics_unref(metrics);
 
-    return (unifont *)pfont;
+    return &pfont->u;
 }
 
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
-				 int wide, int bold,
-				 int shadowoffset, int shadowalways)
+				 bool wide, bool bold,
+				 int shadowoffset, bool shadowalways)
 {
     PangoContext *ctx;
     PangoFontDescription *desc;
@@ -1491,8 +1510,8 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
 }
 
 static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
-                                          int wide, int bold,
-                                          int shadowoffset, int shadowalways)
+                                          bool wide, bool bold,
+                                          int shadowoffset, bool shadowalways)
 {
     PangoContext *ctx;
     PangoFontDescription *desc;
@@ -1512,11 +1531,11 @@ static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
 
 static void pangofont_destroy(unifont *font)
 {
-    struct pangofont *pfont = (struct pangofont *)font;
+    struct pangofont *pfont = container_of(font, struct pangofont, u);
     pango_font_description_free(pfont->desc);
     sfree(pfont->widthcache);
     g_object_unref(pfont->fset);
-    sfree(font);
+    sfree(pfont);
 }
 
 static int pangofont_char_width(PangoLayout *layout, struct pangofont *pfont,
@@ -1548,10 +1567,10 @@ static int pangofont_char_width(PangoLayout *layout, struct pangofont *pfont,
     return pfont->widthcache[uchr];
 }
 
-static int pangofont_has_glyph(unifont *font, wchar_t glyph)
+static bool pangofont_has_glyph(unifont *font, wchar_t glyph)
 {
     /* Pango implements font fallback, so assume it has everything */
-    return TRUE;
+    return true;
 }
 
 #ifdef DRAW_TEXT_GDK
@@ -1573,15 +1592,15 @@ static void pango_cairo_draw_layout(unifont_drawctx *ctx,
 
 static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
                                     int x, int y, const wchar_t *string,
-                                    int len, int wide, int bold, int cellwidth,
-                                    int combining)
+                                    int len, bool wide, bool bold,
+                                    int cellwidth, bool combining)
 {
-    struct pangofont *pfont = (struct pangofont *)font;
+    struct pangofont *pfont = container_of(font, struct pangofont, u);
     PangoLayout *layout;
     PangoRectangle rect;
     char *utfstring, *utfptr;
     int utflen;
-    int shadowbold = FALSE;
+    bool shadowbold = false;
     void (*draw_layout)(unifont_drawctx *ctx,
                         gint x, gint y, PangoLayout *layout) = NULL;
 
@@ -1595,6 +1614,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
         draw_layout = pango_cairo_draw_layout;
     }
 #endif
+    assert(draw_layout);
 
     if (wide)
 	cellwidth *= 2;
@@ -1603,9 +1623,9 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
 
     layout = pango_layout_new(gtk_widget_get_pango_context(pfont->widget));
     pango_layout_set_font_description(layout, pfont->desc);
-    if (bold > pfont->bold) {
+    if (bold && !pfont->bold) {
 	if (pfont->shadowalways)
-	    shadowbold = TRUE;
+	    shadowbold = true;
 	else {
 	    PangoFontDescription *desc2 =
 		pango_font_description_copy_static(pfont->desc);
@@ -1620,7 +1640,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
      */
     utfstring = snewn(len*6+1, char); /* UTF-8 has max 6 bytes/char */
     utflen = wc_to_mb(CS_UTF8, 0, string, len,
-                      utfstring, len*6+1, ".", NULL, NULL);
+                      utfstring, len*6+1, ".", NULL);
 
     utfptr = utfstring;
     while (utflen > 0) {
@@ -1729,15 +1749,15 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
 
 static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
                                 int x, int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth)
+                                bool wide, bool bold, int cellwidth)
 {
     pangofont_draw_internal(ctx, font, x, y, string, len, wide, bold,
-                            cellwidth, FALSE);
+                            cellwidth, false);
 }
 
 static void pangofont_draw_combining(unifont_drawctx *ctx, unifont *font,
                                      int x, int y, const wchar_t *string,
-                                     int len, int wide, int bold,
+                                     int len, bool wide, bool bold,
                                      int cellwidth)
 {
     wchar_t *tmpstring = NULL;
@@ -1754,7 +1774,7 @@ static void pangofont_draw_combining(unifont_drawctx *ctx, unifont *font,
         len++;
     }
     pangofont_draw_internal(ctx, font, x, y, string, len, wide, bold,
-                            cellwidth, TRUE);
+                            cellwidth, true);
     sfree(tmpstring);
 }
 
@@ -1863,8 +1883,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 	     * If so, go through them one by one.
 	     */
 	    for (k = 0; k < nsizes; k++) {
-		char *fullname;
-		char stylekey[128];
+		char *fullname, *stylekey;
 
 		pango_font_description_set_size(desc, sizes[k]);
 
@@ -1874,27 +1893,27 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 		 * Construct the sorting key for font styles.
 		 */
 		{
-		    char *p = stylekey;
-		    int n;
+                    strbuf *buf = strbuf_new();
 
-		    n = pango_font_description_get_weight(desc);
+		    int weight = pango_font_description_get_weight(desc);
 		    /* Weight: normal, then lighter, then bolder */
-		    if (n <= PANGO_WEIGHT_NORMAL)
-			n = PANGO_WEIGHT_NORMAL - n;
-		    p += sprintf(p, "%4d", n);
+		    if (weight <= PANGO_WEIGHT_NORMAL)
+			weight = PANGO_WEIGHT_NORMAL - weight;
+		    strbuf_catf(buf, "%4d", weight);
 
-		    n = pango_font_description_get_style(desc);
-		    p += sprintf(p, " %2d", n);
+		    strbuf_catf(buf, " %2d",
+                                pango_font_description_get_style(desc));
 
-		    n = pango_font_description_get_stretch(desc);
+		    int stretch = pango_font_description_get_stretch(desc);
 		    /* Stretch: closer to normal sorts earlier */
-		    n = 2 * abs(PANGO_STRETCH_NORMAL - n) +
-			(n < PANGO_STRETCH_NORMAL);
-		    p += sprintf(p, " %2d", n);
+		    stretch = 2 * abs(PANGO_STRETCH_NORMAL - stretch) +
+			(stretch < PANGO_STRETCH_NORMAL);
+		    strbuf_catf(buf, " %2d", stretch);
 
-		    n = pango_font_description_get_variant(desc);
-		    p += sprintf(p, " %2d", n);
-		    
+		    strbuf_catf(buf, " %2d",
+                                pango_font_description_get_variant(desc));
+
+                    stylekey = strbuf_to_str(buf);
 		}
 
 		/*
@@ -1907,6 +1926,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 			 (sizes == &dummysize ? 0 : PANGO_PIXELS(sizes[k])),
 			 flags, &pangofont_vtable);
 
+                sfree(stylekey);
 		g_free(fullname);
 	    }
 	    if (sizes != &dummysize)
@@ -1921,7 +1941,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 
 static char *pangofont_canonify_fontname(GtkWidget *widget, const char *name,
 					 int *size, int *flags,
-					 int resolve_aliases)
+					 bool resolve_aliases)
 {
     /*
      * When given a Pango font name to try to make sense of for a
@@ -2007,7 +2027,7 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 
 static char *pangofont_size_increment(unifont *font, int increment)
 {
-    struct pangofont *pfont = (struct pangofont *)font;
+    struct pangofont *pfont = container_of(font, struct pangofont, u);
     PangoFontDescription *desc;
     int size;
     char *newname, *retname;
@@ -2046,7 +2066,7 @@ static char *pangofont_size_increment(unifont *font, int increment)
  *
  * The 'multifont' subclass is omitted here, as discussed above.
  */
-static const struct unifont_vtable *unifont_types[] = {
+static const struct UnifontVtable *unifont_types[] = {
 #if GTK_CHECK_VERSION(2,0,0)
     &pangofont_vtable,
 #endif
@@ -2101,8 +2121,8 @@ static const char *unifont_do_prefix(const char *name, int *start, int *end)
     }
 }
 
-unifont *unifont_create(GtkWidget *widget, const char *name, int wide,
-			int bold, int shadowoffset, int shadowalways)
+unifont *unifont_create(GtkWidget *widget, const char *name, bool wide,
+			bool bold, int shadowoffset, bool shadowalways)
 {
     int i, start, end;
 
@@ -2124,14 +2144,14 @@ void unifont_destroy(unifont *font)
 
 void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
 		       int x, int y, const wchar_t *string, int len,
-		       int wide, int bold, int cellwidth)
+		       bool wide, bool bold, int cellwidth)
 {
     font->vt->draw_text(ctx, font, x, y, string, len, wide, bold, cellwidth);
 }
 
 void unifont_draw_combining(unifont_drawctx *ctx, unifont *font,
                             int x, int y, const wchar_t *string, int len,
-                            int wide, int bold, int cellwidth)
+                            bool wide, bool bold, int cellwidth)
 {
     font->vt->draw_combining(ctx, font, x, y, string, len, wide, bold,
                              cellwidth);
@@ -2157,21 +2177,22 @@ char *unifont_size_increment(unifont *font, int increment)
 
 static void multifont_draw_text(unifont_drawctx *ctx, unifont *font,
                                 int x, int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth);
+                                bool wide, bool bold, int cellwidth);
 static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
                                      int x, int y, const wchar_t *string,
-                                     int len, int wide, int bold,
+                                     int len, bool wide, bool bold,
                                      int cellwidth);
 static void multifont_destroy(unifont *font);
 static char *multifont_size_increment(unifont *font, int increment);
 
 struct multifont {
-    struct unifont u;
     unifont *main;
     unifont *fallback;
+
+    struct unifont u;
 };
 
-static const struct unifont_vtable multifont_vtable = {
+static const struct UnifontVtable multifont_vtable = {
     NULL,                             /* creation is done specially */
     NULL,
     multifont_destroy,
@@ -2186,8 +2207,8 @@ static const struct unifont_vtable multifont_vtable = {
 };
 
 unifont *multifont_create(GtkWidget *widget, const char *name,
-                          int wide, int bold,
-                          int shadowoffset, int shadowalways)
+                          bool wide, bool bold,
+                          int shadowoffset, bool shadowalways)
 {
     int i;
     unifont *font, *fallback;
@@ -2222,36 +2243,37 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
     mfont->u.descent = font->descent;
     mfont->u.height = font->height;
     mfont->u.public_charset = font->public_charset;
-    mfont->u.want_fallback = FALSE; /* shouldn't be needed, but just in case */
+    mfont->u.want_fallback = false; /* shouldn't be needed, but just in case */
     mfont->u.preferred_drawtype = font->preferred_drawtype;
     mfont->main = font;
     mfont->fallback = fallback;
 
-    return (unifont *)mfont;
+    return &mfont->u;
 }
 
 static void multifont_destroy(unifont *font)
 {
-    struct multifont *mfont = (struct multifont *)font;
+    struct multifont *mfont = container_of(font, struct multifont, u);
     unifont_destroy(mfont->main);
     if (mfont->fallback)
         unifont_destroy(mfont->fallback);
-    sfree(font);
+    sfree(mfont);
 }
 
 typedef void (*unifont_draw_func_t)(unifont_drawctx *ctx, unifont *font,
                                     int x, int y, const wchar_t *string,
-                                    int len, int wide, int bold,
+                                    int len, bool wide, bool bold,
                                     int cellwidth);
 
 static void multifont_draw_main(unifont_drawctx *ctx, unifont *font, int x,
                                 int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth,
+                                bool wide, bool bold, int cellwidth,
                                 int cellinc, unifont_draw_func_t draw)
 {
-    struct multifont *mfont = (struct multifont *)font;
+    struct multifont *mfont = container_of(font, struct multifont, u);
     unifont *f;
-    int ok, i;
+    bool ok;
+    int i;
 
     while (len > 0) {
         /*
@@ -2278,7 +2300,7 @@ static void multifont_draw_main(unifont_drawctx *ctx, unifont *font, int x,
 
 static void multifont_draw_text(unifont_drawctx *ctx, unifont *font, int x,
                                 int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth)
+                                bool wide, bool bold, int cellwidth)
 {
     multifont_draw_main(ctx, font, x, y, string, len, wide, bold,
                         cellwidth, cellwidth, unifont_draw_text);
@@ -2286,7 +2308,7 @@ static void multifont_draw_text(unifont_drawctx *ctx, unifont *font, int x,
 
 static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
                                      int x, int y, const wchar_t *string,
-                                     int len, int wide, int bold,
+                                     int len, bool wide, bool bold,
                                      int cellwidth)
 {
     multifont_draw_main(ctx, font, x, y, string, len, wide, bold,
@@ -2295,7 +2317,7 @@ static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
 
 static char *multifont_size_increment(unifont *font, int increment)
 {
-    struct multifont *mfont = (struct multifont *)font;
+    struct multifont *mfont = container_of(font, struct multifont, u);
     return unifont_size_increment(mfont->main, increment);
 }
 
@@ -2309,8 +2331,6 @@ static char *multifont_size_increment(unifont *font, int increment)
 typedef struct fontinfo fontinfo;
 
 typedef struct unifontsel_internal {
-    /* This must be the structure's first element, for cross-casting */
-    unifontsel u;
     GtkListStore *family_model, *style_model, *size_model;
     GtkWidget *family_list, *style_list, *size_entry, *size_list;
     GtkWidget *filter_buttons[4];
@@ -2325,7 +2345,9 @@ typedef struct unifontsel_internal {
     tree234 *fonts_by_realname, *fonts_by_selorder;
     fontinfo *selected;
     int selsize, intendedsize;
-    int inhibit_response;  /* inhibit callbacks when we change GUI controls */
+    bool inhibit_response;  /* inhibit callbacks when we change GUI controls */
+
+    unifontsel u;
 } unifontsel_internal;
 
 /*
@@ -2351,7 +2373,7 @@ struct fontinfo {
     /*
      * The class of font.
      */
-    const struct unifont_vtable *fontclass;
+    const struct UnifontVtable *fontclass;
 };
 
 struct fontinfo_realname_find {
@@ -2444,8 +2466,8 @@ static void unifontsel_deselect(unifontsel_internal *fs)
     fs->selected = NULL;
     gtk_list_store_clear(fs->style_model);
     gtk_list_store_clear(fs->size_model);
-    gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
-    gtk_widget_set_sensitive(fs->size_entry, FALSE);
+    gtk_widget_set_sensitive(fs->u.ok_button, false);
+    gtk_widget_set_sensitive(fs->size_entry, false);
     unifontsel_draw_preview_text(fs);
 }
 
@@ -2457,7 +2479,7 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
     int currflags = -1;
     fontinfo *info;
 
-    fs->inhibit_response = TRUE;
+    fs->inhibit_response = true;
 
     gtk_list_store_clear(fs->family_model);
     listindex = 0;
@@ -2510,20 +2532,21 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
     if (fs->selected && fs->selected->familyindex < 0)
 	unifontsel_deselect(fs);
 
-    fs->inhibit_response = FALSE;
+    fs->inhibit_response = false;
 }
 
 static void unifontsel_setup_stylelist(unifontsel_internal *fs,
 				       int start, int end)
 {
     GtkTreeIter iter;
-    int i, listindex, minpos = -1, maxpos = -1, started = FALSE;
+    int i, listindex, minpos = -1, maxpos = -1;
+    bool started = false;
     char *currcs = NULL, *currstyle = NULL;
     fontinfo *info;
 
     gtk_list_store_clear(fs->style_model);
     listindex = 0;
-    started = FALSE;
+    started = false;
 
     /*
      * Search through the font tree for anything matching our
@@ -2551,12 +2574,12 @@ static void unifontsel_setup_stylelist(unifontsel_internal *fs,
 	     * We've either finished a style/charset, or started a
 	     * new one, or both.
 	     */
-	    started = TRUE;
+	    started = true;
 	    if (currstyle) {
 		gtk_list_store_append(fs->style_model, &iter);
 		gtk_list_store_set(fs->style_model, &iter,
 				   0, currstyle, 1, minpos, 2, maxpos+1,
-				   3, TRUE, 4, PANGO_WEIGHT_NORMAL, -1);
+				   3, true, 4, PANGO_WEIGHT_NORMAL, -1);
 		listindex++;
 	    }
 	    if (info) {
@@ -2565,7 +2588,7 @@ static void unifontsel_setup_stylelist(unifontsel_internal *fs,
 		    gtk_list_store_append(fs->style_model, &iter);
 		    gtk_list_store_set(fs->style_model, &iter,
 				       0, info->charset, 1, -1, 2, -1,
-				       3, FALSE, 4, PANGO_WEIGHT_BOLD, -1);
+				       3, false, 4, PANGO_WEIGHT_BOLD, -1);
 		    listindex++;
 		}
 		currcs = info->charset;
@@ -2652,7 +2675,7 @@ static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
 	    (GTK_WIDGET(fs->u.window), info->realname, fs->selsize);
 	font = info->fontclass->create(GTK_WIDGET(fs->u.window),
 				       sizename ? sizename : info->realname,
-				       FALSE, FALSE, 0, 0);
+				       false, false, 0, 0);
     } else
 	font = NULL;
 
@@ -2703,11 +2726,11 @@ static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
         info->fontclass->draw_text(dctx, font,
                                    0, font->ascent,
                                    L"bankrupt jilted showmen quiz convex fogey",
-                                   41, FALSE, FALSE, font->width);
+                                   41, false, false, font->width);
         info->fontclass->draw_text(dctx, font,
                                    0, font->ascent + font->height,
                                    L"BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
-                                   41, FALSE, FALSE, font->width);
+                                   41, false, false, font->width);
         /*
          * The ordering of punctuation here is also selected
          * with some specific aims in mind. I put ` and '
@@ -2723,7 +2746,7 @@ static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
         info->fontclass->draw_text(dctx, font,
                                    0, font->ascent + font->height * 2,
                                    L"0123456789!?,.:;<>()[]{}\\/`'\"+*-=~#_@|%&^$",
-                                   42, FALSE, FALSE, font->width);
+                                   42, false, false, font->width);
 
 	info->fontclass->destroy(font);
     }
@@ -2791,12 +2814,12 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 #endif
 
     gdk_window_invalidate_rect(gtk_widget_get_window(fs->preview_area),
-                               NULL, FALSE);
+                               NULL, false);
 }
 
 static void unifontsel_select_font(unifontsel_internal *fs,
 				   fontinfo *info, int size, int leftlist,
-				   int size_is_explicit)
+				   bool size_is_explicit)
 {
     int index;
     int minval, maxval;
@@ -2804,14 +2827,14 @@ static void unifontsel_select_font(unifontsel_internal *fs,
     GtkTreePath *treepath;
     GtkTreeIter iter;
 
-    fs->inhibit_response = TRUE;
+    fs->inhibit_response = true;
 
     fs->selected = info;
     fs->selsize = size;
     if (size_is_explicit)
 	fs->intendedsize = size;
 
-    gtk_widget_set_sensitive(fs->u.ok_button, TRUE);
+    gtk_widget_set_sensitive(fs->u.ok_button, true);
 
     /*
      * Find the index of this fontinfo in the selorder list. 
@@ -2840,7 +2863,7 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 	(gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->family_list)),
 	 treepath);
     gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->family_list),
-				 treepath, NULL, FALSE, 0.0, 0.0);
+				 treepath, NULL, false, 0.0, 0.0);
     success = gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->family_model),
                                       &iter, treepath);
     assert(success);
@@ -2864,7 +2887,7 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 	    (gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->style_list)),
 	     treepath);
 	gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->style_list),
-				     treepath, NULL, FALSE, 0.0, 0.0);
+				     treepath, NULL, false, 0.0, 0.0);
 	gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->style_model),
 				&iter, treepath);
 	gtk_tree_path_free(treepath);
@@ -2887,7 +2910,7 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 		(gtk_tree_view_get_selection(GTK_TREE_VIEW(fs->size_list)),
 		 treepath);
 	    gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->size_list),
-					 treepath, NULL, FALSE, 0.0, 0.0);
+					 treepath, NULL, false, 0.0, 0.0);
 	    gtk_tree_path_free(treepath);
 	    size = info->size;
 	} else {
@@ -2896,9 +2919,9 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 		if (unifontsel_default_sizes[j] == size) {
 		    treepath = gtk_tree_path_new_from_indices(j, -1);
 		    gtk_tree_view_set_cursor(GTK_TREE_VIEW(fs->size_list),
-					     treepath, NULL, FALSE);
+					     treepath, NULL, false);
 		    gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->size_list),
-						 treepath, NULL, FALSE, 0.0,
+						 treepath, NULL, false, 0.0,
 						 0.0);
 		    gtk_tree_path_free(treepath);
 		}
@@ -2928,13 +2951,13 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 
     unifontsel_draw_preview_text(fs);
 
-    fs->inhibit_response = FALSE;
+    fs->inhibit_response = false;
 }
 
 static void unifontsel_button_toggled(GtkToggleButton *tb, gpointer data)
 {
     unifontsel_internal *fs = (unifontsel_internal *)data;
-    int newstate = gtk_toggle_button_get_active(tb);
+    bool newstate = gtk_toggle_button_get_active(tb);
     int newflags;
     int flagbit = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(tb),
                                                     "user-data"));
@@ -2954,7 +2977,7 @@ static void unifontsel_add_entry(void *ctx, const char *realfontname,
 				 const char *family, const char *charset,
 				 const char *style, const char *stylekey,
 				 int size, int flags,
-				 const struct unifont_vtable *fontclass)
+				 const struct UnifontVtable *fontclass)
 {
     unifontsel_internal *fs = (unifontsel_internal *)ctx;
     fontinfo *info;
@@ -3113,7 +3136,7 @@ static void family_changed(GtkTreeSelection *treeselection, gpointer data)
     if (!info->size)
 	fs->selsize = fs->intendedsize;   /* font is scalable */
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
-			   1, FALSE);
+			   1, false);
 }
 
 static void style_changed(GtkTreeSelection *treeselection, gpointer data)
@@ -3140,7 +3163,7 @@ static void style_changed(GtkTreeSelection *treeselection, gpointer data)
     if (!info->size)
 	fs->selsize = fs->intendedsize;   /* font is scalable */
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
-			   2, FALSE);
+			   2, false);
 }
 
 static void size_changed(GtkTreeSelection *treeselection, gpointer data)
@@ -3159,7 +3182,7 @@ static void size_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, 2, &size, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    unifontsel_select_font(fs, info, info->size ? info->size : size, 3, TRUE);
+    unifontsel_select_font(fs, info, info->size ? info->size : size, 3, true);
 }
 
 static void size_entry_changed(GtkEditable *ed, gpointer data)
@@ -3176,7 +3199,7 @@ static void size_entry_changed(GtkEditable *ed, gpointer data)
 
     if (size > 0) {
 	assert(fs->selected->size == 0);
-	unifontsel_select_font(fs, fs->selected, size, 3, TRUE);
+	unifontsel_select_font(fs, fs->selected, size, 3, true);
     }
 }
 
@@ -3200,7 +3223,7 @@ static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
 	struct fontinfo_realname_find f;
 
 	newname = info->fontclass->canonify_fontname
-	    (GTK_WIDGET(fs->u.window), info->realname, &newsize, &flags, TRUE);
+	    (GTK_WIDGET(fs->u.window), info->realname, &newsize, &flags, true);
 
 	f.realname = newname;
 	f.flags = flags;
@@ -3213,7 +3236,7 @@ static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
 	    return;   /* didn't change under canonification => not an alias */
 	unifontsel_select_font(fs, newinfo,
 			       newinfo->size ? newinfo->size : newsize,
-			       1, TRUE);
+			       1, true);
     }
 }
 
@@ -3228,7 +3251,7 @@ static gint unifontsel_draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
     dctx.u.cairo.cr = cr;
     unifontsel_draw_preview_text_inner(&dctx, fs);
 
-    return TRUE;
+    return true;
 }
 #else
 static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
@@ -3250,7 +3273,7 @@ static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
     unifontsel_draw_preview_text(fs);
 #endif
 
-    return TRUE;
+    return true;
 }
 #endif
 
@@ -3283,9 +3306,9 @@ static gint unifontsel_configure_area(GtkWidget *widget,
     }
 #endif
 
-    gdk_window_invalidate_rect(gtk_widget_get_window(widget), NULL, FALSE);
+    gdk_window_invalidate_rect(gtk_widget_get_window(widget), NULL, false);
 
-    return TRUE;
+    return true;
 }
 
 unifontsel *unifontsel_new(const char *wintitle)
@@ -3297,7 +3320,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     int lists_height, preview_height, font_width, style_width, size_width;
     int i;
 
-    fs->inhibit_response = FALSE;
+    fs->inhibit_response = false;
     fs->selected = NULL;
 
     {
@@ -3340,7 +3363,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     table = gtk_grid_new();
     gtk_grid_set_column_spacing(GTK_GRID(table), 8);
 #else
-    table = gtk_table_new(8, 3, FALSE);
+    table = gtk_table_new(8, 3, false);
     gtk_table_set_col_spacings(GTK_TABLE(table), 8);
 #endif
     gtk_widget_show(table);
@@ -3363,14 +3386,14 @@ unifontsel *unifontsel_new(const char *wintitle)
 
     gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area
                                (GTK_DIALOG(fs->u.window))),
-		       w, TRUE, TRUE, 0);
+		       w, true, true, 0);
 
     label = gtk_label_new_with_mnemonic("_Font:");
     gtk_widget_show(label);
     align_label_left(GTK_LABEL(label));
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), label, 0, 0, 1, 1);
-    g_object_set(G_OBJECT(label), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(label), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 #endif
@@ -3382,7 +3405,7 @@ unifontsel *unifontsel_new(const char *wintitle)
      */
     model = gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT);
     w = gtk_tree_view_new_with_model(GTK_TREE_MODEL(model));
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), FALSE);
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
     gtk_label_set_mnemonic_widget(GTK_LABEL(label), w);
     gtk_widget_show(w);
     column = gtk_tree_view_column_new_with_attributes
@@ -3405,7 +3428,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_widget_set_size_request(scroll, font_width, lists_height);
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), scroll, 0, 1, 1, 2);
-    g_object_set(G_OBJECT(scroll), "expand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(scroll), "expand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), scroll, 0, 1, 1, 3, GTK_FILL,
 		     GTK_EXPAND | GTK_FILL, 0, 0);
@@ -3418,7 +3441,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     align_label_left(GTK_LABEL(label));
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), label, 1, 0, 1, 1);
-    g_object_set(G_OBJECT(label), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(label), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
 #endif
@@ -3433,7 +3456,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     model = gtk_list_store_new(5, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT,
 			       G_TYPE_BOOLEAN, G_TYPE_INT);
     w = gtk_tree_view_new_with_model(GTK_TREE_MODEL(model));
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), FALSE);
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
     gtk_label_set_mnemonic_widget(GTK_LABEL(label), w);
     gtk_widget_show(w);
     column = gtk_tree_view_column_new_with_attributes
@@ -3454,7 +3477,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_widget_set_size_request(scroll, style_width, lists_height);
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), scroll, 1, 1, 1, 2);
-    g_object_set(G_OBJECT(scroll), "expand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(scroll), "expand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), scroll, 1, 2, 1, 3, GTK_FILL,
 		     GTK_EXPAND | GTK_FILL, 0, 0);
@@ -3467,7 +3490,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     align_label_left(GTK_LABEL(label));
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), label, 2, 0, 1, 1);
-    g_object_set(G_OBJECT(label), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(label), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1, GTK_FILL, 0, 0, 0);
 #endif
@@ -3483,7 +3506,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_widget_show(w);
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), w, 2, 1, 1, 1);
-    g_object_set(G_OBJECT(w), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(w), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), w, 2, 3, 1, 2, GTK_FILL, 0, 0, 0);
 #endif
@@ -3492,7 +3515,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 
     model = gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT);
     w = gtk_tree_view_new_with_model(GTK_TREE_MODEL(model));
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), FALSE);
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), false);
     gtk_widget_show(w);
     column = gtk_tree_view_column_new_with_attributes
 	("Size", gtk_cell_renderer_text_new(),
@@ -3511,7 +3534,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 				   GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), scroll, 2, 2, 1, 1);
-    g_object_set(G_OBJECT(scroll), "expand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(scroll), "expand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), scroll, 2, 3, 2, 3, GTK_FILL,
 		     GTK_EXPAND | GTK_FILL, 0, 0);
@@ -3533,9 +3556,9 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->preview_bg.red = fs->preview_bg.green = fs->preview_bg.blue = 0xFFFF;
 #if !GTK_CHECK_VERSION(3,0,0)
     gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_fg,
-			     FALSE, FALSE);
+			     false, false);
     gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_bg,
-			     FALSE, FALSE);
+			     false, false);
 #endif
 #if GTK_CHECK_VERSION(3,0,0)
     g_signal_connect(G_OBJECT(fs->preview_area), "draw",
@@ -3572,7 +3595,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_widget_show(w);
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), w, 0, 3, 3, 1);
-    g_object_set(G_OBJECT(w), "expand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(w), "expand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 3, 4,
 		     GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 8);
@@ -3595,7 +3618,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->filter_buttons[fs->n_filter_buttons++] = w;
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), w, 0, 4, 3, 1);
-    g_object_set(G_OBJECT(w), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(w), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 4, 5, GTK_FILL, 0, 0, 0);
 #endif
@@ -3608,7 +3631,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->filter_buttons[fs->n_filter_buttons++] = w;
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), w, 0, 5, 3, 1);
-    g_object_set(G_OBJECT(w), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(w), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 5, 6, GTK_FILL, 0, 0, 0);
 #endif
@@ -3621,7 +3644,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->filter_buttons[fs->n_filter_buttons++] = w;
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), w, 0, 6, 3, 1);
-    g_object_set(G_OBJECT(w), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(w), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 6, 7, GTK_FILL, 0, 0, 0);
 #endif
@@ -3635,7 +3658,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->filter_buttons[fs->n_filter_buttons++] = w;
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), w, 0, 7, 3, 1);
-    g_object_set(G_OBJECT(w), "hexpand", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(w), "hexpand", true, (const char *)NULL);
 #else
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 7, 8, GTK_FILL, 0, 0, 0);
 #endif
@@ -3661,14 +3684,14 @@ unifontsel *unifontsel_new(const char *wintitle)
     unifontsel_setup_familylist(fs);
 
     fs->selsize = fs->intendedsize = 13;   /* random default */
-    gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
+    gtk_widget_set_sensitive(fs->u.ok_button, false);
 
-    return (unifontsel *)fs;
+    return &fs->u;
 }
 
 void unifontsel_destroy(unifontsel *fontsel)
 {
-    unifontsel_internal *fs = (unifontsel_internal *)fontsel;
+    unifontsel_internal *fs = container_of(fontsel, unifontsel_internal, u);
     fontinfo *info;
 
 #ifndef NO_BACKING_PIXMAPS
@@ -3687,7 +3710,7 @@ void unifontsel_destroy(unifontsel *fontsel)
 
 void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 {
-    unifontsel_internal *fs = (unifontsel_internal *)fontsel;
+    unifontsel_internal *fs = container_of(fontsel, unifontsel_internal, u);
     int i, start, end, size, flags;
     const char *fontname2 = NULL;
     fontinfo *info;
@@ -3704,7 +3727,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
     fontname = unifont_do_prefix(fontname, &start, &end);
     for (i = start; i < end; i++) {
 	fontname2 = unifont_types[i]->canonify_fontname
-	    (GTK_WIDGET(fs->u.window), fontname, &size, &flags, FALSE);
+	    (GTK_WIDGET(fs->u.window), fontname, &size, &flags, false);
 	if (fontname2)
 	    break;
     }
@@ -3742,12 +3765,12 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
      * know everything we need to fill in all the fields in the
      * dialog.
      */
-    unifontsel_select_font(fs, info, size, 0, TRUE);
+    unifontsel_select_font(fs, info, size, 0, true);
 }
 
 char *unifontsel_get_name(unifontsel *fontsel)
 {
-    unifontsel_internal *fs = (unifontsel_internal *)fontsel;
+    unifontsel_internal *fs = container_of(fontsel, unifontsel_internal, u);
     char *name;
 
     if (!fs->selected)

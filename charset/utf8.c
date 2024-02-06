@@ -7,18 +7,13 @@
 #include "charset.h"
 #include "internal.h"
 
-void read_utf8(charset_spec const *, long int, charset_state *,
-	       void (*)(void *, long int), void *);
-void write_utf8(charset_spec const *, long int,
-		charset_state *, void (*)(void *, long int), void *);
-
 /*
  * UTF-8 has no associated data, so `charset' may be ignored.
  */
 
-void read_utf8(charset_spec const *charset, long int input_chr,
-	       charset_state *state,
-	       void (*emit)(void *ctx, long int output), void *emitctx)
+static void read_utf8(charset_spec const *charset, long int input_chr,
+                      charset_state *state,
+                      void (*emit)(void *ctx, long int output), void *emitctx)
 {
     UNUSEDARG(charset);
 
@@ -186,9 +181,9 @@ void read_utf8(charset_spec const *charset, long int input_chr,
  * charset_state.
  */
 
-void write_utf8(charset_spec const *charset, long int input_chr,
-		charset_state *state,
-		void (*emit)(void *ctx, long int output), void *emitctx)
+static void write_utf8(charset_spec const *charset, long int input_chr,
+                       charset_state *state,
+                       void (*emit)(void *ctx, long int output), void *emitctx)
 {
     UNUSEDARG(charset);
     UNUSEDARG(state);

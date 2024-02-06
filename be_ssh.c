@@ -10,7 +10,7 @@
 
 const int be_default_protocol = PROT_SSH;
 
-Backend *backends[] = {
+const struct BackendVtable *const backends[] = {
     &ssh_backend,
     NULL
 };

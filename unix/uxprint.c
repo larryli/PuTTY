@@ -25,7 +25,7 @@ printer_job *printer_start_job(char *printer)
     return ret;
 }
 
-void printer_job_data(printer_job *pj, void *data, int len)
+void printer_job_data(printer_job *pj, const void *data, size_t len)
 {
     if (!pj)
 	return;

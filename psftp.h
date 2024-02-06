@@ -3,8 +3,6 @@
  * platform-specific SFTP module.
  */
 
-#include "int64.h"
-
 #ifndef PUTTY_PSFTP_H
 #define PUTTY_PSFTP_H
 
@@ -38,14 +36,14 @@ int ssh_sftp_loop_iteration(void);
  * Read a command line for PSFTP from standard input. Caller must
  * free.
  * 
- * If `backend_required' is TRUE, should also listen for activity
+ * If `backend_required' is true, should also listen for activity
  * at the backend (rekeys, clientalives, unexpected closures etc)
  * and respond as necessary, and if the backend closes it should
  * treat this as a failure condition. If `backend_required' is
- * FALSE, a back end is not (intentionally) active at all (e.g.
+ * false, a back end is not (intentionally) active at all (e.g.
  * psftp before an `open' command).
  */
-char *ssh_sftp_get_cmdline(const char *prompt, int backend_required);
+char *ssh_sftp_get_cmdline(const char *prompt, bool backend_required);
 
 /*
  * Platform-specific function called when we're about to make a
@@ -93,10 +91,10 @@ typedef struct RFile RFile;
 typedef struct WFile WFile;
 /* Output params size, perms, mtime and atime can all be NULL if
  * desired. perms will be -1 if the OS does not support POSIX permissions. */
-RFile *open_existing_file(const char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64_t *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms);
-WFile *open_existing_wfile(const char *name, uint64 *size);
+WFile *open_existing_wfile(const char *name, uint64_t *size);
 /* Returns <0 on error, 0 on eof, or number of bytes read, as usual */
 int read_from_file(RFile *f, void *buffer, int length);
 /* Closes and frees the RFile */
@@ -109,9 +107,9 @@ void set_file_times(WFile *f, unsigned long mtime, unsigned long atime);
 void close_wfile(WFile *f);
 /* Seek offset bytes through file */
 enum { FROM_START, FROM_CURRENT, FROM_END };
-int seek_file(WFile *f, uint64 offset, int whence);
+int seek_file(WFile *f, uint64_t offset, int whence);
 /* Get file position */
-uint64 get_file_posn(WFile *f);
+uint64_t get_file_posn(WFile *f);
 /*
  * Determine the type of a file: nonexistent, file, directory or
  * weird. `weird' covers anything else - named pipes, Unix sockets,
@@ -129,7 +127,7 @@ int file_type(const char *name);
  * Read all the file names out of a directory.
  */
 typedef struct DirHandle DirHandle;
-DirHandle *open_directory(const char *name);
+DirHandle *open_directory(const char *name, const char **errmsg);
 /* The string returned from this will need freeing if not NULL */
 char *read_filename(DirHandle *dir);
 void close_directory(DirHandle *dir);
@@ -151,7 +149,7 @@ void close_directory(DirHandle *dir);
 enum {
     WCTYPE_NONEXISTENT, WCTYPE_FILENAME, WCTYPE_WILDCARD
 };
-int test_wildcard(const char *name, int cmdline);
+int test_wildcard(const char *name, bool cmdline);
 
 /*
  * Actually return matching file names for a local wildcard.
@@ -168,14 +166,14 @@ void finish_wildcard_matching(WildcardMatcher *dir);
  * to filenames returned from FXP_READDIR, which means we can panic
  * if we see _anything_ resembling a directory separator.
  * 
- * Returns TRUE if the filename is kosher, FALSE if dangerous.
+ * Returns true if the filename is kosher, false if dangerous.
  */
-int vet_filename(const char *name);
+bool vet_filename(const char *name);
 
 /*
- * Create a directory. Returns 0 on error, !=0 on success.
+ * Create a directory. Returns true on success, false on error.
  */
-int create_directory(const char *name);
+bool create_directory(const char *name);
 
 /*
  * Concatenate a directory name and a file name. The way this is
@@ -198,6 +196,6 @@ char *dir_file_cat(const char *dir, const char *file);
  * pair of overloaded functions, one mapping mutable->mutable and the
  * other const->const :-(
  */
-char *stripslashes(const char *str, int local);
+char *stripslashes(const char *str, bool local);
 
 #endif /* PUTTY_PSFTP_H */

@@ -41,21 +41,21 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include "x11misc.h"
 #endif
 
 static char *progname, **gtkargvstart;
 static int ngtkargs;
-
-extern char **pty_argv;	       /* declared in pty.c */
-extern int use_pty_argv;
 
 static const char *app_name = "pterm";
 
 char *x_get_default(const char *key)
 {
 #ifndef NOT_X_WINDOWS
-    return XGetDefault(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()),
-                       app_name, key);
+    Display *disp;
+    if ((disp = get_x11_display()) == NULL)
+        return NULL;
+    return XGetDefault(disp, app_name, key);
 #else
     return NULL;
 #endif
@@ -153,8 +153,8 @@ void launch_duplicate_session(Conf *conf)
      * into a byte stream, create a pipe, and send this byte stream
      * to the child through the pipe.
      */
-    int i, ret, sersize, size;
-    char *data;
+    int i, ret;
+    strbuf *serialised;
     char option[80];
     int pipefd[2];
 
@@ -163,35 +163,27 @@ void launch_duplicate_session(Conf *conf)
 	return;
     }
 
-    size = sersize = conf_serialised_size(conf);
-    if (use_pty_argv && pty_argv) {
+    serialised = strbuf_new();
+
+    conf_serialise(BinarySink_UPCAST(serialised), conf);
+    if (use_pty_argv && pty_argv)
 	for (i = 0; pty_argv[i]; i++)
-	    size += strlen(pty_argv[i]) + 1;
-    }
+            put_asciz(serialised, pty_argv[i]);
 
-    data = snewn(size, char);
-    conf_serialise(conf, data);
-    if (use_pty_argv && pty_argv) {
-	int p = sersize;
-	for (i = 0; pty_argv[i]; i++) {
-	    strcpy(data + p, pty_argv[i]);
-	    p += strlen(pty_argv[i]) + 1;
-	}
-	assert(p == size);
-    }
-
-    sprintf(option, "---[%d,%d]", pipefd[0], size);
+    sprintf(option, "---[%d,%zu]", pipefd[0], serialised->len);
     noncloexec(pipefd[0]);
     fork_and_exec_self(pipefd[1], option, NULL);
     close(pipefd[0]);
 
     i = ret = 0;
-    while (i < size && (ret = write(pipefd[1], data + i, size - i)) > 0)
+    while (i < serialised->len &&
+           (ret = write(pipefd[1], serialised->s + i,
+                        serialised->len - i)) > 0)
 	i += ret;
     if (ret < 0)
 	perror("write to pipe");
     close(pipefd[1]);
-    sfree(data);
+    strbuf_free(serialised);
 }
 
 void launch_new_session(void)
@@ -206,8 +198,9 @@ void launch_saved_session(const char *str)
 
 int read_dupsession_data(Conf *conf, char *arg)
 {
-    int fd, i, ret, size, size_used;
+    int fd, i, ret, size;
     char *data;
+    BinarySource src[1];
 
     if (sscanf(arg, "---[%d,%d]", &fd, &size) != 2) {
 	fprintf(stderr, "%s: malformed magic argument `%s'\n", appname, arg);
@@ -227,35 +220,36 @@ int read_dupsession_data(Conf *conf, char *arg)
 	exit(1);
     }
 
-    size_used = conf_deserialise(conf, data, size);
-    if (use_pty_argv && size > size_used) {
-	int n = 0;
-	i = size_used;
-	while (i < size) {
-	    while (i < size && data[i]) i++;
-	    if (i >= size) {
-		fprintf(stderr, "%s: malformed Duplicate Session data\n",
-			appname);
-		exit(1);
-	    }
-	    i++;
-	    n++;
-	}
-	pty_argv = snewn(n+1, char *);
-	pty_argv[n] = NULL;
-	n = 0;
-	i = size_used;
-	while (i < size) {
-	    char *p = data + i;
-	    while (i < size && data[i]) i++;
-	    assert(i < size);
-	    i++;
-	    pty_argv[n++] = dupstr(p);
-	}
+    BinarySource_BARE_INIT(src, data, size);
+    if (!conf_deserialise(conf, src)) {
+        fprintf(stderr, "%s: malformed Duplicate Session data\n", appname);
+        exit(1);
+    }
+    if (use_pty_argv) {
+	int pty_argc = 0;
+        size_t argv_startpos = src->pos;
+
+        while (get_asciz(src), !get_err(src))
+            pty_argc++;
+
+        src->err = BSE_NO_ERROR;
+
+        if (pty_argc > 0) {
+            src->pos = argv_startpos;
+
+            pty_argv = snewn(pty_argc + 1, char *);
+            pty_argv[pty_argc] = NULL;
+            for (i = 0; i < pty_argc; i++)
+                pty_argv[i] = dupstr(get_asciz(src));
+        }
+    }
+
+    if (get_err(src) || get_avail(src) > 0) {
+        fprintf(stderr, "%s: malformed Duplicate Session data\n", appname);
+        exit(1);
     }
 
     sfree(data);
-
     return 0;
 }
 
@@ -296,14 +290,28 @@ static void version(FILE *fp) {
     sfree(buildinfo_text);
 }
 
-static struct gui_data *the_inst;
-
 static const char *geometry_string;
 
-int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
-               Conf *conf)
+void cmdline_error(const char *p, ...)
 {
-    int err = 0;
+    va_list ap;
+    fprintf(stderr, "%s: ", appname);
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
+}
+
+void window_setup_error(const char *errmsg)
+{
+    fprintf(stderr, "%s: %s\n", appname, errmsg);
+    exit(1);
+}
+
+bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
+{
+    bool err = false;
     char *val;
 
     /*
@@ -316,13 +324,13 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
      */
 #define EXPECTS_ARG { \
     if (--argc <= 0) { \
-	err = 1; \
+	err = true; \
 	fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
         continue; \
     } else \
 	val = *++argv; \
 }
-#define SECOND_PASS_ONLY { if (!do_everything) continue; }
+#define SECOND_PASS_ONLY do { if (!do_everything) continue; } while (0)
 
     while (--argc > 0) {
 	const char *p = *++argv;
@@ -406,14 +414,14 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
             {
 #if GTK_CHECK_VERSION(3,0,0)
                 GdkRGBA rgba;
-                int success = gdk_rgba_parse(&rgba, val);
+                bool success = gdk_rgba_parse(&rgba, val);
 #else
                 GdkColor col;
-                int success = gdk_color_parse(val, &col);
+                bool success = gdk_color_parse(val, &col);
 #endif
 
                 if (!success) {
-                    err = 1;
+                    err = true;
                     fprintf(stderr, "%s: unable to parse colour \"%s\"\n",
                             appname, val);
                 } else {
@@ -456,7 +464,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 		pty_argv[argc] = NULL;
 		break;		       /* finished command-line processing */
 	    } else
-		err = 1, fprintf(stderr, "%s: -e expects an argument\n",
+		err = true, fprintf(stderr, "%s: -e expects an argument\n",
                                  appname);
 
 	} else if (!strcmp(p, "-title")) {
@@ -475,31 +483,31 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 
 	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_stamp_utmp, 0);
+	    conf_set_bool(conf, CONF_stamp_utmp, false);
 
 	} else if (!strcmp(p, "-ut")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_stamp_utmp, 1);
+	    conf_set_bool(conf, CONF_stamp_utmp, true);
 
 	} else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_login_shell, 0);
+	    conf_set_bool(conf, CONF_login_shell, false);
 
 	} else if (!strcmp(p, "-ls")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_login_shell, 1);
+	    conf_set_bool(conf, CONF_login_shell, true);
 
 	} else if (!strcmp(p, "-nethack")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_nethack_keypad, 1);
+	    conf_set_bool(conf, CONF_nethack_keypad, true);
 
 	} else if (!strcmp(p, "-sb-") || !strcmp(p, "+sb")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_scrollbar, 0);
+	    conf_set_bool(conf, CONF_scrollbar, false);
 
 	} else if (!strcmp(p, "-sb")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_scrollbar, 1);
+	    conf_set_bool(conf, CONF_scrollbar, true);
 
 	} else if (!strcmp(p, "-name")) {
 	    EXPECTS_ARG;
@@ -521,13 +529,16 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
             pgp_fingerprints();
             exit(1);
 
-	} else if(p[0] != '-' && (!do_everything ||
-                                  process_nonoption_arg(p, conf,
-							allow_launch))) {
-            /* do nothing */
+	} else if (p[0] != '-') {
+            /* Non-option arguments not handled by cmdline.c are errors. */
+            if (do_everything) {
+                err = true;
+                fprintf(stderr, "%s: unexpected non-option argument '%s'\n",
+                        appname, p);
+            }
 
 	} else {
-	    err = 1;
+	    err = true;
 	    fprintf(stderr, "%s: unrecognized option '%s'\n", appname, p);
 	}
     }
@@ -535,28 +546,50 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
     return err;
 }
 
-GtkWidget *make_gtk_toplevel_window(void *frontend)
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
 {
     return gtk_window_new(GTK_WINDOW_TOPLEVEL);
 }
 
-extern int cfgbox(Conf *conf);
+const bool buildinfo_gtk_relevant = true;
 
-const int buildinfo_gtk_relevant = TRUE;
+struct post_initial_config_box_ctx {
+    Conf *conf;
+    const char *geometry_string;
+};
+
+static void post_initial_config_box(void *vctx, int result)
+{
+    struct post_initial_config_box_ctx ctx =
+        *(struct post_initial_config_box_ctx *)vctx;
+    sfree(vctx);
+
+    if (result > 0) {
+        new_session_window(ctx.conf, ctx.geometry_string);
+    } else if (result == 0) {
+        /* In this main(), which only runs one session in total, a
+         * negative result from the initial config box means we simply
+         * terminate. */
+        conf_free(ctx.conf);
+        gtk_main_quit();
+    }
+}
+
+void session_window_closed(void)
+{
+    gtk_main_quit();
+}
 
 int main(int argc, char **argv)
 {
     Conf *conf;
-    int need_config_box;
+    bool need_config_box;
 
     setlocale(LC_CTYPE, "");
 
-    {
-        /* Call the function in ux{putty,pterm}.c to do app-type
-         * specific setup */
-        extern void setup(int);
-        setup(TRUE);     /* TRUE means we are a one-session process */
-    }
+    /* Call the function in ux{putty,pterm}.c to do app-type
+     * specific setup */
+    setup(true);         /* true means we are a one-session process */
 
     progname = argv[0];
 
@@ -584,51 +617,52 @@ int main(int argc, char **argv)
      * terminating the main pterm/PuTTY. However, we'll have to
      * unblock it again when pterm forks.
      */
-    block_signal(SIGPIPE, 1);
+    block_signal(SIGPIPE, true);
 
     if (argc > 1 && !strncmp(argv[1], "---", 3)) {
-        extern const int dup_check_launchable;
-
 	read_dupsession_data(conf, argv[1]);
 	/* Splatter this argument so it doesn't clutter a ps listing */
 	smemclr(argv[1], strlen(argv[1]));
 
         assert(!dup_check_launchable || conf_launchable(conf));
-        need_config_box = FALSE;
+        need_config_box = false;
     } else {
-	/* By default, we bring up the config dialog, rather than launching
-	 * a session. This gets set to TRUE if something happens to change
-	 * that (e.g., a hostname is specified on the command-line). */
-	int allow_launch = FALSE;
-	if (do_cmdline(argc, argv, 0, &allow_launch, conf))
+	if (do_cmdline(argc, argv, false, conf))
 	    exit(1);		       /* pre-defaults pass to get -class */
 	do_defaults(NULL, conf);
-	if (do_cmdline(argc, argv, 1, &allow_launch, conf))
+	if (do_cmdline(argc, argv, true, conf))
 	    exit(1);		       /* post-defaults, do everything */
 
 	cmdline_run_saved(conf);
 
-	if (loaded_session)
-	    allow_launch = TRUE;
-
-        need_config_box = (!allow_launch || !conf_launchable(conf));
+        if (cmdline_tooltype & TOOLTYPE_HOST_ARG)
+            need_config_box = !cmdline_host_ok(conf);
+        else
+            need_config_box = false;
     }
 
-    /*
-     * Put up the config box.
-     */
-    if (need_config_box && !cfgbox(conf))
-        exit(0);		       /* config box hit Cancel */
-
-    /*
-     * Create the main session window. We don't really need to keep
-     * the return value - the fact that it'll be linked from a zillion
-     * GTK and glib bits and bobs known to the main loop will be
-     * sufficient to make everything actually happen - but we stash it
-     * in a global variable anyway, so that it'll be easy to find in a
-     * debugger.
-     */
-    the_inst = new_session_window(conf, geometry_string);
+    if (need_config_box) {
+        /*
+         * Put up the initial config box, which will pass the provided
+         * parameters (with conf updated) to new_session_window() when
+         * (if) the user selects Open. Or it might close without
+         * creating a session window, if the user selects Cancel. Or
+         * it might just create the session window immediately if this
+         * is a pterm-style app which doesn't have an initial config
+         * box at all.
+         */
+        struct post_initial_config_box_ctx *ctx =
+            snew(struct post_initial_config_box_ctx);
+        ctx->conf = conf;
+        ctx->geometry_string = geometry_string;
+        initial_config_box(conf, post_initial_config_box, ctx);
+    } else {
+        /*
+         * No initial config needed; just create the session window
+         * now.
+         */
+        new_session_window(conf, geometry_string);
+    }
 
     gtk_main();
 

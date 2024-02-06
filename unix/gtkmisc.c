@@ -15,6 +15,11 @@
 #include "putty.h"
 #include "gtkcompat.h"
 
+#ifndef NOT_X_WINDOWS
+#include <gdk/gdkx.h>
+#include <X11/Xlib.h>
+#endif
+
 void get_label_text_dimensions(const char *text, int *width, int *height)
 {
     /*
@@ -125,7 +130,7 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
 #if !GTK_CHECK_VERSION(2,0,0)
 
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg)->action_area),
-                       w, TRUE, TRUE, 0);
+                       w, true, true, 0);
 
 #elif !GTK_CHECK_VERSION(3,0,0)
 
@@ -144,14 +149,14 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
 #endif
     gtk_widget_show(align);
     gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
-                     align, FALSE, TRUE, 0);
+                     align, false, true, 0);
 
     w = gtk_hseparator_new();
     gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
-                     w, FALSE, TRUE, 0);
+                     w, false, true, 0);
     gtk_widget_show(w);
     gtk_widget_hide(gtk_dialog_get_action_area(GTK_DIALOG(dlg)));
-    g_object_set(G_OBJECT(dlg), "has-separator", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(dlg), "has-separator", true, (const char *)NULL);
 
 #else /* GTK 3 */
 
@@ -161,10 +166,10 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
     GtkWidget *sep;
 
     g_object_set(G_OBJECT(w), "margin", 8, (const char *)NULL);
-    gtk_box_pack_end(vbox, w, FALSE, TRUE, 0);
+    gtk_box_pack_end(vbox, w, false, true, 0);
 
     sep = gtk_hseparator_new();
-    gtk_box_pack_end(vbox, sep, FALSE, TRUE, 0);
+    gtk_box_pack_end(vbox, sep, false, true, 0);
     gtk_widget_show(sep);
 
 #endif
@@ -185,8 +190,7 @@ GtkBox *our_dialog_make_action_hbox(GtkWindow *dlg)
 }
 
 void our_dialog_add_to_content_area(GtkWindow *dlg, GtkWidget *w,
-                                    gboolean expand, gboolean fill,
-                                    guint padding)
+                                    bool expand, bool fill, guint padding)
 {
 #if GTK_CHECK_VERSION(3,0,0)
     /* GtkWindow is a GtkBin, hence contains exactly one child, which
@@ -206,3 +210,14 @@ char *buildinfo_gtk_version(void)
     return dupprintf("%d.%d.%d",
                      GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION);
 }
+
+#ifndef NOT_X_WINDOWS
+Display *get_x11_display(void)
+{
+#if GTK_CHECK_VERSION(3,0,0)
+    if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
+        return NULL;
+#endif
+    return GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+}
+#endif

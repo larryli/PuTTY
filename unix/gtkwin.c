@@ -51,17 +51,58 @@
 #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 
 GdkAtom compound_text_atom, utf8_string_atom;
+GdkAtom clipboard_atom
+#if GTK_CHECK_VERSION(2,0,0) /* GTK1 will have to fill this in at startup */
+    = GDK_SELECTION_CLIPBOARD
+#endif
+    ;
 
-struct clipboard_data_instance;
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+/*
+ * Because calling gtk_clipboard_set_with_data triggers a call to the
+ * clipboard_clear function from the last time, we need to arrange a
+ * way to distinguish a real call to clipboard_clear for the _new_
+ * instance of the clipboard data from the leftover call for the
+ * outgoing one. We do this by setting the user data field in our
+ * gtk_clipboard_set_with_data() call, instead of the obvious pointer
+ * to 'inst', to one of these.
+ */
+struct clipboard_data_instance {
+    char *pasteout_data_utf8;
+    int pasteout_data_utf8_len;
+    struct clipboard_state *state;
+    struct clipboard_data_instance *next, *prev;
+};
+#endif
 
-struct gui_data {
+struct clipboard_state {
+    GtkFrontend *inst;
+    int clipboard;
+    GdkAtom atom;
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    GtkClipboard *gtkclipboard;
+    struct clipboard_data_instance *current_cdi;
+#else
+    char *pasteout_data, *pasteout_data_ctext, *pasteout_data_utf8;
+    int pasteout_data_len, pasteout_data_ctext_len, pasteout_data_utf8_len;
+#endif
+};
+
+typedef struct XpmHolder XpmHolder;    /* only used for GTK 1 */
+
+struct GtkFrontend {
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
+    gboolean drawing_area_got_size, drawing_area_realised;
+    gboolean drawing_area_setup_needed;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
 	*restartitem;
     GtkWidget *sessionsmenu;
+#ifndef NOT_X_WINDOWS
+    Display *disp;
+#endif
 #ifndef NO_BACKING_PIXMAPS
     /*
      * Server-side pixmap which we use to cache the terminal window's
@@ -94,43 +135,42 @@ struct gui_data {
     GtkIMContext *imc;
 #endif
     unifont *fonts[4];                 /* normal, bold, wide, widebold */
-    int xpos, ypos, gotpos, gravity;
+    int xpos, ypos, gravity;
+    bool gotpos;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
 #if !GTK_CHECK_VERSION(3,0,0)
     GdkColormap *colmap;
 #endif
-    int direct_to_font;
-    wchar_t *pastein_data;
-    int pastein_data_len;
+    bool direct_to_font;
+    struct clipboard_state clipstates[N_CLIPBOARDS];
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
-    GtkClipboard *clipboard;
-    struct clipboard_data_instance *current_cdi;
-#else
-    char *pasteout_data, *pasteout_data_ctext, *pasteout_data_utf8;
-    int pasteout_data_len, pasteout_data_ctext_len, pasteout_data_utf8_len;
+    /* Remember all clipboard_data_instance structures currently
+     * associated with this GtkFrontend, in case they're still around
+     * when it gets destroyed */
+    struct clipboard_data_instance cdi_headtail;
 #endif
+    int clipboard_ctrlshiftins, clipboard_ctrlshiftcv;
     int font_width, font_height;
-    int width, height;
-    int ignore_sbar;
-    int mouseptr_visible;
-    int busy_status;
+    int width, height, scale;
+    bool ignore_sbar;
+    bool mouseptr_visible;
+    BusyStatus busy_status;
     int alt_keycode;
     int alt_digits;
     char *wintitle;
     char *icontitle;
     int master_fd, master_func_id;
-    void *ldisc;
-    Backend *back;
-    void *backhandle;
+    Ldisc *ldisc;
+    Backend *backend;
     Terminal *term;
-    void *logctx;
-    int exited;
+    LogContext *logctx;
+    bool exited;
     struct unicode_data ucsdata;
     Conf *conf;
-    void *eventlogstuff;
+    eventlog_stuff *eventlogstuff;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
-    int reconfiguring;
+    GtkWidget *dialogs[DIALOG_SLOT_LIMIT];
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble cumulative_scroll;
 #endif
@@ -140,47 +180,98 @@ struct gui_data {
     int cursor_type;
     int drawtype;
     int meta_mod_mask;
+#ifdef OSX_META_KEY_CONFIG
+    int system_mod_mask;
+#endif
+    bool send_raw_mouse;
+    unifont_drawctx uctx;
+#if GTK_CHECK_VERSION(2,0,0)
+    GdkPixbuf *trust_sigil_pb;
+#else
+    GdkPixmap *trust_sigil_pm;
+#endif
+    int trust_sigil_w, trust_sigil_h;
+
+    Seat seat;
+    TermWin termwin;
+    LogPolicy logpolicy;
 };
 
-static void cache_conf_values(struct gui_data *inst)
+static void cache_conf_values(GtkFrontend *inst)
 {
     inst->bold_style = conf_get_int(inst->conf, CONF_bold_style);
     inst->window_border = conf_get_int(inst->conf, CONF_window_border);
     inst->cursor_type = conf_get_int(inst->conf, CONF_cursor_type);
 #ifdef OSX_META_KEY_CONFIG
     inst->meta_mod_mask = 0;
-    if (conf_get_int(inst->conf, CONF_osx_option_meta))
+    if (conf_get_bool(inst->conf, CONF_osx_option_meta))
         inst->meta_mod_mask |= GDK_MOD1_MASK;
-    if (conf_get_int(inst->conf, CONF_osx_command_meta))
+    if (conf_get_bool(inst->conf, CONF_osx_command_meta))
         inst->meta_mod_mask |= GDK_MOD2_MASK;
+    inst->system_mod_mask = GDK_MOD2_MASK & ~inst->meta_mod_mask;
 #else
     inst->meta_mod_mask = GDK_MOD1_MASK;
 #endif
 }
 
-struct draw_ctx {
-    struct gui_data *inst;
-    unifont_drawctx uctx;
-};
-
-static int send_raw_mouse;
-
-static void start_backend(struct gui_data *inst);
+static void start_backend(GtkFrontend *inst);
 static void exit_callback(void *vinst);
+static void destroy_inst_connection(GtkFrontend *inst);
+static void delete_inst(GtkFrontend *inst);
 
-void connection_fatal(void *frontend, const char *p, ...)
+static void post_fatal_message_box_toplevel(void *vctx)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+    gtk_widget_destroy(inst->window);
+}
 
-    va_list ap;
-    char *msg;
-    va_start(ap, p);
-    msg = dupvprintf(p, ap);
-    va_end(ap);
-    fatal_message_box(inst->window, msg);
-    sfree(msg);
+static void post_fatal_message_box(void *vctx, int result)
+{
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+    unregister_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL);
+    queue_toplevel_callback(post_fatal_message_box_toplevel, inst);
+}
 
-    queue_toplevel_callback(exit_callback, inst);
+static void common_connfatal_message_box(
+    GtkFrontend *inst, const char *msg, post_dialog_fn_t postfn)
+{
+    char *title = dupcat(appname, " Fatal Error", NULL);
+    GtkWidget *dialog = create_message_box(
+        inst->window, title, msg,
+        string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+        false, &buttons_ok, postfn, inst);
+    register_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL, dialog);
+    sfree(title);
+}
+
+void fatal_message_box(GtkFrontend *inst, const char *msg)
+{
+    common_connfatal_message_box(inst, msg, post_fatal_message_box);
+}
+
+static void connection_fatal_callback(void *vctx)
+{
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+    destroy_inst_connection(inst);
+}
+
+static void post_nonfatal_message_box(void *vctx, int result)
+{
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+    unregister_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL);
+}
+
+static void gtk_seat_connection_fatal(Seat *seat, const char *msg)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    if (conf_get_int(inst->conf, CONF_close_on_exit) == FORCE_ON) {
+        fatal_message_box(inst, msg);
+    } else {
+        common_connfatal_message_box(inst, msg, post_nonfatal_message_box);
+    }
+
+    inst->exited = true;   /* suppress normal exit handling */
+    queue_toplevel_callback(connection_fatal_callback, inst);
 }
 
 /*
@@ -209,71 +300,134 @@ char *platform_default_s(const char *name)
     return NULL;
 }
 
+bool platform_default_b(const char *name, bool def)
+{
+    if (!strcmp(name, "WinNameAlways")) {
+        /* X natively supports icon titles, so use 'em by default */
+	return false;
+    }
+    return def;
+}
+
 int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "CloseOnExit"))
 	return 2;  /* maps to FORCE_ON after painful rearrangement :-( */
-    if (!strcmp(name, "WinNameAlways"))
-	return 0;  /* X natively supports icon titles, so use 'em by default */
     return def;
 }
 
-/* Dummy routine, only required in plink. */
-void frontend_echoedit_update(void *frontend, int echo, int edit)
+static char *gtk_seat_get_ttymode(Seat *seat, const char *mode)
 {
-}
-
-char *get_ttymode(void *frontend, const char *mode)
-{
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return term_get_ttymode(inst->term, mode);
 }
 
-int from_backend(void *frontend, int is_stderr, const char *data, int len)
+static size_t gtk_seat_output(Seat *seat, bool is_stderr,
+                              const void *data, size_t len)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return term_data(inst->term, is_stderr, data, len);
 }
 
-int from_backend_untrusted(void *frontend, const char *data, int len)
+static bool gtk_seat_eof(Seat *seat)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    return term_data_untrusted(inst->term, data, len);
+    /* GtkFrontend *inst = container_of(seat, GtkFrontend, seat); */
+    return true;   /* do respond to incoming EOF with outgoing */
 }
 
-int from_backend_eof(void *frontend)
+static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p,
+                                       bufchain *input)
 {
-    return TRUE;   /* do respond to incoming EOF with outgoing */
-}
-
-int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
-{
-    struct gui_data *inst = (struct gui_data *)p->frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     int ret;
-    ret = cmdline_get_passwd_input(p, in, inlen);
+    ret = cmdline_get_passwd_input(p);
     if (ret == -1)
-	ret = term_get_userpass_input(inst->term, p, in, inlen);
+	ret = term_get_userpass_input(inst->term, p, input);
     return ret;
 }
 
-void logevent(void *frontend, const char *string)
+static bool gtk_seat_is_utf8(Seat *seat)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    return win_is_utf8(&inst->termwin);
+}
 
-    log_eventlog(inst->logctx, string);
+static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    win_get_pixels(&inst->termwin, w, h);
+    return true;
+}
 
+StripCtrlChars *gtk_seat_stripctrl_new(
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    return stripctrl_new_term(bs_out, false, 0, inst->term);
+}
+
+static void gtk_seat_notify_remote_exit(Seat *seat);
+static void gtk_seat_update_specials_menu(Seat *seat);
+static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status);
+static const char *gtk_seat_get_x_display(Seat *seat);
+#ifndef NOT_X_WINDOWS
+static bool gtk_seat_get_windowid(Seat *seat, long *id);
+#endif
+static bool gtk_seat_set_trust_status(Seat *seat, bool trusted);
+
+static const SeatVtable gtk_seat_vt = {
+    gtk_seat_output,
+    gtk_seat_eof,
+    gtk_seat_get_userpass_input,
+    gtk_seat_notify_remote_exit,
+    gtk_seat_connection_fatal,
+    gtk_seat_update_specials_menu,
+    gtk_seat_get_ttymode,
+    gtk_seat_set_busy_status,
+    gtk_seat_verify_ssh_host_key,
+    gtk_seat_confirm_weak_crypto_primitive,
+    gtk_seat_confirm_weak_cached_hostkey,
+    gtk_seat_is_utf8,
+    nullseat_echoedit_update,
+    gtk_seat_get_x_display,
+#ifdef NOT_X_WINDOWS
+    nullseat_get_windowid,
+#else
+    gtk_seat_get_windowid,
+#endif
+    gtk_seat_get_window_pixel_size,
+    gtk_seat_stripctrl_new,
+    gtk_seat_set_trust_status,
+};
+
+static void gtk_eventlog(LogPolicy *lp, const char *string)
+{
+    GtkFrontend *inst = container_of(lp, GtkFrontend, logpolicy);
     logevent_dlg(inst->eventlogstuff, string);
 }
 
-int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
+static int gtk_askappend(LogPolicy *lp, Filename *filename,
+                         void (*callback)(void *ctx, int result), void *ctx)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
-    if (which)
-	return inst->font_height;
-    else
-	return inst->font_width;
+    GtkFrontend *inst = container_of(lp, GtkFrontend, logpolicy);
+    return gtkdlg_askappend(&inst->seat, filename, callback, ctx);
 }
+
+static void gtk_logging_error(LogPolicy *lp, const char *event)
+{
+    GtkFrontend *inst = container_of(lp, GtkFrontend, logpolicy);
+
+    /* Send 'can't open log file' errors to the terminal window.
+     * (Marked as stderr, although terminal.c won't care.) */
+    seat_stderr_pl(&inst->seat, ptrlen_from_asciz(event));
+    seat_stderr_pl(&inst->seat, PTRLEN_LITERAL("\r\n"));
+}
+
+static const LogPolicyVtable gtk_logpolicy_vt = {
+    gtk_eventlog,
+    gtk_askappend,
+    gtk_logging_error,
+};
 
 /*
  * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
@@ -286,8 +440,6 @@ int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
  */
 static Mouse_Button translate_button(Mouse_Button button)
 {
-    /* struct gui_data *inst = (struct gui_data *)frontend; */
-
     if (button == MBT_LEFT)
 	return MBT_SELECT;
     if (button == MBT_MIDDLE)
@@ -301,24 +453,48 @@ static Mouse_Button translate_button(Mouse_Button button)
  * Return the top-level GtkWindow associated with a particular
  * front end instance.
  */
-void *get_window(void *frontend)
+GtkWidget *gtk_seat_get_window(Seat *seat)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return inst->window;
+}
+
+/*
+ * Set and clear a pointer to a dialog box created as a result of the
+ * network code wanting to ask an asynchronous user question (e.g.
+ * 'what about this dodgy host key, then?').
+ */
+void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog)
+{
+    GtkFrontend *inst;
+    assert(seat->vt == &gtk_seat_vt);
+    inst = container_of(seat, GtkFrontend, seat);
+    assert(slot < DIALOG_SLOT_LIMIT);
+    assert(!inst->dialogs[slot]);
+    inst->dialogs[slot] = dialog;
+}
+void unregister_dialog(Seat *seat, enum DialogSlot slot)
+{
+    GtkFrontend *inst;
+    assert(seat->vt == &gtk_seat_vt);
+    inst = container_of(seat, GtkFrontend, seat);
+    assert(slot < DIALOG_SLOT_LIMIT);
+    assert(inst->dialogs[slot]);
+    inst->dialogs[slot] = NULL;
 }
 
 /*
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(void *frontend, int iconic)
+static void gtkwin_set_minimised(TermWin *tw, bool minimised)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
-    struct gui_data *inst = (struct gui_data *)frontend;
-    if (iconic)
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    if (minimised)
 	gtk_window_iconify(GTK_WINDOW(inst->window));
     else
 	gtk_window_deiconify(GTK_WINDOW(inst->window));
@@ -328,9 +504,9 @@ void set_iconic(void *frontend, int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(void *frontend, int x, int y)
+static void gtkwin_move(TermWin *tw, int x, int y)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -349,9 +525,9 @@ void move_window(void *frontend, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(void *frontend, int top)
+static void gtkwin_set_zorder(TermWin *tw, bool top)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (top)
 	gdk_window_raise(gtk_widget_get_window(inst->window));
     else
@@ -361,9 +537,9 @@ void set_zorder(void *frontend, int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(void *frontend)
+static void gtkwin_refresh(TermWin *tw)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     term_invalidate(inst->term);
 }
 
@@ -371,14 +547,14 @@ void refresh_window(void *frontend)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(void *frontend, int zoomed)
+static void gtkwin_set_maximised(TermWin *tw, bool maximised)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
-    struct gui_data *inst = (struct gui_data *)frontend;
-    if (zoomed)
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    if (maximised)
 	gtk_window_maximize(GTK_WINDOW(inst->window));
     else
 	gtk_window_unmaximize(GTK_WINDOW(inst->window));
@@ -386,20 +562,20 @@ void set_zoomed(void *frontend, int zoomed)
 }
 
 /*
- * Report whether the window is iconic, for terminal reports.
+ * Report whether the window is minimised, for terminal reports.
  */
-int is_iconic(void *frontend)
+static bool gtkwin_is_minimised(TermWin *tw)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return !gdk_window_is_viewable(gtk_widget_get_window(inst->window));
 }
 
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(void *frontend, int *x, int *y)
+static void gtkwin_get_pos(TermWin *tw, int *x, int *y)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -415,9 +591,9 @@ void get_window_pos(void *frontend, int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(void *frontend, int *x, int *y)
+static void gtkwin_get_pixels(TermWin *tw, int *x, int *y)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -431,32 +607,82 @@ void get_window_pixels(void *frontend, int *x, int *y)
 }
 
 /*
+ * Find out whether a dialog box already exists for this window in a
+ * particular DialogSlot. If it does, uniconify it (if we can) and
+ * raise it, so that the user realises they've already been asked this
+ * question.
+ */
+static bool find_and_raise_dialog(GtkFrontend *inst, enum DialogSlot slot)
+{
+    GtkWidget *dialog = inst->dialogs[slot];
+    if (!dialog)
+        return false;
+
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_deiconify(GTK_WINDOW(dialog));
+#endif
+    gdk_window_raise(gtk_widget_get_window(dialog));
+    return true;
+}
+
+/*
  * Return the window or icon title.
  */
-char *get_window_title(void *frontend, int icon)
+static const char *gtkwin_get_title(TermWin *tw, bool icon)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return icon ? inst->icontitle : inst->wintitle;
 }
 
-gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
+static void warn_on_close_callback(void *vctx, int result)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    if (!inst->exited && conf_get_int(inst->conf, CONF_warn_on_close)) {
-	if (!reallyclose(inst))
-	    return TRUE;
-    }
-    return FALSE;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
+    unregister_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE);
+    if (result)
+        gtk_widget_destroy(inst->window);
 }
 
-static void update_mouseptr(struct gui_data *inst)
+/*
+ * Handle the 'delete window' event (e.g. user clicking the WM close
+ * button). The return value false means the window should close, and
+ * true means it shouldn't.
+ *
+ * (That's counterintuitive, but really, in GTK terms, true means 'I
+ * have done everything necessary to handle this event, so the default
+ * handler need not do anything', i.e. 'suppress default handler',
+ * i.e. 'do not close the window'.)
+ */
+gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
+{
+    if (!inst->exited && conf_get_bool(inst->conf, CONF_warn_on_close)) {
+        /*
+         * We're not going to exit right now. We must put up a
+         * warn-on-close dialog, unless one already exists, in which
+         * case we'll just re-emphasise that one.
+         */
+        if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
+            char *title = dupcat(appname, " Exit Confirmation", NULL);
+            GtkWidget *dialog = create_message_box(
+                inst->window, title,
+                "Are you sure you want to close this session?",
+                string_width("Most of the width of the above text"),
+                false, &buttons_yn, warn_on_close_callback, inst);
+            register_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE, dialog);
+            sfree(title);
+        }
+        return true;
+    }
+    return false;
+}
+
+static void update_mouseptr(GtkFrontend *inst)
 {
     switch (inst->busy_status) {
       case BUSY_NOT:
 	if (!inst->mouseptr_visible) {
 	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
                                   inst->blankcursor);
-	} else if (send_raw_mouse) {
+	} else if (inst->send_raw_mouse) {
 	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
                                   inst->rawcursor);
 	} else {
@@ -471,42 +697,73 @@ static void update_mouseptr(struct gui_data *inst)
                               inst->waitcursor);
 	break;
       default:
-	assert(0);
+	unreachable("Bad busy_status");
     }
 }
 
-static void show_mouseptr(struct gui_data *inst, int show)
+static void show_mouseptr(GtkFrontend *inst, bool show)
 {
-    if (!conf_get_int(inst->conf, CONF_hide_mouseptr))
-	show = 1;
+    if (!conf_get_bool(inst->conf, CONF_hide_mouseptr))
+	show = true;
     inst->mouseptr_visible = show;
     update_mouseptr(inst);
 }
 
-static void draw_backing_rect(struct gui_data *inst);
+static void draw_backing_rect(GtkFrontend *inst);
 
-gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
+static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    int w, h, need_size = 0;
+    int w, h, new_scale;
+    bool need_size = false;
 
     /*
-     * See if the terminal size has changed, in which case we must
-     * let the terminal know.
+     * See if the terminal size has changed.
      */
-    w = (event->width - 2*inst->window_border) / inst->font_width;
-    h = (event->height - 2*inst->window_border) / inst->font_height;
+    w = (width - 2*inst->window_border) / inst->font_width;
+    h = (height - 2*inst->window_border) / inst->font_height;
     if (w != inst->width || h != inst->height) {
+        /*
+         * Update conf.
+         */
 	inst->width = w;
 	inst->height = h;
 	conf_set_int(inst->conf, CONF_width, inst->width);
 	conf_set_int(inst->conf, CONF_height, inst->height);
-	need_size = 1;
+        /*
+         * We'll need to tell terminal.c about the resize below.
+         */
+        need_size = true;
+        /*
+         * And we must refresh the window's backing image.
+         */
+	inst->drawing_area_setup_needed = true;
     }
+
+#if GTK_CHECK_VERSION(3,10,0)
+    new_scale = gtk_widget_get_scale_factor(inst->area);
+    if (new_scale != inst->scale)
+	inst->drawing_area_setup_needed = true;
+#else
+    new_scale = 1;
+#endif
+
+    /*
+     * This event might be spurious; some GTK setups have been known
+     * to call it when nothing at all has changed. Check if we have
+     * any reason to proceed.
+     */
+    if (!inst->drawing_area_setup_needed)
+        return;
+
+    inst->drawing_area_setup_needed = false;
+    inst->scale = new_scale;
 
     {
         int backing_w = w * inst->font_width + 2*inst->window_border;
         int backing_h = h * inst->font_height + 2*inst->window_border;
+
+        backing_w *= inst->scale;
+        backing_h *= inst->scale;
 
 #ifndef NO_BACKING_PIXMAPS
         if (inst->pixmap) {
@@ -514,7 +771,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
             inst->pixmap = NULL;
         }
 
-        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
+        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
                                       backing_w, backing_h, -1);
 #endif
 
@@ -539,32 +796,98 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	term_invalidate(inst->term);
 
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_im_context_set_client_window(inst->imc, gtk_widget_get_window(widget));
+    gtk_im_context_set_client_window(
+        inst->imc, gtk_widget_get_window(inst->area));
 #endif
-
-    return TRUE;
 }
 
-#ifdef DRAW_TEXT_CAIRO
-static void cairo_setup_dctx(struct draw_ctx *dctx)
+static void drawing_area_setup_simple(GtkFrontend *inst)
 {
-    cairo_get_matrix(dctx->uctx.u.cairo.cr,
-                     &dctx->uctx.u.cairo.origmatrix);
-    cairo_set_line_width(dctx->uctx.u.cairo.cr, 1.0);
-    cairo_set_line_cap(dctx->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
-    cairo_set_line_join(dctx->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
+    /*
+     * Wrapper on drawing_area_setup which fetches the width and
+     * height of the drawing area. We go directly to the inner version
+     * in the case where a new size allocation comes in (just in case
+     * GTK hasn't installed it in the normal place yet).
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    GdkRectangle alloc;
+    gtk_widget_get_allocation(inst->area, &alloc);
+#else
+    GtkAllocation alloc = inst->area->allocation;
+#endif
+    drawing_area_setup(inst, alloc.width, alloc.height);
+}
+
+static void area_realised(GtkWidget *widget, GtkFrontend *inst)
+{
+    inst->drawing_area_realised = true;
+    if (inst->drawing_area_realised && inst->drawing_area_got_size &&
+        inst->drawing_area_setup_needed)
+        drawing_area_setup_simple(inst);
+}
+
+static void area_size_allocate(
+    GtkWidget *widget, GdkRectangle *alloc, GtkFrontend *inst)
+{
+    inst->drawing_area_got_size = true;
+    if (inst->drawing_area_realised && inst->drawing_area_got_size)
+        drawing_area_setup(inst, alloc->width, alloc->height);
+}
+
+#if GTK_CHECK_VERSION(3,10,0)
+static void area_check_scale(GtkFrontend *inst)
+{
+    if (!inst->drawing_area_setup_needed &&
+        inst->scale != gtk_widget_get_scale_factor(inst->area)) {
+        drawing_area_setup_simple(inst);
+        if (inst->term) {
+            term_invalidate(inst->term);
+            term_update(inst->term);
+        }
+    }
+}
+#endif
+
+#if GTK_CHECK_VERSION(3,10,0)
+static gboolean area_configured(
+    GtkWidget *widget, GdkEventConfigure *event, gpointer data)
+{
+    GtkFrontend *inst = (GtkFrontend *)data;
+    area_check_scale(inst);
+    return false;
+}
+#endif
+
+#ifdef DRAW_TEXT_CAIRO
+static void cairo_setup_draw_ctx(GtkFrontend *inst)
+{
+    cairo_get_matrix(inst->uctx.u.cairo.cr,
+                     &inst->uctx.u.cairo.origmatrix);
+    cairo_set_line_width(inst->uctx.u.cairo.cr, 1.0);
+    cairo_set_line_cap(inst->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_set_line_join(inst->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
     /* This antialiasing setting appears to be ignored for Pango
      * font rendering but honoured for stroking and filling paths;
      * I don't quite understand the logic of that, but I won't
      * complain since it's exactly what I happen to want */
-    cairo_set_antialias(dctx->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
+    cairo_set_antialias(inst->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
 }
 #endif
 
 #if GTK_CHECK_VERSION(3,0,0)
 static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
+
+#if GTK_CHECK_VERSION(3,10,0)
+    /*
+     * This may be the first we hear of the window scale having
+     * changed, in which case we must hastily reconstruct our backing
+     * surface before we copy the wrong one into the newly resized
+     * real window.
+     */
+    area_check_scale(inst);
+#endif
 
     /*
      * GTK3 window redraw: we always expect Cairo to be enabled, so
@@ -574,6 +897,33 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
      */
     if (inst->surface) {
         GdkRectangle dirtyrect;
+        cairo_surface_t *target_surface;
+        double orig_sx, orig_sy;
+        cairo_matrix_t m;
+
+        /*
+         * Furtle around in the Cairo setup to force the device scale
+         * back to 1, so that when we blit a collection of pixels from
+         * our backing surface into the window, they really are
+         * _pixels_ and not some confusing antialiased slightly-offset
+         * 2x2 rectangle of pixeloids.
+         *
+         * I have no idea whether GTK expects me not to mess with the
+         * device scale in the cairo_surface_t backing its window, so
+         * I carefully put it back when I've finished.
+         *
+         * In some GTK setups, the Cairo context we're given may not
+         * have a zero translation offset in its matrix, in which case
+         * we have to adjust that to compensate for the change of
+         * scale, or else the old translation offset (designed for the
+         * old scale) will be multiplied by the new scale instead and
+         * put everything in the wrong place.
+         */
+        target_surface = cairo_get_target(cr);
+        cairo_get_matrix(cr, &m);
+        cairo_surface_get_device_scale(target_surface, &orig_sx, &orig_sy);
+        cairo_surface_set_device_scale(target_surface, 1.0, 1.0);
+        cairo_translate(cr, m.x0 * (orig_sx - 1.0), m.y0 * (orig_sy - 1.0));
 
         gdk_cairo_get_clip_rectangle(cr, &dirtyrect);
 
@@ -581,14 +931,16 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
         cairo_rectangle(cr, dirtyrect.x, dirtyrect.y,
                         dirtyrect.width, dirtyrect.height);
         cairo_fill(cr);
+
+        cairo_surface_set_device_scale(target_surface, orig_sx, orig_sy);
     }
 
-    return TRUE;
+    return true;
 }
 #else
 gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #ifndef NO_BACKING_PIXMAPS
     /*
@@ -620,7 +972,7 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
     }
 #endif
 
-    return TRUE;
+    return true;
 }
 #endif
 
@@ -638,22 +990,33 @@ char *dup_keyval_name(guint keyval)
 }
 #endif
 
-static void change_font_size(struct gui_data *inst, int increment);
+static void change_font_size(GtkFrontend *inst, int increment);
+static void key_pressed(GtkFrontend *inst);
 
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     char output[256];
     wchar_t ucsoutput[2];
-    int ucsval, start, end, special, output_charset, use_ucsoutput;
-    int nethack_mode, app_keypad_mode;
+    int ucsval, start, end, output_charset;
+    bool special, use_ucsoutput;
+    bool force_format_numeric_keypad = false;
+    bool generated_something = false;
+    char num_keypad_key = '\0';
+
+    noise_ultralight(NOISE_SOURCE_KEY, event->keyval);
+
+#ifdef OSX_META_KEY_CONFIG
+    if (event->state & inst->system_mod_mask)
+        return false;                  /* let GTK process OS X Command key */
+#endif
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
     /* By default, nothing is generated. */
     end = start = 0;
-    special = use_ucsoutput = FALSE;
+    special = use_ucsoutput = false;
     output_charset = CS_ISO8859_1;
 
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -721,12 +1084,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             }
         }
 
-        debug(("key_event: type=%s keyval=%s state=%s "
-               "hardware_keycode=%d is_modifier=%s string=[%s]\n",
-               type_string, keyval_string, state_string,
-               (int)event->hardware_keycode,
-               event->is_modifier ? "TRUE" : "FALSE",
-               string_string));
+        debug("key_event: type=%s keyval=%s state=%s "
+              "hardware_keycode=%d is_modifier=%s string=[%s]\n",
+              type_string, keyval_string, state_string,
+              (int)event->hardware_keycode,
+              event->is_modifier ? "true" : "false",
+              string_string);
 
         sfree(type_string);
         sfree(state_string);
@@ -752,8 +1115,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
              event->keyval == GDK_KEY_Alt_R) &&
             inst->alt_keycode >= 0 && inst->alt_digits > 1) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - modifier release terminates Alt+numberpad input, "
-                   "keycode = %d\n", inst->alt_keycode));
+            debug(" - modifier release terminates Alt+numberpad input, "
+                  "keycode = %d\n", inst->alt_keycode);
 #endif
             /*
              * FIXME: we might usefully try to do something clever here
@@ -766,16 +1129,16 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         }
 #if GTK_CHECK_VERSION(2,0,0)
 #ifdef KEY_EVENT_DIAGNOSTICS
-        debug((" - key release, passing to IM\n"));
+        debug(" - key release, passing to IM\n");
 #endif
         if (gtk_im_context_filter_keypress(inst->imc, event)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - key release accepted by IM\n"));
+            debug(" - key release accepted by IM\n");
 #endif
-            return TRUE;
+            return true;
         } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - key release not accepted by IM\n"));
+            debug(" - key release not accepted by IM\n");
 #endif
         }
 #endif
@@ -792,8 +1155,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
              event->keyval == GDK_KEY_Alt_L ||
              event->keyval == GDK_KEY_Alt_R)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - modifier press potentially begins Alt+numberpad "
-                   "input\n"));
+            debug(" - modifier press potentially begins Alt+numberpad "
+                  "input\n");
 #endif
 	    inst->alt_keycode = -1;
             inst->alt_digits = 0;
@@ -832,8 +1195,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		    inst->alt_keycode = inst->alt_keycode * 10 + digit;
                 inst->alt_digits++;
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Alt+numberpad digit %d added to keycode %d"
-                       " gives %d\n", digit, old_keycode, inst->alt_keycode));
+                debug(" - Alt+numberpad digit %d added to keycode %d"
+                      " gives %d\n", digit, old_keycode, inst->alt_keycode);
 #endif
 		/* Having used this digit, we now do nothing more with it. */
 		goto done;
@@ -843,75 +1206,200 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         if (event->keyval == GDK_KEY_greater &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl->: increase font size\n"));
+            debug(" - Ctrl->: increase font size\n");
 #endif
             change_font_size(inst, +1);
-            return TRUE;
+            return true;
         }
         if (event->keyval == GDK_KEY_less &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-<: increase font size\n"));
+            debug(" - Ctrl-<: increase font size\n");
 #endif
             change_font_size(inst, -1);
-            return TRUE;
+            return true;
         }
 
 	/*
 	 * Shift-PgUp and Shift-PgDn don't even generate keystrokes
 	 * at all.
 	 */
+        if (event->keyval == GDK_KEY_Page_Up &&
+            ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) ==
+             (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug(" - Ctrl-Shift-PgUp scroll\n");
+#endif
+            term_scroll(inst->term, 1, 0);
+            return true;
+        }
 	if (event->keyval == GDK_KEY_Page_Up &&
             (event->state & GDK_SHIFT_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-PgUp scroll\n"));
+            debug(" - Shift-PgUp scroll\n");
 #endif
 	    term_scroll(inst->term, 0, -inst->height/2);
-	    return TRUE;
+	    return true;
 	}
 	if (event->keyval == GDK_KEY_Page_Up &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-PgUp scroll\n"));
+            debug(" - Ctrl-PgUp scroll\n");
 #endif
 	    term_scroll(inst->term, 0, -1);
-	    return TRUE;
+	    return true;
 	}
+        if (event->keyval == GDK_KEY_Page_Down &&
+            ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) ==
+             (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug(" - Ctrl-shift-PgDn scroll\n");
+#endif
+            term_scroll(inst->term, -1, 0);
+            return true;
+        }
 	if (event->keyval == GDK_KEY_Page_Down &&
             (event->state & GDK_SHIFT_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-PgDn scroll\n"));
+            debug(" - Shift-PgDn scroll\n");
 #endif
 	    term_scroll(inst->term, 0, +inst->height/2);
-	    return TRUE;
+	    return true;
 	}
 	if (event->keyval == GDK_KEY_Page_Down &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-PgDn scroll\n"));
+            debug(" - Ctrl-PgDn scroll\n");
 #endif
 	    term_scroll(inst->term, 0, +1);
-	    return TRUE;
+	    return true;
 	}
 
 	/*
-	 * Neither does Shift-Ins.
+	 * Neither do Shift-Ins or Ctrl-Ins (if enabled).
 	 */
 	if (event->keyval == GDK_KEY_Insert &&
             (event->state & GDK_SHIFT_MASK)) {
+            int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftins);
+
+            switch (cfgval) {
+              case CLIPUI_IMPLICIT:
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-Insert paste\n"));
+                debug(" - Shift-Insert: paste from PRIMARY\n");
 #endif
-	    request_paste(inst);
-	    return TRUE;
+                term_request_paste(inst->term, CLIP_PRIMARY);
+                return true;
+              case CLIPUI_EXPLICIT:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Shift-Insert: paste from CLIPBOARD\n");
+#endif
+                term_request_paste(inst->term, CLIP_CLIPBOARD);
+                return true;
+              case CLIPUI_CUSTOM:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Shift-Insert: paste from custom clipboard\n");
+#endif
+                term_request_paste(inst->term, inst->clipboard_ctrlshiftins);
+                return true;
+              default:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Shift-Insert: no paste action\n");
+#endif
+                break;
+            }
+	}
+	if (event->keyval == GDK_KEY_Insert &&
+            (event->state & GDK_CONTROL_MASK)) {
+            static const int clips_clipboard[] = { CLIP_CLIPBOARD };
+            int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftins);
+
+            switch (cfgval) {
+              case CLIPUI_IMPLICIT:
+                /* do nothing; re-copy to PRIMARY is not needed */
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Ctrl-Insert: non-copy to PRIMARY\n");
+#endif
+                return true;
+              case CLIPUI_EXPLICIT:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Ctrl-Insert: copy to CLIPBOARD\n");
+#endif
+                term_request_copy(inst->term,
+                                  clips_clipboard, lenof(clips_clipboard));
+                return true;
+              case CLIPUI_CUSTOM:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Ctrl-Insert: copy to custom clipboard\n");
+#endif
+                term_request_copy(inst->term,
+                                  &inst->clipboard_ctrlshiftins, 1);
+                return true;
+              default:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug(" - Ctrl-Insert: no copy action\n");
+#endif
+                break;
+            }
 	}
 
-	special = FALSE;
-	use_ucsoutput = FALSE;
+        /*
+         * Another pair of copy-paste keys.
+         */
+	if ((event->state & GDK_SHIFT_MASK) &&
+            (event->state & GDK_CONTROL_MASK) &&
+            (event->keyval == GDK_KEY_C || event->keyval == GDK_KEY_c ||
+             event->keyval == GDK_KEY_V || event->keyval == GDK_KEY_v)) {
+            int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftcv);
+            bool paste = (event->keyval == GDK_KEY_V ||
+                          event->keyval == GDK_KEY_v);
 
-        nethack_mode = conf_get_int(inst->conf, CONF_nethack_keypad);
-        app_keypad_mode = (inst->term->app_keypad_keys &&
-                           !conf_get_int(inst->conf, CONF_no_applic_k));
+            switch (cfgval) {
+              case CLIPUI_IMPLICIT:
+                if (paste) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug(" - Ctrl-Shift-V: paste from PRIMARY\n");
+#endif
+                    term_request_paste(inst->term, CLIP_PRIMARY);
+                } else {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug(" - Ctrl-Shift-C: non-copy to PRIMARY\n");
+#endif
+                }
+                return true;
+              case CLIPUI_EXPLICIT:
+                if (paste) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug(" - Ctrl-Shift-V: paste from CLIPBOARD\n");
+#endif
+                    term_request_paste(inst->term, CLIP_CLIPBOARD);
+                } else {
+                    static const int clips[] = { CLIP_CLIPBOARD };
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug(" - Ctrl-Shift-C: copy to CLIPBOARD\n");
+#endif
+                    term_request_copy(inst->term, clips, lenof(clips));
+                }
+                return true;
+              case CLIPUI_CUSTOM:
+                if (paste) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug(" - Ctrl-Shift-V: paste from custom clipboard\n");
+#endif
+                    term_request_paste(inst->term,
+                                       inst->clipboard_ctrlshiftcv);
+                } else {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug(" - Ctrl-Shift-C: copy to custom clipboard\n");
+#endif
+                    term_request_copy(inst->term,
+                                      &inst->clipboard_ctrlshiftcv, 1);
+                }
+                return true;
+            }
+	}
+
+	special = false;
+	use_ucsoutput = false;
 
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
@@ -934,58 +1422,50 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
          * numeric keypad presses if Num Lock is on, but we don't want
          * it to.
          */
-	if (app_keypad_mode &&
-            (event->keyval == GDK_KEY_Num_Lock ||
-             event->keyval == GDK_KEY_KP_Divide ||
-             event->keyval == GDK_KEY_KP_Multiply ||
-             event->keyval == GDK_KEY_KP_Subtract ||
-             event->keyval == GDK_KEY_KP_Add ||
-             event->keyval == GDK_KEY_KP_Enter ||
-             event->keyval == GDK_KEY_KP_0 ||
-             event->keyval == GDK_KEY_KP_Insert ||
-             event->keyval == GDK_KEY_KP_1 ||
-             event->keyval == GDK_KEY_KP_End ||
-             event->keyval == GDK_KEY_KP_2 ||
-             event->keyval == GDK_KEY_KP_Down ||
-             event->keyval == GDK_KEY_KP_3 ||
-             event->keyval == GDK_KEY_KP_Page_Down ||
-             event->keyval == GDK_KEY_KP_4 ||
-             event->keyval == GDK_KEY_KP_Left ||
-             event->keyval == GDK_KEY_KP_5 ||
-             event->keyval == GDK_KEY_KP_Begin ||
-             event->keyval == GDK_KEY_KP_6 ||
-             event->keyval == GDK_KEY_KP_Right ||
-             event->keyval == GDK_KEY_KP_7 ||
-             event->keyval == GDK_KEY_KP_Home ||
-             event->keyval == GDK_KEY_KP_8 ||
-             event->keyval == GDK_KEY_KP_Up ||
-             event->keyval == GDK_KEY_KP_9 ||
-             event->keyval == GDK_KEY_KP_Page_Up ||
-             event->keyval == GDK_KEY_KP_Decimal ||
-             event->keyval == GDK_KEY_KP_Delete)) {
-            /* app keypad; do nothing */
-        } else if (nethack_mode &&
-                   (event->keyval == GDK_KEY_KP_1 ||
-                    event->keyval == GDK_KEY_KP_End ||
-                    event->keyval == GDK_KEY_KP_2 ||
-                    event->keyval == GDK_KEY_KP_Down ||
-                    event->keyval == GDK_KEY_KP_3 ||
-                    event->keyval == GDK_KEY_KP_Page_Down ||
-                    event->keyval == GDK_KEY_KP_4 ||
-                    event->keyval == GDK_KEY_KP_Left ||
-                    event->keyval == GDK_KEY_KP_5 ||
-                    event->keyval == GDK_KEY_KP_Begin ||
-                    event->keyval == GDK_KEY_KP_6 ||
-                    event->keyval == GDK_KEY_KP_Right ||
-                    event->keyval == GDK_KEY_KP_7 ||
-                    event->keyval == GDK_KEY_KP_Home ||
-                    event->keyval == GDK_KEY_KP_8 ||
-                    event->keyval == GDK_KEY_KP_Up ||
-                    event->keyval == GDK_KEY_KP_9 ||
-                    event->keyval == GDK_KEY_KP_Page_Up)) {
-            /* nethack mode; do nothing */
+        bool numeric = false;
+        bool nethack_mode = conf_get_bool(inst->conf, CONF_nethack_keypad);
+        bool app_keypad_mode = (inst->term->app_keypad_keys &&
+                                !conf_get_bool(inst->conf, CONF_no_applic_k));
+
+        switch (event->keyval) {
+          case GDK_KEY_Num_Lock: num_keypad_key = 'G'; break;
+          case GDK_KEY_KP_Divide: num_keypad_key = '/'; break;
+          case GDK_KEY_KP_Multiply: num_keypad_key = '*'; break;
+          case GDK_KEY_KP_Subtract: num_keypad_key = '-'; break;
+          case GDK_KEY_KP_Add: num_keypad_key = '+'; break;
+          case GDK_KEY_KP_Enter: num_keypad_key = '\r'; break;
+          case GDK_KEY_KP_0: num_keypad_key = '0'; numeric = true; break;
+          case GDK_KEY_KP_Insert: num_keypad_key = '0'; break;
+          case GDK_KEY_KP_1: num_keypad_key = '1'; numeric = true; break;
+          case GDK_KEY_KP_End: num_keypad_key = '1'; break;
+          case GDK_KEY_KP_2: num_keypad_key = '2'; numeric = true; break;
+          case GDK_KEY_KP_Down: num_keypad_key = '2'; break;
+          case GDK_KEY_KP_3: num_keypad_key = '3'; numeric = true; break;
+          case GDK_KEY_KP_Page_Down: num_keypad_key = '3'; break;
+          case GDK_KEY_KP_4: num_keypad_key = '4'; numeric = true; break;
+          case GDK_KEY_KP_Left: num_keypad_key = '4'; break;
+          case GDK_KEY_KP_5: num_keypad_key = '5'; numeric = true; break;
+          case GDK_KEY_KP_Begin: num_keypad_key = '5'; break;
+          case GDK_KEY_KP_6: num_keypad_key = '6'; numeric = true; break;
+          case GDK_KEY_KP_Right: num_keypad_key = '6'; break;
+          case GDK_KEY_KP_7: num_keypad_key = '7'; numeric = true; break;
+          case GDK_KEY_KP_Home: num_keypad_key = '7'; break;
+          case GDK_KEY_KP_8: num_keypad_key = '8'; numeric = true; break;
+          case GDK_KEY_KP_Up: num_keypad_key = '8'; break;
+          case GDK_KEY_KP_9: num_keypad_key = '9'; numeric = true; break;
+          case GDK_KEY_KP_Page_Up: num_keypad_key = '9'; break;
+          case GDK_KEY_KP_Decimal: num_keypad_key = '.'; numeric = true; break;
+          case GDK_KEY_KP_Delete: num_keypad_key = '.'; break;
+        }
+	if ((app_keypad_mode && num_keypad_key &&
+             (numeric || inst->term->funky_type != FUNKY_XTERM)) ||
+            (nethack_mode && num_keypad_key >= '1' && num_keypad_key <= '9')) {
+            /* In these modes, we override the keypad handling:
+             * regardless of Num Lock, the keys are handled by
+             * format_numeric_keypad_key below. */
+            force_format_numeric_keypad = true;
         } else {
-            int try_filter = TRUE;
+            bool try_filter = true;
 
 #ifdef META_MANUAL_MASK
             if (event->state & META_MANUAL_MASK & inst->meta_mod_mask) {
@@ -997,25 +1477,25 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                  * something not what we wanted).
                  */
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Meta modifier requiring manual intervention, "
-                       "suppressing IM filtering\n"));
+                debug(" - Meta modifier requiring manual intervention, "
+                      "suppressing IM filtering\n");
 #endif
-                try_filter = FALSE;
+                try_filter = false;
             }
 #endif
 
             if (try_filter) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - general key press, passing to IM\n"));
+                debug(" - general key press, passing to IM\n");
 #endif
                 if (gtk_im_context_filter_keypress(inst->imc, event)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - key press accepted by IM\n"));
+                    debug(" - key press accepted by IM\n");
 #endif
-                    return TRUE;
+                    return true;
                 } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - key press not accepted by IM\n"));
+                    debug(" - key press not accepted by IM\n");
 #endif
                 }
             }
@@ -1056,8 +1536,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)widedata[i]);
                     sfree(old);
                 }
-                debug((" - string translated into Unicode = [%s]\n",
-                       string_string));
+                debug(" - string translated into Unicode = [%s]\n",
+                      string_string);
                 sfree(string_string);
             }
 #endif
@@ -1078,8 +1558,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)output[i+1] & 0xFF);
                     sfree(old);
                 }
-                debug((" - string translated into UTF-8 = [%s]\n",
-                       string_string));
+                debug(" - string translated into UTF-8 = [%s]\n",
+                      string_string);
                 sfree(string_string);
             }
 #endif
@@ -1093,10 +1573,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    ucsoutput[0] = '\033';
 	    ucsoutput[1] = ucsval;
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - keysym_to_unicode gave %04x\n",
-                   (unsigned)ucsoutput[1]));
+            debug(" - keysym_to_unicode gave %04x\n",
+                  (unsigned)ucsoutput[1]);
 #endif
-	    use_ucsoutput = TRUE;
+	    use_ucsoutput = true;
 	    end = 2;
 	} else {
 	    output[lenof(output)-1] = '\0';
@@ -1130,13 +1610,13 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
                     {
                         char *keyval_name = dup_keyval_name(new_keyval);
-                        debug((" - retranslation for manual Meta: "
-                               "new keyval = %s, Unicode = %04x\n",
-                               keyval_name, (unsigned)ucsoutput[1]));
+                        debug(" - retranslation for manual Meta: "
+                              "new keyval = %s, Unicode = %04x\n",
+                              keyval_name, (unsigned)ucsoutput[1]);
                         sfree(keyval_name);
                     }
 #endif
-                    use_ucsoutput = TRUE;
+                    use_ucsoutput = true;
                     end = 2;
                 }
             }
@@ -1148,10 +1628,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (!output[1] && event->keyval == '`' &&
 	    (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-` special case, translating as 1c\n"));
+            debug(" - Ctrl-` special case, translating as 1c\n");
 #endif
 	    output[1] = '\x1C';
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	    end = 2;
 	}
 
@@ -1187,10 +1667,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 #ifdef KEY_EVENT_DIAGNOSTICS
             if (orig == output[1])
-                debug((" - manual Ctrl key handling did nothing\n"));
+                debug(" - manual Ctrl key handling did nothing\n");
             else
-                debug((" - manual Ctrl key handling: %02x -> %02x\n",
-                       (unsigned)orig, (unsigned)output[1]));
+                debug(" - manual Ctrl key handling: %02x -> %02x\n",
+                      (unsigned)orig, (unsigned)output[1]);
 #endif
         }
 
@@ -1198,23 +1678,23 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-Break special case, sending TS_BRK\n"));
+            debug(" - Ctrl-Break special case, sending SS_BRK\n");
 #endif
-	    if (inst->back)
-		inst->back->special(inst->backhandle, TS_BRK);
-	    return TRUE;
+            if (inst->backend)
+                backend_special(inst->backend, SS_BRK, 0);
+	    return true;
 	}
 
 	/* We handle Return ourselves, because it needs to be flagged as
 	 * special to ldisc. */
 	if (event->keyval == GDK_KEY_Return) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Return special case, translating as 0d + special\n"));
+            debug(" - Return special case, translating as 0d + special\n");
 #endif
 	    output[1] = '\015';
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	    end = 2;
-	    special = TRUE;
+	    special = true;
 	}
 
 	/* Control-2, Control-Space and Control-@ are NUL */
@@ -1224,10 +1704,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & (GDK_SHIFT_MASK |
 			     GDK_CONTROL_MASK)) == GDK_CONTROL_MASK) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-{space,2,@} special case, translating as 00\n"));
+            debug(" - Ctrl-{space,2,@} special case, translating as 00\n");
 #endif
 	    output[1] = '\0';
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	    end = 2;
 	}
 
@@ -1236,39 +1716,39 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) ==
 	    (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-Shift-space special case, translating as 00a0\n"));
+            debug(" - Ctrl-Shift-space special case, translating as 00a0\n");
 #endif
 	    output[1] = '\240';
 	    output_charset = CS_ISO8859_1;
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	    end = 2;
 	}
 
 	/* We don't let GTK tell us what Backspace is! We know better. */
 	if (event->keyval == GDK_KEY_BackSpace &&
 	    !(event->state & GDK_SHIFT_MASK)) {
-	    output[1] = conf_get_int(inst->conf, CONF_bksp_is_delete) ?
+	    output[1] = conf_get_bool(inst->conf, CONF_bksp_is_delete) ?
 		'\x7F' : '\x08';
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Backspace, translating as %02x\n",
-                   (unsigned)output[1]));
+            debug(" - Backspace, translating as %02x\n",
+                  (unsigned)output[1]);
 #endif
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	    end = 2;
-	    special = TRUE;
+	    special = true;
 	}
 	/* For Shift Backspace, do opposite of what is configured. */
 	if (event->keyval == GDK_KEY_BackSpace &&
 	    (event->state & GDK_SHIFT_MASK)) {
-	    output[1] = conf_get_int(inst->conf, CONF_bksp_is_delete) ?
+	    output[1] = conf_get_bool(inst->conf, CONF_bksp_is_delete) ?
 		'\x08' : '\x7F';
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-Backspace, translating as %02x\n",
-                   (unsigned)output[1]));
+            debug(" - Shift-Backspace, translating as %02x\n",
+                  (unsigned)output[1]);
 #endif
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	    end = 2;
-	    special = TRUE;
+	    special = true;
 	}
 
 	/* Shift-Tab is ESC [ Z */
@@ -1276,361 +1756,124 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->keyval == GDK_KEY_Tab &&
              (event->state & GDK_SHIFT_MASK))) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-Tab, translating as ESC [ Z\n"));
+            debug(" - Shift-Tab, translating as ESC [ Z\n");
 #endif
 	    end = 1 + sprintf(output+1, "\033[Z");
-	    use_ucsoutput = FALSE;
+	    use_ucsoutput = false;
 	}
 	/* And normal Tab is Tab, if the keymap hasn't already told us.
 	 * (Curiously, at least one version of the MacOS 10.5 X server
 	 * doesn't translate Tab for us. */
 	if (event->keyval == GDK_KEY_Tab && end <= 1) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Tab, translating as 09\n"));
+            debug(" - Tab, translating as 09\n");
 #endif
 	    output[1] = '\t';
 	    end = 2;
 	}
 
-	/*
-	 * NetHack keypad mode.
-	 */
-	if (nethack_mode) {
-	    const char *keys = NULL;
-	    switch (event->keyval) {
-	      case GDK_KEY_KP_1: case GDK_KEY_KP_End:
-                keys = "bB\002"; break;
-	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down:
-                keys = "jJ\012"; break;
-	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down:
-                keys = "nN\016"; break;
-	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left:
-                keys = "hH\010"; break;
-	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin:
-                keys = "..."; break;
-	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right:
-                keys = "lL\014"; break;
-	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home:
-                keys = "yY\031"; break;
-	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up:
-                keys = "kK\013"; break;
-	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up:
-                keys = "uU\025"; break;
-	    }
-	    if (keys) {
-		end = 2;
-		if (event->state & GDK_CONTROL_MASK)
-		    output[1] = keys[2];
-		else if (event->state & GDK_SHIFT_MASK)
-		    output[1] = keys[1];
-		else
-		    output[1] = keys[0];
+	if (num_keypad_key && force_format_numeric_keypad) {
+            end = 1 + format_numeric_keypad_key(
+                output+1, inst->term, num_keypad_key,
+                event->state & GDK_SHIFT_MASK,
+                event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Nethack-mode key"));
+            debug(" - numeric keypad key");
 #endif
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
+            use_ucsoutput = false;
+            goto done;
 	}
 
-	/*
-	 * Application keypad mode.
-	 */
-	if (app_keypad_mode) {
-	    int xkey = 0;
-	    switch (event->keyval) {
-	      case GDK_KEY_Num_Lock: xkey = 'P'; break;
-	      case GDK_KEY_KP_Divide: xkey = 'Q'; break;
-	      case GDK_KEY_KP_Multiply: xkey = 'R'; break;
-	      case GDK_KEY_KP_Subtract: xkey = 'S'; break;
-		/*
-		 * Keypad + is tricky. It covers a space that would
-		 * be taken up on the VT100 by _two_ keys; so we
-		 * let Shift select between the two. Worse still,
-		 * in xterm function key mode we change which two...
-		 */
-	      case GDK_KEY_KP_Add:
-		if (conf_get_int(inst->conf, CONF_funky_type) == FUNKY_XTERM) {
-		    if (event->state & GDK_SHIFT_MASK)
-			xkey = 'l';
-		    else
-			xkey = 'k';
-		} else if (event->state & GDK_SHIFT_MASK)
-			xkey = 'm';
-		else
-		    xkey = 'l';
-		break;
-	      case GDK_KEY_KP_Enter: xkey = 'M'; break;
-	      case GDK_KEY_KP_0: case GDK_KEY_KP_Insert: xkey = 'p'; break;
-	      case GDK_KEY_KP_1: case GDK_KEY_KP_End: xkey = 'q'; break;
-	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down: xkey = 'r'; break;
-	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down: xkey = 's'; break;
-	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left: xkey = 't'; break;
-	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin: xkey = 'u'; break;
-	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right: xkey = 'v'; break;
-	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home: xkey = 'w'; break;
-	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up: xkey = 'x'; break;
-	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up: xkey = 'y'; break;
-	      case GDK_KEY_KP_Decimal: case GDK_KEY_KP_Delete:
-                xkey = 'n'; break;
-	    }
-	    if (xkey) {
-		if (inst->term->vt52_mode) {
-		    if (xkey >= 'P' && xkey <= 'S')
-			end = 1 + sprintf(output+1, "\033%c", xkey);
-		    else
-			end = 1 + sprintf(output+1, "\033?%c", xkey);
-		} else
-		    end = 1 + sprintf(output+1, "\033O%c", xkey);
-		use_ucsoutput = FALSE;
+        switch (event->keyval) {
+            int fkey_number;
+          case GDK_KEY_F1: fkey_number = 1; goto numbered_function_key;
+          case GDK_KEY_F2: fkey_number = 2; goto numbered_function_key;
+          case GDK_KEY_F3: fkey_number = 3; goto numbered_function_key;
+          case GDK_KEY_F4: fkey_number = 4; goto numbered_function_key;
+          case GDK_KEY_F5: fkey_number = 5; goto numbered_function_key;
+          case GDK_KEY_F6: fkey_number = 6; goto numbered_function_key;
+          case GDK_KEY_F7: fkey_number = 7; goto numbered_function_key;
+          case GDK_KEY_F8: fkey_number = 8; goto numbered_function_key;
+          case GDK_KEY_F9: fkey_number = 9; goto numbered_function_key;
+          case GDK_KEY_F10: fkey_number = 10; goto numbered_function_key;
+          case GDK_KEY_F11: fkey_number = 11; goto numbered_function_key;
+          case GDK_KEY_F12: fkey_number = 12; goto numbered_function_key;
+          case GDK_KEY_F13: fkey_number = 13; goto numbered_function_key;
+          case GDK_KEY_F14: fkey_number = 14; goto numbered_function_key;
+          case GDK_KEY_F15: fkey_number = 15; goto numbered_function_key;
+          case GDK_KEY_F16: fkey_number = 16; goto numbered_function_key;
+          case GDK_KEY_F17: fkey_number = 17; goto numbered_function_key;
+          case GDK_KEY_F18: fkey_number = 18; goto numbered_function_key;
+          case GDK_KEY_F19: fkey_number = 19; goto numbered_function_key;
+          case GDK_KEY_F20: fkey_number = 20; goto numbered_function_key;
+          numbered_function_key:
+            end = 1 + format_function_key(output+1, inst->term, fkey_number,
+                                          event->state & GDK_SHIFT_MASK,
+                                          event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Application keypad mode key"));
+            debug(" - function key F%d", fkey_number);
 #endif
-		goto done;
-	    }
+            use_ucsoutput = false;
+            goto done;
+
+            SmallKeypadKey sk_key;
+          case GDK_KEY_Home: case GDK_KEY_KP_Home:
+            sk_key = SKK_HOME; goto small_keypad_key;
+          case GDK_KEY_Insert: case GDK_KEY_KP_Insert:
+            sk_key = SKK_INSERT; goto small_keypad_key;
+          case GDK_KEY_Delete: case GDK_KEY_KP_Delete:
+            sk_key = SKK_DELETE; goto small_keypad_key;
+          case GDK_KEY_End: case GDK_KEY_KP_End:
+            sk_key = SKK_END; goto small_keypad_key;
+          case GDK_KEY_Page_Up: case GDK_KEY_KP_Page_Up:
+            sk_key = SKK_PGUP; goto small_keypad_key;
+          case GDK_KEY_Page_Down: case GDK_KEY_KP_Page_Down:
+            sk_key = SKK_PGDN; goto small_keypad_key;
+          small_keypad_key:
+            /* These keys don't generate terminal input with Ctrl */
+            if (event->state & GDK_CONTROL_MASK)
+                break;
+
+            end = 1 + format_small_keypad_key(output+1, inst->term, sk_key);
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug(" - small keypad key");
+#endif
+            use_ucsoutput = false;
+            goto done;
+
+	    int xkey;
+          case GDK_KEY_Up: case GDK_KEY_KP_Up:
+            xkey = 'A'; goto arrow_key;
+          case GDK_KEY_Down: case GDK_KEY_KP_Down:
+            xkey = 'B'; goto arrow_key;
+          case GDK_KEY_Right: case GDK_KEY_KP_Right:
+            xkey = 'C'; goto arrow_key;
+          case GDK_KEY_Left: case GDK_KEY_KP_Left:
+            xkey = 'D'; goto arrow_key;
+          case GDK_KEY_Begin: case GDK_KEY_KP_Begin:
+            xkey = 'G'; goto arrow_key;
+          arrow_key:
+            end = 1 + format_arrow_key(output+1, inst->term, xkey,
+                                       event->state & GDK_CONTROL_MASK);
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug(" - arrow key");
+#endif
+            use_ucsoutput = false;
+            goto done;
 	}
 
-	/*
-	 * Next, all the keys that do tilde codes. (ESC '[' nn '~',
-	 * for integer decimal nn.)
-	 *
-	 * We also deal with the weird ones here. Linux VCs replace F1
-	 * to F5 by ESC [ [ A to ESC [ [ E. rxvt doesn't do _that_, but
-	 * does replace Home and End (1~ and 4~) by ESC [ H and ESC O w
-	 * respectively.
-	 */
-	{
-	    int code = 0;
-	    int funky_type = conf_get_int(inst->conf, CONF_funky_type);
-	    switch (event->keyval) {
-	      case GDK_KEY_F1:
-		code = (event->state & GDK_SHIFT_MASK ? 23 : 11);
-		break;
-	      case GDK_KEY_F2:
-		code = (event->state & GDK_SHIFT_MASK ? 24 : 12);
-		break;
-	      case GDK_KEY_F3:
-		code = (event->state & GDK_SHIFT_MASK ? 25 : 13);
-		break;
-	      case GDK_KEY_F4:
-		code = (event->state & GDK_SHIFT_MASK ? 26 : 14);
-		break;
-	      case GDK_KEY_F5:
-		code = (event->state & GDK_SHIFT_MASK ? 28 : 15);
-		break;
-	      case GDK_KEY_F6:
-		code = (event->state & GDK_SHIFT_MASK ? 29 : 17);
-		break;
-	      case GDK_KEY_F7:
-		code = (event->state & GDK_SHIFT_MASK ? 31 : 18);
-		break;
-	      case GDK_KEY_F8:
-		code = (event->state & GDK_SHIFT_MASK ? 32 : 19);
-		break;
-	      case GDK_KEY_F9:
-		code = (event->state & GDK_SHIFT_MASK ? 33 : 20);
-		break;
-	      case GDK_KEY_F10:
-		code = (event->state & GDK_SHIFT_MASK ? 34 : 21);
-		break;
-	      case GDK_KEY_F11:
-		code = 23;
-		break;
-	      case GDK_KEY_F12:
-		code = 24;
-		break;
-	      case GDK_KEY_F13:
-		code = 25;
-		break;
-	      case GDK_KEY_F14:
-		code = 26;
-		break;
-	      case GDK_KEY_F15:
-		code = 28;
-		break;
-	      case GDK_KEY_F16:
-		code = 29;
-		break;
-	      case GDK_KEY_F17:
-		code = 31;
-		break;
-	      case GDK_KEY_F18:
-		code = 32;
-		break;
-	      case GDK_KEY_F19:
-		code = 33;
-		break;
-	      case GDK_KEY_F20:
-		code = 34;
-		break;
-	    }
-	    if (!(event->state & GDK_CONTROL_MASK)) switch (event->keyval) {
-	      case GDK_KEY_Home: case GDK_KEY_KP_Home:
-		code = 1;
-		break;
-	      case GDK_KEY_Insert: case GDK_KEY_KP_Insert:
-		code = 2;
-		break;
-	      case GDK_KEY_Delete: case GDK_KEY_KP_Delete:
-		code = 3;
-		break;
-	      case GDK_KEY_End: case GDK_KEY_KP_End:
-		code = 4;
-		break;
-	      case GDK_KEY_Page_Up: case GDK_KEY_KP_Page_Up:
-		code = 5;
-		break;
-	      case GDK_KEY_Page_Down: case GDK_KEY_KP_Page_Down:
-		code = 6;
-		break;
-	    }
-	    /* Reorder edit keys to physical order */
-	    if (funky_type == FUNKY_VT400 && code <= 6)
-		code = "\0\2\1\4\5\3\6"[code];
-
-	    if (inst->term->vt52_mode && code > 0 && code <= 6) {
-		end = 1 + sprintf(output+1, "\x1B%c", " HLMEIG"[code]);
+	if (num_keypad_key) {
+            end = 1 + format_numeric_keypad_key(
+                output+1, inst->term, num_keypad_key,
+                event->state & GDK_SHIFT_MASK,
+                event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - VT52 mode small keypad key"));
+            debug(" - numeric keypad key");
 #endif
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-
-	    if (funky_type == FUNKY_SCO &&     /* SCO function keys */
-		code >= 11 && code <= 34) {
-		char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
-		int index = 0;
-		switch (event->keyval) {
-		  case GDK_KEY_F1: index = 0; break;
-		  case GDK_KEY_F2: index = 1; break;
-		  case GDK_KEY_F3: index = 2; break;
-		  case GDK_KEY_F4: index = 3; break;
-		  case GDK_KEY_F5: index = 4; break;
-		  case GDK_KEY_F6: index = 5; break;
-		  case GDK_KEY_F7: index = 6; break;
-		  case GDK_KEY_F8: index = 7; break;
-		  case GDK_KEY_F9: index = 8; break;
-		  case GDK_KEY_F10: index = 9; break;
-		  case GDK_KEY_F11: index = 10; break;
-		  case GDK_KEY_F12: index = 11; break;
-		}
-		if (event->state & GDK_SHIFT_MASK) index += 12;
-		if (event->state & GDK_CONTROL_MASK) index += 24;
-		end = 1 + sprintf(output+1, "\x1B[%c", codes[index]);
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - SCO mode function key"));
-#endif
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	    if (funky_type == FUNKY_SCO &&     /* SCO small keypad */
-		code >= 1 && code <= 6) {
-		char codes[] = "HL.FIG";
-		if (code == 3) {
-		    output[1] = '\x7F';
-		    end = 2;
-		} else {
-		    end = 1 + sprintf(output+1, "\x1B[%c", codes[code-1]);
-		}
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - SCO mode small keypad key"));
-#endif
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	    if ((inst->term->vt52_mode || funky_type == FUNKY_VT100P) &&
-		code >= 11 && code <= 24) {
-		int offt = 0;
-		if (code > 15)
-		    offt++;
-		if (code > 21)
-		    offt++;
-		if (inst->term->vt52_mode) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - VT52 mode function key"));
-#endif
-		    end = 1 + sprintf(output+1,
-				      "\x1B%c", code + 'P' - 11 - offt);
-                } else {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - VT100+ mode function key"));
-#endif
-		    end = 1 + sprintf(output+1,
-				      "\x1BO%c", code + 'P' - 11 - offt);
-                }
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	    if (funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
-		end = 1 + sprintf(output+1, "\x1B[[%c", code + 'A' - 11);
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Linux mode F1-F5 function key"));
-#endif
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	    if (funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
-		if (inst->term->vt52_mode) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - VT52 mode (overriding xterm) F1-F4 function"
-                           " key"));
-#endif
-		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
-                } else {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - xterm mode F1-F4 function key"));
-#endif
-		    end = 1 + sprintf(output+1, "\x1BO%c", code + 'P' - 11);
-                }
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	    if ((code == 1 || code == 4) &&
-		conf_get_int(inst->conf, CONF_rxvt_homeend)) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - rxvt style Home/End"));
-#endif
-		end = 1 + sprintf(output+1, code == 1 ? "\x1B[H" : "\x1BOw");
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	    if (code) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - ordinary function key encoding"));
-#endif
-		end = 1 + sprintf(output+1, "\x1B[%d~", code);
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
+            use_ucsoutput = false;
+            goto done;
 	}
 
-	/*
-	 * Cursor keys. (This includes the numberpad cursor keys,
-	 * if we haven't already done them due to app keypad mode.)
-	 * 
-	 * Here we also process un-numlocked un-appkeypadded KP5,
-	 * which sends ESC [ G.
-	 */
-	{
-	    int xkey = 0;
-	    switch (event->keyval) {
-	      case GDK_KEY_Up: case GDK_KEY_KP_Up: xkey = 'A'; break;
-	      case GDK_KEY_Down: case GDK_KEY_KP_Down: xkey = 'B'; break;
-	      case GDK_KEY_Right: case GDK_KEY_KP_Right: xkey = 'C'; break;
-	      case GDK_KEY_Left: case GDK_KEY_KP_Left: xkey = 'D'; break;
-	      case GDK_KEY_Begin: case GDK_KEY_KP_Begin: xkey = 'G'; break;
-	    }
-	    if (xkey) {
-		end = 1 + format_arrow_key(output+1, inst->term, xkey,
-					   event->state & GDK_CONTROL_MASK);
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - arrow key"));
-#endif
-		use_ucsoutput = FALSE;
-		goto done;
-	    }
-	}
 	goto done;
     }
 
@@ -1649,8 +1892,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                           (unsigned)output[i] & 0xFF);
                 sfree(old);
             }
-            debug((" - final output, special, generic encoding = [%s]\n",
-                   charset_to_localenc(output_charset), string_string));
+            debug(" - final output, special, generic encoding = [%s]\n",
+                  charset_to_localenc(output_charset), string_string);
             sfree(string_string);
 #endif
 	    /*
@@ -1658,8 +1901,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	     * should never matter.
 	     */
 	    output[end] = '\0';	       /* NUL-terminate */
+            generated_something = true;
 	    if (inst->ldisc)
-		ldisc_send(inst->ldisc, output+start, -2, 1);
+		ldisc_send(inst->ldisc, output+start, -2, true);
 	} else if (!inst->direct_to_font) {
 	    if (!use_ucsoutput) {
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -1673,13 +1917,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)output[i] & 0xFF);
                     sfree(old);
                 }
-                debug((" - final output in %s = [%s]\n",
-                       charset_to_localenc(output_charset), string_string));
+                debug(" - final output in %s = [%s]\n",
+                      charset_to_localenc(output_charset), string_string);
                 sfree(string_string);
 #endif
+                generated_something = true;
 		if (inst->ldisc)
 		    lpage_send(inst->ldisc, output_charset, output+start,
-			       end-start, 1);
+			       end-start, true);
 	    } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
                 char *string_string = dupstr("");
@@ -1692,8 +1937,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)ucsoutput[i]);
                     sfree(old);
                 }
-                debug((" - final output in Unicode = [%s]\n",
-                       string_string));
+                debug(" - final output in Unicode = [%s]\n",
+                      string_string);
                 sfree(string_string);
 #endif
 
@@ -1701,8 +1946,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		 * We generated our own Unicode key data from the
 		 * keysym, so use that instead.
 		 */
+                generated_something = true;
 		if (inst->ldisc)
-		    luni_send(inst->ldisc, ucsoutput+start, end-start, 1);
+		    luni_send(inst->ldisc, ucsoutput+start, end-start, true);
 	    }
 	} else {
 	    /*
@@ -1720,25 +1966,28 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                           (unsigned)output[i] & 0xFF);
                 sfree(old);
             }
-            debug((" - final output in direct-to-font encoding = [%s]\n",
-                   string_string));
+            debug(" - final output in direct-to-font encoding = [%s]\n",
+                  string_string);
             sfree(string_string);
 #endif
+            generated_something = true;
 	    if (inst->ldisc)
-		ldisc_send(inst->ldisc, output+start, end-start, 1);
+		ldisc_send(inst->ldisc, output+start, end-start, true);
 	}
 
-	show_mouseptr(inst, 0);
+	show_mouseptr(inst, false);
 	term_seen_key_event(inst->term);
     }
 
-    return TRUE;
+    if (generated_something)
+        key_pressed(inst);
+    return true;
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
 void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #ifdef KEY_EVENT_DIAGNOSTICS
     char *string_string = dupstr("");
@@ -1751,26 +2000,28 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
                                   (unsigned)str[i] & 0xFF);
         sfree(old);
     }
-    debug((" - IM commit event in UTF-8 = [%s]\n", string_string));
+    debug(" - IM commit event in UTF-8 = [%s]\n", string_string);
     sfree(string_string);
 #endif
 
     if (inst->ldisc)
-        lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), 1);
-    show_mouseptr(inst, 0);
+        lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), true);
+    show_mouseptr(inst, false);
     term_seen_key_event(inst->term);
+    key_pressed(inst);
 }
 #endif
 
 #define SCROLL_INCREMENT_LINES 5
 
 #if GTK_CHECK_VERSION(3,4,0)
-gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
+gboolean scroll_internal(GtkFrontend *inst, gdouble delta, guint state,
 			 gdouble ex, gdouble ey)
 {
-    int shift, ctrl, alt, x, y, raw_mouse_mode;
+    int x, y;
+    bool shift, ctrl, alt, raw_mouse_mode;
 
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
 
     shift = state & GDK_SHIFT_MASK;
     ctrl = state & GDK_CONTROL_MASK;
@@ -1779,9 +2030,9 @@ gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
     x = (ex - inst->window_border) / inst->font_width;
     y = (ey - inst->window_border) / inst->font_height;
 
-    raw_mouse_mode =
-        send_raw_mouse && !(shift && conf_get_int(inst->conf,
-                                                  CONF_mouse_override));
+    raw_mouse_mode = (inst->send_raw_mouse &&
+                      !(shift && conf_get_bool(inst->conf,
+                                               CONF_mouse_override)));
 
     inst->cumulative_scroll += delta * SCROLL_INCREMENT_LINES;
 
@@ -1791,7 +2042,7 @@ gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
             term_scroll(inst->term, 0, scroll_lines);
             inst->cumulative_scroll -= scroll_lines;
         }
-        return TRUE;
+        return true;
     } else {
         int scroll_events = (int)(inst->cumulative_scroll /
                                   SCROLL_INCREMENT_LINES);
@@ -1812,36 +2063,39 @@ gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
                            MA_CLICK, x, y, shift, ctrl, alt);
             }
         }
-        return TRUE;
+        return true;
     }
 }
 #endif
 
-static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
+static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
 {
-    int shift, ctrl, alt, x, y, button, act, raw_mouse_mode;
+    bool shift, ctrl, alt, raw_mouse_mode;
+    int x, y, button, act;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
-    show_mouseptr(inst, 1);
+    noise_ultralight(NOISE_SOURCE_MOUSEBUTTON, event->button);
+
+    show_mouseptr(inst, true);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
     alt = event->state & inst->meta_mod_mask;
 
-    raw_mouse_mode =
-        send_raw_mouse && !(shift && conf_get_int(inst->conf,
-                                                  CONF_mouse_override));
+    raw_mouse_mode = (inst->send_raw_mouse &&
+                      !(shift && conf_get_bool(inst->conf,
+                                               CONF_mouse_override)));
 
     if (!raw_mouse_mode) {
         if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
             term_scroll(inst->term, 0, -SCROLL_INCREMENT_LINES);
-            return TRUE;
+            return true;
         }
         if (event->button == 5 && event->type == GDK_BUTTON_PRESS) {
             term_scroll(inst->term, 0, +SCROLL_INCREMENT_LINES);
-            return TRUE;
+            return true;
         }
     }
 
@@ -1852,7 +2106,7 @@ static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
 	gtk_menu_popup(GTK_MENU(inst->menu), NULL, NULL, NULL, NULL,
 		       event->button, event->time);
 #endif
-	return TRUE;
+	return true;
     }
 
     if (event->button == 1)
@@ -1866,18 +2120,18 @@ static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
     else if (event->button == 5)
 	button = MBT_WHEEL_DOWN;
     else
-	return FALSE;		       /* don't even know what button! */
+	return false;		       /* don't even know what button! */
 
     switch (event->type) {
       case GDK_BUTTON_PRESS: act = MA_CLICK; break;
       case GDK_BUTTON_RELEASE: act = MA_RELEASE; break;
       case GDK_2BUTTON_PRESS: act = MA_2CLK; break;
       case GDK_3BUTTON_PRESS: act = MA_3CLK; break;
-      default: return FALSE;	       /* don't know this event type */
+      default: return false;	       /* don't know this event type */
     }
 
     if (raw_mouse_mode && act != MA_CLICK && act != MA_RELEASE)
-	return TRUE;		       /* we ignore these in raw mouse mode */
+	return true;		       /* we ignore these in raw mouse mode */
 
     x = (event->x - inst->window_border) / inst->font_width;
     y = (event->y - inst->window_border) / inst->font_height;
@@ -1885,12 +2139,12 @@ static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
     term_mouse(inst->term, button, translate_button(button), act,
 	       x, y, shift, ctrl, alt);
 
-    return TRUE;
+    return true;
 }
 
 gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     return button_internal(inst, event);
 }
 
@@ -1902,14 +2156,14 @@ gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
  */
 gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble dx, dy;
     if (gdk_event_get_scroll_deltas((GdkEvent *)event, &dx, &dy)) {
         return scroll_internal(inst, dy, event->state, event->x, event->y);
     } else
-        return FALSE;
+        return false;
 #else
     guint button;
     GdkEventButton *event_button;
@@ -1920,7 +2174,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     else if (event->direction == GDK_SCROLL_DOWN)
 	button = 5;
     else
-	return FALSE;
+	return false;
 
     event_button = (GdkEventButton *)gdk_event_new(GDK_BUTTON_PRESS);
     event_button->window = g_object_ref(event->window);
@@ -1943,13 +2197,17 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 
 gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    int shift, ctrl, alt, x, y, button;
+    GtkFrontend *inst = (GtkFrontend *)data;
+    bool shift, ctrl, alt;
+    int x, y, button;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
-    show_mouseptr(inst, 1);
+    noise_ultralight(NOISE_SOURCE_MOUSEPOS,
+                     ((uint32_t)event->x << 16) | (uint32_t)event->y);
+
+    show_mouseptr(inst, true);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
@@ -1961,7 +2219,7 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     else if (event->state & GDK_BUTTON3_MASK)
 	button = MBT_RIGHT;
     else
-	return FALSE;		       /* don't even know what button! */
+	return false;		       /* don't even know what button! */
 
     x = (event->x - inst->window_border) / inst->font_width;
     y = (event->y - inst->window_border) / inst->font_height;
@@ -1969,70 +2227,162 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     term_mouse(inst->term, button, translate_button(button), MA_DRAG,
 	       x, y, shift, ctrl, alt);
 
-    return TRUE;
+    return true;
 }
 
-void frontend_keypress(void *handle)
+static void key_pressed(GtkFrontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)handle;
-
     /*
      * If our child process has exited but not closed, terminate on
      * any keypress.
+     *
+     * This is a UI feature specific to GTK PuTTY, because GTK PuTTY
+     * will (at least sometimes) be running under X, and under X the
+     * window manager is sometimes absent (very occasionally on
+     * purpose, more usually temporarily because it's crashed). So
+     * it's useful to have a way to close an application window
+     * without depending on protocols like WM_DELETE_WINDOW that are
+     * typically generated by the WM (e.g. in response to a close
+     * button in the window frame).
      */
     if (inst->exited)
-	cleanup_exit(0);
+        gtk_widget_destroy(inst->window);
 }
 
-static void exit_callback(void *vinst)
+static void exit_callback(void *vctx)
 {
-    struct gui_data *inst = (struct gui_data *)vinst;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     int exitcode, close_on_exit;
 
     if (!inst->exited &&
-        (exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
-	inst->exited = TRUE;
+        (exitcode = backend_exitcode(inst->backend)) >= 0) {
+        destroy_inst_connection(inst);
+
 	close_on_exit = conf_get_int(inst->conf, CONF_close_on_exit);
 	if (close_on_exit == FORCE_ON ||
-	    (close_on_exit == AUTO && exitcode == 0))
-	    gtk_main_quit();	       /* just go */
-	if (inst->ldisc) {
-	    ldisc_free(inst->ldisc);
-	    inst->ldisc = NULL;
-	}
-        inst->back->free(inst->backhandle);
-        inst->backhandle = NULL;
-        inst->back = NULL;
-        term_provide_resize_fn(inst->term, NULL, NULL);
-        update_specials_menu(inst);
-	gtk_widget_set_sensitive(inst->restartitem, TRUE);
+	    (close_on_exit == AUTO && exitcode == 0)) {
+            gtk_widget_destroy(inst->window);
+        }
     }
 }
 
-void notify_remote_exit(void *frontend)
+static void gtk_seat_notify_remote_exit(Seat *seat)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     queue_toplevel_callback(exit_callback, inst);
+}
+
+static void destroy_inst_connection(GtkFrontend *inst)
+{
+    inst->exited = true;
+    if (inst->ldisc) {
+        ldisc_free(inst->ldisc);
+        inst->ldisc = NULL;
+    }
+    if (inst->backend) {
+        backend_free(inst->backend);
+        inst->backend = NULL;
+    }
+    if (inst->term)
+        term_provide_backend(inst->term, NULL);
+    if (inst->menu) {
+        seat_update_specials_menu(&inst->seat);
+        gtk_widget_set_sensitive(inst->restartitem, true);
+    }
+}
+
+static void delete_inst(GtkFrontend *inst)
+{
+    int dialog_slot;
+    for (dialog_slot = 0; dialog_slot < DIALOG_SLOT_LIMIT; dialog_slot++) {
+        if (inst->dialogs[dialog_slot]) {
+            gtk_widget_destroy(inst->dialogs[dialog_slot]);
+            inst->dialogs[dialog_slot] = NULL;
+        }
+    }
+    if (inst->window) {
+        gtk_widget_destroy(inst->window);
+        inst->window = NULL;
+    }
+    if (inst->menu) {
+        gtk_widget_destroy(inst->menu);
+        inst->menu = NULL;
+    }
+    destroy_inst_connection(inst);
+    if (inst->term) {
+        term_free(inst->term);
+        inst->term = NULL;
+    }
+    if (inst->conf) {
+        conf_free(inst->conf);
+        inst->conf = NULL;
+    }
+    if (inst->logctx) {
+        log_free(inst->logctx);
+        inst->logctx = NULL;
+    }
+#if GTK_CHECK_VERSION(2,0,0)
+    if (inst->trust_sigil_pb) {
+        g_object_unref(G_OBJECT(inst->trust_sigil_pb));
+        inst->trust_sigil_pb = NULL;
+    }
+#else
+    if (inst->trust_sigil_pm) {
+        gdk_pixmap_unref(inst->trust_sigil_pm);
+        inst->trust_sigil_pm = NULL;
+    }
+#endif
+
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    /*
+     * Clear up any in-flight clipboard_data_instances. We can't
+     * actually _free_ them, but we detach them from the inst that's
+     * about to be destroyed.
+     */
+    while (inst->cdi_headtail.next != &inst->cdi_headtail) {
+        struct clipboard_data_instance *cdi = inst->cdi_headtail.next;
+        cdi->state = NULL;
+        cdi->next->prev = cdi->prev;
+        cdi->prev->next = cdi->next;
+        cdi->next = cdi->prev = cdi;
+    }
+#endif
+
+    /*
+     * Delete any top-level callbacks associated with inst, which
+     * would otherwise become stale-pointer dereferences waiting to
+     * happen. We do this last, because some of the above cleanups
+     * (notably shutting down the backend) might themelves queue such
+     * callbacks, so we need to make sure they don't do that _after_
+     * we're supposed to have cleaned everything up.
+     */
+    delete_callbacks_for_context(inst);
+
+    eventlogstuff_free(inst->eventlogstuff);
+
+    sfree(inst);
 }
 
 void destroy(GtkWidget *widget, gpointer data)
 {
-    gtk_main_quit();
+    GtkFrontend *inst = (GtkFrontend *)data;
+    inst->window = NULL;
+    delete_inst(inst);
+    session_window_closed();
 }
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     term_set_focus(inst->term, event->in);
     term_update(inst->term);
-    show_mouseptr(inst, 1);
-    return FALSE;
+    show_mouseptr(inst, true);
+    return false;
 }
 
-void set_busy_status(void *frontend, int status)
+static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     inst->busy_status = status;
     update_mouseptr(inst);
 }
@@ -2040,23 +2390,23 @@ void set_busy_status(void *frontend, int status)
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(void *frontend, int activate)
+static void gtkwin_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    activate = activate && !conf_get_int(inst->conf, CONF_no_mouse_rep);
-    send_raw_mouse = activate;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    activate = activate && !conf_get_bool(inst->conf, CONF_no_mouse_rep);
+    inst->send_raw_mouse = activate;
     update_mouseptr(inst);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void compute_whole_window_size(struct gui_data *inst,
+static void compute_whole_window_size(GtkFrontend *inst,
                                       int wchars, int hchars,
                                       int *wpix, int *hpix);
 #endif
 
-void request_resize(void *frontend, int w, int h)
+static void gtkwin_request_resize(TermWin *tw, int w, int h)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 
 #if !GTK_CHECK_VERSION(3,0,0)
 
@@ -2085,7 +2435,7 @@ void request_resize(void *frontend, int w, int h)
      * bogus size request which guarantees to be bigger than the
      * current size of the drawing area.
      */
-    get_window_pixels(inst, &large_x, &large_y);
+    win_get_pixels(&inst->termwin, &large_x, &large_y);
     large_x += 32;
     large_y += 32;
 
@@ -2143,7 +2493,7 @@ void request_resize(void *frontend, int w, int h)
 
 }
 
-static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
+static void real_palette_set(GtkFrontend *inst, int n, int r, int g, int b)
 {
     inst->cols[n].red = r * 0x0101;
     inst->cols[n].green = g * 0x0101;
@@ -2154,7 +2504,7 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
         gboolean success[1];
         gdk_colormap_free_colors(inst->colmap, inst->cols + n, 1);
         gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
-                                  FALSE, TRUE, success);
+                                  false, true, success);
         if (!success[0])
             g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
                     appname, n, r, g, b);
@@ -2197,7 +2547,7 @@ void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
 #endif
 }
 
-void set_window_background(struct gui_data *inst)
+void set_window_background(GtkFrontend *inst)
 {
     if (inst->area)
 	set_gtk_widget_background(GTK_WIDGET(inst->area), &inst->cols[258]);
@@ -2205,9 +2555,9 @@ void set_window_background(struct gui_data *inst)
 	set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
-void palette_set(void *frontend, int n, int r, int g, int b)
+static void gtkwin_palette_set(TermWin *tw, int n, int r, int g, int b)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (n >= 16)
 	n += 256 - 16;
     if (n >= NALLCOLOURS)
@@ -2222,9 +2572,20 @@ void palette_set(void *frontend, int n, int r, int g, int b)
     }
 }
 
-void palette_reset(void *frontend)
+static bool gtkwin_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    if (n < 0 || n >= NALLCOLOURS)
+	return false;
+    *r = inst->cols[n].red >> 8;
+    *g = inst->cols[n].green >> 8;
+    *b = inst->cols[n].blue >> 8;
+    return true;
+}
+
+static void gtkwin_palette_reset(TermWin *tw)
+{
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /* This maps colour indices in inst->conf to those used in inst->cols. */
     static const int ww[] = {
 	256, 257, 258, 259, 260, 261,
@@ -2270,7 +2631,7 @@ void palette_reset(void *frontend)
     {
         gboolean success[NALLCOLOURS];
         gdk_colormap_alloc_colors(inst->colmap, inst->cols, NALLCOLOURS,
-                                  FALSE, TRUE, success);
+                                  false, true, success);
         for (i = 0; i < NALLCOLOURS; i++) {
             if (!success[i])
                 g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
@@ -2291,6 +2652,20 @@ void palette_reset(void *frontend)
     }
 }
 
+static struct clipboard_state *clipboard_from_atom(
+    GtkFrontend *inst, GdkAtom atom)
+{
+    int i;
+
+    for (i = 0; i < N_CLIPBOARDS; i++) {
+        struct clipboard_state *state = &inst->clipstates[i];
+        if (state->inst == inst && state->atom == atom)
+            return state;
+    }
+
+    return NULL;
+}
+
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
 
 /* ----------------------------------------------------------------------
@@ -2300,26 +2675,29 @@ void palette_reset(void *frontend)
  * formats it feels like.
  */
 
-void init_clipboard(struct gui_data *inst)
+void set_clipboard_atom(GtkFrontend *inst, int clipboard, GdkAtom atom)
 {
-    inst->clipboard = gtk_clipboard_get_for_display(gdk_display_get_default(),
-                                                    DEFAULT_CLIPBOARD);
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    state->inst = inst;
+    state->clipboard = clipboard;
+    state->atom = atom;
+
+    if (state->atom != GDK_NONE) {
+        state->gtkclipboard = gtk_clipboard_get_for_display(
+            gdk_display_get_default(), state->atom);
+        g_object_set_data(G_OBJECT(state->gtkclipboard), "user-data", state);
+    } else {
+        state->gtkclipboard = NULL;
+    }
 }
 
-/*
- * Because calling gtk_clipboard_set_with_data triggers a call to the
- * clipboard_clear function from the last time, we need to arrange a
- * way to distinguish a real call to clipboard_clear for the _new_
- * instance of the clipboard data from the leftover call for the
- * outgoing one. We do this by setting the user data field in our
- * gtk_clipboard_set_with_data() call, instead of the obvious pointer
- * to 'inst', to one of these.
- */
-struct clipboard_data_instance {
-    struct gui_data *inst;
-    char *pasteout_data_utf8;
-    int pasteout_data_utf8_len;
-};
+int init_clipboard(GtkFrontend *inst)
+{
+    set_clipboard_atom(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
+    set_clipboard_atom(inst, CLIP_CLIPBOARD, clipboard_atom);
+    return true;
+}
 
 static void clipboard_provide_data(GtkClipboard *clipboard,
                                    GtkSelectionData *selection_data,
@@ -2327,9 +2705,8 @@ static void clipboard_provide_data(GtkClipboard *clipboard,
 {
     struct clipboard_data_instance *cdi =
         (struct clipboard_data_instance *)data;
-    struct gui_data *inst = cdi->inst;
 
-    if (inst->current_cdi == cdi) {
+    if (cdi->state && cdi->state->current_cdi == cdi) {
         gtk_selection_data_set_text(selection_data, cdi->pasteout_data_utf8,
                                     cdi->pasteout_data_utf8_len);
     }
@@ -2339,20 +2716,26 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
 {
     struct clipboard_data_instance *cdi =
         (struct clipboard_data_instance *)data;
-    struct gui_data *inst = cdi->inst;
 
-    if (inst->current_cdi == cdi) {
-        term_deselect(inst->term);
-        inst->current_cdi = NULL;
+    if (cdi->state && cdi->state->current_cdi == cdi) {
+        if (cdi->state->inst && cdi->state->inst->term) {
+            term_lost_clipboard_ownership(cdi->state->inst->term,
+                                          cdi->state->clipboard);
+        }
+        cdi->state->current_cdi = NULL;
     }
     sfree(cdi->pasteout_data_utf8);
+    cdi->next->prev = cdi->prev;
+    cdi->prev->next = cdi->next;
     sfree(cdi);
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, int len,
-                int must_deselect)
+static void gtkwin_clip_write(
+    TermWin *tw, int clipboard, wchar_t *data, int *attr,
+    truecolour *truecolour, int len, bool must_deselect)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    struct clipboard_state *state = &inst->clipstates[clipboard];
     struct clipboard_data_instance *cdi;
 
     if (inst->direct_to_font) {
@@ -2364,10 +2747,17 @@ void write_clip(void *frontend, wchar_t *data, int *attr, int len,
         return;
     }
 
+    if (!state->gtkclipboard)
+        return;
+
     cdi = snew(struct clipboard_data_instance);
-    cdi->inst = inst;
-    inst->current_cdi = cdi;
+    cdi->state = state;
+    state->current_cdi = cdi;
     cdi->pasteout_data_utf8 = snewn(len*6, char);
+    cdi->prev = inst->cdi_headtail.prev;
+    cdi->next = &inst->cdi_headtail;
+    cdi->next->prev = cdi;
+    cdi->prev->next = cdi;
     {
         const wchar_t *tmp = data;
         int tmplen = len;
@@ -2390,9 +2780,9 @@ void write_clip(void *frontend, wchar_t *data, int *attr, int len,
         targetlist = gtk_target_list_new(NULL, 0);
         gtk_target_list_add_text_targets(targetlist, 0);
         targettable = gtk_target_table_new_from_list(targetlist, &n_targets);
-        gtk_clipboard_set_with_data(inst->clipboard, targettable, n_targets,
-                                    clipboard_provide_data, clipboard_clear,
-                                    cdi);
+        gtk_clipboard_set_with_data(state->gtkclipboard, targettable,
+                                    n_targets, clipboard_provide_data,
+                                    clipboard_clear, cdi);
         gtk_target_table_free(targettable, n_targets);
         gtk_target_list_unref(targetlist);
     }
@@ -2401,7 +2791,9 @@ void write_clip(void *frontend, wchar_t *data, int *attr, int len,
 static void clipboard_text_received(GtkClipboard *clipboard,
                                     const gchar *text, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
+    wchar_t *paste;
+    int paste_len;
     int length;
 
     if (!text)
@@ -2409,20 +2801,24 @@ static void clipboard_text_received(GtkClipboard *clipboard,
 
     length = strlen(text);
 
-    if (inst->pastein_data)
-	sfree(inst->pastein_data);
+    paste = snewn(length, wchar_t);
+    paste_len = mb_to_wc(CS_UTF8, 0, text, length, paste, length);
 
-    inst->pastein_data = snewn(length, wchar_t);
-    inst->pastein_data_len = mb_to_wc(CS_UTF8, 0, text, length,
-                                      inst->pastein_data, length);
+    term_do_paste(inst->term, paste, paste_len);
 
-    term_do_paste(inst->term);
+    sfree(paste);
 }
 
-void request_paste(void *frontend)
+static void gtkwin_clip_request_paste(TermWin *tw, int clipboard)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    gtk_clipboard_request_text(inst->clipboard, clipboard_text_received, inst);
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    if (!state->gtkclipboard)
+        return;
+
+    gtk_clipboard_request_text(state->gtkclipboard,
+                               clipboard_text_received, inst);
 }
 
 #else /* JUST_USE_GTK_CLIPBOARD_UTF8 */
@@ -2448,45 +2844,53 @@ void request_paste(void *frontend)
  */
 
 /* Store the data in a cut-buffer. */
-static void store_cutbuffer(char * ptr, int len)
+static void store_cutbuffer(GtkFrontend *inst, char *ptr, int len)
 {
 #ifndef NOT_X_WINDOWS
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    /* ICCCM says we must rotate the buffers before storing to buffer 0. */
-    XRotateBuffers(disp, 1);
-    XStoreBytes(disp, ptr, len);
+    if (inst->disp) {
+        /* ICCCM says we must rotate the buffers before storing to buffer 0. */
+        XRotateBuffers(inst->disp, 1);
+        XStoreBytes(inst->disp, ptr, len);
+    }
 #endif
 }
 
 /* Retrieve data from a cut-buffer.
  * Returned data needs to be freed with XFree().
  */
-static char *retrieve_cutbuffer(int *nbytes)
+static char *retrieve_cutbuffer(GtkFrontend *inst, int *nbytes)
 {
 #ifndef NOT_X_WINDOWS
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    char * ptr;
-    ptr = XFetchBytes(disp, nbytes);
+    char *ptr;
+    if (!inst->disp) {
+        *nbytes = 0;
+        return NULL;
+    }
+    ptr = XFetchBytes(inst->disp, nbytes);
     if (*nbytes <= 0 && ptr != 0) {
 	XFree(ptr);
 	ptr = 0;
     }
     return ptr;
 #else
+    *nbytes = 0;
     return NULL;
 #endif
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, int len,
-                int must_deselect)
+static void gtkwin_clip_write(
+    TermWin *tw, int clipboard, wchar_t *data, int *attr,
+    truecolour *truecolour, int len, bool must_deselect)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    if (inst->pasteout_data)
-	sfree(inst->pasteout_data);
-    if (inst->pasteout_data_ctext)
-	sfree(inst->pasteout_data_ctext);
-    if (inst->pasteout_data_utf8)
-	sfree(inst->pasteout_data_utf8);
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    if (state->pasteout_data)
+	sfree(state->pasteout_data);
+    if (state->pasteout_data_ctext)
+	sfree(state->pasteout_data_ctext);
+    if (state->pasteout_data_utf8)
+	sfree(state->pasteout_data_utf8);
 
     /*
      * Set up UTF-8 and compound text paste data. This only happens
@@ -2498,127 +2902,141 @@ void write_clip(void *frontend, wchar_t *data, int *attr, int len,
 #ifndef NOT_X_WINDOWS
 	XTextProperty tp;
 	char *list[1];
-        Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
 #endif
 
-	inst->pasteout_data_utf8 = snewn(len*6, char);
-	inst->pasteout_data_utf8_len = len*6;
-	inst->pasteout_data_utf8_len =
-	    charset_from_unicode(&tmp, &tmplen, inst->pasteout_data_utf8,
-				 inst->pasteout_data_utf8_len,
+	state->pasteout_data_utf8 = snewn(len*6, char);
+	state->pasteout_data_utf8_len = len*6;
+	state->pasteout_data_utf8_len =
+	    charset_from_unicode(&tmp, &tmplen, state->pasteout_data_utf8,
+				 state->pasteout_data_utf8_len,
 				 CS_UTF8, NULL, NULL, 0);
-	if (inst->pasteout_data_utf8_len == 0) {
-	    sfree(inst->pasteout_data_utf8);
-	    inst->pasteout_data_utf8 = NULL;
+	if (state->pasteout_data_utf8_len == 0) {
+	    sfree(state->pasteout_data_utf8);
+	    state->pasteout_data_utf8 = NULL;
 	} else {
-	    inst->pasteout_data_utf8 =
-		sresize(inst->pasteout_data_utf8,
-			inst->pasteout_data_utf8_len + 1, char);
-	    inst->pasteout_data_utf8[inst->pasteout_data_utf8_len] = '\0';
+	    state->pasteout_data_utf8 =
+		sresize(state->pasteout_data_utf8,
+			state->pasteout_data_utf8_len + 1, char);
+	    state->pasteout_data_utf8[state->pasteout_data_utf8_len] = '\0';
 	}
 
 	/*
 	 * Now let Xlib convert our UTF-8 data into compound text.
 	 */
 #ifndef NOT_X_WINDOWS
-	list[0] = inst->pasteout_data_utf8;
-	if (Xutf8TextListToTextProperty(disp, list, 1,
-					XCompoundTextStyle, &tp) == 0) {
-	    inst->pasteout_data_ctext = snewn(tp.nitems+1, char);
-	    memcpy(inst->pasteout_data_ctext, tp.value, tp.nitems);
-	    inst->pasteout_data_ctext_len = tp.nitems;
+	list[0] = state->pasteout_data_utf8;
+	if (inst->disp && Xutf8TextListToTextProperty(
+                inst->disp, list, 1, XCompoundTextStyle, &tp) == 0) {
+	    state->pasteout_data_ctext = snewn(tp.nitems+1, char);
+	    memcpy(state->pasteout_data_ctext, tp.value, tp.nitems);
+	    state->pasteout_data_ctext_len = tp.nitems;
 	    XFree(tp.value);
 	} else
 #endif
         {
-            inst->pasteout_data_ctext = NULL;
-            inst->pasteout_data_ctext_len = 0;
+            state->pasteout_data_ctext = NULL;
+            state->pasteout_data_ctext_len = 0;
         }
     } else {
-	inst->pasteout_data_utf8 = NULL;
-	inst->pasteout_data_utf8_len = 0;
-	inst->pasteout_data_ctext = NULL;
-	inst->pasteout_data_ctext_len = 0;
+	state->pasteout_data_utf8 = NULL;
+	state->pasteout_data_utf8_len = 0;
+	state->pasteout_data_ctext = NULL;
+	state->pasteout_data_ctext_len = 0;
     }
 
-    inst->pasteout_data = snewn(len*6, char);
-    inst->pasteout_data_len = len*6;
-    inst->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
-				       data, len, inst->pasteout_data,
-				       inst->pasteout_data_len,
-				       NULL, NULL, NULL);
-    if (inst->pasteout_data_len == 0) {
-	sfree(inst->pasteout_data);
-	inst->pasteout_data = NULL;
+    state->pasteout_data = snewn(len*6, char);
+    state->pasteout_data_len = len*6;
+    state->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
+				       data, len, state->pasteout_data,
+				       state->pasteout_data_len,
+				       NULL, NULL);
+    if (state->pasteout_data_len == 0) {
+	sfree(state->pasteout_data);
+	state->pasteout_data = NULL;
     } else {
-	inst->pasteout_data =
-	    sresize(inst->pasteout_data, inst->pasteout_data_len, char);
+	state->pasteout_data =
+	    sresize(state->pasteout_data, state->pasteout_data_len, char);
     }
 
-    store_cutbuffer(inst->pasteout_data, inst->pasteout_data_len);
+    /* The legacy X cut buffers go with PRIMARY, not any other clipboard */
+    if (state->atom == GDK_SELECTION_PRIMARY)
+        store_cutbuffer(inst, state->pasteout_data, state->pasteout_data_len);
 
-    if (gtk_selection_owner_set(inst->area, GDK_SELECTION_PRIMARY,
+    if (gtk_selection_owner_set(inst->area, state->atom,
 				inst->input_event_time)) {
 #if GTK_CHECK_VERSION(2,0,0)
-	gtk_selection_clear_targets(inst->area, GDK_SELECTION_PRIMARY);
+	gtk_selection_clear_targets(inst->area, state->atom);
 #endif
-	gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+	gtk_selection_add_target(inst->area, state->atom,
 				 GDK_SELECTION_TYPE_STRING, 1);
-	if (inst->pasteout_data_ctext)
-	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+	if (state->pasteout_data_ctext)
+	    gtk_selection_add_target(inst->area, state->atom,
 				     compound_text_atom, 1);
-	if (inst->pasteout_data_utf8)
-	    gtk_selection_add_target(inst->area, GDK_SELECTION_PRIMARY,
+	if (state->pasteout_data_utf8)
+	    gtk_selection_add_target(inst->area, state->atom,
 				     utf8_string_atom, 1);
     }
 
     if (must_deselect)
-	term_deselect(inst->term);
+	term_lost_clipboard_ownership(inst->term, clipboard);
 }
 
 static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
                           guint info, guint time_stamp, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     GdkAtom target = gtk_selection_data_get_target(seldata);
+    struct clipboard_state *state = clipboard_from_atom(
+        inst, gtk_selection_data_get_selection(seldata));
+
+    if (!state)
+        return;
+
     if (target == utf8_string_atom)
 	gtk_selection_data_set(seldata, target, 8,
-                               (unsigned char *)inst->pasteout_data_utf8,
-			       inst->pasteout_data_utf8_len);
+                               (unsigned char *)state->pasteout_data_utf8,
+			       state->pasteout_data_utf8_len);
     else if (target == compound_text_atom)
 	gtk_selection_data_set(seldata, target, 8,
-                               (unsigned char *)inst->pasteout_data_ctext,
-			       inst->pasteout_data_ctext_len);
+                               (unsigned char *)state->pasteout_data_ctext,
+			       state->pasteout_data_ctext_len);
     else
 	gtk_selection_data_set(seldata, target, 8,
-                               (unsigned char *)inst->pasteout_data,
-			       inst->pasteout_data_len);
+                               (unsigned char *)state->pasteout_data,
+			       state->pasteout_data_len);
 }
 
 static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
                             gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
+    struct clipboard_state *state = clipboard_from_atom(
+        inst, seldata->selection);
 
-    term_deselect(inst->term);
-    if (inst->pasteout_data)
-	sfree(inst->pasteout_data);
-    if (inst->pasteout_data_ctext)
-	sfree(inst->pasteout_data_ctext);
-    if (inst->pasteout_data_utf8)
-	sfree(inst->pasteout_data_utf8);
-    inst->pasteout_data = NULL;
-    inst->pasteout_data_len = 0;
-    inst->pasteout_data_ctext = NULL;
-    inst->pasteout_data_ctext_len = 0;
-    inst->pasteout_data_utf8 = NULL;
-    inst->pasteout_data_utf8_len = 0;
-    return TRUE;
+    if (!state)
+        return true;
+
+    term_lost_clipboard_ownership(inst->term, state->clipboard);
+    if (state->pasteout_data)
+	sfree(state->pasteout_data);
+    if (state->pasteout_data_ctext)
+	sfree(state->pasteout_data_ctext);
+    if (state->pasteout_data_utf8)
+	sfree(state->pasteout_data_utf8);
+    state->pasteout_data = NULL;
+    state->pasteout_data_len = 0;
+    state->pasteout_data_ctext = NULL;
+    state->pasteout_data_ctext_len = 0;
+    state->pasteout_data_utf8 = NULL;
+    state->pasteout_data_utf8_len = 0;
+    return true;
 }
 
-void request_paste(void *frontend)
+static void gtkwin_clip_request_paste(TermWin *tw, int clipboard)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
     /*
      * In Unix, pasting is asynchronous: all we can do at the
      * moment is to call gtk_selection_convert(), and when the data
@@ -2633,43 +3051,49 @@ void request_paste(void *frontend)
 	 * fails, selection_received() will be informed and will
 	 * fall back to an ordinary string.
 	 */
-	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      utf8_string_atom,
+	gtk_selection_convert(inst->area, state->atom, utf8_string_atom,
 			      inst->input_event_time);
     } else {
 	/*
 	 * If we're in direct-to-font mode, we disable UTF-8
 	 * pasting, and go straight to ordinary string data.
 	 */
-	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
-			      GDK_SELECTION_TYPE_STRING,
-			      inst->input_event_time);
+	gtk_selection_convert(inst->area, state->atom,
+                              GDK_SELECTION_TYPE_STRING,
+                              inst->input_event_time);
     }
 }
 
 static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
                                guint time, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     char *text;
     int length;
 #ifndef NOT_X_WINDOWS
     char **list;
-    int free_list_required = 0;
-    int free_required = 0;
+    bool free_list_required = false;
+    bool free_required = false;
 #endif
     int charset;
     GdkAtom seldata_target = gtk_selection_data_get_target(seldata);
     GdkAtom seldata_type = gtk_selection_data_get_data_type(seldata);
     const guchar *seldata_data = gtk_selection_data_get_data(seldata);
     gint seldata_length = gtk_selection_data_get_length(seldata);
+    wchar_t *paste;
+    int paste_len;
+    struct clipboard_state *state = clipboard_from_atom(
+        inst, gtk_selection_data_get_selection(seldata));
+
+    if (!state)
+        return;
 
     if (seldata_target == utf8_string_atom && seldata_length <= 0) {
 	/*
 	 * Failed to get a UTF-8 selection string. Try compound
 	 * text next.
 	 */
-	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+	gtk_selection_convert(inst->area, state->atom,
 			      compound_text_atom,
 			      inst->input_event_time);
 	return;
@@ -2680,7 +3104,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	 * Failed to get UTF-8 or compound text. Try an ordinary
 	 * string.
 	 */
-	gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+	gtk_selection_convert(inst->area, state->atom,
 			      GDK_SELECTION_TYPE_STRING,
 			      inst->input_event_time);
 	return;
@@ -2701,13 +3125,13 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
      */
     if (seldata_length <= 0) {
 #ifndef NOT_X_WINDOWS
-	text = retrieve_cutbuffer(&length);
+	text = retrieve_cutbuffer(inst, &length);
 	if (length == 0)
 	    return;
 	/* Xterm is rumoured to expect Latin-1, though I havn't checked the
 	 * source, so use that as a de-facto standard. */
 	charset = CS_ISO8859_1;
-	free_required = 1;
+	free_required = true;
 #else
         return;
 #endif
@@ -2719,25 +3143,25 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #ifndef NOT_X_WINDOWS
             XTextProperty tp;
             int ret, count;
-            Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
 
 	    tp.value = (unsigned char *)seldata_data;
 	    tp.encoding = (Atom) seldata_type;
 	    tp.format = gtk_selection_data_get_format(seldata);
 	    tp.nitems = seldata_length;
-	    ret = Xutf8TextPropertyToTextList(disp, &tp, &list, &count);
+	    ret = inst->disp == NULL ? -1 :
+                Xutf8TextPropertyToTextList(inst->disp, &tp, &list, &count);
 	    if (ret == 0 && count == 1) {
                 text = list[0];
                 length = strlen(list[0]);
                 charset = CS_UTF8;
-                free_list_required = 1;
+                free_list_required = true;
             } else
 #endif
             {
 		/*
 		 * Compound text failed; fall back to STRING.
 		 */
-		gtk_selection_convert(inst->area, GDK_SELECTION_PRIMARY,
+		gtk_selection_convert(inst->area, state->atom,
 				      GDK_SELECTION_TYPE_STRING,
 				      inst->input_event_time);
 		return;
@@ -2750,16 +3174,12 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	}
     }
 
-    if (inst->pastein_data)
-	sfree(inst->pastein_data);
+    paste = snewn(length, wchar_t);
+    paste_len = mb_to_wc(charset, 0, text, length, paste, length);
 
-    inst->pastein_data = snewn(length, wchar_t);
-    inst->pastein_data_len = length;
-    inst->pastein_data_len =
-	mb_to_wc(charset, 0, text, length,
-		 inst->pastein_data, inst->pastein_data_len);
+    term_do_paste(inst->term, paste, paste_len);
 
-    term_do_paste(inst->term);
+    sfree(paste);
 
 #ifndef NOT_X_WINDOWS
     if (free_list_required)
@@ -2769,40 +3189,64 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #endif
 }
 
-void init_clipboard(struct gui_data *inst)
+static void init_one_clipboard(GtkFrontend *inst, int clipboard)
+{
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    state->inst = inst;
+    state->clipboard = clipboard;
+}
+
+void set_clipboard_atom(GtkFrontend *inst, int clipboard, GdkAtom atom)
+{
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    state->inst = inst;
+    state->clipboard = clipboard;
+
+    state->atom = atom;
+}
+
+void init_clipboard(GtkFrontend *inst)
 {
 #ifndef NOT_X_WINDOWS
     /*
      * Ensure that all the cut buffers exist - according to the ICCCM,
      * we must do this before we start using cut buffers.
      */
-    unsigned char empty[] = "";
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
+    if (inst->disp) {
+        unsigned char empty[] = "";
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER0,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER1,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER2,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER3,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER4,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER5,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER6,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER7,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+    }
 #endif
+
+    inst->clipstates[CLIP_PRIMARY].atom = GDK_SELECTION_PRIMARY;
+    inst->clipstates[CLIP_CLIPBOARD].atom = clipboard_atom;
+    init_one_clipboard(inst, CLIP_PRIMARY);
+    init_one_clipboard(inst, CLIP_CLIPBOARD);
 
     g_signal_connect(G_OBJECT(inst->area), "selection_received",
                      G_CALLBACK(selection_received), inst);
@@ -2819,17 +3263,7 @@ void init_clipboard(struct gui_data *inst)
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
-void get_clip(void *frontend, wchar_t ** p, int *len)
-{
-    struct gui_data *inst = (struct gui_data *)frontend;
-
-    if (p) {
-	*p = inst->pastein_data;
-	*len = inst->pastein_data_len;
-    }
-}
-
-static void set_window_titles(struct gui_data *inst)
+static void set_window_titles(GtkFrontend *inst)
 {
     /*
      * We must always call set_icon_name after calling set_title,
@@ -2837,30 +3271,29 @@ static void set_window_titles(struct gui_data *inst)
      * is life.
      */
     gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
-    if (!conf_get_int(inst->conf, CONF_win_name_always))
+    if (!conf_get_bool(inst->conf, CONF_win_name_always))
 	gdk_window_set_icon_name(gtk_widget_get_window(inst->window),
                                  inst->icontitle);
 }
 
-void set_title(void *frontend, char *title)
+static void gtkwin_set_title(TermWin *tw, const char *title)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->wintitle);
     inst->wintitle = dupstr(title);
     set_window_titles(inst);
 }
 
-void set_icon(void *frontend, char *title)
+static void gtkwin_set_icon_title(TermWin *tw, const char *title)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->icontitle);
     inst->icontitle = dupstr(title);
     set_window_titles(inst);
 }
 
-void set_title_and_icon(void *frontend, char *title, char *icon)
+void set_title_and_icon(GtkFrontend *inst, char *title, char *icon)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     sfree(inst->wintitle);
     inst->wintitle = dupstr(title);
     sfree(inst->icontitle);
@@ -2868,35 +3301,33 @@ void set_title_and_icon(void *frontend, char *title, char *icon)
     set_window_titles(inst);
 }
 
-void set_sbar(void *frontend, int total, int start, int page)
+static void gtkwin_set_scrollbar(TermWin *tw, int total, int start, int page)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    if (!conf_get_int(inst->conf, CONF_scrollbar))
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    if (!conf_get_bool(inst->conf, CONF_scrollbar))
 	return;
+    inst->ignore_sbar = true;
     gtk_adjustment_set_lower(inst->sbar_adjust, 0);
     gtk_adjustment_set_upper(inst->sbar_adjust, total);
     gtk_adjustment_set_value(inst->sbar_adjust, start);
     gtk_adjustment_set_page_size(inst->sbar_adjust, page);
     gtk_adjustment_set_step_increment(inst->sbar_adjust, 1);
     gtk_adjustment_set_page_increment(inst->sbar_adjust, page/2);
-    inst->ignore_sbar = TRUE;
 #if !GTK_CHECK_VERSION(3,18,0)
     gtk_adjustment_changed(inst->sbar_adjust);
 #endif
-    inst->ignore_sbar = FALSE;
+    inst->ignore_sbar = false;
 }
 
-void scrollbar_moved(GtkAdjustment *adj, gpointer data)
+void scrollbar_moved(GtkAdjustment *adj, GtkFrontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-
-    if (!conf_get_int(inst->conf, CONF_scrollbar))
+    if (!conf_get_bool(inst->conf, CONF_scrollbar))
 	return;
     if (!inst->ignore_sbar)
 	term_scroll(inst->term, 1, (int)gtk_adjustment_get_value(adj));
 }
 
-static void show_scrollbar(struct gui_data *inst, gboolean visible)
+static void show_scrollbar(GtkFrontend *inst, gboolean visible)
 {
     inst->sbar_visible = visible;
     if (visible)
@@ -2905,7 +3336,7 @@ static void show_scrollbar(struct gui_data *inst, gboolean visible)
         gtk_widget_hide(inst->sbar);
 }
 
-void sys_cursor(void *frontend, int x, int y)
+static void gtkwin_set_cursor_pos(TermWin *tw, int x, int y)
 {
     /*
      * This is meaningless under X.
@@ -2918,13 +3349,14 @@ void sys_cursor(void *frontend, int x, int y)
  * may want to perform additional actions on any kind of bell (for
  * example, taskbar flashing in Windows).
  */
-void do_beep(void *frontend, int mode)
+static void gtkwin_bell(TermWin *tw, int mode)
 {
+    /* GtkFrontend *inst = container_of(tw, GtkFrontend, termwin); */
     if (mode == BELL_DEFAULT)
-	gdk_beep();
+        gdk_display_beep(gdk_display_get_default());
 }
 
-int char_width(Context ctx, int uc)
+static int gtkwin_char_width(TermWin *tw, int uc)
 {
     /*
      * In this front end, double-width characters are handled using a
@@ -2933,67 +3365,63 @@ int char_width(Context ctx, int uc)
     return 1;
 }
 
-Context get_ctx(void *frontend)
+static bool gtkwin_setup_draw_ctx(TermWin *tw)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    struct draw_ctx *dctx;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 
     if (!gtk_widget_get_window(inst->area))
-	return NULL;
+	return false;
 
-    dctx = snew(struct draw_ctx);
-    dctx->inst = inst;
-    dctx->uctx.type = inst->drawtype;
+    inst->uctx.type = inst->drawtype;
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
         /* If we're doing GDK-based drawing, then we also expect
          * inst->pixmap to exist. */
-        dctx->uctx.u.gdk.target = inst->pixmap;
-        dctx->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
+        inst->uctx.u.gdk.target = inst->pixmap;
+        inst->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        dctx->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        inst->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
         /* If we're doing Cairo drawing, we expect inst->surface to
          * exist, and we draw to that first, regardless of whether we
          * subsequently copy the results to inst->pixmap. */
-        dctx->uctx.u.cairo.cr = cairo_create(inst->surface);
-        cairo_setup_dctx(dctx);
+        inst->uctx.u.cairo.cr = cairo_create(inst->surface);
+        cairo_scale(inst->uctx.u.cairo.cr, inst->scale, inst->scale);
+        cairo_setup_draw_ctx(inst);
     }
 #endif
-    return dctx;
+    return true;
 }
 
-void free_ctx(Context ctx)
+static void gtkwin_free_draw_ctx(TermWin *tw)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    /* struct gui_data *inst = dctx->inst; */
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_gc_unref(dctx->uctx.u.gdk.gc);
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_gc_unref(inst->uctx.u.gdk.gc);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_destroy(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_destroy(inst->uctx.u.cairo.cr);
     }
 #endif
-    sfree(dctx);
 }
 
 
-static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
+static void draw_update(GtkFrontend *inst, int x, int y, int w, int h)
 {
 #if defined DRAW_TEXT_CAIRO && !defined NO_BACKING_PIXMAPS
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
         /*
          * If inst->surface and inst->pixmap both exist, then we've
          * just drawn new content to the former which we must copy to
          * the latter.
          */
-        cairo_t *cr = gdk_cairo_create(dctx->inst->pixmap);
-        cairo_set_source_surface(cr, dctx->inst->surface, 0, 0);
+        cairo_t *cr = gdk_cairo_create(inst->pixmap);
+        cairo_set_source_surface(cr, inst->surface, 0, 0);
         cairo_rectangle(cr, x, y, w, h);
         cairo_fill(cr);
         cairo_destroy(cr);
@@ -3009,55 +3437,108 @@ static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
      * Amazingly, this one API call is actually valid in all versions
      * of GTK :-)
      */
-    gtk_widget_queue_draw_area(dctx->inst->area, x, y, w, h);
+    gtk_widget_queue_draw_area(inst->area, x, y, w, h);
 }
 
-static void draw_set_colour(struct draw_ctx *dctx, int col)
+#ifdef DRAW_TEXT_CAIRO
+static void cairo_set_source_rgb_dim(cairo_t *cr, double r, double g, double b,
+                                     bool dim)
+{
+    if (dim)
+        cairo_set_source_rgb(cr, r * 2 / 3, g * 2 / 3, b * 2 / 3);
+    else
+        cairo_set_source_rgb(cr, r, g, b);
+}
+#endif
+
+static void draw_set_colour(GtkFrontend *inst, int col, bool dim)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        if (dim) {
+#if GTK_CHECK_VERSION(2,0,0)
+            GdkColor color;
+            color.red =   inst->cols[col].red   * 2 / 3;
+            color.green = inst->cols[col].green * 2 / 3;
+            color.blue =  inst->cols[col].blue  * 2 / 3;
+            gdk_gc_set_rgb_fg_color(inst->uctx.u.gdk.gc, &color);
+#else
+            /* Poor GTK1 fallback */
+            gdk_gc_set_foreground(inst->uctx.u.gdk.gc, &inst->cols[col]);
+#endif
+        } else {
+            gdk_gc_set_foreground(inst->uctx.u.gdk.gc, &inst->cols[col]);
+        }
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_set_source_rgb(dctx->uctx.u.cairo.cr,
-                             dctx->inst->cols[col].red / 65535.0,
-                             dctx->inst->cols[col].green / 65535.0,
-                             dctx->inst->cols[col].blue / 65535.0);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb_dim(inst->uctx.u.cairo.cr,
+                                 inst->cols[col].red / 65535.0,
+                                 inst->cols[col].green / 65535.0,
+                                 inst->cols[col].blue / 65535.0, dim);
     }
 #endif
 }
 
-static void draw_rectangle(struct draw_ctx *dctx, int filled,
+static void draw_set_colour_rgb(GtkFrontend *inst, optionalrgb orgb, bool dim)
+{
+#ifdef DRAW_TEXT_GDK
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+#if GTK_CHECK_VERSION(2,0,0)
+	GdkColor color;
+	color.red =   orgb.r * 256;
+	color.green = orgb.g * 256;
+	color.blue =  orgb.b * 256;
+        if (dim) {
+            color.red   = color.red   * 2 / 3;
+            color.green = color.green * 2 / 3;
+            color.blue  = color.blue  * 2 / 3;
+        }
+	gdk_gc_set_rgb_fg_color(inst->uctx.u.gdk.gc, &color);
+#else
+        /* Poor GTK1 fallback */
+        gdk_gc_set_foreground(inst->uctx.u.gdk.gc, &inst->cols[256]);
+#endif
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb_dim(inst->uctx.u.cairo.cr, orgb.r / 255.0,
+                                 orgb.g / 255.0, orgb.b / 255.0, dim);
+    }
+#endif
+}
+
+static void draw_rectangle(GtkFrontend *inst, bool filled,
                            int x, int y, int w, int h)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_rectangle(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc,
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_rectangle(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
                            filled, x, y, w, h);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_new_path(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(inst->uctx.u.cairo.cr);
         if (filled) {
-            cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, w, h);
-            cairo_fill(dctx->uctx.u.cairo.cr);
+            cairo_rectangle(inst->uctx.u.cairo.cr, x, y, w, h);
+            cairo_fill(inst->uctx.u.cairo.cr);
         } else {
-            cairo_rectangle(dctx->uctx.u.cairo.cr,
+            cairo_rectangle(inst->uctx.u.cairo.cr,
                             x + 0.5, y + 0.5, w, h);
-            cairo_close_path(dctx->uctx.u.cairo.cr);
-            cairo_stroke(dctx->uctx.u.cairo.cr);
+            cairo_close_path(inst->uctx.u.cairo.cr);
+            cairo_stroke(inst->uctx.u.cairo.cr);
         }
     }
 #endif
 }
 
-static void draw_clip(struct draw_ctx *dctx, int x, int y, int w, int h)
+static void draw_clip(GtkFrontend *inst, int x, int y, int w, int h)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
 	GdkRectangle r;
 
 	r.x = x;
@@ -3065,59 +3546,59 @@ static void draw_clip(struct draw_ctx *dctx, int x, int y, int w, int h)
 	r.width = w;
 	r.height = h;
 
-        gdk_gc_set_clip_rectangle(dctx->uctx.u.gdk.gc, &r);
+        gdk_gc_set_clip_rectangle(inst->uctx.u.gdk.gc, &r);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_reset_clip(dctx->uctx.u.cairo.cr);
-        cairo_new_path(dctx->uctx.u.cairo.cr);
-        cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, w, h);
-        cairo_clip(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_reset_clip(inst->uctx.u.cairo.cr);
+        cairo_new_path(inst->uctx.u.cairo.cr);
+        cairo_rectangle(inst->uctx.u.cairo.cr, x, y, w, h);
+        cairo_clip(inst->uctx.u.cairo.cr);
     }
 #endif
 }
 
-static void draw_point(struct draw_ctx *dctx, int x, int y)
+static void draw_point(GtkFrontend *inst, int x, int y)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_point(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc, x, y);
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_point(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc, x, y);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_new_path(dctx->uctx.u.cairo.cr);
-        cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, 1, 1);
-        cairo_fill(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(inst->uctx.u.cairo.cr);
+        cairo_rectangle(inst->uctx.u.cairo.cr, x, y, 1, 1);
+        cairo_fill(inst->uctx.u.cairo.cr);
     }
 #endif
 }
 
-static void draw_line(struct draw_ctx *dctx, int x0, int y0, int x1, int y1)
+static void draw_line(GtkFrontend *inst, int x0, int y0, int x1, int y1)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_line(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc,
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_line(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
                       x0, y0, x1, y1);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_new_path(dctx->uctx.u.cairo.cr);
-        cairo_move_to(dctx->uctx.u.cairo.cr, x0 + 0.5, y0 + 0.5);
-        cairo_line_to(dctx->uctx.u.cairo.cr, x1 + 0.5, y1 + 0.5);
-        cairo_stroke(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(inst->uctx.u.cairo.cr);
+        cairo_move_to(inst->uctx.u.cairo.cr, x0 + 0.5, y0 + 0.5);
+        cairo_line_to(inst->uctx.u.cairo.cr, x1 + 0.5, y1 + 0.5);
+        cairo_stroke(inst->uctx.u.cairo.cr);
     }
 #endif
 }
 
-static void draw_stretch_before(struct draw_ctx *dctx, int x, int y,
-                                int w, int wdouble,
-                                int h, int hdouble, int hbothalf)
+static void draw_stretch_before(GtkFrontend *inst, int x, int y,
+                                int w, bool wdouble,
+                                int h, bool hdouble, bool hbothalf)
 {
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
         cairo_matrix_t matrix;
 
         matrix.xy = 0;
@@ -3142,18 +3623,18 @@ static void draw_stretch_before(struct draw_ctx *dctx, int x, int y,
             matrix.yy = 1;
             matrix.y0 = 0;
         }
-        cairo_transform(dctx->uctx.u.cairo.cr, &matrix);
+        cairo_transform(inst->uctx.u.cairo.cr, &matrix);
     }
 #endif
 }
 
-static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
-                               int w, int wdouble,
-                               int h, int hdouble, int hbothalf)
+static void draw_stretch_after(GtkFrontend *inst, int x, int y,
+                               int w, bool wdouble,
+                               int h, bool hdouble, bool hbothalf)
 {
 #ifdef DRAW_TEXT_GDK
 #ifndef NO_BACKING_PIXMAPS
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
 	/*
 	 * I can't find any plausible StretchBlt equivalent in the X
 	 * server, so I'm going to do this the slow and painful way.
@@ -3165,9 +3646,9 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 	int i;
         if (wdouble) {
             for (i = 0; i < w; i++) {
-                gdk_draw_pixmap(dctx->uctx.u.gdk.target,
-                                dctx->uctx.u.gdk.gc,
-                                dctx->uctx.u.gdk.target,
+                gdk_draw_pixmap(inst->uctx.u.gdk.target,
+                                inst->uctx.u.gdk.gc,
+                                inst->uctx.u.gdk.target,
                                 x + 2*i, y,
                                 x + 2*i+1, y,
                                 w - i, h);
@@ -3183,9 +3664,9 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 	    else
 		dt = 1, db = 0;
 	    for (i = 0; i < h; i += 2) {
-		gdk_draw_pixmap(dctx->uctx.u.gdk.target,
-                                dctx->uctx.u.gdk.gc,
-                                dctx->uctx.u.gdk.target,
+		gdk_draw_pixmap(inst->uctx.u.gdk.target,
+                                inst->uctx.u.gdk.gc,
+                                inst->uctx.u.gdk.target,
                                 x, y + dt*i + db,
 				x, y + dt*(i+1),
 				w, h-i-1);
@@ -3197,22 +3678,26 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 #endif
 #endif /* DRAW_TEXT_GDK */
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_set_matrix(dctx->uctx.u.cairo.cr,
-                         &dctx->uctx.u.cairo.origmatrix);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_matrix(inst->uctx.u.cairo.cr,
+                         &inst->uctx.u.cairo.origmatrix);
     }
 #endif
 }
 
-static void draw_backing_rect(struct gui_data *inst)
+static void draw_backing_rect(GtkFrontend *inst)
 {
-    struct draw_ctx *dctx = get_ctx(inst);
-    int w = inst->width * inst->font_width + 2*inst->window_border;
-    int h = inst->height * inst->font_height + 2*inst->window_border;
-    draw_set_colour(dctx, 258);
-    draw_rectangle(dctx, 1, 0, 0, w, h);
-    draw_update(dctx, 0, 0, w, h);
-    free_ctx(dctx);
+    int w, h;
+
+    if (!win_setup_draw_ctx(&inst->termwin))
+        return;
+
+    w = inst->width * inst->font_width + 2*inst->window_border;
+    h = inst->height * inst->font_height + 2*inst->window_border;
+    draw_set_colour(inst, 258, false);
+    draw_rectangle(inst, true, 0, 0, w, h);
+    draw_update(inst, 0, 0, w, h);
+    win_free_draw_ctx(&inst->termwin);
 }
 
 /*
@@ -3221,14 +3706,14 @@ static void draw_backing_rect(struct gui_data *inst)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr)
+static void do_text_internal(
+    GtkFrontend *inst, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    struct gui_data *inst = dctx->inst;
     int ncombining;
-    int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
-    int monochrome =
+    int nfg, nbg, t, fontid, rlen, widefactor;
+    bool bold;
+    bool monochrome =
         gdk_visual_get_depth(gtk_widget_get_visual(inst->area)) == 1;
 
     if (attr & TATTR_COMBINING) {
@@ -3237,12 +3722,21 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     } else
 	ncombining = 1;
 
+    if (monochrome)
+        truecolour.fg = truecolour.bg = optionalrgb_none;
+
     nfg = ((monochrome ? ATTR_DEFFG : (attr & ATTR_FGMASK)) >> ATTR_FGSHIFT);
     nbg = ((monochrome ? ATTR_DEFBG : (attr & ATTR_BGMASK)) >> ATTR_BGSHIFT);
     if (!!(attr & ATTR_REVERSE) ^ (monochrome && (attr & TATTR_ACTCURS))) {
+        struct optionalrgb trgb;
+
 	t = nfg;
 	nfg = nbg;
 	nbg = t;
+
+        trgb = truecolour.fg;
+        truecolour.fg = truecolour.bg;
+        truecolour.bg = trgb;
     }
     if ((inst->bold_style & 2) && (attr & ATTR_BOLD)) {
 	if (nfg < 16) nfg |= 8;
@@ -3253,11 +3747,13 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	else if (nbg >= 256) nbg |= 1;
     }
     if ((attr & TATTR_ACTCURS) && !monochrome) {
+        truecolour.fg = truecolour.bg = optionalrgb_none;
 	nfg = 260;
 	nbg = 261;
+        attr &= ~ATTR_DIM;             /* don't dim the cursor */
     }
 
-    fontid = shadow = 0;
+    fontid = 0;
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -3267,10 +3763,10 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     }
 
     if ((attr & ATTR_BOLD) && (inst->bold_style & 1)) {
-	bold = 1;
+	bold = true;
 	fontid |= 1;
     } else {
-	bold = 0;
+	bold = false;
     }
 
     if (!inst->fonts[fontid]) {
@@ -3294,45 +3790,54 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2*widefactor > inst->term->cols)
+	if (x + len*2*widefactor > inst->term->cols) {
 	    len = (inst->term->cols-x)/2/widefactor;/* trim to LH half */
+            if (len == 0)
+                return; /* rounded down half a double-width char to zero */
+        }
 	rlen = len * 2;
     } else
 	rlen = len;
 
-    draw_clip(dctx,
+    draw_clip(inst,
               x*inst->font_width+inst->window_border,
               y*inst->font_height+inst->window_border,
               rlen*widefactor*inst->font_width,
               inst->font_height);
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
-        draw_stretch_before(dctx,
+        draw_stretch_before(inst,
                             x*inst->font_width+inst->window_border,
                             y*inst->font_height+inst->window_border,
-                            rlen*widefactor*inst->font_width, TRUE,
+                            rlen*widefactor*inst->font_width, true,
                             inst->font_height,
                             ((lattr & LATTR_MODE) != LATTR_WIDE),
                             ((lattr & LATTR_MODE) == LATTR_BOT));
     }
 
-    draw_set_colour(dctx, nbg);
-    draw_rectangle(dctx, TRUE,
+    if (truecolour.bg.enabled)
+	draw_set_colour_rgb(inst, truecolour.bg, attr & ATTR_DIM);
+    else
+	draw_set_colour(inst, nbg, attr & ATTR_DIM);
+    draw_rectangle(inst, true,
                    x*inst->font_width+inst->window_border,
                    y*inst->font_height+inst->window_border,
                    rlen*widefactor*inst->font_width, inst->font_height);
 
-    draw_set_colour(dctx, nfg);
+    if (truecolour.fg.enabled)
+	draw_set_colour_rgb(inst, truecolour.fg, attr & ATTR_DIM);
+    else
+	draw_set_colour(inst, nfg, attr & ATTR_DIM);
     if (ncombining > 1) {
         assert(len == 1);
-        unifont_draw_combining(&dctx->uctx, inst->fonts[fontid],
+        unifont_draw_combining(&inst->uctx, inst->fonts[fontid],
                                x*inst->font_width+inst->window_border,
                                (y*inst->font_height+inst->window_border+
                                 inst->fonts[0]->ascent),
                                text, ncombining, widefactor > 1,
                                bold, inst->font_width);
     } else {
-        unifont_draw_text(&dctx->uctx, inst->fonts[fontid],
+        unifont_draw_text(&inst->uctx, inst->fonts[fontid],
                           x*inst->font_width+inst->window_border,
                           (y*inst->font_height+inst->window_border+
                            inst->fonts[0]->ascent),
@@ -3344,31 +3849,31 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	int uheight = inst->fonts[0]->ascent + 1;
 	if (uheight >= inst->font_height)
 	    uheight = inst->font_height - 1;
-        draw_line(dctx, x*inst->font_width+inst->window_border,
+        draw_line(inst, x*inst->font_width+inst->window_border,
                   y*inst->font_height + uheight + inst->window_border,
                   (x+len)*widefactor*inst->font_width-1+inst->window_border,
                   y*inst->font_height + uheight + inst->window_border);
     }
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
-        draw_stretch_after(dctx,
+        draw_stretch_after(inst,
                            x*inst->font_width+inst->window_border,
                            y*inst->font_height+inst->window_border,
-                           rlen*widefactor*inst->font_width, TRUE,
+                           rlen*widefactor*inst->font_width, true,
                            inst->font_height,
                            ((lattr & LATTR_MODE) != LATTR_WIDE),
                            ((lattr & LATTR_MODE) == LATTR_BOT));
     }
 }
 
-void do_text(Context ctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr)
+static void gtkwin_draw_text(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    struct gui_data *inst = dctx->inst;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     int widefactor;
 
-    do_text_internal(ctx, x, y, text, len, attr, lattr);
+    do_text_internal(inst, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -3385,31 +3890,31 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	len *= 2;
     }
 
-    draw_update(dctx,
+    draw_update(inst,
                 x*inst->font_width+inst->window_border,
                 y*inst->font_height+inst->window_border,
                 len*widefactor*inst->font_width, inst->font_height);
 }
 
-void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
-	       unsigned long attr, int lattr)
+static void gtkwin_draw_cursor(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    struct gui_data *inst = dctx->inst;
-
-    int active, passive, widefactor;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    bool active, passive;
+    int widefactor;
 
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
-	passive = 1;
+	passive = true;
     } else
-	passive = 0;
+	passive = false;
     if ((attr & TATTR_ACTCURS) && inst->cursor_type != 0) {
 	attr &= ~TATTR_ACTCURS;
-        active = 1;
+        active = true;
     } else
-        active = 0;
-    do_text_internal(ctx, x, y, text, len, attr, lattr);
+        active = false;
+    do_text_internal(inst, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & TATTR_COMBINING)
 	len = 1;
@@ -3436,8 +3941,8 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	 * if it's passive.
 	 */
 	if (passive) {
-            draw_set_colour(dctx, 261);
-            draw_rectangle(dctx, FALSE,
+            draw_set_colour(inst, 261, false);
+            draw_rectangle(inst, false,
                            x*inst->font_width+inst->window_border,
                            y*inst->font_height+inst->window_border,
                            len*widefactor*inst->font_width-1,
@@ -3475,22 +3980,22 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    length = inst->font_height;
 	}
 
-        draw_set_colour(dctx, 261);
+        draw_set_colour(inst, 261, false);
 	if (passive) {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
-		    draw_point(dctx, startx, starty);
+		    draw_point(inst, startx, starty);
 		}
 		startx += dx;
 		starty += dy;
 	    }
 	} else if (active) {
-	    draw_line(dctx, startx, starty,
+	    draw_line(inst, startx, starty,
                       startx + (length-1) * dx, starty + (length-1) * dy);
 	} /* else no cursor (e.g., blinked off) */
     }
 
-    draw_update(dctx,
+    draw_update(inst,
                 x*inst->font_width+inst->window_border,
                 y*inst->font_height+inst->window_border,
                 len*widefactor*inst->font_width, inst->font_height);
@@ -3507,7 +4012,146 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 #endif
 }
 
-GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
+#if !GTK_CHECK_VERSION(2,0,0)
+/*
+ * For GTK 1, manual code to scale an in-memory XPM, producing a new
+ * one as output. It will be ugly, but good enough to use as a trust
+ * sigil.
+ */
+struct XpmHolder {
+    char **strings;
+    size_t nstrings;
+};
+
+static void xpmholder_free(XpmHolder *xh)
+{
+    for (size_t i = 0; i < xh->nstrings; i++)
+        sfree(xh->strings[i]);
+    sfree(xh->strings);
+    sfree(xh);
+}
+
+static XpmHolder *xpm_scale(const char *const *xpm, int wo, int ho)
+{
+    /* Get image dimensions, # colours, and chars-per-pixel */
+    int wi = 0, hi = 0, nc = 0, cpp = 0;
+    int retd = sscanf(xpm[0], "%d %d %d %d", &wi, &hi, &nc, &cpp);
+    assert(retd == 4);
+
+    /* Make output XpmHolder */
+    XpmHolder *xh = snew(XpmHolder);
+    xh->nstrings = 1 + nc + ho;
+    xh->strings = snewn(xh->nstrings, char *);
+
+    /* Set up header */
+    xh->strings[0] = dupprintf("%d %d %d %d", wo, ho, nc, cpp);
+    for (int i = 0; i < nc; i++)
+        xh->strings[1 + i] = dupstr(xpm[1 + i]);
+
+    /* Scale image */
+    for (int yo = 0; yo < ho; yo++) {
+        int yi = yo * hi / ho;
+        char *ro = snewn(cpp * wo + 1, char);
+        ro[cpp * wo] = '\0';
+        xh->strings[1 + nc + yo] = ro;
+        const char *ri = xpm[1 + nc + yi];
+
+        for (int xo = 0; xo < wo; xo++) {
+            int xi = xo * wi / wo;
+            memcpy(ro + cpp * xo, ri + cpp * xi, cpp);
+        }
+    }
+
+    return xh;
+}
+#endif /* !GTK_CHECK_VERSION(2,0,0) */
+
+static void gtkwin_draw_trust_sigil(TermWin *tw, int cx, int cy)
+{
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+
+    int x = cx * inst->font_width + inst->window_border;
+    int y = cy * inst->font_height + inst->window_border;
+    int w = 2*inst->font_width, h = inst->font_height;
+
+    if (inst->trust_sigil_w != w || inst->trust_sigil_h != h ||
+#if GTK_CHECK_VERSION(2,0,0)
+        !inst->trust_sigil_pb
+#else
+        !inst->trust_sigil_pm
+#endif
+        ) {
+
+#if GTK_CHECK_VERSION(2,0,0)
+        if (inst->trust_sigil_pb)
+            g_object_unref(G_OBJECT(inst->trust_sigil_pb));
+#else
+        if (inst->trust_sigil_pm)
+            gdk_pixmap_unref(inst->trust_sigil_pm);
+#endif
+
+        int best_icon_index = 0;
+        unsigned score = UINT_MAX;
+        for (int i = 0; i < n_main_icon; i++) {
+            int iw, ih;
+            if (sscanf(main_icon[i][0], "%d %d", &iw, &ih) == 2) {
+                int this_excess = (iw + ih) - (w + h);
+                unsigned this_score = (abs(this_excess) |
+                                       (this_excess > 0 ? 0 : 0x80000000U));
+                if (this_score < score) {
+                    best_icon_index = i;
+                    score = this_score;
+                }
+            }
+        }
+
+#if GTK_CHECK_VERSION(2,0,0)
+        GdkPixbuf *icon_unscaled = gdk_pixbuf_new_from_xpm_data(
+            (const gchar **)main_icon[best_icon_index]);
+        inst->trust_sigil_pb = gdk_pixbuf_scale_simple(
+            icon_unscaled, w, h, GDK_INTERP_BILINEAR);
+        g_object_unref(G_OBJECT(icon_unscaled));
+#else
+        XpmHolder *xh = xpm_scale(main_icon[best_icon_index], w, h);
+        inst->trust_sigil_pm = gdk_pixmap_create_from_xpm_d(
+            gtk_widget_get_window(inst->window), NULL,
+            &inst->cols[258], xh->strings);
+        xpmholder_free(xh);
+#endif
+
+        inst->trust_sigil_w = w;
+        inst->trust_sigil_h = h;
+    }
+
+#ifdef DRAW_TEXT_GDK
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+#if GTK_CHECK_VERSION(2,0,0)
+        gdk_draw_pixbuf(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
+                        inst->trust_sigil_pb, 0, 0, x, y, w, h,
+                        GDK_RGB_DITHER_NORMAL, 0, 0);
+#else
+        gdk_draw_pixmap(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
+                        inst->trust_sigil_pm, 0, 0, x, y, w, h);
+#endif
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        inst->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
+        cairo_save(inst->uctx.u.cairo.cr);
+        cairo_translate(inst->uctx.u.cairo.cr, x, y);
+        gdk_cairo_set_source_pixbuf(inst->uctx.u.cairo.cr,
+                                    inst->trust_sigil_pb, 0, 0);
+        cairo_rectangle(inst->uctx.u.cairo.cr, 0, 0, w, h);
+        cairo_fill(inst->uctx.u.cairo.cr);
+        cairo_restore(inst->uctx.u.cairo.cr);
+    }
+#endif
+
+    draw_update(inst, x, y, w, h);
+}
+
+GdkCursor *make_mouse_ptr(GtkFrontend *inst, int cursor_val)
 {
     if (cursor_val == -1) {
 #if GTK_CHECK_VERSION(2,16,0)
@@ -3544,46 +4188,39 @@ void modalfatalbox(const char *p, ...)
     exit(1);
 }
 
-void cmdline_error(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "%s: ", appname);
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
-
-const char *get_x_display(void *frontend)
+static const char *gtk_seat_get_x_display(Seat *seat)
 {
     return gdk_get_display();
 }
 
 #ifndef NOT_X_WINDOWS
-long get_windowid(void *frontend)
+static bool gtk_seat_get_windowid(Seat *seat, long *id)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-    return (long)GDK_WINDOW_XID(gtk_widget_get_window(inst->area));
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    GdkWindow *window = gtk_widget_get_window(inst->area);
+    if (!GDK_IS_X11_WINDOW(window))
+        return false;
+    *id = GDK_WINDOW_XID(window);
+    return true;
 }
 #endif
 
-int frontend_is_utf8(void *frontend)
+static bool gtkwin_is_utf8(TermWin *tw)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return inst->ucsdata.line_codepage == CS_UTF8;
 }
 
-char *setup_fonts_ucs(struct gui_data *inst)
+char *setup_fonts_ucs(GtkFrontend *inst)
 {
-    int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);
+    bool shadowbold = conf_get_bool(inst->conf, CONF_shadowbold);
     int shadowboldoffset = conf_get_int(inst->conf, CONF_shadowboldoffset);
     FontSpec *fs;
     unifont *fonts[4];
     int i;
 
     fs = conf_get_fontspec(inst->conf, CONF_font);
-    fonts[0] = multifont_create(inst->area, fs->name, FALSE, FALSE,
+    fonts[0] = multifont_create(inst->area, fs->name, false, false,
                                 shadowboldoffset, shadowbold);
     if (!fonts[0]) {
         return dupprintf("unable to load font \"%s\"", fs->name);
@@ -3593,7 +4230,7 @@ char *setup_fonts_ucs(struct gui_data *inst)
     if (shadowbold || !fs->name[0]) {
 	fonts[1] = NULL;
     } else {
-	fonts[1] = multifont_create(inst->area, fs->name, FALSE, TRUE,
+	fonts[1] = multifont_create(inst->area, fs->name, false, true,
                                     shadowboldoffset, shadowbold);
 	if (!fonts[1]) {
             if (fonts[0])
@@ -3604,7 +4241,7 @@ char *setup_fonts_ucs(struct gui_data *inst)
 
     fs = conf_get_fontspec(inst->conf, CONF_widefont);
     if (fs->name[0]) {
-	fonts[2] = multifont_create(inst->area, fs->name, TRUE, FALSE,
+	fonts[2] = multifont_create(inst->area, fs->name, true, false,
                                     shadowboldoffset, shadowbold);
 	if (!fonts[2]) {
             for (i = 0; i < 2; i++)
@@ -3620,7 +4257,7 @@ char *setup_fonts_ucs(struct gui_data *inst)
     if (shadowbold || !fs->name[0]) {
 	fonts[3] = NULL;
     } else {
-	fonts[3] = multifont_create(inst->area, fs->name, TRUE, TRUE,
+	fonts[3] = multifont_create(inst->area, fs->name, true, true,
                                     shadowboldoffset, shadowbold);
 	if (!fonts[3]) {
             for (i = 0; i < 3; i++)
@@ -3641,12 +4278,22 @@ char *setup_fonts_ucs(struct gui_data *inst)
         inst->fonts[i] = fonts[i];
     }
 
-    inst->font_width = inst->fonts[0]->width;
-    inst->font_height = inst->fonts[0]->height;
+    if (inst->font_width != inst->fonts[0]->width ||
+        inst->font_height != inst->fonts[0]->height) {
+
+        inst->font_width = inst->fonts[0]->width;
+        inst->font_height = inst->fonts[0]->height;
+
+        /*
+         * The font size has changed, so force the next call to
+         * drawing_area_setup to regenerate the backing surface.
+         */
+        inst->drawing_area_setup_needed = true;
+    }
 
     inst->direct_to_font = init_ucs(&inst->ucsdata,
 				    conf_get_str(inst->conf, CONF_line_codepage),
-				    conf_get_int(inst->conf, CONF_utf8_override),
+				    conf_get_bool(inst->conf, CONF_utf8_override),
 				    inst->fonts[0]->public_charset,
 				    conf_get_int(inst->conf, CONF_vtmode));
 
@@ -3667,7 +4314,7 @@ static void find_app_menu_bar(GtkWidget *widget, gpointer data)
 }
 #endif
 
-static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
+static void compute_geom_hints(GtkFrontend *inst, GdkGeometry *geom)
 {
     /*
      * Unused fields in geom.
@@ -3768,7 +4415,7 @@ static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
 #endif
 }
 
-void set_geom_hints(struct gui_data *inst)
+void set_geom_hints(GtkFrontend *inst)
 {
     GdkGeometry geom;
     gint flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
@@ -3782,7 +4429,7 @@ void set_geom_hints(struct gui_data *inst)
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void compute_whole_window_size(struct gui_data *inst,
+static void compute_whole_window_size(GtkFrontend *inst,
                                       int wchars, int hchars,
                                       int *wpix, int *hpix)
 {
@@ -3795,47 +4442,153 @@ static void compute_whole_window_size(struct gui_data *inst,
 
 void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     term_clrsb(inst->term);
 }
 
 void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    term_pwron(inst->term, TRUE);
+    GtkFrontend *inst = (GtkFrontend *)data;
+    term_pwron(inst->term, true);
     if (inst->ldisc)
 	ldisc_echoedit_update(inst->ldisc);
 }
 
+void copy_clipboard_menuitem(GtkMenuItem *item, gpointer data)
+{
+    GtkFrontend *inst = (GtkFrontend *)data;
+    static const int clips[] = { MENU_CLIPBOARD };
+    term_request_copy(inst->term, clips, lenof(clips));
+}
+
+void paste_clipboard_menuitem(GtkMenuItem *item, gpointer data)
+{
+    GtkFrontend *inst = (GtkFrontend *)data;
+    term_request_paste(inst->term, MENU_CLIPBOARD);
+}
+
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    term_copyall(inst->term);
+    GtkFrontend *inst = (GtkFrontend *)data;
+    static const int clips[] = { COPYALL_CLIPBOARDS };
+    term_copyall(inst->term, clips, lenof(clips));
 }
 
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-    int code = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(item),
-                                                 "user-data"));
+    GtkFrontend *inst = (GtkFrontend *)data;
+    SessionSpecial *sc = g_object_get_data(G_OBJECT(item), "user-data");
 
-    if (inst->back)
-	inst->back->special(inst->backhandle, code);
+    if (inst->backend)
+        backend_special(inst->backend, sc->code, sc->arg);
 }
 
 void about_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     about_box(inst->window);
 }
 
 void event_log_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     showeventlog(inst->eventlogstuff, inst->window);
 }
 
+void setup_clipboards(GtkFrontend *inst, Terminal *term, Conf *conf)
+{
+    assert(term->mouse_select_clipboards[0] == CLIP_LOCAL);
+
+    term->n_mouse_select_clipboards = 1;
+    term->mouse_select_clipboards[
+        term->n_mouse_select_clipboards++] = MOUSE_SELECT_CLIPBOARD;
+
+    if (conf_get_bool(conf, CONF_mouseautocopy)) {
+        term->mouse_select_clipboards[
+            term->n_mouse_select_clipboards++] = CLIP_CLIPBOARD;
+    }
+
+    set_clipboard_atom(inst, CLIP_CUSTOM_1, GDK_NONE);
+    set_clipboard_atom(inst, CLIP_CUSTOM_2, GDK_NONE);
+    set_clipboard_atom(inst, CLIP_CUSTOM_3, GDK_NONE);
+
+    switch (conf_get_int(conf, CONF_mousepaste)) {
+      case CLIPUI_IMPLICIT:
+        term->mouse_paste_clipboard = MOUSE_PASTE_CLIPBOARD;
+        break;
+      case CLIPUI_EXPLICIT:
+        term->mouse_paste_clipboard = CLIP_CLIPBOARD;
+        break;
+      case CLIPUI_CUSTOM:
+        term->mouse_paste_clipboard = CLIP_CUSTOM_1;
+        set_clipboard_atom(inst, CLIP_CUSTOM_1,
+                           gdk_atom_intern(
+                               conf_get_str(conf, CONF_mousepaste_custom),
+                               false));
+        break;
+      default:
+        term->mouse_paste_clipboard = CLIP_NULL;
+        break;
+    }
+
+    if (conf_get_int(conf, CONF_ctrlshiftins) == CLIPUI_CUSTOM) {
+        GdkAtom atom = gdk_atom_intern(
+            conf_get_str(conf, CONF_ctrlshiftins_custom), false);
+        struct clipboard_state *state = clipboard_from_atom(inst, atom);
+        if (state) {
+            inst->clipboard_ctrlshiftins = state->clipboard;
+        } else {
+            inst->clipboard_ctrlshiftins = CLIP_CUSTOM_2;
+            set_clipboard_atom(inst, CLIP_CUSTOM_2, atom);
+        }
+    }
+
+    if (conf_get_int(conf, CONF_ctrlshiftcv) == CLIPUI_CUSTOM) {
+        GdkAtom atom = gdk_atom_intern(
+            conf_get_str(conf, CONF_ctrlshiftcv_custom), false);
+        struct clipboard_state *state = clipboard_from_atom(inst, atom);
+        if (state) {
+            inst->clipboard_ctrlshiftins = state->clipboard;
+        } else {
+            inst->clipboard_ctrlshiftcv = CLIP_CUSTOM_3;
+            set_clipboard_atom(inst, CLIP_CUSTOM_3, atom);
+        }
+    }
+}
+
+struct after_change_settings_dialog_ctx {
+    GtkFrontend *inst;
+    Conf *newconf;
+};
+
+static void after_change_settings_dialog(void *vctx, int retval);
+
 void change_settings_menuitem(GtkMenuItem *item, gpointer data)
+{
+    GtkFrontend *inst = (GtkFrontend *)data;
+    struct after_change_settings_dialog_ctx *ctx;
+    GtkWidget *dialog;
+    char *title;
+
+    if (find_and_raise_dialog(inst, DIALOG_SLOT_RECONFIGURE))
+        return;
+
+    title = dupcat(appname, " Reconfiguration", NULL);
+
+    ctx = snew(struct after_change_settings_dialog_ctx);
+    ctx->inst = inst;
+    ctx->newconf = conf_copy(inst->conf);
+
+    dialog = create_config_box(
+        title, ctx->newconf, true,
+        inst->backend ? backend_cfg_info(inst->backend) : 0,
+        after_change_settings_dialog, ctx);
+    register_dialog(&inst->seat, DIALOG_SLOT_RECONFIGURE, dialog);
+
+    sfree(title);
+}
+
+static void after_change_settings_dialog(void *vctx, int retval)
 {
     /* This maps colour indices in inst->conf to those used in inst->cols. */
     static const int ww[] = {
@@ -3843,25 +4596,27 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	0, 8, 1, 9, 2, 10, 3, 11,
 	4, 12, 5, 13, 6, 14, 7, 15
     };
-    struct gui_data *inst = (struct gui_data *)data;
-    char *title;
-    Conf *oldconf, *newconf;
-    int i, j, need_size;
+    struct after_change_settings_dialog_ctx ctx =
+        *(struct after_change_settings_dialog_ctx *)vctx;
+    GtkFrontend *inst = ctx.inst;
+    Conf *oldconf = inst->conf, *newconf = ctx.newconf;
+    int i, j;
+    bool need_size;
+
+    sfree(vctx); /* we've copied this already */
+
+    if (retval < 0) {
+        /* If the dialog box was aborted without giving a result
+         * (probably because the whole session window closed), we have
+         * nothing further to do. */
+        return;
+    }
 
     assert(lenof(ww) == NCFGCOLOURS);
 
-    if (inst->reconfiguring)
-      return;
-    else
-      inst->reconfiguring = TRUE;
+    unregister_dialog(&inst->seat, DIALOG_SLOT_RECONFIGURE);
 
-    title = dupcat(appname, " Reconfiguration", NULL);
-
-    oldconf = inst->conf;
-    newconf = conf_copy(inst->conf);
-
-    if (do_config_box(title, newconf, 1,
-		      inst->back?inst->back->cfg_info(inst->backhandle):0)) {
+    if (retval) {
         inst->conf = newconf;
 
         /* Pass new config data to the logging module */
@@ -3876,9 +4631,10 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
         }
         /* Pass new config data to the terminal */
         term_reconfig(inst->term, inst->conf);
+        setup_clipboards(inst, inst->term, inst->conf);
         /* Pass new config data to the back end */
-        if (inst->back)
-	    inst->back->reconfig(inst->backhandle, inst->conf);
+        if (inst->backend)
+            backend_reconfig(inst->backend, inst->conf);
 
 	cache_conf_values(inst);
 
@@ -3913,21 +4669,21 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	    }
         }
 
-        need_size = FALSE;
+        need_size = false;
 
         /*
          * If the scrollbar needs to be shown, hidden, or moved
          * from one end to the other of the window, do so now.
          */
-        if (conf_get_int(oldconf, CONF_scrollbar) !=
-	    conf_get_int(newconf, CONF_scrollbar)) {
-            show_scrollbar(inst, conf_get_int(newconf, CONF_scrollbar));
-            need_size = TRUE;
+        if (conf_get_bool(oldconf, CONF_scrollbar) !=
+	    conf_get_bool(newconf, CONF_scrollbar)) {
+            show_scrollbar(inst, conf_get_bool(newconf, CONF_scrollbar));
+            need_size = true;
         }
-        if (conf_get_int(oldconf, CONF_scrollbar_on_left) !=
-	    conf_get_int(newconf, CONF_scrollbar_on_left)) {
+        if (conf_get_bool(oldconf, CONF_scrollbar_on_left) !=
+	    conf_get_bool(newconf, CONF_scrollbar_on_left)) {
             gtk_box_reorder_child(inst->hbox, inst->sbar,
-                                  conf_get_int(newconf, CONF_scrollbar_on_left)
+                                  conf_get_bool(newconf, CONF_scrollbar_on_left)
 				  ? 0 : 1);
         }
 
@@ -3936,7 +4692,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          */
         if (strcmp(conf_get_str(oldconf, CONF_wintitle),
 		   conf_get_str(newconf, CONF_wintitle)))
-            set_title(inst, conf_get_str(newconf, CONF_wintitle));
+            win_set_title(&inst->termwin,
+                          conf_get_str(newconf, CONF_wintitle));
 	set_window_titles(inst);
 
         /*
@@ -3953,12 +4710,12 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 		   conf_get_fontspec(newconf, CONF_wideboldfont)->name) ||
 	    strcmp(conf_get_str(oldconf, CONF_line_codepage),
 		   conf_get_str(newconf, CONF_line_codepage)) ||
-	    conf_get_int(oldconf, CONF_utf8_override) !=
-	    conf_get_int(newconf, CONF_utf8_override) ||
+	    conf_get_bool(oldconf, CONF_utf8_override) !=
+	    conf_get_bool(newconf, CONF_utf8_override) ||
 	    conf_get_int(oldconf, CONF_vtmode) !=
 	    conf_get_int(newconf, CONF_vtmode) ||
-	    conf_get_int(oldconf, CONF_shadowbold) !=
-	    conf_get_int(newconf, CONF_shadowbold) ||
+	    conf_get_bool(oldconf, CONF_shadowbold) !=
+	    conf_get_bool(newconf, CONF_shadowbold) ||
 	    conf_get_int(oldconf, CONF_shadowboldoffset) !=
 	    conf_get_int(newconf, CONF_shadowboldoffset)) {
             char *errmsg = setup_fonts_ucs(inst);
@@ -3966,14 +4723,14 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
                 char *msgboxtext =
                     dupprintf("Could not change fonts in terminal window: %s\n",
                               errmsg);
-                messagebox(inst->window, "Font setup error", msgboxtext,
-                           string_width("Could not change fonts in terminal window:"),
-                           FALSE, "OK", 'o', +1, 1,
-                           NULL);
+                create_message_box(
+                    inst->window, "Font setup error", msgboxtext,
+                    string_width("Could not change fonts in terminal window:"),
+                    false, &buttons_ok, trivial_post_dialog_fn, NULL);
                 sfree(msgboxtext);
                 sfree(errmsg);
             } else {
-                need_size = TRUE;
+                need_size = true;
             }
         }
 
@@ -3988,8 +4745,9 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	    conf_get_int(newconf, CONF_window_border) ||
 	    need_size) {
             set_geom_hints(inst);
-            request_resize(inst, conf_get_int(newconf, CONF_width),
-			   conf_get_int(newconf, CONF_height));
+            win_request_resize(&inst->termwin,
+                               conf_get_int(newconf, CONF_width),
+                               conf_get_int(newconf, CONF_height));
         } else {
 	    /*
 	     * The above will have caused a call to term_size() for
@@ -4016,11 +4774,9 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     } else {
 	conf_free(newconf);
     }
-    sfree(title);
-    inst->reconfiguring = FALSE;
 }
 
-static void change_font_size(struct gui_data *inst, int increment)
+static void change_font_size(GtkFrontend *inst, int increment)
 {
     static const int conf_keys[lenof(inst->fonts)] = {
         CONF_font, CONF_boldfont, CONF_widefont, CONF_wideboldfont,
@@ -4064,8 +4820,8 @@ static void change_font_size(struct gui_data *inst, int increment)
     }
 
     set_geom_hints(inst);
-    request_resize(inst, conf_get_int(inst->conf, CONF_width),
-                   conf_get_int(inst->conf, CONF_height));
+    win_request_resize(&inst->termwin, conf_get_int(inst->conf, CONF_width),
+                       conf_get_int(inst->conf, CONF_height));
     term_invalidate(inst->term);
     gtk_widget_queue_draw(inst->area);
 
@@ -4083,7 +4839,7 @@ static void change_font_size(struct gui_data *inst, int increment)
 
 void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
 {
-    struct gui_data *inst = (struct gui_data *)gdata;
+    GtkFrontend *inst = (GtkFrontend *)gdata;
 
     launch_duplicate_session(inst->conf);
 }
@@ -4095,13 +4851,13 @@ void new_session_menuitem(GtkMenuItem *item, gpointer data)
 
 void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
-    if (!inst->back) {
-	logevent(inst, "----- Session restarted -----");
-	term_pwron(inst->term, FALSE);
+    if (!inst->backend) {
+        logevent(inst->logctx, "----- Session restarted -----");
+	term_pwron(inst->term, false);
 	start_backend(inst);
-	inst->exited = FALSE;
+	inst->exited = false;
     }
 }
 
@@ -4119,16 +4875,50 @@ void saved_session_freedata(GtkMenuItem *item, gpointer data)
     sfree(str);
 }
 
+void app_menu_action(GtkFrontend *frontend, enum MenuAction action)
+{
+    GtkFrontend *inst = (GtkFrontend *)frontend;
+    switch (action) {
+      case MA_COPY:
+        copy_clipboard_menuitem(NULL, inst);
+        break;
+      case MA_PASTE:
+        paste_clipboard_menuitem(NULL, inst);
+        break;
+      case MA_COPY_ALL:
+        copy_all_menuitem(NULL, inst);
+        break;
+      case MA_DUPLICATE_SESSION:
+        dup_session_menuitem(NULL, inst);
+        break;
+      case MA_RESTART_SESSION:
+        restart_session_menuitem(NULL, inst);
+        break;
+      case MA_CHANGE_SETTINGS:
+        change_settings_menuitem(NULL, inst);
+        break;
+      case MA_CLEAR_SCROLLBACK:
+        clear_scrollback_menuitem(NULL, inst);
+        break;
+      case MA_RESET_TERMINAL:
+        reset_terminal_menuitem(NULL, inst);
+        break;
+      case MA_EVENT_LOG:
+        event_log_menuitem(NULL, inst);
+        break;
+    }
+}
+
 static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     struct sesslist sesslist;
     int i;
 
     gtk_container_foreach(GTK_CONTAINER(inst->sessionsmenu),
 			  (GtkCallback)gtk_widget_destroy, NULL);
 
-    get_sesslist(&sesslist, TRUE);
+    get_sesslist(&sesslist, true);
     /* skip sesslist.sessions[0] == Default Settings */
     for (i = 1; i < sesslist.nsessions; i++) {
 	GtkWidget *menuitem =
@@ -4147,11 +4937,11 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
     if (sesslist.nsessions <= 1) {
 	GtkWidget *menuitem =
 	    gtk_menu_item_new_with_label("(No sessions)");
-	gtk_widget_set_sensitive(menuitem, FALSE);
+	gtk_widget_set_sensitive(menuitem, false);
 	gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
 	gtk_widget_show(menuitem);
     }
-    get_sesslist(&sesslist, FALSE); /* free up */
+    get_sesslist(&sesslist, false); /* free up */
 }
 
 void set_window_icon(GtkWidget *window, const char *const *const *icon,
@@ -4190,14 +4980,15 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 #endif
 }
 
-void update_specials_menu(void *frontend)
+static void free_special_cmd(gpointer data) { sfree(data); }
+
+static void gtk_seat_update_specials_menu(Seat *seat)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    const SessionSpecial *specials;
 
-    const struct telnet_special *specials;
-
-    if (inst->back)
-	specials = inst->back->get_specials(inst->backhandle);
+    if (inst->backend)
+        specials = backend_get_specials(inst->backend);
     else
 	specials = NULL;
 
@@ -4213,7 +5004,7 @@ void update_specials_menu(void *frontend)
 	for (i = 0; nesting > 0; i++) {
 	    GtkWidget *menuitem = NULL;
 	    switch (specials[i].code) {
-	      case TS_SUBMENU:
+	      case SS_SUBMENU:
 		assert (nesting < 2);
 		saved_menu = menu; /* XXX lame stacking */
 		menu = gtk_menu_new();
@@ -4224,20 +5015,24 @@ void update_specials_menu(void *frontend)
 		menuitem = NULL;
 		nesting++;
 		break;
-	      case TS_EXITMENU:
+	      case SS_EXITMENU:
 		nesting--;
 		if (nesting) {
 		    menu = saved_menu; /* XXX lame stacking */
 		    saved_menu = NULL;
 		}
 		break;
-	      case TS_SEP:
+	      case SS_SEP:
 		menuitem = gtk_menu_item_new();
 		break;
 	      default:
 		menuitem = gtk_menu_item_new_with_label(specials[i].name);
-                g_object_set_data(G_OBJECT(menuitem), "user-data",
-                                  GINT_TO_POINTER(specials[i].code));
+                {
+                    SessionSpecial *sc = snew(SessionSpecial);
+                    *sc = specials[i]; /* structure copy */
+                    g_object_set_data_full(G_OBJECT(menuitem), "user-data",
+                                           sc, free_special_cmd);
+                }
                 g_signal_connect(G_OBJECT(menuitem), "activate",
                                  G_CALLBACK(special_menuitem), inst);
 		break;
@@ -4255,30 +5050,30 @@ void update_specials_menu(void *frontend)
     }
 }
 
-static void start_backend(struct gui_data *inst)
+static void start_backend(GtkFrontend *inst)
 {
-    extern Backend *select_backend(Conf *conf);
+    const struct BackendVtable *vt;
     char *realhost;
     const char *error;
     char *s;
 
-    inst->back = select_backend(inst->conf);
+    vt = select_backend(inst->conf);
 
-    error = inst->back->init((void *)inst, &inst->backhandle,
-			     inst->conf,
-			     conf_get_str(inst->conf, CONF_host),
-			     conf_get_int(inst->conf, CONF_port),
-			     &realhost,
-			     conf_get_int(inst->conf, CONF_tcp_nodelay),
-			     conf_get_int(inst->conf, CONF_tcp_keepalives));
+    error = backend_init(vt, &inst->seat, &inst->backend,
+                         inst->logctx, inst->conf,
+                         conf_get_str(inst->conf, CONF_host),
+                         conf_get_int(inst->conf, CONF_port),
+                         &realhost,
+                         conf_get_bool(inst->conf, CONF_tcp_nodelay),
+                         conf_get_bool(inst->conf, CONF_tcp_keepalives));
 
     if (error) {
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
 			      conf_dest(inst->conf), error);
-	inst->exited = TRUE;
-	fatal_message_box(inst->window, msg);
+	inst->exited = true;
+	seat_connection_fatal(&inst->seat, msg);
 	sfree(msg);
-	exit(0);
+        return;
     }
 
     s = conf_get_str(inst->conf, CONF_wintitle);
@@ -4291,17 +5086,15 @@ static void start_backend(struct gui_data *inst)
     }
     sfree(realhost);
 
-    inst->back->provide_logctx(inst->backhandle, inst->logctx);
+    term_provide_backend(inst->term, inst->backend);
 
-    term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
+    inst->ldisc = ldisc_create(inst->conf, inst->term, inst->backend,
+                               &inst->seat);
 
-    inst->ldisc =
-	ldisc_create(inst->conf, inst->term, inst->back, inst->backhandle,
-		     inst);
-
-    gtk_widget_set_sensitive(inst->restartitem, FALSE);
+    gtk_widget_set_sensitive(inst->restartitem, false);
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
 static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
 {
 #if GTK_CHECK_VERSION(3,4,0)
@@ -4325,16 +5118,53 @@ static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
     geometry->height = gdk_screen_height();
 #endif
 }
+#endif
 
-struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
+static const TermWinVtable gtk_termwin_vt = {
+    gtkwin_setup_draw_ctx,
+    gtkwin_draw_text,
+    gtkwin_draw_cursor,
+    gtkwin_draw_trust_sigil,
+    gtkwin_char_width,
+    gtkwin_free_draw_ctx,
+    gtkwin_set_cursor_pos,
+    gtkwin_set_raw_mouse_mode,
+    gtkwin_set_scrollbar,
+    gtkwin_bell,
+    gtkwin_clip_write,
+    gtkwin_clip_request_paste,
+    gtkwin_refresh,
+    gtkwin_request_resize,
+    gtkwin_set_title,
+    gtkwin_set_icon_title,
+    gtkwin_set_minimised,
+    gtkwin_is_minimised,
+    gtkwin_set_maximised,
+    gtkwin_move,
+    gtkwin_set_zorder,
+    gtkwin_palette_get,
+    gtkwin_palette_set,
+    gtkwin_palette_reset,
+    gtkwin_get_pos,
+    gtkwin_get_pixels,
+    gtkwin_get_title,
+    gtkwin_is_utf8,
+};
+
+void new_session_window(Conf *conf, const char *geometry_string)
 {
-    struct gui_data *inst;
+    GtkFrontend *inst;
+
+    prepare_session(conf);
 
     /*
      * Create an instance structure and initialise to zeroes
      */
-    inst = snew(struct gui_data);
+    inst = snew(GtkFrontend);
     memset(inst, 0, sizeof(*inst));
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    inst->cdi_headtail.next = inst->cdi_headtail.prev = &inst->cdi_headtail;
+#endif
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
     inst->busy_status = BUSY_NOT;
     inst->conf = conf;
@@ -4343,8 +5173,14 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 #if GTK_CHECK_VERSION(3,4,0)
     inst->cumulative_scroll = 0.0;
 #endif
+    inst->drawing_area_setup_needed = true;
+
+    inst->termwin.vt = &gtk_termwin_vt;
+    inst->seat.vt = &gtk_seat_vt;
+    inst->logpolicy.vt = &gtk_logpolicy_vt;
 
 #ifndef NOT_X_WINDOWS
+    inst->disp = get_x11_display();
     if (geometry_string) {
         int flags, x, y;
         unsigned int w, h;
@@ -4357,7 +5193,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         if (flags & (XValue | YValue)) {
             inst->xpos = x;
             inst->ypos = y;
-            inst->gotpos = TRUE;
+            inst->gotpos = true;
             inst->gravity = ((flags & XNegative ? 1 : 0) |
                              (flags & YNegative ? 2 : 0));
         }
@@ -4365,24 +5201,30 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 #endif
 
     if (!compound_text_atom)
-        compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
+        compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", false);
     if (!utf8_string_atom)
-        utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
+        utf8_string_atom = gdk_atom_intern("UTF8_STRING", false);
+    if (!clipboard_atom)
+        clipboard_atom = gdk_atom_intern("CLIPBOARD", false);
 
     inst->area = gtk_drawing_area_new();
     gtk_widget_set_name(GTK_WIDGET(inst->area), "drawing-area");
+
+    {
+        char *errmsg = setup_fonts_ucs(inst);
+        if (errmsg) {
+            window_setup_error(errmsg);
+            sfree(errmsg);
+            gtk_widget_destroy(inst->area);
+            sfree(inst);
+            return;
+        }
+    }
 
 #if GTK_CHECK_VERSION(2,0,0)
     inst->imc = gtk_im_multicontext_new();
 #endif
 
-    {
-        char *errmsg = setup_fonts_ucs(inst);
-        if (errmsg) {
-            fprintf(stderr, "%s: %s\n", appname, errmsg);
-            exit(1);
-        }
-    }
     inst->window = make_gtk_toplevel_window(inst);
     gtk_widget_set_name(GTK_WIDGET(inst->window), "top-level");
     {
@@ -4393,13 +5235,11 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
             GdkWindow *gdkwin;
             gtk_widget_realize(GTK_WIDGET(inst->window));
             gdkwin = gtk_widget_get_window(GTK_WIDGET(inst->window));
-            if (gdk_window_ensure_native(gdkwin)) {
-                Display *disp =
-                    GDK_DISPLAY_XDISPLAY(gdk_window_get_display(gdkwin));
+            if (inst->disp && gdk_window_ensure_native(gdkwin)) {
                 XClassHint *xch = XAllocClassHint();
                 xch->res_name = (char *)winclass;
                 xch->res_class = (char *)winclass;
-                XSetClassHint(disp, GDK_WINDOW_XID(gdkwin), xch);
+                XSetClassHint(inst->disp, GDK_WINDOW_XID(gdkwin), xch);
                 XFree(xch);
             }
 #endif
@@ -4420,7 +5260,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     /*
      * Set up the colour map.
      */
-    palette_reset(inst);
+    win_palette_reset(&inst->termwin);
 
     inst->width = conf_get_int(inst->conf, CONF_width);
     inst->height = conf_get_int(inst->conf, CONF_height);
@@ -4430,22 +5270,22 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 
     inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
     inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
-    inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
+    inst->hbox = GTK_BOX(gtk_hbox_new(false, 0));
     /*
      * We always create the scrollbar; it remains invisible if
      * unwanted, so we can pop it up quickly if it suddenly becomes
      * desirable.
      */
-    if (conf_get_int(inst->conf, CONF_scrollbar_on_left))
-        gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
-    gtk_box_pack_start(inst->hbox, inst->area, TRUE, TRUE, 0);
-    if (!conf_get_int(inst->conf, CONF_scrollbar_on_left))
-        gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
+    if (conf_get_bool(inst->conf, CONF_scrollbar_on_left))
+        gtk_box_pack_start(inst->hbox, inst->sbar, false, false, 0);
+    gtk_box_pack_start(inst->hbox, inst->area, true, true, 0);
+    if (!conf_get_bool(inst->conf, CONF_scrollbar_on_left))
+        gtk_box_pack_start(inst->hbox, inst->sbar, false, false, 0);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
     gtk_widget_show(inst->area);
-    show_scrollbar(inst, conf_get_int(inst->conf, CONF_scrollbar));
+    show_scrollbar(inst, conf_get_bool(inst->conf, CONF_scrollbar));
     gtk_widget_show(GTK_WIDGET(inst->hbox));
 
     /*
@@ -4518,8 +5358,14 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
                      G_CALLBACK(focus_event), inst);
     g_signal_connect(G_OBJECT(inst->window), "focus_out_event",
                      G_CALLBACK(focus_event), inst);
+    g_signal_connect(G_OBJECT(inst->area), "realize",
+                     G_CALLBACK(area_realised), inst);
+    g_signal_connect(G_OBJECT(inst->area), "size_allocate",
+                     G_CALLBACK(area_size_allocate), inst);
+#if GTK_CHECK_VERSION(3,10,0)
     g_signal_connect(G_OBJECT(inst->area), "configure_event",
-                     G_CALLBACK(configure_area), inst);
+                     G_CALLBACK(area_configured), inst);
+#endif
 #if GTK_CHECK_VERSION(3,0,0)
     g_signal_connect(G_OBJECT(inst->area), "draw",
                      G_CALLBACK(draw_area), inst);
@@ -4541,7 +5387,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     g_signal_connect(G_OBJECT(inst->imc), "commit",
                      G_CALLBACK(input_method_commit_event), inst);
 #endif
-    if (conf_get_int(inst->conf, CONF_scrollbar))
+    if (conf_get_bool(inst->conf, CONF_scrollbar))
         g_signal_connect(G_OBJECT(inst->sbar_adjust), "value_changed",
                          G_CALLBACK(scrollbar_moved), inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
@@ -4553,11 +5399,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 #endif
         );
 
-    {
-	extern const char *const *const main_icon[];
-	extern const int n_main_icon;
-	set_window_icon(inst->window, main_icon, n_main_icon);
-    }
+    set_window_icon(inst->window, main_icon, n_main_icon);
 
     gtk_widget_show(inst->window);
 
@@ -4569,7 +5411,6 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     {
 	GtkWidget *menuitem;
 	char *s;
-	extern const int use_event_log, new_session, saved_sessions;
 
 	inst->menu = gtk_menu_new();
 
@@ -4600,7 +5441,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 	    MKMENUITEM("New Session...", new_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
 	inst->restartitem = menuitem;
-	gtk_widget_set_sensitive(inst->restartitem, FALSE);
+	gtk_widget_set_sensitive(inst->restartitem, false);
         MKMENUITEM("Duplicate Session", dup_session_menuitem);
 	if (saved_sessions) {
 	    inst->sessionsmenu = gtk_menu_new();
@@ -4625,6 +5466,11 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 	gtk_widget_hide(inst->specialsitem2);
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
+	MKSEP();
+	MKMENUITEM("Copy to " CLIPNAME_EXPLICIT_OBJECT,
+                   copy_clipboard_menuitem);
+	MKMENUITEM("Paste from " CLIPNAME_EXPLICIT_OBJECT,
+                   paste_clipboard_menuitem);
 	MKMENUITEM("Copy All", copy_all_menuitem);
 	MKSEP();
 	s = dupcat("About ", appname, NULL);
@@ -4640,22 +5486,29 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     inst->waitcursor = make_mouse_ptr(inst, GDK_WATCH);
     inst->blankcursor = make_mouse_ptr(inst, -1);
     inst->currcursor = inst->textcursor;
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
 
     inst->eventlogstuff = eventlogstuff_new();
 
-    inst->term = term_init(inst->conf, &inst->ucsdata, inst);
-    inst->logctx = log_init(inst, inst->conf);
+    inst->term = term_init(inst->conf, &inst->ucsdata, &inst->termwin);
+    setup_clipboards(inst, inst->term, inst->conf);
+    inst->logctx = log_init(&inst->logpolicy, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);
 
     term_size(inst->term, inst->height, inst->width,
 	      conf_get_int(inst->conf, CONF_savelines));
 
+    inst->exited = false;
+
     start_backend(inst);
 
-    ldisc_echoedit_update(inst->ldisc);     /* cause ldisc to notice changes */
+    if (inst->ldisc) /* early backend failure might make this NULL already */
+        ldisc_echoedit_update(inst->ldisc); /* cause ldisc to notice changes */
+}
 
-    inst->exited = FALSE;
-
-    return inst;
+static bool gtk_seat_set_trust_status(Seat *seat, bool trusted)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    term_set_trust_status(inst->term, trusted);
+    return true;
 }

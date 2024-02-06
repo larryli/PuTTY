@@ -2,7 +2,11 @@
 <app-bundle>
 
   <meta>
-    <prefix name="default">${env:JHBUILD_PREFIX}</prefix>
+    <!-- If you try to use this script outside the makefile, you'll
+         have to set PUTTY_GTK_PREFIX_FROM_MAKEFILE by hand. See the
+         full rant in putty.bundle for further explanation. -->
+    <prefix name="default">${env:PUTTY_GTK_PREFIX_FROM_MAKEFILE}</prefix>
+
     <run-install-name-tool/>
     <gtk>gtk+-3.0</gtk>
     <!-- Optionally specify a launcher script to use. If the

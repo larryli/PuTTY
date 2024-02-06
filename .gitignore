@@ -19,7 +19,6 @@
 /*.tds
 /*.td2
 /*.map
-/Makefile.bor
 /Makefile.mgw
 /Makefile.vc
 /Makefile.lcc
@@ -39,11 +38,15 @@
 /puttyapp
 /ptermapp
 /osxlaunch
+/uppity
 /unix/PuTTY.app
 /unix/Pterm.app
 /fuzzterm
-/testbn
+/testcrypt
+/testsc
+/testzlib
 /cgtest
+/scctest
 /*.DSA
 /*.RSA
 /*.cnt
@@ -69,6 +72,7 @@
 /local
 /missing
 /uxconfig.in
+/uxconfig.in~
 /uxconfig.h
 /licence.h
 /*.a
@@ -96,7 +100,6 @@
 /icons/*.icns
 /icons/*.xpm
 /icons/*.c
-/testdata/bignum.txt
 /unix/Makefile.gtk
 /unix/Makefile.ux
 /unix/Makefile.local
@@ -127,8 +130,8 @@
 /windows/*.tds
 /windows/*.td2
 /windows/*.map
+/windows/*.rcpp
 /windows/Makefile.clangcl
-/windows/Makefile.bor
 /windows/Makefile.mgw
 /windows/Makefile.vc
 /windows/Makefile.lcc

@@ -27,73 +27,33 @@ and you should get unix/PuTTY.app and unix/PTerm.app as output.
 
 TODO list for a sensible GTK3 PuTTY/pterm on OS X:
 
-Menu items' keyboard shortcuts (Command-Q for Quit, Command-V for
-Paste) do not currently work. It's intentional that if you turn on
-'Command key acts as Meta' in the configuration then those shortcuts
-should be superseded by the Meta-key functionality (e.g. Cmd-Q should
-send ESC Q to the session), for the benefit of people whose non-Mac
-keyboard reflexes expect the Meta key to be in that position; but if
-you don't turn that option on, then these shortcuts should work as an
-ordinary Mac user expects, and currently they don't.
-
-Windows don't close sensibly when their sessions terminate. This is
-because until now I've relied on calling cleanup_exit() or
-gtk_main_quit() in gtkwin.c to terminate the program, which is
-conceptually wrong in this situation (we don't want to quit the whole
-application when just one window closes) and also doesn't reliably
-work anyway (GtkApplication doesn't seem to have a gtk_main invocation
-in it at all, so those calls to gtk_main_quit produce a GTK assertion
-failure message on standard error). Need to introduce a proper 'clean
-up this struct gui_data' function (including finalising other stuff
-dangling off it like the backend), call that, and delete just that one
-window. (And then work out a replacement mechanism for having the
-ordinary Unix-style gtkmain.c based programs terminate when their
-session does.) connection_fatal() in particular should invoke this
-mechanism, and terminate just the connection that had trouble.
+Still to do on the application menu bar: items that have to vary with
+context or user action (saved sessions and mid-session special
+commands), and disabling/enabling the main actions in parallel with
+their counterparts in the Ctrl-rightclick context menu.
 
 Mouse wheel events and trackpad scrolling gestures don't work quite
-right in the terminal drawing area.
+right in the terminal drawing area. This seems to be a combination of
+two things, neither of which I completely understand yet. Firstly, on
+OS X GTK my trackpad seems to generate GDK scroll events for which
+gdk_event_get_scroll_deltas returns integers rather than integer
+multiples of 1/30, so we end up scrolling by very large amounts;
+secondly, the window doesn't seem to receive a GTK "draw" event until
+after the entire scroll gesture is complete, which means we don't get
+constant visual feedback on how much we're scrolling by.
 
-There doesn't seem to be a resize handle on terminal windows. I don't
-think this is a fundamental limitation of OS X GTK (their demo app has
-one), so perhaps I need to do something to make sure it appears?
+There doesn't seem to be a resize handle on terminal windows. Then
+again, they do seem to _be_ resizable; the handle just isn't shown.
+Perhaps that's a feature (certainly in a scrollbarless configuration
+the handle gets in the way of the bottom right character cell in the
+terminal itself), but it would be nice to at least understand _why_ it
+happens and perhaps include an option to put it back again.
 
 A slight oddity with menus that pop up directly under the mouse
 pointer: mousing over the menu items doesn't highlight them initially,
 but if I mouse off the menu and back on (without un-popping-it-up)
 then suddenly that does work. I don't know if this is something I can
 fix, though; it might very well be a quirk of the underlying GTK.
-
-I want to arrange *some* way to paste efficiently using my Apple
-wireless keyboard and trackpad. The trackpad doesn't provide a middle
-button; I can't use the historic Shift-Ins shortcut because the
-keyboard has no Ins key; I configure the Command key to be Meta, so
-Command-V is off the table too. I can always use the menu, but I'd
-prefer there to be _some_ easily reachable mouse or keyboard gesture.
-
-Revamping the clipboard handling in general is going to be needed, as
-well. Not everybody will want the current auto-copy-on-select
-behaviour inherited from ordinary Unix PuTTY. Should arrange to have a
-mode in which you have to take an explicit Copy action, and then
-arrange that the Edit menu includes one of those.
-
-Dialog boxes shouldn't be modal. I think this is a good policy change
-in general, and the required infrastructure changes will benefit the
-Windows front end too, but for a multi-session process it's even more
-critical - you need to be able to type into one session window while
-setting up the configuration for launching another. So everywhere we
-currently run a sub-instance of gtk_main, or call any API function
-that implicitly does that (like gtk_dialog_run), we should switch to
-putting up the dialog box and going back to our ordinary main loop,
-and whatever we were going to do after the dialog closed we should
-remember to do it when that happens later on. Also then we can remove
-the post_main() horror from gtkcomm.c.
-
-The application menu bar is very minimal at the moment. Should include
-all the usual stuff from the Ctrl-right-click menu - saved sessions,
-mid-session special commands, Duplicate Session, Change Settings,
-Event Log, clear scrollback, reset terminal, about box, anything else
-I can think of.
 
 Does OS X have a standard system of online help that I could tie into?
 
@@ -124,10 +84,11 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
+#include "gtkmisc.h"
 
 char *x_get_default(const char *key) { return NULL; }
 
-const int buildinfo_gtk_relevant = TRUE;
+const bool buildinfo_gtk_relevant = true;
 
 #if !GTK_CHECK_VERSION(3,0,0)
 /* This front end only works in GTK 3. If that's not what we've got,
@@ -135,13 +96,15 @@ const int buildinfo_gtk_relevant = TRUE;
  * in the source than it is to remove it in the makefile edifice. */
 int main(int argc, char **argv)
 {
-    fprintf(stderr, "launcher does nothing on non-OSX platforms\n");
+    fprintf(stderr, "GtkApplication frontend doesn't work pre-GTK3\n");
     return 1;
 }
-GtkWidget *make_gtk_toplevel_window(void *frontend) { return NULL; }
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend) { return NULL; }
 void launch_duplicate_session(Conf *conf) {}
 void launch_new_session(void) {}
 void launch_saved_session(const char *str) {}
+void session_window_closed(void) {}
+void window_setup_error(const char *errmsg) {}
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
 static void startup(GApplication *app, gpointer user_data)
@@ -162,25 +125,84 @@ static void startup(GApplication *app, gpointer user_data)
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Copy", "win.copy");
     g_menu_append(section, "Paste", "win.paste");
+    g_menu_append(section, "Copy All", "win.copyall");
+
+    menu = g_menu_new();
+    g_menu_append_submenu(menubar, "Window", G_MENU_MODEL(menu));
+
+    section = g_menu_new();
+    g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Restart Session", "win.restart");
+    g_menu_append(section, "Duplicate Session", "win.duplicate");
+
+    section = g_menu_new();
+    g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Change Settings", "win.changesettings");
+
+    if (use_event_log) {
+        section = g_menu_new();
+        g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+        g_menu_append(section, "Event Log", "win.eventlog");
+    }
+
+    section = g_menu_new();
+    g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Clear Scrollback", "win.clearscrollback");
+    g_menu_append(section, "Reset Terminal", "win.resetterm");
+
+#if GTK_CHECK_VERSION(3,12,0)
+#define SET_ACCEL(app, command, accel) do                       \
+    {                                                           \
+        static const char *const accels[] = { accel, NULL };    \
+        gtk_application_set_accels_for_action(                  \
+            GTK_APPLICATION(app), command, accels);             \
+    } while (0)
+#else
+    /* The Gtk function used above was new in 3.12; the one below
+     * was deprecated from 3.14. */
+#define SET_ACCEL(app, command, accel) \
+    gtk_application_add_accelerator(GTK_APPLICATION(app), accel, \
+                                    command, NULL)
+#endif
+
+    SET_ACCEL(app, "app.newwin", "<Primary>n");
+    SET_ACCEL(app, "win.copy", "<Primary>c");
+    SET_ACCEL(app, "win.paste", "<Primary>v");
+
+#undef SET_ACCEL
 
     gtk_application_set_menubar(GTK_APPLICATION(app),
                                 G_MENU_MODEL(menubar));
 }
 
-static void paste_cb(GSimpleAction *action,
-                     GVariant      *parameter,
-                     gpointer       user_data)
-{
-    request_paste(user_data);
-}
+#define WIN_ACTION_LIST(X)                      \
+    X("copy", MA_COPY)                          \
+    X("paste", MA_PASTE)                        \
+    X("copyall", MA_COPY_ALL)                   \
+    X("duplicate", MA_DUPLICATE_SESSION)        \
+    X("restart", MA_RESTART_SESSION)            \
+    X("changesettings", MA_CHANGE_SETTINGS)     \
+    X("clearscrollback", MA_CLEAR_SCROLLBACK)   \
+    X("resetterm", MA_RESET_TERMINAL)           \
+    X("eventlog", MA_EVENT_LOG)                 \
+    /* end of list */
+
+#define WIN_ACTION_CALLBACK(name, id) \
+static void win_action_cb_ ## id(GSimpleAction *a, GVariant *p, gpointer d) \
+{ app_menu_action(d, id); }
+WIN_ACTION_LIST(WIN_ACTION_CALLBACK)
+#undef WIN_ACTION_CALLBACK
 
 static const GActionEntry win_actions[] = {
-    { "paste", paste_cb },
+#define WIN_ACTION_ENTRY(name, id) { name, win_action_cb_ ## id },
+WIN_ACTION_LIST(WIN_ACTION_ENTRY)
+#undef WIN_ACTION_ENTRY
 };
 
 static GtkApplication *app;
-GtkWidget *make_gtk_toplevel_window(void *frontend)
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
 {
     GtkWidget *win = gtk_application_window_new(app);
     g_action_map_add_action_entries(G_ACTION_MAP(win),
@@ -190,21 +212,27 @@ GtkWidget *make_gtk_toplevel_window(void *frontend)
     return win;
 }
 
-extern int cfgbox(Conf *conf);
-
 void launch_duplicate_session(Conf *conf)
 {
-    extern const int dup_check_launchable;
     assert(!dup_check_launchable || conf_launchable(conf));
-    new_session_window(conf, NULL);
+    g_application_hold(G_APPLICATION(app));
+    new_session_window(conf_copy(conf), NULL);
 }
 
-void launch_new_session(void)
+void session_window_closed(void)
 {
-    Conf *conf = conf_new();
-    do_defaults(NULL, conf);
-    if (conf_launchable(conf) || cfgbox(conf)) {
+    g_application_release(G_APPLICATION(app));
+}
+
+static void post_initial_config_box(void *vctx, int result)
+{
+    Conf *conf = (Conf *)vctx;
+
+    if (result > 0) {
         new_session_window(conf, NULL);
+    } else if (result == 0) {
+        conf_free(conf);
+        g_application_release(G_APPLICATION(app));
     }
 }
 
@@ -212,14 +240,39 @@ void launch_saved_session(const char *str)
 {
     Conf *conf = conf_new();
     do_defaults(str, conf);
-    if (conf_launchable(conf) || cfgbox(conf)) {
+
+    g_application_hold(G_APPLICATION(app));
+
+    if (!conf_launchable(conf)) {
+        initial_config_box(conf, post_initial_config_box, conf);
+    } else {
         new_session_window(conf, NULL);
     }
+}
+
+void launch_new_session(void)
+{
+    /* Same as launch_saved_session except that we pass NULL to
+     * do_defaults. */
+    launch_saved_session(NULL);
 }
 
 void new_app_win(GtkApplication *app)
 {
     launch_new_session();
+}
+
+static void window_setup_error_callback(void *vctx, int result)
+{
+    g_application_release(G_APPLICATION(app));
+}
+
+void window_setup_error(const char *errmsg)
+{
+    create_message_box(NULL, "Error creating session window", errmsg,
+                       string_width("Some sort of fiddly error message that "
+                                    "might be technical"),
+                       true, &buttons_ok, window_setup_error_callback, NULL);
 }
 
 static void activate(GApplication *app,
@@ -242,8 +295,16 @@ static void quit_cb(GSimpleAction *action,
     g_application_quit(G_APPLICATION(user_data));
 }
 
+static void about_cb(GSimpleAction *action,
+                     GVariant      *parameter,
+                     gpointer       user_data)
+{
+    about_box(NULL);
+}
+
 static const GActionEntry app_actions[] = {
     { "newwin", newwin_cb },
+    { "about", about_cb },
     { "quit", quit_cb },
 };
 
@@ -251,15 +312,11 @@ int main(int argc, char **argv)
 {
     int status;
 
-    {
-        /* Call the function in ux{putty,pterm}.c to do app-type
-         * specific setup */
-        extern void setup(int);
-        setup(FALSE);     /* FALSE means we are not a one-session process */
-    }
+    /* Call the function in ux{putty,pterm}.c to do app-type
+     * specific setup */
+    setup(false);     /* false means we are not a one-session process */
 
     if (argc > 1) {
-        extern char *pty_osx_envrestore_prefix;
         pty_osx_envrestore_prefix = argv[--argc];
     }
 

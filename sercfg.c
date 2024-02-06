@@ -16,7 +16,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void serial_parity_handler(union control *ctrl, void *dlg,
+static void serial_parity_handler(union control *ctrl, dlgparam *dlg,
 				  void *data, int event)
 {
     static const struct {
@@ -71,7 +71,7 @@ static void serial_parity_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void serial_flow_handler(union control *ctrl, void *dlg,
+static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
 				void *data, int event)
 {
     static const struct {
@@ -124,7 +124,7 @@ static void serial_flow_handler(union control *ctrl, void *dlg,
     }
 }
 
-void ser_setup_config_box(struct controlbox *b, int midsession,
+void ser_setup_config_box(struct controlbox *b, bool midsession,
 			  int parity_mask, int flow_mask)
 {
     struct controlset *s;
@@ -132,8 +132,6 @@ void ser_setup_config_box(struct controlbox *b, int midsession,
 
     if (!midsession) {
 	int i;
-	extern void config_protocolbuttons_handler(union control *, void *,
-						   void *, int);
 
 	/*
 	 * Add the serial back end to the protocols list at the

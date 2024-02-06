@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-void unix_setup_config_box(struct controlbox *b, int midsession, int protocol)
+void unix_setup_config_box(struct controlbox *b, bool midsession, int protocol)
 {
     struct controlset *s;
     union control *c;
@@ -29,7 +29,7 @@ void unix_setup_config_box(struct controlbox *b, int midsession, int protocol)
      */
     s = ctrl_getset(b, "Terminal", "printing", "Remote-controlled printing");
     assert(s->ncontrols == 1 && s->ctrls[0]->generic.type == CTRL_EDITBOX);
-    s->ctrls[0]->editbox.has_list = 0;
+    s->ctrls[0]->editbox.has_list = false;
 
     /*
      * Unix supports a local-command proxy. This also means we must

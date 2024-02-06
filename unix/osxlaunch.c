@@ -10,8 +10,8 @@
  *
  * But the GTK program won't start up unless all those shared
  * libraries etc are already pointed to by environment variables like
- * DYLD_LIBRARY_PATH, which won't be set up when the bundle is
- * launched.
+ * GTK_PATH and PANGO_LIBDIR and things like that, which won't be set
+ * up when the bundle is launched.
  *
  * Hence, gtk-mac-bundler expects to install the program in the bundle
  * under a name like 'Contents/MacOS/Program-bin'; and the file called
@@ -48,7 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef __APPLE__
+#if !defined __APPLE__ && !defined TEST_COMPILE_ON_LINUX
 /* When we're not compiling for OS X, it's easier to just turn this
  * program into a trivial hello-world by ifdef in the source than it
  * is to remove it in the makefile edifice. */
@@ -61,7 +61,24 @@ int main(int argc, char **argv)
 
 #include <unistd.h>
 #include <libgen.h>
+
+#ifdef __APPLE__
 #include <mach-o/dyld.h>
+#else
+/* For Linux, a bodge to let as much of this code still run as
+ * possible, so that you can run it under friendly debugging tools
+ * like valgrind. */
+int _NSGetExecutablePath(char *out, uint32_t *outlen)
+{
+    static const char toret[] = "/proc/self/exe";
+    if (out != NULL && *outlen < sizeof(toret))
+        return -1;
+    *outlen = sizeof(toret);
+    if (out)
+        memcpy(out, toret, sizeof(toret));
+    return 0;
+}
+#endif
 
 /* ----------------------------------------------------------------------
  * Find an alphabetic prefix unused by any environment variable name.
@@ -135,6 +152,8 @@ char *get_unused_env_prefix(void)
         exit(1);
     }
     qhead->prefixlen = 0;
+    qhead->first_node = NULL;
+    qhead->next_bucket = NULL;
     for (e = environ; *e; e++)
         qhead->first_node = new_node(qhead->first_node, *e, strcspn(*e, "="));
 
@@ -151,6 +170,7 @@ char *get_unused_env_prefix(void)
                 exit(1);
             }
             buckets[i]->prefixlen = qhead->prefixlen + 1;
+            buckets[i]->first_node = NULL;
             qtail->next_bucket = buckets[i];
             qtail = buckets[i];
         }
@@ -335,19 +355,35 @@ char *alloc_cat(const char *str1, const char *str2)
  * Overwrite an environment variable, preserving the old one for the
  * real app to restore.
  */
+void setenv_wrap(const char *name, const char *value)
+{
+#ifdef DEBUG_OSXLAUNCH
+    printf("setenv(\"%s\",\"%s\")\n", name, value);
+#endif
+    setenv(name, value, 1);
+}
+
+void unsetenv_wrap(const char *name)
+{
+#ifdef DEBUG_OSXLAUNCH
+    printf("unsetenv(\"%s\")\n", name);
+#endif
+    unsetenv(name);
+}
+
 char *prefix, *prefixset, *prefixunset;
 void overwrite_env(const char *name, const char *value)
 {
     const char *oldvalue = getenv(name);
     if (oldvalue) {
-        setenv(alloc_cat(prefixset, name), oldvalue, 1);
+        setenv_wrap(alloc_cat(prefixset, name), oldvalue);
     } else {
-        setenv(alloc_cat(prefixunset, name), "", 1);
+        setenv_wrap(alloc_cat(prefixunset, name), "");
     }
     if (value)
-        setenv(name, value, 1);
+        setenv_wrap(name, value);
     else
-        unsetenv(name);
+        unsetenv_wrap(name);
 }
 
 /* ----------------------------------------------------------------------
@@ -359,6 +395,11 @@ int main(int argc, char **argv)
     prefix = get_unused_env_prefix();
     prefixset = alloc_cat(prefix, "s");
     prefixunset = alloc_cat(prefix, "u");
+
+#ifdef DEBUG_OSXLAUNCH
+    printf("Environment prefixes: main=\"%s\", set=\"%s\", unset=\"%s\"\n",
+           prefix, prefixset, prefixunset);
+#endif
 
     char *prog_path = get_program_path(); // <bundle>/Contents/MacOS/<filename>
     char *macos = dirname_wrapper(prog_path); // <bundle>/Contents/MacOS
@@ -374,7 +415,7 @@ int main(int argc, char **argv)
     char *locale = alloc_cat(share, "/locale");
     char *realbin = alloc_cat(prog_path, "-bin");
 
-    overwrite_env("DYLD_LIBRARY_PATH", lib);
+//    overwrite_env("DYLD_LIBRARY_PATH", lib);
     overwrite_env("XDG_CONFIG_DIRS", xdg);
     overwrite_env("XDG_DATA_DIRS", share);
     overwrite_env("GTK_DATA_PREFIX", resources);
@@ -395,17 +436,30 @@ int main(int argc, char **argv)
     }
     int j = 0;
     new_argv[j++] = realbin;
+#ifdef DEBUG_OSXLAUNCH
+    printf("argv[%d] = \"%s\"\n", j-1, new_argv[j-1]);
+#endif
     {
         int i = 1;
         if (i < argc && !strncmp(argv[i], "-psn_", 5))
             i++;
 
-        for (; i < argc; i++)
+        for (; i < argc; i++) {
             new_argv[j++] = argv[i];
+#ifdef DEBUG_OSXLAUNCH
+            printf("argv[%d] = \"%s\"\n", j-1, new_argv[j-1]);
+#endif
+        }
     }
     new_argv[j++] = prefix;
+#ifdef DEBUG_OSXLAUNCH
+    printf("argv[%d] = \"%s\"\n", j-1, new_argv[j-1]);
+#endif
     new_argv[j++] = NULL;
 
+#ifdef DEBUG_OSXLAUNCH
+    printf("executing \"%s\"\n", realbin);
+#endif
     execv(realbin, new_argv);
     perror("execv");
     free(new_argv);
