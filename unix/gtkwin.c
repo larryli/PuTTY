@@ -2653,7 +2653,7 @@ static void help(FILE *fp) {
 "  -ut, +ut                  Do(default) or do not update utmp\n"
 "  -ls, +ls                  Do(default) or do not make shell a login shell\n"
 "  -sb, +sb                  Do(default) or do not display a scrollbar\n"
-"  -log PATH                 Log all output to a file\n"
+"  -log PATH, -sessionlog PATH  Log all output to a file\n"
 "  -nethack                  Map numeric keypad to hjklyubn direction keys\n"
 "  -xrm RESOURCE-STRING      Set an X resource\n"
 "  -e COMMAND [ARGS...]      Execute command (consumes all remaining args)\n"
@@ -3191,7 +3191,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
                               errmsg);
                 messagebox(inst->window, "Font setup error", msgboxtext,
                            string_width("Could not change fonts in terminal window:"),
-                           "OK", 'o', +1, 1,
+                           FALSE, "OK", 'o', +1, 1,
                            NULL);
                 sfree(msgboxtext);
                 sfree(errmsg);

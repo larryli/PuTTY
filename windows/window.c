@@ -19,6 +19,7 @@
 #include "terminal.h"
 #include "storage.h"
 #include "win_res.h"
+#include "winsecur.h"
 
 #ifndef NO_MULTIMON
 #include <multimon.h>
@@ -390,6 +391,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	return 1;
     }
 
+    /*
+     * Protect our process
+     */
+    {
+#ifndef UNPROTECT
+        char *error = NULL;
+        if (! setprocessacl(error)) {
+            char *message = dupprintf("Could not restrict process ACL: %s",
+                                      error);
+	    logevent(NULL, message);
+            sfree(message);
+	    sfree(error);
+	}
+#endif
+    }
     /*
      * Process the command line.
      */

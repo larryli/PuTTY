@@ -36,56 +36,25 @@ BEGIN
 END
 
 /* Accelerators used: cl */
-213 DIALOG DISCARDABLE 140, 40, 136, 70
+213 DIALOG DISCARDABLE 140, 40, 214, 74
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "关于 Pageant"
 FONT 9, "宋体"
 BEGIN
-    DEFPUSHBUTTON "关闭(&C)", IDOK, 82, 52, 48, 14
-    PUSHBUTTON "查看许可证(&L)", 101, 6, 52, 70, 14
-    CTEXT "Pageant", 102, 10, 6, 120, 8
-    CTEXT "", 100, 10, 16, 120, 16
-    CTEXT "(C) 1997-2013 Simon Tatham，保留所有权利。",
-          103, 10, 34, 120, 16
+    DEFPUSHBUTTON "关闭(&C)", IDOK, 160, 56, 48, 14
+    PUSHBUTTON "查看许可证(&L)", 101, 6, 56, 70, 14
+    EDITTEXT 1000, 10, 6, 194, 48, ES_READONLY | ES_MULTILINE | ES_CENTER, WS_EX_STATICEDGE
 END
 
 /* No accelerators used */
-214 DIALOG DISCARDABLE 50, 50, 226, 263
+214 DIALOG DISCARDABLE 50, 50, 326, 231
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "PuTTY 许可证"
 FONT 9, "宋体"
 BEGIN
-    DEFPUSHBUTTON "确定", IDOK, 98, 243, 44, 14
- 
-    LTEXT "版权所有(C) 1997-2013 Simon Tatham", 1000, 10, 10, 206, 8
- 
-    LTEXT "部分版权属于 Robert de Bath, Joris van Rantwijk, ", 1001, 10, 26, 206, 8
-    LTEXT "Delian Delchev, Andreas Schultz, Jeroen Massar, ", 1002, 10, 34, 206, 8
-     LTEXT "Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa,", 1003, 10, 42, 206, 8
-     LTEXT "Markus Kuhn, Colin Watson, and CORE SDI S.A.", 1004, 10, 50, 206, 8
- 
-    LTEXT "", 1005, 10, 66, 206, 8
-    LTEXT "这里以此方式许可任何人可以免费得到该软件拷贝以及附", 1006, 10, 74, 206, 8
-    LTEXT "属文档文件 (""软件"")，并可任意处理该软件，包括无限", 1007, 10, 82, 206, 8
-    LTEXT "制的使用、复制、修改、合并、出版、分发、转让、授权", 1008, 10, 90, 206, 8
-    LTEXT "和/或出售软件的权利，并允许购买该软件的人这样做，", 1009, 10, 98, 206, 8
-    LTEXT "只要遵从以下条件：", 1010, 10, 106, 206, 8
-    LTEXT "", 1011, 10, 114, 206, 8
- 
-    LTEXT "以上的版权说明和许可说明应被包含在该软件任何部分的", 1012, 10, 130, 206, 8
-    LTEXT "所有拷贝中。", 1013, 10, 138, 206, 8
- 
-    LTEXT "该软件是作为 ""AS IS"" 提供，没有任何保证、表示或暗", 1014, 10, 154, 206, 8
-    LTEXT "示，包括但不限于适销性、适用性和不侵权。在任何情况", 1015, 10, 162, 206, 8
-    LTEXT "下作者不对任何声明、损坏或其他责任负责，无论是发生", 1016, 10, 170, 206, 8
-    LTEXT "在合同行为、侵权或其它任何来自软件的、与软件相关或", 1017, 10, 178, 206, 8
-    LTEXT "无关的以及软件的使用。", 1018, 10, 186, 206, 8
-    LTEXT "", 1019, 10, 194, 206, 8
-    LTEXT "", 1020, 10, 202, 206, 8
-    LTEXT "中文版版权所有(C) 2003-2015 李峰，保留所有权利。", 1021, 10, 210, 206, 8
-    LTEXT "", 1022, 10, 218, 206, 8
-    LTEXT "", 1023, 10, 226, 206, 8
+    DEFPUSHBUTTON "确定", IDOK, 148, 211, 44, 14
 
+    EDITTEXT 1000, 10, 10, 306, 192, ES_READONLY | ES_MULTILINE | ES_LEFT, WS_EX_STATICEDGE
 END
 
 #include "version.rc2"

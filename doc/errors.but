@@ -338,3 +338,13 @@ things into PuTTY while the network is down, but it can also occur
 if PuTTY decides of its own accord to send data: due to a repeat key
 exchange in SSH-2 (see \k{config-ssh-kex-rekey}) or due to
 keepalives (\k{config-keepalive}).
+
+\H{errors-cannotassignaddress} \q{Network error: Cannot assign requested
+address}
+
+This means that the operating system rejected the parameters of the
+network connection PuTTY tried to make, usually without actually
+trying to connect to anything, because they were simply invalid.
+
+A common way to provoke this error is to accidentally try to connect
+to port 0, which is not a valid port number.

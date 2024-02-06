@@ -61,6 +61,7 @@
 /missing
 /uxconfig.in
 /uxconfig.h
+/licence.h
 /*.a
 /charset/sbcsdat.c
 /contrib/cygtermd/cygtermd.exe
@@ -78,6 +79,8 @@
 /doc/*.hhp
 /doc/*.hhc
 /doc/*.hhk
+/doc/licence.but
+/doc/copy.but
 /icons/*.png
 /icons/*.ico
 /icons/*.xpm

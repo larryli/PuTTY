@@ -2656,15 +2656,15 @@ int sftp_senddata(char *buf, int len)
  */
 static void usage(void)
 {
-    printf("PuTTY Secure File Transfer (SFTP) client\n");
+    printf("PuTTY 安全文件传输 (SFTP) 客户端\n");
     printf("%s\n", ver);
-    printf("Usage: psftp [options] [user@]host\n");
+    printf("用法: psftp [选项] [用户名@]主机\n");
     printf("选项:\n");
     printf("  -V        显示版本信息后退出\n");
     printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
-    printf("  -b file   use specified batchfile\n");
-    printf("  -bc       output batchfile commands\n");
-    printf("  -be       don't stop batchfile processing if errors\n");
+    printf("  -b 文件   使用指定的批处理文件\n");
+    printf("  -bc       输出批处理文件命令\n");
+    printf("  -be       批处理文件发生错误也不停止其处理进程\n");
     printf("  -v        显示详细信息\n");
     printf("  -load 会话名  载入保存的会话信息\n");
     printf("  -l 用户名 使用指定的用户名连接\n");
@@ -2674,11 +2674,14 @@ static void usage(void)
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
     printf("  -C        允许压缩\n");
     printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  disable use of Pageant\n");
-    printf("  -agent    enable use of Pageant\n");
+    printf("  -noagent  禁止使用 Pageant 认证代理\n");
+    printf("  -agent    开启使用 Pageant 认证代理\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            manually specify a host key (may be repeated)\n");
+    printf("            手工指定主机密钥指纹 (可能是重复的)\n");
     printf("  -batch    禁止所有交互提示\n");
+    printf("  -sshlog 文件\n");
+    printf("  -sshrawlog 文件\n");
+    printf("            日志协议明细输出到文件\n");
     cleanup_exit(1);
 }
 

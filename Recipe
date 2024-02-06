@@ -114,6 +114,10 @@
 #  - XFLAGS=/DDEBUG
 #      Causes PuTTY to enable internal debugging.
 #
+#  - XFLAGS=/DUNPROTECT
+#      Disable tightened ACL on PuTTY process so that e.g. debuggers
+#      can attach to it.
+#
 #  - XFLAGS=/DMALLOC_LOG
 #      Causes PuTTY to emit a file called putty_mem.log, logging every
 #      memory allocation and free, so you can track memory leaks.
@@ -218,7 +222,7 @@ SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
          + sshgssc pgssapi sshshare
-WINSSH   = SSH winnoise winsecur winpgntc wingss winshare winnps winnpc
+WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
          + winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 
@@ -229,7 +233,7 @@ SFTP     = sftp int64 logging
 # Pageant or PuTTYgen).
 MISC     = timing callback misc version settings tree234 proxy conf
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
-         + wintime winhsock errsock
+         + wintime winhsock errsock winsecur
 UXMISC   = MISC uxstore uxsel uxnet uxpeer cmdline uxmisc uxproxy time
 OSXMISC  = MISC uxstore uxsel osxsel uxnet uxpeer uxmisc uxproxy time
 

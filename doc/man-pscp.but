@@ -115,6 +115,20 @@ written. }
 
 \dd Force use of SFTP protocol.
 
+\dt \cw{\-sshlog} \e{logfile}
+
+\dt \cw{\-sshrawlog} \e{logfile}
+
+\dd These options make \cw{pscp} log protocol details to a file.
+(Some of these may be sensitive, although by default an effort is made
+to suppress obvious passwords.)
+
+\lcont{
+\cw{\-sshlog} logs decoded SSH packets and other events (those that
+\cw{\-v} would print). \cw{\-sshrawlog} additionally logs the raw
+encrypted packet data.
+}
+
 \S{pscp-manpage-more-information} MORE INFORMATION
 
 For more information on \cw{pscp} it's probably best to go and look at

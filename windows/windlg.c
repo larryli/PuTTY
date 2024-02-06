@@ -14,6 +14,7 @@
 #include "win_res.h"
 #include "storage.h"
 #include "dialog.h"
+#include "licence.h"
 
 #include <commctrl.h>
 #include <commdlg.h>
@@ -170,6 +171,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 	    char *str = dupprintf("%s 许可证", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
+            SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
 	}
 	return 1;
       case WM_COMMAND:
@@ -197,8 +199,14 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	str = dupprintf("关于 %s", appname);
 	SetWindowText(hwnd, str);
 	sfree(str);
-	SetDlgItemText(hwnd, IDA_TEXT1, appname);
-	SetDlgItemText(hwnd, IDA_VERSION, ver);
+        {
+            char *text = dupprintf
+                ("%s\r\n\r\n%s\r\n\r\n%s",
+                 appname, ver,
+                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+            SetDlgItemText(hwnd, IDA_TEXT, text);
+            sfree(text);
+        }
 	return 1;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {

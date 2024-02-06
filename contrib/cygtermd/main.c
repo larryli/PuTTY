@@ -111,7 +111,7 @@ void sig_readdata(sel_rfd *rfd, void *data, size_t len)
     while (len > 0) {
 	if (*p == 'C') {
 	    int status;
-	    pid_t pid = waitpid(-1, &status, WNOHANG);
+	    waitpid(-1, &status, WNOHANG);
 	    if (WIFEXITED(status) || WIFSIGNALED(status))
 		exit(0);	       /* child process vanished */
 	}

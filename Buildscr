@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 15746 # update this at every release
+set Epoch 15860 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -150,12 +150,19 @@ in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 delegate windows
   # FIXME: Cygwin alternative?
-  in putty/windows do cmd /c vcvars32 \& nmake -f Makefile.vc $(Makeargs)
+  in putty/windows do/win vcvars32 && nmake -f Makefile.vc $(Makeargs)
+  # Code-sign the binaries, if the local bob config provides a script
+  # to do so. We assume here that the script accepts an -i option to
+  # provide a 'more info' URL, and an optional -n option to provide a
+  # program name, and that it can take multiple .exe filename
+  # arguments and sign them all in place.
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ *.exe
   # Ignore exit code from hhc, in favour of seeing whether the .chm
   # file was created. (Yuck; but hhc appears to return non-zero
   # exit codes on whim.)
-  in putty/doc do hhc putty.hhp; test -f putty.chm
-  in putty/windows do iscc putty.iss
+  in putty/doc do/win hhc putty.hhp & type putty.chm >nul
+  in putty/windows do/win iscc putty.iss
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" Output/setup.exe
   return putty/windows/*.exe
   return putty/windows/*.map
   return putty/doc/putty.chm
