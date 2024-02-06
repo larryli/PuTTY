@@ -13,19 +13,19 @@
  */
 
 #if !defined SIGNALS_LOCAL_ONLY || defined SIGINT
-SIGNAL_MAIN(INT, "Interrupt")
+SIGNAL_MAIN(INT, "中断")
 #endif
 #if !defined SIGNALS_LOCAL_ONLY || defined SIGTERM
-SIGNAL_MAIN(TERM, "Terminate")
+SIGNAL_MAIN(TERM, "终止")
 #endif
 #if !defined SIGNALS_LOCAL_ONLY || defined SIGKILL
-SIGNAL_MAIN(KILL, "Kill")
+SIGNAL_MAIN(KILL, "强制终止")
 #endif
 #if !defined SIGNALS_LOCAL_ONLY || defined SIGQUIT
-SIGNAL_MAIN(QUIT, "Quit")
+SIGNAL_MAIN(QUIT, "退出")
 #endif
 #if !defined SIGNALS_LOCAL_ONLY || defined SIGHUP
-SIGNAL_MAIN(HUP, "Hangup")
+SIGNAL_MAIN(HUP, "挂起")
 #endif
 #if !defined SIGNALS_LOCAL_ONLY || defined SIGABRT
 SIGNAL_SUB(ABRT)

@@ -68,6 +68,7 @@ cmake_install.cmake
 /*.cnt
 /*.hlp
 /.bmake
+/build
 /build.log
 /build.out
 /empty.h

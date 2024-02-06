@@ -78,7 +78,7 @@ static PortableDialogStuff *pds_new(size_t nctrltrees)
         dp_add_tree(pds->dp, &pds->ctrltrees[i]);
     }
 
-    pds->dp->errtitle = dupprintf("%s Error", appname);
+    pds->dp->errtitle = dupprintf("%s 错误", appname);
 
     pds->initialised = false;
 
@@ -219,7 +219,7 @@ static char *events_initial[LOGEVENT_INITIAL_MAX];
 static char *events_circular[LOGEVENT_CIRCULAR_MAX];
 static int ninitial = 0, ncircular = 0, circular_first = 0;
 
-#define PRINTER_DISABLED_STRING "None (printing disabled)"
+#define PRINTER_DISABLED_STRING "无 (禁止打印)"
 
 void force_normal(HWND hwnd)
 {
@@ -258,7 +258,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
-        char *str = dupprintf("%s Event Log", appname);
+        char *str = dupprintf("%s 事件日志记录", appname);
         SetWindowText(hwnd, str);
         sfree(str);
 
@@ -353,7 +353,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG: {
-        char *str = dupprintf("%s Licence", appname);
+        char *str = dupprintf("%s 许可证", appname);
         SetWindowText(hwnd, str);
         sfree(str);
         SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
@@ -381,14 +381,14 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
-        str = dupprintf("About %s", appname);
+        str = dupprintf("关于 %s", appname);
         SetWindowText(hwnd, str);
         sfree(str);
         char *buildinfo_text = buildinfo("\r\n");
         char *text = dupprintf(
             "%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
             appname, ver, buildinfo_text,
-            "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+            "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
         sfree(buildinfo_text);
         SetDlgItemText(hwnd, IDA_TEXT, text);
         MakeDlgItemBorderless(hwnd, IDA_TEXT);
@@ -518,7 +518,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
             r.top = 3;
             r.bottom = r.top + 10;
             MapDialogRect(hwnd, &r);
-            tvstatic = CreateWindowEx(0, "STATIC", "Cate&gory:",
+            tvstatic = CreateWindowEx(0, "STATIC", "分类(&G)：",
                                       WS_CHILD | WS_VISIBLE,
                                       r.left, r.top,
                                       r.right - r.left, r.bottom - r.top,
@@ -732,7 +732,7 @@ bool do_config(Conf *conf)
     setup_config_box(pds->ctrlbox, false, 0, 0);
     win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(), false, 0);
 
-    pds->dp->wintitle = dupprintf("%s Configuration", appname);
+    pds->dp->wintitle = dupprintf("%s 配置", appname);
     pds->dp->data = conf;
 
     dlg_auto_set_fixed_pitch_flag(pds->dp);
@@ -761,7 +761,7 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(),
                          true, protocol);
 
-    pds->dp->wintitle = dupprintf("%s Reconfiguration", appname);
+    pds->dp->wintitle = dupprintf("%s 重新配置", appname);
     pds->dp->data = conf;
 
     dlg_auto_set_fixed_pitch_flag(pds->dp);
@@ -1033,7 +1033,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
          */
         int height = SendDlgItemMessage(hwnd, IDC_HK_TEXT,
                                         EM_GETLINECOUNT, 0, 0);
-        height *= 8; /* height of a text line, by definition of dialog units */
+        height *= 9; /* height of a text line, by definition of dialog units */
 
         int edittop = ctx->has_title ? 40 : 20;
 
@@ -1147,12 +1147,12 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
 const SeatDialogPromptDescriptions *win_seat_prompt_descriptions(Seat *seat)
 {
     static const SeatDialogPromptDescriptions descs = {
-        .hk_accept_action = "press \"Accept\"",
-        .hk_connect_once_action = "press \"Connect Once\"",
-        .hk_cancel_action = "press \"Cancel\"",
-        .hk_cancel_action_Participle = "Pressing \"Cancel\"",
-        .weak_accept_action = "press \"Yes\"",
-        .weak_cancel_action = "press \"No\"",
+        .hk_accept_action = "点击“接受”",
+        .hk_connect_once_action = "点击“只连接一次”",
+        .hk_cancel_action = "点击“取消”",
+        .hk_cancel_action_Participle = "点击“取消”",
+        .weak_accept_action = "点击“是”",
+        .weak_cancel_action = "点击“否”",
     };
     return &descs;
 }
@@ -1231,18 +1231,18 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
                              void *ctx)
 {
     static const char msgtemplate[] =
-        "The session log file \"%.*s\" already exists.\n"
-        "You can overwrite it with a new session log,\n"
-        "append your session log to the end of it,\n"
-        "or disable session logging for this session.\n"
-        "Hit Yes to wipe the file, No to append to it,\n"
-        "or Cancel to disable logging.";
+        "会话日志文件 \"%.*s\" 已经存在。\n"
+        "可以使用新会话日志覆盖旧文件，\n"
+        "或者在旧日志文件结尾增加新日志，\n"
+        "或在此会话中禁用日志记录。\n"
+        "点击“是”覆盖为新文件，“否”附加到旧文件，\n"
+        "或者点击“取消”禁用日志记录。";
     char *message;
     char *mbtitle;
     int mbret;
 
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
-    mbtitle = dupprintf("%s Log to File", appname);
+    mbtitle = dupprintf("%s 日志记录到文件", appname);
 
     mbret = MessageBox(NULL, message, mbtitle,
                        MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON3);
@@ -1279,17 +1279,15 @@ const LogPolicyVtable win_gui_logpolicy_vt = {
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "%s Key File Warning";
+    static const char mbtitle[] = "%s 密钥文件警告";
     static const char message[] =
-        "You are loading an SSH-2 private key which has an\n"
-        "old version of the file format. This means your key\n"
-        "file is not fully tamperproof. Future versions of\n"
-        "%s may stop supporting this private key format,\n"
-        "so we recommend you convert your key to the new\n"
-        "format.\n"
+        "现在载入的是一个旧版本文件格式的 SSH2\n"
+        "私钥。这意味着该私钥文件没有足够的安全\n"
+        "性。未来版本的 %s 可能会停止支持\n"
+        "此私钥格式，建议将其转换为新的格式。\n"
         "\n"
-        "You can perform this conversion by loading the key\n"
-        "into PuTTYgen and then saving it again.";
+        "请使用 PuTTYgen 载入该密钥进行转换然\n"
+        "后保存。";
 
     char *msg, *title;
     msg = dupprintf(message, appname);

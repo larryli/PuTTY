@@ -430,7 +430,7 @@ static const struct cp_list_item cp_list[] = {
     {"CP852", 852},
     {"CP878", 20866},
 
-    {"Use font encoding", -1},
+    {"使用字体编码", -1},
 
     {0, 0}
 };
@@ -1161,7 +1161,7 @@ const char *cp_name(int codepage)
     static char buf[32];
 
     if (codepage == -1) {
-        sprintf(buf, "Use font encoding");
+        sprintf(buf, "使用字体编码");
         return buf;
     }
 

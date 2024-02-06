@@ -262,17 +262,18 @@ int console_askappend(LogPolicy *lp, Filename *filename,
     DWORD savemode, i;
 
     static const char msgtemplate[] =
-        "The session log file \"%.*s\" already exists.\n"
-        "You can overwrite it with a new session log,\n"
-        "append your session log to the end of it,\n"
-        "or disable session logging for this session.\n"
-        "Enter \"y\" to wipe the file, \"n\" to append to it,\n"
-        "or just press Return to disable logging.\n"
-        "Wipe the log file? (y/n, Return cancels logging) ";
+        "会话日志文件 \"%.*s\" 已经存在。\n"
+        "可以使用新会话日志覆盖旧文件，\n"
+        "或者在旧日志文件结尾增加新日志，\n"
+        "或在此会话中禁用日志记录。\n"
+        "输入 \"y\" 覆盖为新文件，\n"
+        "\"n\" 附加到旧文件，\n"
+        "或者直接回车禁用日志记录。\n"
+        "擦除日志文件？ (y/n, 回车取消日志记录) ";
 
     static const char msgtemplate_batch[] =
-        "The session log file \"%.*s\" already exists.\n"
-        "Logging will not be enabled.\n";
+        "会话日志文件 \"%.*s\" 已经存在。\n"
+        "将不会启用日志记录。\n";
 
     char line[32];
 
@@ -312,15 +313,13 @@ int console_askappend(LogPolicy *lp, Filename *filename,
 void old_keyfile_warning(void)
 {
     static const char message[] =
-        "You are loading an SSH-2 private key which has an\n"
-        "old version of the file format. This means your key\n"
-        "file is not fully tamperproof. Future versions of\n"
-        "PuTTY may stop supporting this private key format,\n"
-        "so we recommend you convert your key to the new\n"
-        "format.\n"
+        "现在载入的是一个旧版本文件格式的 SSH2\n"
+        "私钥。这意味着该私钥文件没有足够的安全\n"
+        "性。未来版本的 %s 可能会停止支持\n"
+        "此私钥格式，建议将其转换为新的格式。\n"
         "\n"
-        "Once the key is loaded into PuTTYgen, you can perform\n"
-        "this conversion simply by saving it again.\n";
+        "请使用 PuTTYgen 载入该密钥进行转换然\n"
+        "后保存。";
 
     fputs(message, stderr);
 }
