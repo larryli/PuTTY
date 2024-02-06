@@ -1098,24 +1098,20 @@ SeatPromptResult confirm_weak_crypto_primitive(
       case WCR_TERRAPIN_AVOIDABLE:
         seat_dialog_text_append(
             text, SDT_PARA,
-            "The %s selected for this session is %s, "
-            "which, with this server, is vulnerable to the 'Terrapin' attack "
-            "CVE-2023-48795, potentially allowing an attacker to modify "
-            "the encrypted session.",
+            "该会话选择的 %s 为 %s，"
+            "其连接的服务器会受到“Terrapin” CVE-2023-48795 漏洞攻击，"
+            "可能会让攻击者修改加密会话。",
             algtype, algname);
         seat_dialog_text_append(
             text, SDT_PARA,
-            "Upgrading, patching, or reconfiguring this SSH server is the "
-            "best way to avoid this vulnerability, if possible.");
+            "如果可以升级、修补或重新配置该 SSH 服务器是避免此漏洞的最佳方法。");
         if (wcr == WCR_TERRAPIN_AVOIDABLE) {
             seat_dialog_text_append(
                 text, SDT_PARA,
-                "You can also avoid this vulnerability by abandoning "
-                "this connection, moving ChaCha20 to below the "
-                "'warn below here' line in PuTTY's SSH cipher "
-                "configuration (so that an algorithm without the "
-                "vulnerability will be selected), and starting a new "
-                "connection.");
+                "另外还可以放弃此连接来避免此漏洞，"
+                "在 PuTTY SSH 密钥配置种将 ChaCha20 移动到"
+                "“下面为警告选项” 线下（以便选择没有漏洞的算法），"
+                "然后打开新的连接。");
         }
         break;
       default:
@@ -1127,8 +1123,8 @@ SeatPromptResult confirm_weak_crypto_primitive(
     seat_dialog_text_append(text, SDT_BATCH_ABORT, "连接已放弃。");
 
     seat_dialog_text_append(
-        text, SDT_PARA, "To accept the risk and continue, %s. "
-        "To abandon the connection, %s.",
+        text, SDT_PARA, "接受风险并继续，%s。"
+        "放弃连接，%s。",
         pds->weak_accept_action, pds->weak_cancel_action);
 
     seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接?");
@@ -1167,8 +1163,8 @@ SeatPromptResult confirm_weak_cached_hostkey(
     seat_dialog_text_append(text, SDT_BATCH_ABORT, "连接已放弃。");
 
     seat_dialog_text_append(
-        text, SDT_PARA, "To accept the risk and continue, %s. "
-        "To abandon the connection, %s.",
+        text, SDT_PARA, "接受风险并继续，%s。"
+        "放弃连接，%s。",
         pds->weak_accept_action, pds->weak_cancel_action);
 
     seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接?");
