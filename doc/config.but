@@ -3128,7 +3128,7 @@ you do the same on Linux, you can also use it with IPv4. However,
 ticking \q{Auto} should always give you a port which you can connect
 to using either protocol.
 
-\H{config-ssh-bugs} \I{SSH server bugs}The Bugs panel
+\H{config-ssh-bugs} \I{SSH server bugs}The Bugs and More Bugs panels
 
 Not all SSH servers work properly. Various existing servers have
 bugs in them, which can make it impossible for a client to talk to
@@ -3142,9 +3142,10 @@ has been deliberately configured to conceal its version number, or
 if the server is a version which PuTTY's bug database does not know
 about, then PuTTY will not know what bugs to expect.
 
-The Bugs panel allows you to manually configure the bugs PuTTY
-expects to see in the server. Each bug can be configured in three
-states:
+The Bugs and More Bugs panels (there are two because we have so many
+bug compatibility modes) allow you to manually configure the bugs
+PuTTY expects to see in the server. Each bug can be configured in
+three states:
 
 \b \q{Off}: PuTTY will assume the server does not have the bug.
 
@@ -3385,6 +3386,23 @@ possible that when connecting to such a server it might receive a
 reply to a request after it thinks the channel has entirely closed,
 and terminate with an error along the lines of \q{Received
 \cw{SSH2_MSG_CHANNEL_FAILURE} for nonexistent channel 256}.
+
+\S{config-ssh-bug-oldgex2} \q{Only supports pre-RFC4419 SSH-2 DH GEX}
+
+\cfg{winhelp-topic}{ssh.bugs.oldgex2}
+
+The SSH key exchange method that uses Diffie-Hellman group exchange
+was redesigned after its original release, to use a slightly more
+sophisticated setup message. Almost all SSH implementations switched
+over to the new version. (PuTTY was one of the last.) A few old
+servers still only support the old one.
+
+If this bug is detected, and the client and server negotiate
+Diffie-Hellman group exchange, then PuTTY will send the old message
+now known as \cw{SSH2_MSG_KEX_DH_GEX_REQUEST_OLD} in place of the new
+\cw{SSH2_MSG_KEX_DH_GEX_REQUEST}.
+
+This is an SSH-2-specific bug.
 
 \H{config-serial} The Serial panel
 

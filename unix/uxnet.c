@@ -16,6 +16,8 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <sys/un.h>
+#include <pwd.h>
+#include <grp.h>
 
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
@@ -485,6 +487,7 @@ static int sk_tcp_write(Socket s, const char *data, int len);
 static int sk_tcp_write_oob(Socket s, const char *data, int len);
 static void sk_tcp_write_eof(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
+static char *sk_tcp_peer_info(Socket s);
 static const char *sk_tcp_socket_error(Socket s);
 
 static struct socket_function_table tcp_fn_table = {
@@ -495,7 +498,8 @@ static struct socket_function_table tcp_fn_table = {
     sk_tcp_write_eof,
     sk_tcp_flush,
     sk_tcp_set_frozen,
-    sk_tcp_socket_error
+    sk_tcp_socket_error,
+    sk_tcp_peer_info,
 };
 
 static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
@@ -1417,6 +1421,51 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 	return;
     s->frozen = is_frozen;
     uxsel_tell(s);
+}
+
+static char *sk_tcp_peer_info(Socket sock)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+    struct sockaddr_storage addr;
+    socklen_t addrlen = sizeof(addr);
+    char buf[INET6_ADDRSTRLEN];
+
+    if (getpeername(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
+        return NULL;
+    if (addr.ss_family == AF_INET) {
+        return dupprintf
+            ("%s:%d",
+             inet_ntoa(((struct sockaddr_in *)&addr)->sin_addr),
+             (int)ntohs(((struct sockaddr_in *)&addr)->sin_port));
+#ifndef NO_IPV6
+    } else if (addr.ss_family == AF_INET6) {
+        return dupprintf
+            ("[%s]:%d",
+             inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr,
+                       buf, sizeof(buf)),
+             (int)ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
+#endif
+    } else if (addr.ss_family == AF_UNIX) {
+        /*
+         * For Unix sockets, the source address is unlikely to be
+         * helpful. Instead, we try SO_PEERCRED and try to get the
+         * source pid.
+         */
+        int pid, uid, gid;
+        if (so_peercred(s->s, &pid, &uid, &gid)) {
+            char uidbuf[64], gidbuf[64];
+            sprintf(uidbuf, "%d", uid);
+            sprintf(gidbuf, "%d", gid);
+            struct passwd *pw = getpwuid(uid);
+            struct group *gr = getgrgid(gid);
+            return dupprintf("pid %d (%s:%s)", pid,
+                             pw ? pw->pw_name : uidbuf,
+                             gr ? gr->gr_name : gidbuf);
+        }
+        return NULL;
+    } else {
+        return NULL;
+    }
 }
 
 static void uxsel_tell(Actual_Socket s)

@@ -230,8 +230,8 @@ SFTP     = sftp int64 logging
 MISC     = timing callback misc version settings tree234 proxy conf
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock
-UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time
-OSXMISC  = MISC uxstore uxsel osxsel uxnet uxmisc uxproxy time
+UXMISC   = MISC uxstore uxsel uxnet uxpeer cmdline uxmisc uxproxy time
+OSXMISC  = MISC uxstore uxsel osxsel uxnet uxpeer uxmisc uxproxy time
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc

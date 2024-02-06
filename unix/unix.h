@@ -184,4 +184,9 @@ void *sk_getxdmdata(void *sock, int *lenp);
  */
 extern Backend serial_backend;
 
+/*
+ * uxpeer.c, wrapping getsockopt(SO_PEERCRED).
+ */
+int so_peercred(int fd, int *pid, int *uid, int *gid);
+
 #endif

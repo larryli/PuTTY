@@ -568,6 +568,7 @@ struct sessionsaver_data {
 static void sessionsaver_data_free(void *ssdv)
 {
     struct sessionsaver_data *ssd = (struct sessionsaver_data *)ssdv;
+    get_sesslist(&ssd->sesslist, FALSE);
     sfree(ssd->savedsession);
     sfree(ssd);
 }
@@ -2563,7 +2564,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	if (!midsession) {
 	    /*
-	     * The Connection/SSH/Bugs panel.
+	     * The Connection/SSH/Bugs panels.
 	     */
 	    ctrl_settitle(b, "连接/SSH/查错",
 			  "处理 SSH 服务器错误设置");
@@ -2576,10 +2577,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装(S)", 's', 20,
 			  HELPCTX(ssh_bugs_plainpw1),
 			  sshbug_handler, I(CONF_sshbug_plainpw1));
-	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证", 'r', 20,
+	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证(R)", 'r', 20,
 			  HELPCTX(ssh_bugs_rsa1),
 			  sshbug_handler, I(CONF_sshbug_rsa1));
-	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息", '2', 20,
+	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息(2)", '2', 20,
 			  HELPCTX(ssh_bugs_ignore2),
 			  sshbug_handler, I(CONF_sshbug_ignore2));
 	    ctrl_droplist(s, "Chokes on PuTTY's SSH-2 'winadj' requests", 'j',
@@ -2591,6 +2592,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "混算 SSH-2 加密密钥(E)", 'e', 20,
 			  HELPCTX(ssh_bugs_derivekey2),
 			  sshbug_handler, I(CONF_sshbug_derivekey2));
+
+	    ctrl_settitle(b, "连接/SSH/更多查错",
+			  "处理 SSH 服务器更多错误设置");
+
+	    s = ctrl_getset(b, "连接/SSH/更多查错", "main",
+			    "检测已知的 SSH 服务器错误");
 	    ctrl_droplist(s, "SSH-2 RSA 签名附加请求(P)", 'p', 20,
 			  HELPCTX(ssh_bugs_rsapad2),
 			  sshbug_handler, I(CONF_sshbug_rsapad2));
@@ -2603,6 +2610,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "忽略 SSH-2 最大包大小", 'x', 20,
 			  HELPCTX(ssh_bugs_maxpkt2),
 			  sshbug_handler, I(CONF_sshbug_maxpkt2));
+	    ctrl_droplist(s, "Only supports pre-RFC4419 SSH-2 DH GEX", 'd', 20,
+			  HELPCTX(ssh_bugs_oldgex2),
+			  sshbug_handler, I(CONF_sshbug_oldgex2));
 	    ctrl_droplist(s, "Replies to requests on closed channels", 'q', 20,
 			  HELPCTX(ssh_bugs_chanreq),
 			  sshbug_handler, I(CONF_sshbug_chanreq));

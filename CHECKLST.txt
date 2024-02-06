@@ -39,8 +39,15 @@ The website:
 
  - putty-website/licence.html
 
-Before tagging a release
-------------------------
+Preparing to make a release
+---------------------------
+
+Now that PuTTY is in git, a lot of the release preparation can be done
+in advance, in local checkouts, and not pushed until the actual
+process of _releasing_ it.
+
+To begin with, before dropping the tag, make sure everything is ready
+for it:
 
  - First of all, go through the source (including the documentation),
    and the website, and review anything tagged with a comment
@@ -52,83 +59,96 @@ Before tagging a release
    particular, any headline features for the release should get a
    workout with memory checking enabled!
 
-For a long time we got away with never checking the current version
-number in at all - all version numbers were passed into the build
-system on the compiler command line, and the _only_ place version
-numbers showed up in the source files was in the tag information.
-
-Unfortunately, those halcyon days are gone, and we do need the
-version number checked in in a couple of places. These must be updated
-_before_ tagging a new release.
-
-The file used to generate the Unix snapshot version numbers (which
-are <previousrelease>-<date> so that the Debian versioning system
-orders them correctly with respect to releases):
-
- - putty/LATEST.VER
-
-The Windows installer script (_four_ times, on consecutive lines):
-
- - putty/windows/putty.iss
-
-It might also be worth going through the documentation looking for
-version numbers - we have a couple of transcripts showing the help
-text from the command-line tools, and it would be nice to ensure the
-whole transcripts (certainly including the version numbers) are up
-to date. Sometimes these are marked in between releases as `0.XX', so
-it's worth grepping for that too.
-
- - putty/doc/pscp.but
- - putty/doc/plink.but
- - putty/doc/psftp.but (in case it ever acquires a similar thing)
-
-Finally, reset the epoch used for the $(Days) value computed in
-Buildscr for the Windows binary version resource. It's probably not a
-good idea to set it to _today_ (since it might clash with the
-zero-valued field used in actual releases), so perhaps we should start
-it 1000 days before the release date so as to have a largish number
-recognisable as being the right kind of thing by its order of
-magnitude. So, do this:
-
-  perl -e 'printf "%d\n", time/86400 - 1000'
-
-and then substitute the resulting value into the definition of 'Epoch'
-in Buildscr.
-
-The actual release procedure
-----------------------------
-
-This is the procedure I (SGT) currently follow (or _should_ follow
-:-) when actually making a release, once I'm happy with the position
-of the tag.
-
  - Double-check that we have removed anything tagged with a comment
    containing the words XXX-REMOVE-BEFORE-RELEASE or
-   XXX-REVIEW-BEFORE-RELEASE.
+   XXX-REVIEW-BEFORE-RELEASE. ('git grep XXX-RE' should only show up
+   hits in this file itself.)
+
+ - Now update version numbers in
+    * putty/LATEST.VER
+    * putty/windows/putty.iss (four times, on consecutive lines)
+    * putty/doc/pscp.but (and make sure the rest of the transcript is
+      up to date)
+    * putty/doc/plink.but (likewise)
+
+ - Reset the epoch used for the $(Days) value computed in Buildscr for
+   the Windows binary version resource. It's probably not a good idea
+   to set it to _today_ (since it might clash with the zero-valued
+   field used in actual releases), so perhaps we should start it 1000
+   days before the release date so as to have a largish number
+   recognisable as being the right kind of thing by its order of
+   magnitude. So, do this:
+
+     perl -e 'printf "%d\n", time/86400 - 1000'
+
+   and then substitute the resulting value into the definition of
+   'Epoch' in Buildscr.
+
+ - Commit those version number and epoch changes (on the appropriate
+   branch, of course!), and then make the release tag pointing at the
+   resulting commit.
+
+ - If the release is on a branch (which I expect it generally will
+   be), merge that branch to master.
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
    atreus:src/putty/local/announce-<ver> in case it's needed again
    within days of the release going out.
 
- - Build the release: `bob -b 0.XX putty RELEASE=0.XX'. This should
-   generate a basically valid release directory as `build.out/putty',
-   and provide link maps and sign.sh alongside that in build.out.
+ - Update the web site, in a local checkout.
+   + Adjust front page to say 'The latest version is <ver>'.
+   + Adjust front page to add a news item.
+   + Adjust Download page to say 'The latest release version (<ver>)'.
+   + Adjust Download page to update filenames of installer and Unix
+     tarball (both in the hrefs themselves and the link text).
+   + Check over the Download page and remove any mention of
+     pre-releases, if there were any before this release. Comment out
+     the big pre-release section at the top, and also adjust the
+     sections about source archives at the bottom.
+   + Adjust header text on Changelog page. (That includes changing
+     `are new' in previous version to `were new'!)
+   + .htaccess has an individual redirect for each version number. Add
+     a new one.
+
+ - If there are any last-minute wishlist entries (e.g. security
+   vulnerabilities fixed in the new release), write entries for them
+   in a local checkout of putty-wishlist.
+
+ - Update the wishlist mechanism for the new release. This can be done
+   without touching individual items by editing the @releases array in
+   control/bugs2html.
+
+ - Build the release, by checking out the release tag:
+     git checkout 0.XX
+     bob -F . RELEASE=0.XX
+   This should generate a basically valid release directory as
+   `build.out/putty', and provide link maps and sign.sh alongside that
+   in build.out.
+
+ - Double-check in build.log that the release was built from the right
+   git commit.
 
  - Do a bit of checking that the release binaries basically work,
    report their version numbers accurately, and so on. Test the
    installer and the Unix source tarball.
 
+ - Sign the release: in the `build.out' directory, type
+     sh sign.sh putty Releases
+   and enter the passphrases a lot of times.
+
+The actual release procedure
+----------------------------
+
+Once all the above preparation is done and the release has been built
+locally, this is the procedure for putting it up on the web.
+
  - Save the link maps. Currently I keep these on atreus, in
-   src/putty/local/maps-<version>.
+   src/putty-local/maps-<version>.
 
- - Sign the release: in the `build.out' directory, type `./sign.sh
-   putty Releases', and enter the passphrases a lot of times.
+ - Upload the entire release directory to atreus:www/putty/<version>.
 
- - Now the whole release directory should be present and correct.
-   Upload it to atreus:www/putty/<ver>.
-
- - Do final checks on the release directory:
+ - Do final checks on the release directory in its new location:
     + verify all the signatures:
       for i in `find . -name '*.*SA'`; do case $i in *sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.?SA};; esac; done
     + check the checksum files:
@@ -143,30 +163,11 @@ of the tag.
  - Check the permissions! Actually try downloading from the, to make
    sure it really works.
 
- - Update the HTTP redirects.
-    + Update the one at the:www/putty/htaccess which points the
-      virtual subdir `latest' at the actual latest release dir. TEST
-      THIS ONE - it's quite important.
-    + atreus:www/putty/.htaccess has an individual redirect for each
-      version number. Add a new one.
+ - Update the HTTP redirect at the:www/putty/htaccess which points the
+   virtual subdir `latest' at the actual latest release dir. TEST THIS
+   ONE - it's quite important.
 
  - Update the FTP symlink (chiark:ftp/putty-latest -> putty-<ver>).
-
- - Update web site.
-   + Adjust front page to say 'The latest version is <ver>'.
-   + Adjust front page to add a news item.
-   + Adjust Download page to say 'The latest release version (<ver>)'.
-   + Adjust Download page to update filenames of installer and Unix
-     tarball (both in the hrefs themselves and the link text).
-   + Check over the Download page and remove any mention of
-     pre-releases, if there were any before this release. Comment out
-     the big pre-release section at the top, and also adjust the
-     sections about source archives at the bottom.
-   + Adjust header text on Changelog page. (That includes changing
-     `are new' in previous version to `were new'!)
-
- - Update the wishlist. This can be done without touching individual
-   items by editing the @releases array in control/bugs2html.
 
  - Check the Docs page links correctly to the release docs. (It
    should do this automatically, owing to the `latest' HTTP
@@ -174,6 +175,23 @@ of the tag.
 
  - Check that the web server attaches the right content type to .HLP
    and .CNT files.
+
+ - Run 'git push' in the website checkout, and then 'git pull' in
+   ~/www/putty on atreus to fetch the website updates.
+
+ - Push the changes to PuTTY itself. Something like:
+     git push origin master        # update the master branch
+     git push origin --tags        # should push the new release tag
+     git push origin :pre-0.XX     # delete the pre-release branch
+
+ - Run 'git push' in the putty-wishlist checkout. Then run 'git pull'
+   in ~/pub/putty-wishlist on atreus, and update the wishlist web
+   pages with the commands
+     cd ~/pub/putty-wishlist/control
+     perl bugs2html
+
+ - Check over the web site to make sure all the changes to wishlist
+   and main web pages are present and correct.
 
  - Run webupdate, so that all the changes on atreus propagate to
    chiark. Important to do this _before_ announcing that the release
@@ -194,13 +212,7 @@ of the tag.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
+ - Edit ~/adm/puttysnap.sh to disable pre-release builds, if they were
+   previously enabled.
+
  - Relax (slightly).
-
-After the release
------------------
-
-The following want doing some time soon after a release has been made:
-
- - If the release was made from a branch, make sure the version number
-   on the _trunk_ is up to date in all the locations listed above, so
-   that (e.g.) Unix snapshots come out right.

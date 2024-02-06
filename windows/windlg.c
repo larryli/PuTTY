@@ -454,6 +454,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    HTREEITEM hfirst = NULL;
 	    int i;
 	    char *path = NULL;
+            char *firstpath = NULL;
 
 	    for (i = 0; i < ctrlbox->nctrlsets; i++) {
 		struct controlset *s = ctrlbox->ctrlsets[i];
@@ -486,18 +487,26 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 			c++;
 
 		item = treeview_insert(&tvfaff, j, c, s->pathname);
-		if (!hfirst)
+		if (!hfirst) {
 		    hfirst = item;
+                    firstpath = s->pathname;
+                }
 
 		path = s->pathname;
 	    }
 
 	    /*
-	     * Put the treeview selection on to the Session panel.
-	     * This should also cause creation of the relevant
-	     * controls.
+	     * Put the treeview selection on to the first panel in the
+	     * ctrlbox.
 	     */
 	    TreeView_SelectItem(treeview, hfirst);
+
+            /*
+             * And create the actual control set for that panel, to
+             * match the initial treeview selection.
+             */
+            create_controls(hwnd, firstpath);
+	    dlg_refresh(NULL, &dp);    /* and set up control values */
 	}
 
 	/*
@@ -516,6 +525,18 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    }
 	}
 
+        /*
+         * Now we've finished creating our initial set of controls,
+         * it's safe to actually show the window without risking setup
+         * flicker.
+         */
+        ShowWindow(hwnd, SW_SHOWNORMAL);
+
+        /*
+         * Set the flag that activates a couple of the other message
+         * handlers below, which were disabled until now to avoid
+         * spurious firing during the above setup procedure.
+         */
 	SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 	return 0;
       case WM_LBUTTONUP:
@@ -530,10 +551,21 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
       case WM_NOTIFY:
 	if (LOWORD(wParam) == IDCX_TREEVIEW &&
 	    ((LPNMHDR) lParam)->code == TVN_SELCHANGED) {
-	    HTREEITEM i =
-		TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
+            /*
+             * Selection-change events on the treeview cause us to do
+             * a flurry of control deletion and creation - but only
+             * after WM_INITDIALOG has finished. The initial
+             * selection-change event(s) during treeview setup are
+             * ignored.
+             */
+	    HTREEITEM i;
 	    TVITEM item;
 	    char buffer[64];
+
+            if (GetWindowLongPtr(hwnd, GWLP_USERDATA) != 1)
+                return 0;
+
+            i = TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
  
  	    SendMessage (hwnd, WM_SETREDRAW, FALSE, 0);
  
