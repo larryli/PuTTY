@@ -2014,7 +2014,7 @@ int main(int argc, char **argv)
 	unsigned long chr = strtoul(argv[i], NULL, 0);
 	int type = getType(chr);
 	assert(typetoname[type].type == type);
-	printf("U+%04x: %s\n", chr, typetoname[type].name);
+	printf("U+%04x: %s\n", (unsigned)chr, typetoname[type].name);
     }
 
     return 0;

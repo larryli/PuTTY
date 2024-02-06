@@ -35,7 +35,7 @@ What do I do if it doesn't work?
 
 The PuTTY home web site is
 
-    http://www.chiark.greenend.org.uk/~sgtatham/putty/
+    https://www.chiark.greenend.org.uk/~sgtatham/putty/
 
 Here you will find our list of known bugs and pending feature
 requests. If your problem is not listed in there, or in the FAQ, or

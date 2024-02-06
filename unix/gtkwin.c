@@ -1923,7 +1923,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 	return FALSE;
 
     event_button = (GdkEventButton *)gdk_event_new(GDK_BUTTON_PRESS);
-    event_button->window = event->window;
+    event_button->window = g_object_ref(event->window);
     event_button->send_event = event->send_event;
     event_button->time = event->time;
     event_button->x = event->x;
@@ -1931,11 +1931,11 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     event_button->axes = NULL;
     event_button->state = event->state;
     event_button->button = button;
-    event_button->device = event->device;
+    event_button->device = g_object_ref(event->device);
     event_button->x_root = event->x_root;
     event_button->y_root = event->y_root;
     ret = button_internal(inst, event_button);
-    gdk_event_free(event_button);
+    gdk_event_free((GdkEvent *)event_button);
     return ret;
 #endif
 }
@@ -2188,11 +2188,11 @@ void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
     free(data);
     free(col_css);
 #else
-    if (gtk_widget_get_window(win)) {
+    if (gtk_widget_get_window(widget)) {
         /* For GTK1, which doesn't have a 'const' on
          * gdk_window_set_background's second parameter type. */
         GdkColor col_mutable = *col;
-        gdk_window_set_background(gtk_widget_get_window(win), &col_mutable);
+        gdk_window_set_background(gtk_widget_get_window(widget), &col_mutable);
     }
 #endif
 }
@@ -4274,7 +4274,7 @@ static void start_backend(struct gui_data *inst)
 
     if (error) {
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
-			      conf_get_str(inst->conf, CONF_host), error);
+			      conf_dest(inst->conf), error);
 	inst->exited = TRUE;
 	fatal_message_box(inst->window, msg);
 	sfree(msg);

@@ -1050,6 +1050,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 
     if (dirh == NULL) {
 	printf("Unable to open %s: %s\n", dir, fxp_error());
+	sfree(cdir);
+	sfree(unwcdir);
 	return 0;
     } else {
 	nnames = namesize = 0;
@@ -1128,12 +1130,12 @@ int sftp_cmd_cd(struct sftp_command *cmd)
 
     if (cmd->nwords < 2)
 	dir = dupstr(homedir);
-    else
+    else {
 	dir = canonify(cmd->words[1]);
-
-    if (!dir) {
-	printf("%s: canonify: %s\n", dir, fxp_error());
-	return 0;
+        if (!dir) {
+            printf("%s: canonify: %s\n", cmd->words[1], fxp_error());
+            return 0;
+        }
     }
 
     req = fxp_opendir_send(dir);
@@ -1417,7 +1419,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     for (i = 1; i < cmd->nwords; i++) {
 	dir = canonify(cmd->words[i]);
 	if (!dir) {
-	    printf("%s: canonify: %s\n", dir, fxp_error());
+	    printf("%s: canonify: %s\n", cmd->words[i], fxp_error());
 	    return 0;
 	}
 

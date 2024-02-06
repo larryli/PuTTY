@@ -24,25 +24,28 @@ pre-releases on the website:
    add a news announcement in components/news. (Previous naming
    convention has been to name it in the form 'X.YZ-pre.mi'.)
 
-Preparing to make a release
----------------------------
+Things to do during the branch-stabilisation period:
 
-Now that PuTTY is in git, a lot of the release preparation can be done
-in advance, in local checkouts, and not pushed until the actual
-process of _releasing_ it.
+ - Go through the source (including the documentation), and the
+   website, and review anything tagged with a comment containing the
+   word XXX-REVIEW-BEFORE-RELEASE. (Any such comments should state
+   clearly what needs to be done.)
 
-To begin with, before dropping the tag, make sure everything is ready
-for it:
+ - Do some testing of the Windows version with Minefield (you can
+   build a Minefield version using 'bob . XFLAGS=-DMINEFIELD'), and of
+   the Unix version with valgrind. In particular, any headline
+   features for the release should get a workout with memory checking
+   enabled!
 
- - First of all, go through the source (including the documentation),
-   and the website, and review anything tagged with a comment
-   containing the word XXX-REVIEW-BEFORE-RELEASE.
-   (Any such comments should state clearly what needs to be done.)
+Making a release candidate build
+--------------------------------
 
- - Also, do some testing of the Windows version with Minefield, and
-   of the Unix version with valgrind or efence or both. In
-   particular, any headline features for the release should get a
-   workout with memory checking enabled!
+ - Make a directory to hold all the release paraphernalia. I usually
+   call it ~/src/putty/X.YZ (where X.YZ will stand throughout for the
+   version number). In that directory, make a git clone of the PuTTY
+   repository, where you can make release-related commits and tags
+   tentatively, and keep them out of the way of any 'git push' you
+   might still be doing in other checkouts.
 
  - Double-check that we have removed anything tagged with a comment
    containing the words XXX-REMOVE-BEFORE-RELEASE or
@@ -50,9 +53,9 @@ for it:
    hits in this file itself.)
 
  - Now update the version numbers and the transcripts in the docs, by
-   checking out the release branch and running
+   checking out the release branch in the release-specific checkout
+   and running
 
-      make distclean
       ./release.pl --version=X.YZ --setver
 
    Then check that the resulting automated git commit has updated the
@@ -71,6 +74,42 @@ for it:
 
  - If the release is on a branch (which I expect it generally will
    be), merge that branch to master.
+
+ - Make a release-candidate build from the release tag, and put the
+   build.out and build.log dfiles somewhere safe. Normally I store
+   these in an adjacent directory, so I'll run a command like
+     bob -o ../X.YZ/build-X.YZ-rcN.out -l ../X.YZ/build-X.YZ-rcN.log -c X.YZ . RELEASE=X.YZ
+   This should generate a basically valid release directory as
+   `build-X.YZ-rcN.out/putty', and provide link maps and sign.sh
+   alongside that.
+
+ - Double-check in build-X.YZ-rcN.log that the release was built from
+   the right git commit.
+
+ - Make a preliminary gpg signature, but don't run the full release-
+   signing procedure. (We use the presence of a full set of GPG
+   signatures to distinguish _abandoned_ release candidates from the
+   one that ended up being the release.) In the 'build.X.YZ-rcN.out'
+   directory, run
+     sh sign.sh -r -p putty
+   and you should only have to enter the release key passphrase once,
+   which will generate a clearsigned file called
+   sha512sums-preliminary.gpg _outside_ the 'putty' subdirectory.
+
+ - For my own safety, make the release candidate build read-only.
+     chmod -R a-w build-X.YZ-rcN.out build-X.YZ-rcN.log
+
+ - Now do some checking of the release binaries, and pass them to the
+   rest of the team to do some as well. Do at least these things:
+    * make sure they basically work
+    * check they report the right version number
+    * if there's any easily observable behaviour difference between
+      the release branch and master, arrange to observe it
+    * test the Windows installer
+    * test the Unix source tarball.
+
+Preparing to make the release
+-----------------------------
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
@@ -96,33 +135,16 @@ for it:
       branch (so that the wishlist mechanism can't automatically mark
       them as fixed in the new release), add appropriate Fixed-in
       headers for those.
-    * Add an entry to the @releases array in control/bugs2html.
 
- - Make a release-candidate build from the release tag, and put the
-   build.out and build.log dfiles somewhere safe. Normally I store
-   these in an adjacent directory, so I'll run a command like
-     bob -o ../X.YZ/build-X.YZ-rcN.out -l ../X.YZ/build-X.YZ-rcN.log -c X.YZ . RELEASE=X.YZ
-   This should generate a basically valid release directory as
-   `build-X.YZ-rcN.out/putty', and provide link maps and sign.sh
-   alongside that.
-
- - Double-check in build-X.YZ-rcN.log that the release was built from
-   the right git commit.
-
- - Do a bit of checking of the release binaries:
-    * make sure they basically work
-    * check they report the right version number
-    * if there's any easily observable behaviour difference between
-      the release branch and master, arrange to observe it
-    * test the Windows installer
-    * test the Unix source tarball.
-
- - Sign the release: in the `build-X.YZ-rcN.out' directory, type
+ - Sign the release in full. In the `build-X.YZ-rcN.out' directory,
+   re-verify that the preliminary signed checksums file has a correct
+   signature on it and also matches the files you're about to sign for real:
+     gpg -d sha512sums-preliminary.gpg | (cd putty; sha512sum -c)
+   If the combined output of that pipeline reports both a good
+   signature (from the release key) and a successful verification of
+   all the sha512sums, then all is well, so now run
      sh sign.sh -r putty
-   and enter the passphrases a lot of times.
-
- - For my own safety, make the release candidate build read-only.
-     chmod -R a-w build-X.YZ-rcN.out build-X.YZ-rcN.log
+   and enter the release key passphrase a lot of times.
 
 The actual release procedure
 ----------------------------

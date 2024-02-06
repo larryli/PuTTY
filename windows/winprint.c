@@ -23,7 +23,7 @@ DECL_WINDOWS_FUNCTION(static, BOOL, EnumPrinters,
 DECL_WINDOWS_FUNCTION(static, BOOL, OpenPrinter,
                       (LPTSTR, LPHANDLE, LPPRINTER_DEFAULTS));
 DECL_WINDOWS_FUNCTION(static, BOOL, ClosePrinter, (HANDLE));
-DECL_WINDOWS_FUNCTION(static, BOOL, StartDocPrinter, (HANDLE, DWORD, LPBYTE));
+DECL_WINDOWS_FUNCTION(static, DWORD, StartDocPrinter, (HANDLE, DWORD, LPBYTE));
 DECL_WINDOWS_FUNCTION(static, BOOL, EndDocPrinter, (HANDLE));
 DECL_WINDOWS_FUNCTION(static, BOOL, StartPagePrinter, (HANDLE));
 DECL_WINDOWS_FUNCTION(static, BOOL, EndPagePrinter, (HANDLE));
@@ -33,20 +33,25 @@ DECL_WINDOWS_FUNCTION(static, BOOL, WritePrinter,
 static void init_winfuncs(void)
 {
     static int initialised = FALSE;
-    char buf[4096];
     if (initialised)
         return;
     {
         HMODULE winspool_module = load_system32_dll("winspool.drv");
-        HMODULE spoolss_module = load_system32_dll("spoolss.dll");
+        /* Some MSDN documentation claims that some of the below functions
+         * should be loaded from spoolss.dll, but this doesn't seem to
+         * be reliable in practice.
+         * Nevertheless, we load spoolss.dll ourselves using our safe
+         * loading method, against the possibility that winspool.drv
+         * later loads it unsafely. */
+        (void) load_system32_dll("spoolss.dll");
         GET_WINDOWS_FUNCTION_PP(winspool_module, EnumPrinters);
         GET_WINDOWS_FUNCTION_PP(winspool_module, OpenPrinter);
-        GET_WINDOWS_FUNCTION_PP(spoolss_module, ClosePrinter);
+        GET_WINDOWS_FUNCTION_PP(winspool_module, ClosePrinter);
         GET_WINDOWS_FUNCTION_PP(winspool_module, StartDocPrinter);
-        GET_WINDOWS_FUNCTION_PP(spoolss_module, EndDocPrinter);
-        GET_WINDOWS_FUNCTION_PP(spoolss_module, StartPagePrinter);
-        GET_WINDOWS_FUNCTION_PP(spoolss_module, EndPagePrinter);
-        GET_WINDOWS_FUNCTION_PP(spoolss_module, WritePrinter);
+        GET_WINDOWS_FUNCTION_PP(winspool_module, EndDocPrinter);
+        GET_WINDOWS_FUNCTION_PP(winspool_module, StartPagePrinter);
+        GET_WINDOWS_FUNCTION_PP(winspool_module, EndPagePrinter);
+        GET_WINDOWS_FUNCTION_PP(winspool_module, WritePrinter);
     }
     initialised = TRUE;
 }

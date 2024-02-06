@@ -616,7 +616,6 @@ int main(int argc, char **argv)
     int *fdlist;
     int fd;
     int i, fdcount, fdsize, fdstate;
-    int connopen;
     int exitcode;
     int errors;
     int use_subsystem = 0;
@@ -1027,7 +1026,6 @@ int main(int argc, char **argv)
 	ldisc_create(conf, NULL, back, backhandle, NULL);
 	sfree(realhost);
     }
-    connopen = 1;
 
     /*
      * Set up the initial console mode. We don't care if this call
@@ -1054,7 +1052,7 @@ int main(int argc, char **argv)
 
 	FD_SET_MAX(signalpipe[0], maxfd, rset);
 
-	if (connopen && !sending &&
+	if (!sending &&
 	    back->connected(backhandle) &&
 	    back->sendok(backhandle) &&
 	    back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
@@ -1165,7 +1163,7 @@ int main(int argc, char **argv)
 	    char buf[4096];
 	    int ret;
 
-	    if (connopen && back->connected(backhandle)) {
+	    if (back->connected(backhandle)) {
 		ret = read(STDIN_FILENO, buf, sizeof(buf));
 		if (ret < 0) {
 		    perror("stdin: read");
@@ -1192,7 +1190,7 @@ int main(int argc, char **argv)
 
         run_toplevel_callbacks();
 
-	if ((!connopen || !back->connected(backhandle)) &&
+	if (!back->connected(backhandle) &&
 	    bufchain_size(&stdout_data) == 0 &&
 	    bufchain_size(&stderr_data) == 0)
 	    break;		       /* we closed the connection */

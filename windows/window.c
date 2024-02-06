@@ -3956,6 +3956,7 @@ static void init_winfuncs(void)
     HMODULE user32_module = load_system32_dll("user32.dll");
     HMODULE winmm_module = load_system32_dll("winmm.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
+    GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
     GET_WINDOWS_FUNCTION_PP(winmm_module, PlaySound);
 }
 
@@ -5198,8 +5199,8 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 		multilen = WideCharToMultiByte(CP_ACP, 0, unitab+uindex, 1,
 					       NULL, 0, NULL, NULL);
 		if (multilen != 1) {
-		    blen = sprintf(before, "{\\uc%d\\u%d", multilen,
-				   udata[uindex]);
+		    blen = sprintf(before, "{\\uc%d\\u%d", (int)multilen,
+				   (int)udata[uindex]);
 		    alen = 1; strcpy(after, "}");
 		} else {
 		    blen = sprintf(before, "\\u%d", udata[uindex]);

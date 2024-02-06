@@ -964,11 +964,11 @@ int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
  * Coroutine macros similar to, but simplified from, those in ssh.c.
  */
 #define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
-#define crFinish(z)	} *crLine = 0; return (z); }
+#define crFinishV	} *crLine = 0; return; }
 #define crGetChar(c) do                                         \
     {                                                           \
         while (len == 0) {                                      \
-            *crLine =__LINE__; return 1; case __LINE__:;        \
+            *crLine =__LINE__; return; case __LINE__:;          \
         }                                                       \
         len--;                                                  \
         (c) = (unsigned char)*data++;                           \
@@ -987,8 +987,8 @@ struct pageant_conn_state {
     int crLine;            /* for coroutine in pageant_conn_receive */
 };
 
-static int pageant_conn_closing(Plug plug, const char *error_msg,
-                                int error_code, int calling_back)
+static void pageant_conn_closing(Plug plug, const char *error_msg,
+				 int error_code, int calling_back)
 {
     struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
     if (error_msg)
@@ -997,7 +997,6 @@ static int pageant_conn_closing(Plug plug, const char *error_msg,
         plog(pc->logctx, pc->logfn, "%p: connection closed", pc);
     sk_close(pc->connsock);
     sfree(pc);
-    return 1;
 }
 
 static void pageant_conn_sent(Plug plug, int bufsize)
@@ -1021,7 +1020,7 @@ static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
     sfree(formatted);
 }
 
-static int pageant_conn_receive(Plug plug, int urgent, char *data, int len)
+static void pageant_conn_receive(Plug plug, int urgent, char *data, int len)
 {
     struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
     char c;
@@ -1065,7 +1064,7 @@ static int pageant_conn_receive(Plug plug, int urgent, char *data, int len)
         }
     }
 
-    crFinish(1);
+    crFinishV;
 }
 
 struct pageant_listen_state {
@@ -1077,15 +1076,14 @@ struct pageant_listen_state {
     pageant_logfn_t logfn;
 };
 
-static int pageant_listen_closing(Plug plug, const char *error_msg,
-                                  int error_code, int calling_back)
+static void pageant_listen_closing(Plug plug, const char *error_msg,
+				   int error_code, int calling_back)
 {
     struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
     if (error_msg)
         plog(pl->logctx, pl->logfn, "listening socket: error: %s", error_msg);
     sk_close(pl->listensock);
     pl->listensock = NULL;
-    return 1;
 }
 
 static int pageant_listen_accepting(Plug plug,

@@ -430,7 +430,7 @@ static const struct cp_list_item cp_list[] = {
     {"CP852", 852},
     {"CP878", 20866},
 
-    {"Use font encoding", -1},
+    {"Ê¹ÓÃ×ÖÌå±àÂë", -1},
 
     {0, 0}
 };

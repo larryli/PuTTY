@@ -364,7 +364,7 @@ sub splitline {
   $len = (defined $width ? $width : 76);
   $splitchar = (defined $splitchar ? $splitchar : '\\');
   while (length $line > $len) {
-    $line =~ /^(.{0,$len})\s(.*)$/ or $line =~ /^(.{$len,}?\s(.*)$/;
+    $line =~ /^(.{0,$len})\s(.*)$/ or $line =~ /^(.{$len,})?\s(.*)$/;
     $result .= $1;
     $result .= " ${splitchar}\n\t\t" if $2 ne '';
     $line = $2;
@@ -492,6 +492,31 @@ if (defined $makefiles{'clangcl'}) {
     #       paths in $LIB) it's reasonable to have the choice of
     #       compilation target driven by another environment variable
     #       set in parallel with that one.
+    #  - for older versions of the VS libraries you may also have to
+    #    set EXTRA_console and/or EXTRA_windows to the name of an
+    #    object file manually extracted from one of those libraries.
+    #     * This is because old VS seems to manage its startup code by
+    #       having libcmt.lib contain lots of *crt0.obj objects, one
+    #       for each possible user entry point (main, WinMain and the
+    #       wide-char versions of both), of which the linker arranges
+    #       to include the right one by special-case code. But lld
+    #       only seems to mimic half of that code - it does include
+    #       the right crt0 object, but it doesn't also deliberately
+    #       _avoid_ including the _wrong_ ones, and since all those
+    #       objects define a common set of global symbols for other
+    #       parts of the library to use, lld may well select an
+    #       arbitrary one of them the first time it sees a reference
+    #       to one of those global symbols, and then later also select
+    #       the _right_ one for the application's entry point, causing
+    #       a multiple-definitions crash.
+    #     * So the workaround is to explicitly include the right
+    #       *crt0.obj file on the linker command line before lld even
+    #       begins searching libraries. Hence, for a console
+    #       application, you might extract crt0.obj from the library
+    #       in question and set EXTRA_console=crt0.obj, and for a GUI
+    #       application, do the same with wincrt0.obj. Then this
+    #       makefile will include the right one of those objects
+    #       alongside the matching /subsystem linker option.
 
     open OUT, ">$makefiles{'clangcl'}"; select OUT;
     print
@@ -539,7 +564,8 @@ if (defined $makefiles{'clangcl'}) {
 	print &splitline("\t\$(LD) \$(LFLAGS) \$(XLFLAGS) ".
                          "/out:\$(BUILDDIR)$prog.exe ".
                          "/lldmap:\$(BUILDDIR)$prog.map ".
-                         "/subsystem:$subsys\$(SUBSYSVER) $objstr")."\n\n";
+                         "/subsystem:$subsys\$(SUBSYSVER) ".
+                         "\$(EXTRA_$subsys) $objstr")."\n\n";
     }
     foreach $d (&deps("\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res.o", $dirpfx, "/", "vc")) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];

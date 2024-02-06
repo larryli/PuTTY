@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 16280 # update this at every release
+set Epoch 16351 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -139,8 +139,7 @@ ifneq "$(MAKEARGS)" "" set Makeargs $(Makeargs) $(MAKEARGS)
 in putty do ./mksrcarc.sh
 in putty do ./mkunxarc.sh '$(Autoconfver)' '$(Uxarcsuffix)' $(Docmakever)
 in putty do perl mkfiles.pl
-in putty/doc do make $(Docmakever) putty.hlp
-in putty/doc do make $(Docmakever) chm
+in putty/doc do make $(Docmakever) putty.hlp putty.chm
 
 # Munge the installer script locally so that it reports the version
 # we're really building.
@@ -157,50 +156,38 @@ in putty/icons do make
 in putty do convert -size 164x312 'gradient:blue-white' -distort SRT -90 -swirl 180 \( -size 329x312 canvas:white \) +append \( icons/putty-48.png -geometry +28+24 \) -composite \( icons/pscp-48.png -geometry +88+96 \) -composite \( icons/puttygen-48.png -geometry +28+168 \) -composite \( icons/pageant-48.png -geometry +88+240 \) -composite windows/msidialog.bmp
 in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +440+5 \) -composite windows/msibanner.bmp
 
-delegate windows
-  # Build the original binaries.
-  in putty/windows with visualstudio do/win mkdir buildold && nmake -f Makefile.vc BUILDDIR=buildold\ $(Makeargs) all cleantestprogs
+# Build the standard binaries, in both 32- and 64-bit flavours.
+#
+# For the 32-bit ones, we set a subsystem version of 5.01, which
+# allows the resulting files to still run on Windows XP.
+in putty/windows with clangcl32 do mkdir build32 && Platform=x86 make -f Makefile.clangcl BUILDDIR=build32/ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs
+in putty/windows with clangcl64 do mkdir build64 && Platform=x64 make -f Makefile.clangcl BUILDDIR=build64/ $(Makeargs) all cleantestprogs
 
-  # Build the VS2015 binaries. For the 32-bit ones, we set a subsystem
-  # version of 5.01, which allows the resulting files to still run on
-  # Windows XP.
-  in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs
-  in putty/windows with visualstudio2015_64bit do/win mkdir build64 && nmake -f Makefile.vc BUILDDIR=build64\ $(Makeargs) all cleantestprogs
+# Build the 'old' binaries, which should still run on all 32-bit
+# versions of Windows back to Win95 (but not Win32s). These link
+# against Visual Studio 2003 libraries (the more modern versions
+# assume excessively modern Win32 API calls to be available), specify
+# a subsystem version of 4.0, and compile with /arch:IA32 to prevent
+# the use of modern CPU features like MMX which older machines also
+# might not have.
+in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj XFLAGS=/arch:IA32 all cleantestprogs
 
-  # Code-sign the binaries, if the local bob config provides a script
-  # to do so. We assume here that the script accepts an -i option to
-  # provide a 'more info' URL, and an optional -n option to provide a
-  # program name, and that it can take multiple .exe filename
-  # arguments and sign them all in place.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe
+# Code-sign the Windows binaries, if the local bob config provides a
+# script to do so in a cross-compiling way. We assume here that the
+# script accepts an -i option to provide a 'more info' URL, an
+# optional -n option to provide a program name, and an -N option to
+# take the program name from an .exe's version resource, and that it
+# can accept multiple .exe or .msi filename arguments and sign them
+# all in place.
+ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe
 
-  # Ignore exit code from hhc, in favour of seeing whether the .chm
-  # file was created. (Yuck; but hhc appears to return non-zero
-  # exit codes on whim.)
-  in putty/doc with htmlhelp do/win hhc putty.hhp & type putty.chm >nul
+# Build a WiX MSI installer, for each of build32 and build64.
+in putty/windows with wixonlinux do candle -arch x86 -dWin64=no -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dWin64=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
 
-  # Build a WiX MSI installer, for each of build32 and build64.
-  in putty/windows with wix do/win candle -arch x86 -dWin64=no -dBuilddir=build32\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi
-  in putty/windows with wix do/win candle -arch x64 -dWin64=yes -dBuilddir=build64\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi
+# Sign the Windows installers.
+ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi
 
-  # Build the old Inno Setup installer, for 32-bit only.
-  in putty/windows with innosetup do/win iscc putty.iss
-
-  # Sign the installers.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi Output/installer.exe
-
-  # Finished Windows builds.
-  return putty/windows/buildold/*.exe
-  return putty/windows/buildold/*.map
-  return putty/windows/build32/*.exe
-  return putty/windows/build32/*.map
-  return putty/windows/build64/*.exe
-  return putty/windows/build64/*.map
-  return putty/doc/putty.chm
-  return putty/windows/installer32.msi
-  return putty/windows/installer64.msi
-  return putty/windows/Output/installer.exe
-enddelegate
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever)
 in putty/windows/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
@@ -217,7 +204,6 @@ deliver putty/windows/build64/*.exe putty/w64/$@
 deliver putty/windows/build64/putty.zip putty/w64/$@
 deliver putty/windows/installer32.msi putty/w32/$(Ifilename32).msi
 deliver putty/windows/installer64.msi putty/w64/$(Ifilename64).msi
-deliver putty/windows/Output/installer.exe putty/w32/$(Ifilename32).exe
 deliver putty/doc/puttydoc.zip putty/$@
 deliver putty/doc/putty.chm putty/$@
 deliver putty/doc/putty.hlp putty/$@
