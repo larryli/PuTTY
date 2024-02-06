@@ -3448,26 +3448,6 @@ static GtkWidget *create_message_box_general(
     dp->retval = 0;
     dp->window = window;
 
-    if (selectable) {
-#if GTK_CHECK_VERSION(2,0,0)
-        struct uctrl *uc = dlg_find_byctrl(dp, textctrl);
-        gtk_label_set_selectable(GTK_LABEL(uc->text), true);
-
-        /*
-         * GTK selectable labels have a habit of selecting their
-         * entire contents when they gain focus. It's ugly to have
-         * text in a message box start up all selected, so we suppress
-         * this by manually selecting none of it - but we must do this
-         * when the widget _already has_ focus, otherwise our work
-         * will be undone when it gains it shortly.
-         */
-        gtk_widget_grab_focus(uc->text);
-        gtk_label_select_region(GTK_LABEL(uc->text), 0, 0);
-#else
-        (void)textctrl;                /* placate warning */
-#endif
-    }
-
     if (parentwin) {
         set_transient_window_pos(parentwin, window);
         gtk_window_set_transient_for(GTK_WINDOW(window),
@@ -3477,6 +3457,34 @@ static GtkWidget *create_message_box_general(
     gtk_container_set_focus_child(GTK_CONTAINER(window), NULL);
     gtk_widget_show(window);
     gtk_window_set_focus(GTK_WINDOW(window), NULL);
+
+#if GTK_CHECK_VERSION(2,0,0)
+    if (selectable) {
+        /*
+         * GTK selectable labels have a habit of selecting their
+         * entire contents when they gain focus. As far as I can see,
+         * an individual GtkLabel has no way to turn this off - source
+         * diving suggests that the only configurable option for it is
+         * "gtk-label-select-on-focus" in the cross-application
+         * GtkSettings, and there's no per-label or even
+         * per-application override.
+         *
+         * It's ugly to have text in a message box start up all
+         * selected, and also it interferes with any PRIMARY selection
+         * you might already have had. So for this purpose we'd prefer
+         * that the text doesn't _start off_ selected, but it should
+         * be selectable later.
+         *
+         * So we make the label selectable _now_, after the widget is
+         * shown and the focus has already gone wherever it's going.
+         */
+        struct uctrl *uc = dlg_find_byctrl(dp, textctrl);
+        gtk_label_select_region(GTK_LABEL(uc->text), 0, 0);
+        gtk_label_set_selectable(GTK_LABEL(uc->text), true);
+    }
+#else
+    (void)textctrl;                    /* placate warning */
+#endif
 
 #if !GTK_CHECK_VERSION(2,0,0)
     dp->currtreeitem = NULL;

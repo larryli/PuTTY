@@ -161,6 +161,11 @@
 #define MOD3 0
 #endif
 
+static inline bool is_word_sep(char c)
+{
+    return c == ' ' || c == '\t';
+}
+
 void split_into_argv(char *cmdline, int *argc, char ***argv,
                      char ***argstart)
 {
@@ -173,7 +178,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      * First deal with the simplest of all special cases: if there
      * aren't any arguments, return 0,NULL,NULL.
      */
-    while (*cmdline && isspace(*cmdline)) cmdline++;
+    while (*cmdline && is_word_sep(*cmdline)) cmdline++;
     if (!*cmdline) {
         if (argc) *argc = 0;
         if (argv) *argv = NULL;
@@ -195,7 +200,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
         bool quote;
 
         /* Skip whitespace searching for start of argument. */
-        while (*p && isspace(*p)) p++;
+        while (*p && is_word_sep(*p)) p++;
         if (!*p) break;
 
         /* We have an argument; start it. */
@@ -206,7 +211,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
 
         /* Copy data into the argument until it's finished. */
         while (*p) {
-            if (!quote && isspace(*p))
+            if (!quote && is_word_sep(*p))
                 break;                 /* argument is finished */
 
             if (*p == '"' || *p == '\\') {

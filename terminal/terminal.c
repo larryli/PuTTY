@@ -398,6 +398,8 @@ static void move_termchar(termline *line, termchar *dest, termchar *src)
 #endif
 }
 
+#ifndef NO_SCROLLBACK_COMPRESSION
+
 /*
  * Compress and decompress a termline into an RLE-based format for
  * storing in scrollback. (Since scrollback almost never needs to
@@ -688,11 +690,12 @@ static void makeliteral_cc(strbuf *b, termchar *c, unsigned long *state)
 
 typedef struct compressed_scrollback_line {
     size_t len;
+    /* compressed data follows after this */
 } compressed_scrollback_line;
 
-static termline *decompressline(compressed_scrollback_line *line);
+static termline *decompressline_no_free(compressed_scrollback_line *line);
 
-static compressed_scrollback_line *compressline(termline *ldata)
+static compressed_scrollback_line *compressline_no_free(termline *ldata)
 {
     strbuf *b = strbuf_new();
 
@@ -768,7 +771,7 @@ static compressed_scrollback_line *compressline(termline *ldata)
         printf("\n");
 #endif
 
-        dcl = decompressline(line);
+        dcl = decompressline_no_free(line);
         assert(ldata->cols == dcl->cols);
         assert(ldata->lattr == dcl->lattr);
         for (i = 0; i < ldata->cols; i++)
@@ -786,6 +789,13 @@ static compressed_scrollback_line *compressline(termline *ldata)
 #endif /* TERM_CC_DIAGS */
 
     return line;
+}
+
+static compressed_scrollback_line *compressline_and_free(termline *ldata)
+{
+    compressed_scrollback_line *cline = compressline_no_free(ldata);
+    freetermline(ldata);
+    return cline;
 }
 
 static void readrle(BinarySource *bs, termline *ldata,
@@ -921,7 +931,7 @@ static void readliteral_cc(BinarySource *bs, termchar *c, termline *ldata,
     }
 }
 
-static termline *decompressline(compressed_scrollback_line *line)
+static termline *decompressline_no_free(compressed_scrollback_line *line)
 {
     int ncols, byte, shift;
     BinarySource bs[1];
@@ -987,6 +997,66 @@ static termline *decompressline(compressed_scrollback_line *line)
 
     return ldata;
 }
+
+static inline void free_compressed_line(compressed_scrollback_line *cline)
+{
+    sfree(cline);
+}
+
+static termline *decompressline_and_free(compressed_scrollback_line *cline)
+{
+    termline *ldata = decompressline_no_free(cline);
+    free_compressed_line(cline);
+    return ldata;
+}
+
+#else /* NO_SCROLLBACK_COMPRESSION */
+
+static termline *duptermline(termline *oldline)
+{
+    termline *newline = snew(termline);
+    *newline = *oldline;               /* copy the POD structure fields */
+    newline->chars = snewn(newline->size, termchar);
+    for (int j = 0; j < newline->size; j++)
+        newline->chars[j] = oldline->chars[j];
+    return newline;
+}
+
+typedef termline compressed_scrollback_line;
+
+static inline compressed_scrollback_line *compressline_and_free(
+    termline *ldata)
+{
+    return ldata;
+}
+
+static inline compressed_scrollback_line *compressline_no_free(termline *ldata)
+{
+    return duptermline(ldata);
+}
+
+static inline termline *decompressline_no_free(
+    compressed_scrollback_line *line)
+{
+    /* This will return a line without the 'temporary' flag, which
+     * means that unlineptr() is already set up to avoid freeing it */
+    return line;
+}
+
+static inline termline *decompressline_and_free(
+    compressed_scrollback_line *line)
+{
+    /* Same as decompressline_no_free, because the caller will free
+     * our returned termline, and that does all the freeing necessary */
+    return line;
+}
+
+static inline void free_compressed_line(compressed_scrollback_line *line)
+{
+    freetermline(line);
+}
+
+#endif /* NO_SCROLLBACK_COMPRESSION */
 
 /*
  * Resize a line to make it `cols' columns wide.
@@ -1134,7 +1204,7 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
         compressed_scrollback_line *cline = index234(whichtree, treeindex);
         if (!cline)
             null_line_error(term, y, lineno, whichtree, treeindex, "cline");
-        line = decompressline(cline);
+        line = decompressline_no_free(cline);
     } else {
         line = index234(whichtree, treeindex);
     }
@@ -1374,6 +1444,8 @@ static void power_on(Terminal *term, bool clear)
     term->xterm_mouse = 0;
     term->xterm_extended_mouse = false;
     term->urxvt_extended_mouse = false;
+    term->raw_mouse_reported_x = 0;
+    term->raw_mouse_reported_y = 0;
     win_set_raw_mouse_mode(term->win, false);
     term->win_pointer_shape_pending = true;
     term->win_pointer_shape_raw = false;
@@ -2064,12 +2136,13 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
 void term_free(Terminal *term)
 {
+    compressed_scrollback_line *cline;
     termline *line;
     struct beeptime *beep;
     int i;
 
-    while ((line = delpos234(term->scrollback, 0)) != NULL)
-        sfree(line);                   /* compressed data, not a termline */
+    while ((cline = delpos234(term->scrollback, 0)) != NULL)
+        free_compressed_line(cline);
     freetree234(term->scrollback);
     while ((line = delpos234(term->screen, 0)) != NULL)
         freetermline(line);
@@ -2193,8 +2266,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
             /* Insert a line from the scrollback at the top of the screen. */
             assert(sblen >= term->tempsblines);
             cline = delpos234(term->scrollback, --sblen);
-            line = decompressline(cline);
-            sfree(cline);
+            line = decompressline_and_free(cline);
             line->temporary = false;   /* reconstituted line is now real */
             term->tempsblines -= 1;
             addpos234(term->screen, line, 0);
@@ -2218,8 +2290,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
         } else {
             /* push top row to scrollback */
             line = delpos234(term->screen, 0);
-            addpos234(term->scrollback, compressline(line), sblen++);
-            freetermline(line);
+            addpos234(term->scrollback, compressline_and_free(line), sblen++);
             term->tempsblines += 1;
             term->curs.y -= 1;
             term->savecurs.y -= 1;
@@ -2595,15 +2666,15 @@ static void scroll(Terminal *term, int topline, int botline,
                  * the scrollback is full.
                  */
                 if (sblen == term->savelines) {
-                    unsigned char *cline;
+                    compressed_scrollback_line *cline;
 
                     sblen--;
                     cline = delpos234(term->scrollback, 0);
-                    sfree(cline);
+                    free_compressed_line(cline);
                 } else
                     term->tempsblines += 1;
 
-                addpos234(term->scrollback, compressline(line), sblen);
+                addpos234(term->scrollback, compressline_no_free(line), sblen);
 
                 /* now `line' itself can be reused as the bottom line */
 
@@ -3068,6 +3139,10 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             term->xterm_mouse = state ? 2 : 0;
             term_update_raw_mouse_mode(term);
             break;
+          case 1003:                   /* xterm mouse any-event tracking */
+            term->xterm_mouse = state ? 3 : 0;
+            term_update_raw_mouse_mode(term);
+            break;
           case 1006:                   /* xterm extended mouse */
             term->xterm_extended_mouse = state;
             break;
@@ -3256,34 +3331,43 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
         linecols -= TRUST_SIGIL_WIDTH;
 
     /*
-     * Preliminary check: if the terminal is only one character cell
-     * wide, then we cannot display any double-width character at all.
-     * Substitute single-width REPLACEMENT CHARACTER instead.
+     * Before we switch on the character width, do a preliminary check for
+     * cases where we might have no room at all to display a double-width
+     * character. Our fallback is to substitute REPLACEMENT CHARACTER,
+     * which is single-width, and it's easiest to do that _before_ having
+     * to 'goto' from one switch case to another.
      */
-    if (width == 2 && linecols < 2) {
-        width = 1;
-        c = 0xFFFD;
+    if (width == 2 && term->curs.x >= linecols-1) {
+        /*
+         * If we're in wrapping mode and the terminal is at least 2 cells
+         * wide, it's OK, we have a fallback. But otherwise, substitute.
+         */
+        if (linecols < 2 || !term->wrap) {
+            width = 1;
+            c = 0xFFFD;
+        }
     }
 
     switch (width) {
       case 2:
         /*
-         * If we're about to display a double-width character starting
-         * in the rightmost column, then we do something special
-         * instead. We must print a space in the last column of the
-         * screen, then wrap; and we also set LATTR_WRAPPED2 which
-         * instructs subsequent cut-and-pasting not only to splice
-         * this line to the one after it, but to ignore the space in
-         * the last character position as well. (Because what was
-         * actually output to the terminal was presumably just a
-         * sequence of CJK characters, and we don't want a space to be
-         * pasted in the middle of those just because they had the
-         * misfortune to start in the wrong parity column. xterm
-         * concurs.)
+         * If we're about to display a double-width character starting in
+         * the rightmost column (and we're in wrapping mode - the other
+         * case was disposed of above), then we do something special
+         * instead. We must print a space in the last column of the screen,
+         * then wrap; and we also set LATTR_WRAPPED2 which instructs
+         * subsequent cut-and-pasting not only to splice this line to the
+         * one after it, but to ignore the space in the last character
+         * position as well. (Because what was actually output to the
+         * terminal was presumably just a sequence of CJK characters, and
+         * we don't want a space to be pasted in the middle of those just
+         * because they had the misfortune to start in the wrong parity
+         * column. xterm concurs.)
          */
         check_boundary(term, term->curs.x, term->curs.y);
         check_boundary(term, term->curs.x+2, term->curs.y);
         if (term->curs.x >= linecols-1) {
+            assert(term->wrap);    /* we handled the non-wrapping case above */
             copy_termchar(cline, term->curs.x,
                           &term->erase_char);
             cline->lattr |= LATTR_WRAPPED | LATTR_WRAPPED2;
@@ -3890,14 +3974,36 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 break;
               }
               case '\b':              /* BS: Back space */
-                if (term->curs.x == 0 && (term->curs.y == 0 || !term->wrap))
-                    /* do nothing */ ;
-                else if (term->curs.x == 0 && term->curs.y > 0)
-                    term->curs.x = term->cols - 1, term->curs.y--;
-                else if (term->wrapnext)
+                if (term->wrapnext) {
                     term->wrapnext = false;
-                else
+                } else if (term->curs.x == 0 &&
+                           (term->curs.y == 0 || !term->wrap)) {
+                    /* do nothing */
+                } else if (term->curs.x == 0 && term->curs.y > 0) {
+                    term->curs.x = term->cols - 1, term->curs.y--;
+
+                    /*
+                     * If the line we've just wrapped back on to had the
+                     * LATTR_WRAPPED2 flag set, it means that the line wrapped
+                     * because a double-width character was printed with the
+                     * cursor in the rightmost column, and the best handling
+                     * available was to leave that column empty and move the
+                     * whole character to the next line. In that situation,
+                     * backspacing needs to put the cursor on the previous
+                     * _logical_ character, i.e. skip the empty space left by
+                     * the wrapping. This arranges that if an application
+                     * unaware of the terminal width or cursor position prints
+                     * a number of printing characters and then tries to return
+                     * to a particular one of them by emitting the right number
+                     * of backspaces, it's still the right number even if a
+                     * line break appeared in a maximally awkward position.
+                     */
+                    termline *ldata = scrlineptr(term->curs.y);
+                    if (term->curs.x > 0 && (ldata->lattr & LATTR_WRAPPED2))
+                        term->curs.x--;
+                } else {
                     term->curs.x--;
+                }
                 seen_disp_event(term);
                 break;
               case '\016':            /* LS1: Locking-shift one */
@@ -7055,6 +7161,13 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
                       !(term->mouse_override && shift));
     int default_seltype;
 
+    // Don't do anything if mouse movement events weren't requested;
+    // Note: return early to avoid doing all of this code on every mouse move
+    // event only to throw it away.
+    if (a == MA_MOVE && (!raw_mouse || term->xterm_mouse < 3)) {
+        return;
+    }
+
     if (y < 0) {
         y = 0;
         if (a == MA_DRAG && !raw_mouse)
@@ -7141,6 +7254,19 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
                 encstate = 0x41;
                 wheel = true;
                 break;
+              case MBT_WHEEL_LEFT:
+                encstate = 0x42;
+                wheel = true;
+                break;
+              case MBT_WHEEL_RIGHT:
+                encstate = 0x43;
+                wheel = true;
+                break;
+              case MBT_NOTHING:
+                assert( a == MA_MOVE );
+                encstate = 0x03; // release; no buttons pressed
+                wheel = false;
+                break;
               default:
                 return;
             }
@@ -7155,7 +7281,21 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
               case MA_DRAG:
                 if (term->xterm_mouse == 1)
                     return;
-                encstate += 0x20;
+                encstate += 0x20; // motion indicator
+                break;
+              case MA_MOVE:    // mouse move without buttons
+                assert( braw == MBT_NOTHING && bcooked == MBT_NOTHING  );
+                if (term->xterm_mouse < 3)
+                    return;
+
+                if (selpoint.x == term->raw_mouse_reported_x &&
+                    selpoint.y == term->raw_mouse_reported_y)
+                    return;
+
+                term->raw_mouse_reported_x = x;
+                term->raw_mouse_reported_y = y;
+
+                encstate += 0x20; // motion indicator
                 break;
               case MA_RELEASE:
                 /* If multiple extensions are enabled, the xterm 1006 is used, so it's okay to check for only that */

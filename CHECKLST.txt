@@ -19,10 +19,16 @@ pre-releases on the website:
  - Edit ~/adm/puttysnap.sh on the master machine to enable pre-release
    builds, by changing the 'if false' to 'if true'.
 
+ - Wait for a nightly build to run, so that the first pre-release
+   snapshot actually exists.
+
  - Put the website into pre-release mode, by defining prerel_version()
    in components/Base.mc to return the upcoming version number. Also
    add a news announcement in components/news. (Previous naming
    convention has been to name it in the form 'X.YZ-pre.mi'.)
+
+ - Optionally: write an announcement email for the availability of
+   pre-releases, and send it out to <putty-announce@lists.tartarus.org>.
 
 Things to do during the branch-stabilisation period:
 
@@ -241,9 +247,14 @@ locally, this is the procedure for putting it up on the web.
       automatically create a new submission
        * provide a new set of installer URLs, then click "save all"
          which actually uploads them
+          + be careful to use URLs without "latest" in the pathname!
+            Just copying from the links on the download page is wrong.
+            Change "latest" to the version number, and test-download
+            via those URLs to check you didn't make a typo.
        * change the "what's new in this release" text in the store
          listing
        * upload revised screenshots, if necessary
+       * update the URL in the "Applicable license terms" box
     + press Publish to submit that to the actual upload process
 
  - Announce the release!

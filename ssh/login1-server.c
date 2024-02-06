@@ -61,6 +61,7 @@ static const PacketProtocolLayerVtable ssh1_login_server_vtable = {
     .special_cmd = ssh1_login_server_special_cmd,
     .reconfigure = ssh1_login_server_reconfigure,
     .queued_data_size = ssh_ppl_default_queued_data_size,
+    .final_output = ssh_ppl_default_final_output,
     .name = NULL, /* no layer names in SSH-1 */
 };
 

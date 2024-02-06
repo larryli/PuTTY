@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 18293 # update this at every release
+set Epoch 18595 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -270,12 +270,16 @@ in putty/windows do mkdir deliver
 in putty/windows do for subdir in build32 abuild32 build64 abuild64 buildold; do mkdir deliver/$$subdir; done
 in putty/windows do while read x; do mv $$x deliver/$$x; mv $$x.map deliver/$$x.map; done < to-sign.txt
 
-in putty/windows/deliver/buildold do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
-in putty/windows/deliver/build32 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
-in putty/windows/deliver/build64 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
-in putty/windows/deliver/abuild32 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
-in putty/windows/deliver/abuild64 do zip -k -j putty.zip `ls *.exe | grep -vxE '^(puttytel|pterm).exe'` ../../../docbuild/putty.chm
-in docbuild/html do zip puttydoc.zip *.html
+# Make putty.zip in each Windows directory. We add the files one by
+# one, because 'zip' exits with a success status if it managed to add
+# _at least one_ of the input files, even if another didn't exist. So
+# doing them one at a time gets us proper error reporting.
+in putty/windows/deliver/buildold do for file in *.exe ../../../../docbuild/putty.chm; do case "$$file" in puttytel.exe | pterm.exe) ;; *) zip -k -j putty.zip "$$file";; esac; done
+in putty/windows/deliver/build32 do for file in *.exe ../../../../docbuild/putty.chm; do case "$$file" in puttytel.exe | pterm.exe) ;; *) zip -k -j putty.zip "$$file";; esac; done
+in putty/windows/deliver/build64 do for file in *.exe ../../../../docbuild/putty.chm; do case "$$file" in puttytel.exe | pterm.exe) ;; *) zip -k -j putty.zip "$$file";; esac; done
+in putty/windows/deliver/abuild32 do for file in *.exe ../../../../docbuild/putty.chm; do case "$$file" in puttytel.exe | pterm.exe) ;; *) zip -k -j putty.zip "$$file";; esac; done
+in putty/windows/deliver/abuild64 do for file in *.exe ../../../../docbuild/putty.chm; do case "$$file" in puttytel.exe | pterm.exe) ;; *) zip -k -j putty.zip "$$file";; esac; done
+in docbuild/html do for file in *.html; do case "$$file" in puttytel.exe | pterm.exe) ;; *) zip puttydoc.zip "$$file";; esac; done
 
 # Deliver the actual PuTTY release directory into a subdir `putty'.
 deliver putty/windows/deliver/buildold/*.exe putty/w32old/$@

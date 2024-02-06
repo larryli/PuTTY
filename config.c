@@ -2428,7 +2428,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
     s = ctrl_getset(b, "窗口/颜色", "adjust", str);
     sfree(str);
     ctrl_text(s, "选择列表中的颜色，然后点击"
-              "“修改”按钮改变其具体数值。",
+              "“修改”按钮改变\n其具体数值。",
               HELPCTX(colours_config));
     ctrl_columns(s, 2, 67, 33);
     cd = (struct colour_data *)ctrl_alloc(b, sizeof(struct colour_data));
@@ -2917,7 +2917,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                          FILTER_KEY_FILES, false, "选择私钥文件",
                          HELPCTX(ssh_auth_privkey),
                          conf_filesel_handler, I(CONF_keyfile));
-            ctrl_filesel(s, "与私钥一起使用的证书(E):", 'e',
+            ctrl_filesel(s, "与私钥一起使用的证书(可选) (E):", 'e',
                          NULL, false, "选择证书文件",
                          HELPCTX(ssh_auth_cert),
                          conf_filesel_handler, I(CONF_detached_cert));
@@ -3173,6 +3173,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
 
             s = ctrl_getset(b, "连接/SSH/更多查错", "main",
                             "检测已知的 SSH 服务器错误");
+            ctrl_droplist(s, "旧的 RSA/SHA2 证书算法命名(L)", 'l', 20,
+                          HELPCTX(ssh_bugs_rsa_sha2_cert_userauth),
+                          sshbug_handler,
+                          I(CONF_sshbug_rsa_sha2_cert_userauth));
             ctrl_droplist(s, "需要对 SSH-2 RSA 签名进行填充(P)", 'p', 20,
                           HELPCTX(ssh_bugs_rsapad2),
                           sshbug_handler, I(CONF_sshbug_rsapad2));

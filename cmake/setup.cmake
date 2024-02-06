@@ -15,6 +15,12 @@ set(PUTTY_FUZZING OFF
   CACHE BOOL "Build PuTTY binaries suitable for fuzzing, NOT FOR REAL USE")
 set(PUTTY_COVERAGE OFF
   CACHE BOOL "Build PuTTY binaries suitable for code coverage analysis")
+set(PUTTY_COMPRESS_SCROLLBACK ON
+  # This is always on in production versions of PuTTY, but downstreams
+  # of the code have been known to find it a better tradeoff to
+  # disable it. So there's a #ifdef in terminal.c, and a cmake option
+  # to enable that ifdef just in case it needs testing or debugging.
+  CACHE BOOL "Store terminal scrollback in compressed form")
 
 set(STRICT OFF
   CACHE BOOL "Enable extra compiler warnings and make them errors")
@@ -107,6 +113,9 @@ if(PUTTY_DEBUG)
 endif()
 if(PUTTY_FUZZING)
   add_compile_definitions(FUZZING)
+endif()
+if(NOT PUTTY_COMPRESS_SCROLLBACK)
+  set(NO_SCROLLBACK_COMPRESSION ON)
 endif()
 if(PUTTY_COVERAGE)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -g ")

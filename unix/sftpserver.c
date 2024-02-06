@@ -602,7 +602,7 @@ static void uss_readdir(SftpServer *srv, SftpReplyBuilder *reply,
         char *longnamebuf = NULL;
         struct fxp_attrs attrs = no_attrs;
 
-#if defined HAVE_FSTATAT && defined HAVE_DIRFD
+#if HAVE_FSTATAT && HAVE_DIRFD
         struct stat st;
         if (!fstatat(dirfd(udh->dp), de->d_name, &st, AT_SYMLINK_NOFOLLOW)) {
             char perms[11], *uidbuf = NULL, *gidbuf = NULL;
