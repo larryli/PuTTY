@@ -58,7 +58,7 @@ generate SSH-1 keys).
 
 \dt \cw{\-b} \e{bits}
 
-\dd Specify the size of the key to generate, in bits. Default is 1024.
+\dd Specify the size of the key to generate, in bits. Default is 2048.
 
 \dt \cw{\-q}
 
@@ -173,9 +173,9 @@ To generate an SSH-2 RSA key pair and save it in PuTTY's own format
 
 \c puttygen -t rsa -C "my home key" -o mykey.ppk
 
-To generate a larger (2048-bit) key:
+To generate a larger (4096-bit) key:
 
-\c puttygen -t rsa -b 2048 -C "my home key" -o mykey.ppk
+\c puttygen -t rsa -b 4096 -C "my home key" -o mykey.ppk
 
 To change the passphrase on a key (you will be prompted for the old
 and new passphrases):

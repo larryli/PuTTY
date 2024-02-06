@@ -607,9 +607,8 @@ void store_host_key(const char *hostname, int port,
 
         dir = make_filename(INDEX_DIR, NULL);
         if (mkdir(dir, 0700) < 0) {
-            char *msg = dupprintf("Unable to store host key: mkdir(\"%s\") "
-                                  "returned '%s'", dir, strerror(errno));
-            nonfatal(msg);
+            nonfatal("Unable to store host key: mkdir(\"%s\") "
+                     "returned '%s'", dir, strerror(errno));
             sfree(dir);
             sfree(tmpfilename);
             return;
@@ -619,9 +618,8 @@ void store_host_key(const char *hostname, int port,
         wfp = fopen(tmpfilename, "w");
     }
     if (!wfp) {
-        char *msg = dupprintf("Unable to store host key: open(\"%s\") "
-                              "returned '%s'", tmpfilename, strerror(errno));
-        nonfatal(msg);
+        nonfatal("Unable to store host key: open(\"%s\") "
+                 "returned '%s'", tmpfilename, strerror(errno));
         sfree(tmpfilename);
         return;
     }
@@ -652,10 +650,9 @@ void store_host_key(const char *hostname, int port,
     fclose(wfp);
 
     if (rename(tmpfilename, filename) < 0) {
-        char *msg = dupprintf("Unable to store host key: rename(\"%s\",\"%s\")"
-                              " returned '%s'", tmpfilename, filename,
-                              strerror(errno));
-        nonfatal(msg);
+        nonfatal("Unable to store host key: rename(\"%s\",\"%s\")"
+                 " returned '%s'", tmpfilename, filename,
+                 strerror(errno));
     }
 
     sfree(tmpfilename);
@@ -694,10 +691,8 @@ void write_random_seed(void *data, int len)
     fd = open(fname, O_CREAT | O_WRONLY, 0600);
     if (fd < 0) {
         if (errno != ENOENT) {
-            char *msg = dupprintf("Unable to write random seed: open(\"%s\") "
-                                  "returned '%s'", fname, strerror(errno));
-            nonfatal(msg);
-            sfree(msg);
+            nonfatal("Unable to write random seed: open(\"%s\") "
+                     "returned '%s'", fname, strerror(errno));
             sfree(fname);
             return;
         }
@@ -705,10 +700,8 @@ void write_random_seed(void *data, int len)
 
 	dir = make_filename(INDEX_DIR, NULL);
 	if (mkdir(dir, 0700) < 0) {
-            char *msg = dupprintf("Unable to write random seed: mkdir(\"%s\") "
-                                  "returned '%s'", dir, strerror(errno));
-            nonfatal(msg);
-            sfree(msg);
+            nonfatal("Unable to write random seed: mkdir(\"%s\") "
+                     "returned '%s'", dir, strerror(errno));
             sfree(fname);
             sfree(dir);
             return;
@@ -717,10 +710,8 @@ void write_random_seed(void *data, int len)
 
 	fd = open(fname, O_CREAT | O_WRONLY, 0600);
         if (fd < 0) {
-            char *msg = dupprintf("Unable to write random seed: open(\"%s\") "
-                                  "returned '%s'", fname, strerror(errno));
-            nonfatal(msg);
-            sfree(msg);
+            nonfatal("Unable to write random seed: open(\"%s\") "
+                     "returned '%s'", fname, strerror(errno));
             sfree(fname);
             return;
         }
@@ -729,10 +720,8 @@ void write_random_seed(void *data, int len)
     while (len > 0) {
 	int ret = write(fd, data, len);
 	if (ret < 0) {
-            char *msg = dupprintf("Unable to write random seed: write "
-                                  "returned '%s'", strerror(errno));
-            nonfatal(msg);
-            sfree(msg);
+            nonfatal("Unable to write random seed: write "
+                     "returned '%s'", strerror(errno));
             break;
         }
 	len -= ret;

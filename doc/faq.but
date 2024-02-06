@@ -1490,6 +1490,38 @@ suppliers so that it clearly distinguishes paid vendors who know about
 you from free software developers who don't have any idea who you are.
 Then, only send out these mass mailings to the former.
 
+\S{faq-checksums}{Question} The \c{sha1sums} / \c{sha256sums} / etc
+files on your download page don't match the binaries.
+
+People report this every so often, and usually the reason turns out to
+be that they've matched up the wrong checksums file with the wrong
+binaries.
+
+The PuTTY download page contains more than one version of the
+software. There's a \e{latest release} version; there are the
+\e{development snapshots}; and when we're in the run-up to making a
+release, there are also \e{pre-release} builds of the upcoming new
+version. Each one has its own collection of binaries, and its own
+collection of checksums files to go with them.
+
+So if you've downloaded the release version of the actual program, you
+need the release version of the checksums too, otherwise you will see
+a mismatch. Similarly, the development snapshot binaries go with the
+development snapshot checksums, and so on. (We've colour-coded the
+download page in an effort to reduce this confusion a bit.)
+
+If you have double-checked that, and you still think there's a real
+mismatch, then please send us a report carefully quoting everything
+relevant:
+
+\b the exact URL you got your binary from
+
+\b the checksum of the binary after you downloaded
+
+\b the exact URL you got your checksums file from
+
+\b the checksum that file says the binary should have.
+
 \H{faq-misc} Miscellaneous questions
 
 \S{faq-openssh}{Question} Is PuTTY a port of \i{OpenSSH}, or based on

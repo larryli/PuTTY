@@ -93,7 +93,7 @@ for it:
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
-   atreus:src/putty/local/announce-<ver> in case it's needed again
+   atreus:src/putty-local/announce-<ver> in case it's needed again
    within days of the release going out.
 
  - Update the web site, in a local checkout.
@@ -106,10 +106,16 @@ for it:
      pre-releases, if there were any before this release. Comment out
      the big pre-release section at the top, and also adjust the
      sections about source archives at the bottom.
+   + Do the same on the Docs page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
    + .htaccess has an individual redirect for each version number. Add
      a new one.
+
+ - For 0.66 only: if it's not already done, switch the remaining
+   signature links on the Download page over to using the new
+   signature style. Then remove this checklist item, since it'll only
+   need doing this once.
 
  - If there are any last-minute wishlist entries (e.g. security
    vulnerabilities fixed in the new release), write entries for them
@@ -121,7 +127,7 @@ for it:
 
  - Build the release, by checking out the release tag:
      git checkout 0.XX
-     bob -F . RELEASE=0.XX
+     bob . RELEASE=0.XX
    This should generate a basically valid release directory as
    `build.out/putty', and provide link maps and sign.sh alongside that
    in build.out.
@@ -134,7 +140,7 @@ for it:
    installer and the Unix source tarball.
 
  - Sign the release: in the `build.out' directory, type
-     sh sign.sh putty Releases
+     sh sign.sh -r putty
    and enter the passphrases a lot of times.
 
 The actual release procedure
@@ -150,7 +156,7 @@ locally, this is the procedure for putting it up on the web.
 
  - Do final checks on the release directory in its new location:
     + verify all the signatures:
-      for i in `find . -name '*.*SA'`; do case $i in *sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.?SA};; esac; done
+      for i in `find . -name '*.gpg'`; do case $i in *sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.gpg};; esac; done
     + check the checksum files:
       md5sum -c md5sums
       sha1sum -c sha1sums

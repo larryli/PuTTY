@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 15641 # update this at every release
+set Epoch 15746 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -202,6 +202,6 @@ in-dest putty do a=`\find * -type f -print`; md5sum $$a > md5sums && sha1sum $$a
 in-dest putty do echo "AddType application/octet-stream .chm" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
-in-dest putty do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+in-dest putty do set -- putty*.tar.gz; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
 # And one in the x86 directory, providing a link for the installer.
-in-dest putty/x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+in-dest putty/x86 do set -- putty*installer.exe; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done

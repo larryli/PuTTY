@@ -8,7 +8,7 @@
  * default stuff used for local development runs of 'make'.
  */
 
-#define RELEASE "0.65cn"
-#define TEXTVER "发布版 0.65cn"
+#define RELEASE "0.66cn"
+#define TEXTVER "发布版 0.66cn"
 #define SSHVER "PuTTY-Unidentified-Local-Build"
 #define BINARY_VERSION 0,0,0,0

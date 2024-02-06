@@ -953,3 +953,20 @@ DSR/DTR.
 
 For example, \cq{-sercfg 19200,8,n,1,N} denotes a baud rate of
 19200, 8 data bits, no parity, 1 stop bit and no flow control.
+
+\S2{using-cmdline-sshlog} \i\c{-sessionlog}, \i\c{-sshlog},
+\i\c{-sshrawlog}: specify session logging
+
+These options cause the PuTTY network tools to write out a \i{log
+file}. Each of them expects a file name as an argument, e.g.
+\cq{-sshlog putty.log} causes an SSH packet log to be written to a
+file called \cq{putty.log}. The three different options select
+different logging modes, all available from the GUI too:
+
+\b \c{-sessionlog} selects \q{All session output} logging mode.
+
+\b \c{-sshlog} selects \q{SSH packets} logging mode.
+
+\b \c{-sshrawlog} selects \q{SSH packets and raw data} logging mode.
+
+For more information on logging configuration, see \k{config-logging}.

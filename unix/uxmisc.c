@@ -94,6 +94,13 @@ Filename *filename_deserialise(void *vdata, int maxsize, int *used)
     return filename_from_str(data);
 }
 
+char filename_char_sanitise(char c)
+{
+    if (c == '/')
+        return '.';
+    return c;
+}
+
 #ifdef DEBUG
 static FILE *debug_fp = NULL;
 
@@ -162,9 +169,11 @@ void pgp_fingerprints(void)
 	  "one. See the manual for more information.\n"
 	  "(Note: these fingerprints have nothing to do with SSH!)\n"
 	  "\n"
-	  "PuTTY Master Key (RSA), 1024-bit:\n"
+	  "PuTTY Master Key as of 2015 (RSA, 4096-bit):\n"
+	  "  " PGP_MASTER_KEY_FP "\n\n"
+	  "Original PuTTY Master Key (RSA, 1024-bit):\n"
 	  "  " PGP_RSA_MASTER_KEY_FP "\n"
-	  "PuTTY Master Key (DSA), 1024-bit:\n"
+	  "Original PuTTY Master Key (DSA, 1024-bit):\n"
 	  "  " PGP_DSA_MASTER_KEY_FP "\n", stdout);
 }
 
