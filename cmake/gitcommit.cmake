@@ -12,13 +12,6 @@ execute_process(
   RESULT_VARIABLE status)
 string(REGEX REPLACE "\n$" "" git_worktree "${git_worktree}")
 
-# Fix virtualbox share path
-cmake_path(GET git_worktree ROOT_NAME git_root_name)
-if (git_root_name STREQUAL "//VBoxSvr")
-  message("Fix virtualbox share path: \"${git_worktree}\"")
-  string(REGEX REPLACE "^//VBoxSvr/[A-Za-z0-9_]+" "Z:" git_worktree "${git_worktree}")
-endif()
-
 if(status EQUAL 0)
   if(git_worktree STREQUAL CMAKE_SOURCE_DIR)
     execute_process(
