@@ -12,6 +12,10 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#ifndef HAVE_NO_SYS_SELECT_H
+#include <sys/select.h>
+#endif
 
 #include "putty.h"
 #include "storage.h"
@@ -97,7 +101,9 @@ static int block_and_read(int fd, void *buf, size_t len)
         fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(fd, &rfds);
-        ret = select(fd+1, &rfds, NULL, NULL, NULL);
+        do {
+            ret = select(fd+1, &rfds, NULL, NULL, NULL);
+        } while (ret < 0 && errno == EINTR);
         assert(ret != 0);
         if (ret < 0)
             return ret;
@@ -107,8 +113,8 @@ static int block_and_read(int fd, void *buf, size_t len)
     return ret;
 }
 
-int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-                        char *keystr, char *fingerprint,
+int verify_ssh_host_key(void *frontend, char *host, int port,
+                        const char *keytype, char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
@@ -240,6 +246,59 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     }
 
     fprintf(stderr, msg, algtype, algname);
+    fflush(stderr);
+
+    {
+	struct termios oldmode, newmode;
+	tcgetattr(0, &oldmode);
+	newmode = oldmode;
+	newmode.c_lflag |= ECHO | ISIG | ICANON;
+	tcsetattr(0, TCSANOW, &newmode);
+	line[0] = '\0';
+	if (block_and_read(0, line, sizeof(line) - 1) <= 0)
+	    /* handled below */;
+	tcsetattr(0, TCSANOW, &oldmode);
+    }
+
+    if (line[0] == 'y' || line[0] == 'Y') {
+	postmsg(&cf);
+	return 1;
+    } else {
+	fprintf(stderr, abandoned);
+	postmsg(&cf);
+	return 0;
+    }
+}
+
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char msg[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Continue with connection? (y/n) ";
+    static const char msg_batch[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Connection abandoned.\n";
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+    struct termios cf;
+
+    premsg(&cf);
+    if (console_batch_mode) {
+	fprintf(stderr, msg_batch, algname, betteralgs);
+	return 0;
+    }
+
+    fprintf(stderr, msg, algname, betteralgs);
     fflush(stderr);
 
     {
@@ -397,7 +456,8 @@ static void console_prompt_text(FILE *outfp, const char *data, int len)
     fflush(outfp);
 }
 
-int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int console_get_userpass_input(prompts_t *p, const unsigned char *in,
+                               int inlen)
 {
     size_t curr_prompt;
     FILE *outfp = NULL;

@@ -289,8 +289,8 @@ static const char *serial_configure(Serial serial, Conf *conf)
  */
 static const char *serial_init(void *frontend_handle, void **backend_handle,
 			       Conf *conf,
-			       char *host, int port, char **realhost, int nodelay,
-			       int keepalive)
+			       const char *host, int port, char **realhost,
+                               int nodelay, int keepalive)
 {
     Serial serial;
     const char *err;
@@ -462,7 +462,7 @@ static void serial_try_write(Serial serial)
 /*
  * Called to send data down the serial connection.
  */
-static int serial_send(void *handle, char *buf, int len)
+static int serial_send(void *handle, const char *buf, int len)
 {
     Serial serial = (Serial) handle;
 
@@ -591,6 +591,7 @@ Backend serial_backend = {
     serial_provide_logctx,
     serial_unthrottle,
     serial_cfg_info,
+    NULL /* test_for_upstream */,
     "serial",
     PROT_SERIAL,
     0

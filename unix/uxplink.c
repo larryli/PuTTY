@@ -25,11 +25,11 @@
 
 #define MAX_STDIN_BACKLOG 4096
 
-void *logctx;
+static void *logctx;
 
 static struct termios orig_termios;
 
-void fatalbox(char *p, ...)
+void fatalbox(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -46,7 +46,7 @@ void fatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -63,7 +63,7 @@ void modalfatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
-void nonfatal(char *p, ...)
+void nonfatal(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -75,7 +75,7 @@ void nonfatal(char *p, ...)
     fputc('\n', stderr);
     postmsg(&cf);
 }
-void connection_fatal(void *frontend, char *p, ...)
+void connection_fatal(void *frontend, const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -92,7 +92,7 @@ void connection_fatal(void *frontend, char *p, ...)
     }
     cleanup_exit(1);
 }
-void cmdline_error(char *p, ...)
+void cmdline_error(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -150,7 +150,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void ldisc_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     struct termios mode;
@@ -176,8 +176,9 @@ void ldisc_update(void *frontend, int echo, int edit)
 	mode.c_cc[VMIN] = 1;
 	mode.c_cc[VTIME] = 0;
 	/* FIXME: perhaps what we do with IXON/IXOFF should be an
-	 * argument to ldisc_update(), to allow implementation of SSH-2
-	 * "xon-xoff" and Rlogin's equivalent? */
+	 * argument to frontend_echoedit_update(), to allow
+	 * implementation of SSH-2 "xon-xoff" and Rlogin's
+	 * equivalent? */
 	mode.c_iflag &= ~IXON;
 	mode.c_iflag &= ~IXOFF;
     }
@@ -304,6 +305,9 @@ char *get_ttymode(void *frontend, const char *mode)
 #endif
 #if defined(XCASE)
     GET_BOOL("XCASE", XCASE, c_lflag, );
+#endif
+#if defined(IUTF8)
+    GET_BOOL("IUTF8", IUTF8, c_iflag, );
 #endif
     /* Configuration of ECHO */
 #if defined(ECHOCTL)
@@ -445,7 +449,7 @@ int from_backend_eof(void *frontend_handle)
     return FALSE;   /* do not respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);
@@ -532,8 +536,8 @@ void sigwinch(int signum)
  * In Plink our selects are synchronous, so these functions are
  * empty stubs.
  */
-int uxsel_input_add(int fd, int rwx) { return 0; }
-void uxsel_input_remove(int id) { }
+uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
+void uxsel_input_remove(uxsel_id *id) { }
 
 /*
  * Short description of parameters.
@@ -554,6 +558,8 @@ static void usage(void)
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
     printf("  -batch    disable all interactive prompts\n");
+    printf("  -proxycmd command\n");
+    printf("            use 'command' as local proxy\n");
     printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
     printf("            Specify the serial configuration (serial only)\n");
     printf("The following options only apply to SSH connections:\n");
@@ -583,13 +589,17 @@ static void usage(void)
     printf("  -sshlog file\n");
     printf("  -sshrawlog file\n");
     printf("            log protocol details to a file\n");
+    printf("  -shareexists\n");
+    printf("            test whether a connection-sharing upstream exists\n");
     exit(1);
 }
 
 static void version(void)
 {
-    printf("plink: %s\n", ver);
-    exit(1);
+    char *buildinfo_text = buildinfo("\n");
+    printf("plink: %s\n%s\n", ver, buildinfo_text);
+    sfree(buildinfo_text);
+    exit(0);
 }
 
 void frontend_net_error_pending(void) {}
@@ -609,6 +619,7 @@ int main(int argc, char **argv)
     int errors;
     int use_subsystem = 0;
     int got_host = FALSE;
+    int just_test_share_exists = FALSE;
     unsigned long now;
     struct winsize size;
 
@@ -687,6 +698,12 @@ int main(int argc, char **argv)
                     --argc;
 		    provide_xrm_string(*++argv);
 		}
+	    } else if (!strcmp(p, "-shareexists")) {
+                just_test_share_exists = TRUE;
+	    } else if (!strcmp(p, "-fuzznet")) {
+		conf_set_int(conf, CONF_proxy_type, PROXY_FUZZ);
+		conf_set_str(conf, CONF_proxy_telnet_command,
+			     "%host");
 	    } else {
 		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
 		errors = 1;
@@ -936,6 +953,11 @@ int main(int argc, char **argv)
 	perror("pipe");
 	exit(1);
     }
+    /* We don't want the signal handler to block if the pipe's full. */
+    nonblock(signalpipe[0]);
+    nonblock(signalpipe[1]);
+    cloexec(signalpipe[0]);
+    cloexec(signalpipe[1]);
     putty_signal(SIGWINCH, sigwinch);
 
     /*
@@ -951,7 +973,7 @@ int main(int argc, char **argv)
     uxsel_init();
 
     /*
-     * Unix Plink doesn't provide any way to add forwardings after the
+     * Plink doesn't provide any way to add forwardings after the
      * connection is set up, so if there are none now, we can safely set
      * the "simple" flag.
      */
@@ -960,6 +982,19 @@ int main(int argc, char **argv)
 	!conf_get_int(conf, CONF_agentfwd) &&
 	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
 	conf_set_int(conf, CONF_ssh_simple, TRUE);
+
+    if (just_test_share_exists) {
+        if (!back->test_for_upstream) {
+            fprintf(stderr, "Connection sharing not supported for connection "
+                    "type '%s'\n", back->name);
+            return 1;
+        }
+        if (back->test_for_upstream(conf_get_str(conf, CONF_host),
+                                    conf_get_int(conf, CONF_port), conf))
+            return 0;
+        else
+            return 1;
+    }
 
     /*
      * Start up the connection.
@@ -971,6 +1006,11 @@ int main(int argc, char **argv)
 	char *realhost;
 	/* nodelay is only useful if stdin is a terminal device */
 	int nodelay = conf_get_int(conf, CONF_tcp_nodelay) && isatty(0);
+
+	/* This is a good place for a fuzzer to fork us. */
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+	__AFL_INIT();
+#endif
 
 	error = back->init(NULL, &backhandle, conf,
 			   conf_get_str(conf, CONF_host),
@@ -994,7 +1034,7 @@ int main(int argc, char **argv)
      */
     local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
-    ldisc_update(NULL, 1, 1);
+    frontend_echoedit_update(NULL, 1, 1);
     sending = FALSE;
     now = GETTICKCOUNT();
 
@@ -1085,6 +1125,9 @@ int main(int argc, char **argv)
         } else {
             ret = select(maxfd, &rset, &wset, &xset, NULL);
         }
+
+        if (ret < 0 && errno == EINTR)
+            continue;
 
 	if (ret < 0) {
 	    perror("select");

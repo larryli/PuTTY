@@ -66,7 +66,7 @@
 
 #define has_compat(x) ( ((CL_##x)&term->compatibility_level) != 0 )
 
-char *EMPTY_WINDOW_TITLE = "";
+const char *EMPTY_WINDOW_TITLE = "";
 
 const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
@@ -1351,7 +1351,7 @@ void term_pwron(Terminal *term, int clear)
 {
     power_on(term, clear);
     if (term->ldisc)		       /* cause ldisc to notice changes */
-	ldisc_send(term->ldisc, NULL, 0, 0);
+	ldisc_echoedit_update(term->ldisc);
     term->disptop = 0;
     deselect(term);
     term_update(term);
@@ -1403,6 +1403,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->no_remote_charset = conf_get_int(term->conf, CONF_no_remote_charset);
     term->no_remote_resize = conf_get_int(term->conf, CONF_no_remote_resize);
     term->no_remote_wintitle = conf_get_int(term->conf, CONF_no_remote_wintitle);
+    term->no_remote_clearscroll = conf_get_int(term->conf, CONF_no_remote_clearscroll);
     term->rawcnp = conf_get_int(term->conf, CONF_rawcnp);
     term->rect_select = conf_get_int(term->conf, CONF_rect_select);
     term->remote_qtitle_action = conf_get_int(term->conf, CONF_remote_qtitle_action);
@@ -2575,7 +2576,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 10:		       /* DECEDM: set local edit mode */
 	    term->term_editing = state;
 	    if (term->ldisc)	       /* cause ldisc to notice changes */
-		ldisc_send(term->ldisc, NULL, 0, 0);
+		ldisc_echoedit_update(term->ldisc);
 	    break;
 	  case 25:		       /* DECTCEM: enable/disable cursor */
 	    compatibility2(OTHER, VT220);
@@ -2639,7 +2640,7 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 12:		       /* SRM: set echo mode */
 	    term->term_echoing = !state;
 	    if (term->ldisc)	       /* cause ldisc to notice changes */
-		ldisc_send(term->ldisc, NULL, 0, 0);
+		ldisc_echoedit_update(term->ldisc);
 	    break;
 	  case 20:		       /* LNM: Return sends ... */
 	    term->cr_lf_return = state;
@@ -3362,7 +3363,7 @@ static void term_out(Terminal *term)
 		    compatibility(VT100);
 		    power_on(term, TRUE);
 		    if (term->ldisc)   /* cause ldisc to notice changes */
-			ldisc_send(term->ldisc, NULL, 0, 0);
+			ldisc_echoedit_update(term->ldisc);
 		    if (term->reset_132) {
 			if (!term->no_remote_resize)
 			    request_resize(term->frontend, 80, term->rows);
@@ -3606,7 +3607,8 @@ static void term_out(Terminal *term)
 			    if (i == 3) {
 				/* Erase Saved Lines (xterm)
 				 * This follows Thomas Dickey's xterm. */
-				term_clrsb(term);
+                                if (!term->no_remote_clearscroll)
+                                    term_clrsb(term);
 			    } else {
 				i++;
 				if (i > 3)
@@ -3965,7 +3967,8 @@ static void term_out(Terminal *term)
 
 			    switch (term->esc_args[0]) {
 				int x, y, len;
-				char buf[80], *p;
+				char buf[80];
+                                const char *p;
 			      case 1:
 				set_iconic(term->frontend, FALSE);
 				break;
@@ -4724,7 +4727,7 @@ static void term_out(Terminal *term)
     }
 
     term_print_flush(term);
-    if (term->logflush)
+    if (term->logflush && term->logctx)
 	logflush(term->logctx);
 }
 
@@ -5444,7 +5447,7 @@ typedef struct {
 static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr)
 {
     if (b->bufpos >= b->buflen) {
-	b->buflen += 128;
+	b->buflen *= 2;
 	b->textbuf = sresize(b->textbuf, b->buflen, wchar_t);
 	b->textptr = b->textbuf + b->bufpos;
 	b->attrbuf = sresize(b->attrbuf, b->buflen, int);
@@ -6079,7 +6082,8 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	    } else if (c <= 223 && r <= 223) {
 		len = sprintf(abuf, "\033[M%c%c%c", encstate + 32, c + 32, r + 32);
 	    }
-	    ldisc_send(term->ldisc, abuf, len, 0);
+            if (len > 0)
+                ldisc_send(term->ldisc, abuf, len, 0);
 	}
 	return;
     }
@@ -6113,6 +6117,19 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	sel_spread(term);
     } else if ((bcooked == MBT_SELECT && a == MA_DRAG) ||
 	       (bcooked == MBT_EXTEND && a != MA_RELEASE)) {
+        if (a == MA_DRAG &&
+            (term->selstate == NO_SELECTION || term->selstate == SELECTED)) {
+            /*
+             * This can happen if a front end has passed us a MA_DRAG
+             * without a prior MA_CLICK. OS X GTK does so, for
+             * example, if the initial button press was eaten by the
+             * WM when it activated the window in the first place. The
+             * nicest thing to do in this situation is to ignore
+             * further drags, and wait for the user to click in the
+             * window again properly if they want to select.
+             */
+            return;
+        }
 	if (term->selstate == ABOUT_TO && poseq(term->selanchor, selpoint))
 	    return;
 	if (bcooked == MBT_EXTEND && a != MA_DRAG &&
@@ -6356,9 +6373,11 @@ void term_set_focus(Terminal *term, int has_focus)
  */
 char *term_get_ttymode(Terminal *term, const char *mode)
 {
-    char *val = NULL;
+    const char *val = NULL;
     if (strcmp(mode, "ERASE") == 0) {
 	val = term->bksp_is_delete ? "^?" : "^H";
+    } else if (strcmp(mode, "IUTF8") == 0) {
+	val = frontend_is_utf8(term->frontend) ? "yes" : "no";
     }
     /* FIXME: perhaps we should set ONLCR based on lfhascr as well? */
     /* FIXME: or ECHO and friends based on local echo state? */
@@ -6376,7 +6395,7 @@ struct term_userpass_state {
  * input.
  */
 int term_get_userpass_input(Terminal *term, prompts_t *p,
-			    unsigned char *in, int inlen)
+			    const unsigned char *in, int inlen)
 {
     struct term_userpass_state *s = (struct term_userpass_state *)p->data;
     if (!s) {

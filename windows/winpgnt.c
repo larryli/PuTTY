@@ -15,6 +15,7 @@
 #include "misc.h"
 #include "tree234.h"
 #include "winsecur.h"
+#include "pageant.h"
 #include "licence.h"
 
 #include <shellapi.h>
@@ -35,11 +36,6 @@
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 
-/*
- * FIXME: maybe some day we can sort this out ...
- */
-#define AGENT_MAX_MSGLEN  8192
-
 /* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
  * wParam are used by Windows, and should be masked off, so we shouldn't
  * attempt to store information in them. Hence all these identifiers have
@@ -53,7 +49,7 @@
 
 #define APPNAME "Pageant"
 
-extern char ver[];
+extern const char ver[];
 
 static HWND keylist;
 static HWND aboutbox;
@@ -75,7 +71,7 @@ static int initial_menuitems_count;
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
-void modalfatalbox(char *fmt, ...)
+void modalfatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *buf;
@@ -115,71 +111,17 @@ static void unmungestr(char *in, char *out, int outlen)
     return;
 }
 
-static tree234 *rsakeys, *ssh2keys;
-
 static int has_security;
-
-/*
- * Forward references
- */
-static void *make_keylist1(int *length);
-static void *make_keylist2(int *length);
-static void *get_keylist1(int *length);
-static void *get_keylist2(int *length);
-
-/*
- * We need this to link with the RSA code, because rsaencrypt()
- * pads its data with random bytes. Since we only use rsadecrypt()
- * and the signing functions, which are deterministic, this should
- * never be called.
- *
- * If it _is_ called, there is a _serious_ problem, because it
- * won't generate true random numbers. So we must scream, panic,
- * and exit immediately if that should happen.
- */
-int random_byte(void)
-{
-    MessageBox(hwnd, "内部错误", APPNAME, MB_OK | MB_ICONERROR);
-    exit(0);
-    /* this line can't be reached but it placates MSVC's warnings :-) */
-    return 0;
-}
-
-/*
- * Blob structure for passing to the asymmetric SSH-2 key compare
- * function, prototyped here.
- */
-struct blob {
-    unsigned char *blob;
-    int len;
-};
-static int cmpkeys_ssh2_asymm(void *av, void *bv);
 
 struct PassphraseProcStruct {
     char **passphrase;
     char *comment;
 };
 
-static tree234 *passphrases = NULL;
-
-/* 
- * After processing a list of filenames, we want to forget the
- * passphrases.
- */
-static void forget_passphrases(void)
-{
-    while (count234(passphrases) > 0) {
-	char *pp = index234(passphrases, 0);
-	smemclr(pp, strlen(pp));
-	delpos234(passphrases, 0);
-	free(pp);
-    }
-}
-
 /*
  * Dialog-box function for the Licence box.
  */
-static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
@@ -204,16 +146,18 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 /*
  * Dialog-box function for the About box.
  */
-static int CALLBACK AboutProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 			      WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG:
         {
+            char *buildinfo_text = buildinfo("\r\n");
             char *text = dupprintf
-                ("Pageant\r\n\r\n%s\r\n\r\n%s",
-                 ver,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+                ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+                 ver, buildinfo_text,
+                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
+            sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
             sfree(text);
         }
@@ -246,7 +190,7 @@ static HWND passphrase_box;
 /*
  * Dialog-box function for the passphrase box.
  */
-static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam)
 {
     static char **passphrase = NULL;
@@ -330,7 +274,7 @@ void old_keyfile_warning(void)
 /*
  * Update the visible key list.
  */
-static void keylist_update(void)
+void keylist_update(void)
 {
     struct RSAKey *rkey;
     struct ssh2_userkey *skey;
@@ -338,7 +282,7 @@ static void keylist_update(void)
 
     if (keylist) {
 	SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
-	for (i = 0; NULL != (rkey = index234(rsakeys, i)); i++) {
+	for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
 	    char listentry[512], *p;
 	    /*
 	     * Replace two spaces in the fingerprint with tabs, for
@@ -356,24 +300,66 @@ static void keylist_update(void)
 	    SendDlgItemMessage(keylist, 100, LB_ADDSTRING,
 			       0, (LPARAM) listentry);
 	}
-	for (i = 0; NULL != (skey = index234(ssh2keys, i)); i++) {
+	for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
 	    char *listentry, *p;
-	    int fp_len;
-	    /*
-	     * Replace two spaces in the fingerprint with tabs, for
-	     * nice alignment in the box.
-	     */
-	    p = skey->alg->fingerprint(skey->data);
+	    int pos;
+
+            /*
+             * For nice alignment in the list box, we would ideally
+             * want every entry to align to the tab stop settings, and
+             * have a column for algorithm name, one for bit count,
+             * one for hex fingerprint, and one for key comment.
+             *
+             * Unfortunately, some of the algorithm names are so long
+             * that they overflow into the bit-count field.
+             * Fortunately, at the moment, those are _precisely_ the
+             * algorithm names that don't need a bit count displayed
+             * anyway (because for NIST-style ECDSA the bit count is
+             * mentioned in the algorithm name, and for ssh-ed25519
+             * there is only one possible value anyway). So we fudge
+             * this by simply omitting the bit count field in that
+             * situation.
+             *
+             * This is fragile not only in the face of further key
+             * types that don't follow this pattern, but also in the
+             * face of font metrics changes - the Windows semantics
+             * for list box tab stops is that \t aligns to the next
+             * one you haven't already exceeded, so I have to guess
+             * when the key type will overflow past the bit-count tab
+             * stop and leave out a tab character. Urgh.
+             */
+
+	    p = ssh2_fingerprint(skey->alg, skey->data);
             listentry = dupprintf("%s\t%s", p, skey->comment);
-            fp_len = strlen(listentry);
             sfree(p);
 
-	    p = strchr(listentry, ' ');
-	    if (p && p < listentry + fp_len)
-		*p = '\t';
-	    p = strchr(listentry, ' ');
-	    if (p && p < listentry + fp_len)
-		*p = '\t';
+            pos = 0;
+            while (1) {
+                pos += strcspn(listentry + pos, " :");
+                if (listentry[pos] == ':' || !listentry[pos])
+                    break;
+                listentry[pos++] = '\t';
+            }
+            if (skey->alg != &ssh_dss && skey->alg != &ssh_rsa) {
+                /*
+                 * Remove the bit-count field, which is between the
+                 * first and second \t.
+                 */
+                int outpos;
+                pos = 0;
+                while (listentry[pos] && listentry[pos] != '\t')
+                    pos++;
+                outpos = pos;
+                pos++;
+                while (listentry[pos] && listentry[pos] != '\t')
+                    pos++;
+                while (1) {
+                    if ((listentry[outpos] = listentry[pos]) == '\0')
+                        break;
+                    outpos++;
+                    pos++;
+                }
+            }
 
 	    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
 			       (LPARAM) listentry);
@@ -383,1050 +369,95 @@ static void keylist_update(void)
     }
 }
 
-/*
- * This function loads a key from a file and adds it.
- */
-static void add_keyfile(Filename *filename)
+static void answer_msg(void *msgv)
 {
-    char *passphrase;
-    struct RSAKey *rkey = NULL;
-    struct ssh2_userkey *skey = NULL;
-    int needs_pass;
+    unsigned char *msg = (unsigned char *)msgv;
+    unsigned msglen;
+    void *reply;
+    int replylen;
+
+    msglen = GET_32BIT(msg);
+    if (msglen > AGENT_MAX_MSGLEN) {
+        reply = pageant_failure_msg(&replylen);
+    } else {
+        reply = pageant_handle_msg(msg + 4, msglen, &replylen, NULL, NULL);
+        if (replylen > AGENT_MAX_MSGLEN) {
+            smemclr(reply, replylen);
+            sfree(reply);
+            reply = pageant_failure_msg(&replylen);
+        }
+    }
+
+    /*
+     * Windows Pageant answers messages in place, by overwriting the
+     * input message buffer.
+     */
+    memcpy(msg, reply, replylen);
+    smemclr(reply, replylen);
+    sfree(reply);
+}
+
+static void win_add_keyfile(Filename *filename)
+{
+    char *err;
     int ret;
-    int attempts;
-    char *comment;
-    const char *error = NULL;
-    int type;
-    int original_pass;
-	
-    type = key_type(filename);
-    if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
-	char *msg = dupprintf("无法载入该密钥 (%S)",
-			      key_type_to_str(type));
-	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-		    HELPCTXID(errors_cantloadkey));
-	sfree(msg);
-	return;
+    char *passphrase = NULL;
+
+    /*
+     * Try loading the key without a passphrase. (Or rather, without a
+     * _new_ passphrase; pageant_add_keyfile will take care of trying
+     * all the passphrases we've already stored.)
+     */
+    ret = pageant_add_keyfile(filename, NULL, &err);
+    if (ret == PAGEANT_ACTION_OK) {
+        goto done;
+    } else if (ret == PAGEANT_ACTION_FAILURE) {
+        goto error;
     }
 
     /*
-     * See if the key is already loaded (in the primary Pageant,
-     * which may or may not be us).
+     * OK, a passphrase is needed, and we've been given the key
+     * comment to use in the passphrase prompt.
      */
-    {
-	void *blob;
-	unsigned char *keylist, *p;
-	int i, nkeys, bloblen, keylistlen;
+    while (1) {
+        INT_PTR dlgret;
+        struct PassphraseProcStruct pps;
 
-	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(filename, &blob, &bloblen, NULL, &error)) {
-		char *msg = dupprintf("无法载入私钥 (%s)", error);
-		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-			    HELPCTXID(errors_cantloadkey));
-		sfree(msg);
-		return;
-	    }
-	    keylist = get_keylist1(&keylistlen);
-	} else {
-	    unsigned char *blob2;
-	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen,
-					NULL, &error);
-	    if (!blob) {
-		char *msg = dupprintf("无法载入私钥 (%s)", error);
-		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-			    HELPCTXID(errors_cantloadkey));
-		sfree(msg);
-		return;
-	    }
-	    /* For our purposes we want the blob prefixed with its length */
-	    blob2 = snewn(bloblen+4, unsigned char);
-	    PUT_32BIT(blob2, bloblen);
-	    memcpy(blob2 + 4, blob, bloblen);
-	    sfree(blob);
-	    blob = blob2;
+        pps.passphrase = &passphrase;
+        pps.comment = err;
+        dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
+                                NULL, PassphraseProc, (LPARAM) &pps);
+        passphrase_box = NULL;
 
-	    keylist = get_keylist2(&keylistlen);
-	}
-	if (keylist) {
-	    if (keylistlen < 4) {
-		MessageBox(NULL, "Received broken key list?!", APPNAME,
-			   MB_OK | MB_ICONERROR);
-		return;
-	    }
-	    nkeys = toint(GET_32BIT(keylist));
-	    if (nkeys < 0) {
-		MessageBox(NULL, "Received broken key list?!", APPNAME,
-			   MB_OK | MB_ICONERROR);
-		return;
-	    }
-	    p = keylist + 4;
-	    keylistlen -= 4;
+        if (!dlgret)
+            goto done;		       /* operation cancelled */
 
-	    for (i = 0; i < nkeys; i++) {
-		if (!memcmp(blob, p, bloblen)) {
-		    /* Key is already present; we can now leave. */
-		    sfree(keylist);
-		    sfree(blob);
-		    return;
-		}
-		/* Now skip over public blob */
-		if (type == SSH_KEYTYPE_SSH1) {
-		    int n = rsa_public_blob_len(p, keylistlen);
-		    if (n < 0) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    p += n;
-		    keylistlen -= n;
-		} else {
-		    int n;
-		    if (keylistlen < 4) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    n = toint(4 + GET_32BIT(p));
-		    if (n < 0 || keylistlen < n) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    p += n;
-		    keylistlen -= n;
-		}
-		/* Now skip over comment field */
-		{
-		    int n;
-		    if (keylistlen < 4) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    n = toint(4 + GET_32BIT(p));
-		    if (n < 0 || keylistlen < n) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    p += n;
-		    keylistlen -= n;
-		}
-	    }
+        sfree(err);
 
-	    sfree(keylist);
-	}
+        assert(passphrase != NULL);
 
-	sfree(blob);
-    }
+        ret = pageant_add_keyfile(filename, passphrase, &err);
+        if (ret == PAGEANT_ACTION_OK) {
+            goto done;
+        } else if (ret == PAGEANT_ACTION_FAILURE) {
+            goto error;
+        }
 
-    error = NULL;
-    if (type == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(filename, &comment);
-    else
-	needs_pass = ssh2_userkey_encrypted(filename, &comment);
-    attempts = 0;
-    if (type == SSH_KEYTYPE_SSH1)
-	rkey = snew(struct RSAKey);
-    passphrase = NULL;
-    original_pass = 0;
-    do {
-        burnstr(passphrase);
+        smemclr(passphrase, strlen(passphrase));
+        sfree(passphrase);
         passphrase = NULL;
-
-	if (needs_pass) {
-	    /* try all the remembered passphrases first */
-	    char *pp = index234(passphrases, attempts);
-	    if(pp) {
-		passphrase = dupstr(pp);
-	    } else {
-		int dlgret;
-                struct PassphraseProcStruct pps;
-
-                pps.passphrase = &passphrase;
-                pps.comment = comment;
-
-		original_pass = 1;
-		dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
-					NULL, PassphraseProc, (LPARAM) &pps);
-		passphrase_box = NULL;
-		if (!dlgret) {
-		    if (comment)
-			sfree(comment);
-		    if (type == SSH_KEYTYPE_SSH1)
-			sfree(rkey);
-		    return;		       /* operation cancelled */
-		}
-
-                assert(passphrase != NULL);
-	    }
-	} else
-	    passphrase = dupstr("");
-
-	if (type == SSH_KEYTYPE_SSH1)
-	    ret = loadrsakey(filename, rkey, passphrase, &error);
-	else {
-	    skey = ssh2_load_userkey(filename, passphrase, &error);
-	    if (skey == SSH2_WRONG_PASSPHRASE)
-		ret = -1;
-	    else if (!skey)
-		ret = 0;
-	    else
-		ret = 1;
-	}
-	attempts++;
-    } while (ret == -1);
-
-    if(original_pass && ret) {
-        /* If they typed in an ok passphrase, remember it */
-	addpos234(passphrases, passphrase, 0);
-    } else {
-        /* Otherwise, destroy it */
-        burnstr(passphrase);
-    }
-    passphrase = NULL;
-
-    if (comment)
-	sfree(comment);
-    if (ret == 0) {
-	char *msg = dupprintf("无法载入私钥 (%s)", error);
-	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-		    HELPCTXID(errors_cantloadkey));
-	sfree(msg);
-	if (type == SSH_KEYTYPE_SSH1)
-	    sfree(rkey);
-	return;
-    }
-    if (type == SSH_KEYTYPE_SSH1) {
-	if (already_running) {
-	    unsigned char *request, *response;
-	    void *vresponse;
-	    int reqlen, clen, resplen, ret;
-
-	    clen = strlen(rkey->comment);
-
-	    reqlen = 4 + 1 +	       /* length, message type */
-		4 +		       /* bit count */
-		ssh1_bignum_length(rkey->modulus) +
-		ssh1_bignum_length(rkey->exponent) +
-		ssh1_bignum_length(rkey->private_exponent) +
-		ssh1_bignum_length(rkey->iqmp) +
-		ssh1_bignum_length(rkey->p) +
-		ssh1_bignum_length(rkey->q) + 4 + clen	/* comment */
-		;
-
-	    request = snewn(reqlen, unsigned char);
-
-	    request[4] = SSH1_AGENTC_ADD_RSA_IDENTITY;
-	    reqlen = 5;
-	    PUT_32BIT(request + reqlen, bignum_bitcount(rkey->modulus));
-	    reqlen += 4;
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->modulus);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->exponent);
-	    reqlen +=
-		ssh1_write_bignum(request + reqlen,
-				  rkey->private_exponent);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->iqmp);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->p);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->q);
-	    PUT_32BIT(request + reqlen, clen);
-	    memcpy(request + reqlen + 4, rkey->comment, clen);
-	    reqlen += 4 + clen;
-	    PUT_32BIT(request, reqlen - 4);
-
-	    ret = agent_query(request, reqlen, &vresponse, &resplen,
-			      NULL, NULL);
-	    assert(ret == 1);
-	    response = vresponse;
-	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "Pageant 已经运行"
-			   "不能增加该密钥。", APPNAME,
-			   MB_OK | MB_ICONERROR);
-
-	    sfree(request);
-	    sfree(response);
-	} else {
-	    if (add234(rsakeys, rkey) != rkey)
-		sfree(rkey);	       /* already present, don't waste RAM */
-	}
-    } else {
-	if (already_running) {
-	    unsigned char *request, *response;
-	    void *vresponse;
-	    int reqlen, alglen, clen, keybloblen, resplen, ret;
-	    alglen = strlen(skey->alg->name);
-	    clen = strlen(skey->comment);
-
-	    keybloblen = skey->alg->openssh_fmtkey(skey->data, NULL, 0);
-
-	    reqlen = 4 + 1 +	       /* length, message type */
-		4 + alglen +	       /* algorithm name */
-		keybloblen +	       /* key data */
-		4 + clen	       /* comment */
-		;
-
-	    request = snewn(reqlen, unsigned char);
-
-	    request[4] = SSH2_AGENTC_ADD_IDENTITY;
-	    reqlen = 5;
-	    PUT_32BIT(request + reqlen, alglen);
-	    reqlen += 4;
-	    memcpy(request + reqlen, skey->alg->name, alglen);
-	    reqlen += alglen;
-	    reqlen += skey->alg->openssh_fmtkey(skey->data,
-						request + reqlen,
-						keybloblen);
-	    PUT_32BIT(request + reqlen, clen);
-	    memcpy(request + reqlen + 4, skey->comment, clen);
-	    reqlen += clen + 4;
-	    PUT_32BIT(request, reqlen - 4);
-
-	    ret = agent_query(request, reqlen, &vresponse, &resplen,
-			      NULL, NULL);
-	    assert(ret == 1);
-	    response = vresponse;
-	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "Pageant 已经运行"
-			   "不能增加该密钥。", APPNAME,
-			   MB_OK | MB_ICONERROR);
-
-	    sfree(request);
-	    sfree(response);
-	} else {
-	    if (add234(ssh2keys, skey) != skey) {
-		skey->alg->freekey(skey->data);
-		sfree(skey);	       /* already present, don't waste RAM */
-	    }
-	}
-    }
-}
-
-/*
- * Create an SSH-1 key list in a malloc'ed buffer; return its
- * length.
- */
-static void *make_keylist1(int *length)
-{
-    int i, nkeys, len;
-    struct RSAKey *key;
-    unsigned char *blob, *p, *ret;
-    int bloblen;
-
-    /*
-     * Count up the number and length of keys we hold.
-     */
-    len = 4;
-    nkeys = 0;
-    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
-	nkeys++;
-	blob = rsa_public_blob(key, &bloblen);
-	len += bloblen;
-	sfree(blob);
-	len += 4 + strlen(key->comment);
     }
 
-    /* Allocate the buffer. */
-    p = ret = snewn(len, unsigned char);
-    if (length) *length = len;
-
-    PUT_32BIT(p, nkeys);
-    p += 4;
-    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
-	blob = rsa_public_blob(key, &bloblen);
-	memcpy(p, blob, bloblen);
-	p += bloblen;
-	sfree(blob);
-	PUT_32BIT(p, strlen(key->comment));
-	memcpy(p + 4, key->comment, strlen(key->comment));
-	p += 4 + strlen(key->comment);
+  error:
+    message_box(err, APPNAME, MB_OK | MB_ICONERROR,
+                HELPCTXID(errors_cantloadkey));
+  done:
+    if (passphrase) {
+        smemclr(passphrase, strlen(passphrase));
+        sfree(passphrase);
     }
-
-    assert(p - ret == len);
-    return ret;
-}
-
-/*
- * Create an SSH-2 key list in a malloc'ed buffer; return its
- * length.
- */
-static void *make_keylist2(int *length)
-{
-    struct ssh2_userkey *key;
-    int i, len, nkeys;
-    unsigned char *blob, *p, *ret;
-    int bloblen;
-
-    /*
-     * Count up the number and length of keys we hold.
-     */
-    len = 4;
-    nkeys = 0;
-    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
-	nkeys++;
-	len += 4;	       /* length field */
-	blob = key->alg->public_blob(key->data, &bloblen);
-	len += bloblen;
-	sfree(blob);
-	len += 4 + strlen(key->comment);
-    }
-
-    /* Allocate the buffer. */
-    p = ret = snewn(len, unsigned char);
-    if (length) *length = len;
-
-    /*
-     * Packet header is the obvious five bytes, plus four
-     * bytes for the key count.
-     */
-    PUT_32BIT(p, nkeys);
-    p += 4;
-    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
-	blob = key->alg->public_blob(key->data, &bloblen);
-	PUT_32BIT(p, bloblen);
-	p += 4;
-	memcpy(p, blob, bloblen);
-	p += bloblen;
-	sfree(blob);
-	PUT_32BIT(p, strlen(key->comment));
-	memcpy(p + 4, key->comment, strlen(key->comment));
-	p += 4 + strlen(key->comment);
-    }
-
-    assert(p - ret == len);
-    return ret;
-}
-
-/*
- * Acquire a keylist1 from the primary Pageant; this means either
- * calling make_keylist1 (if that's us) or sending a message to the
- * primary Pageant (if it's not).
- */
-static void *get_keylist1(int *length)
-{
-    void *ret;
-
-    if (already_running) {
-	unsigned char request[5], *response;
-	void *vresponse;
-	int resplen, retval;
-	request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
-	PUT_32BIT(request, 4);
-
-	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
-	assert(retval == 1);
-	response = vresponse;
-	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
-            sfree(response);
-	    return NULL;
-        }
-
-	ret = snewn(resplen-5, unsigned char);
-	memcpy(ret, response+5, resplen-5);
-	sfree(response);
-
-	if (length)
-	    *length = resplen-5;
-    } else {
-	ret = make_keylist1(length);
-    }
-    return ret;
-}
-
-/*
- * Acquire a keylist2 from the primary Pageant; this means either
- * calling make_keylist2 (if that's us) or sending a message to the
- * primary Pageant (if it's not).
- */
-static void *get_keylist2(int *length)
-{
-    void *ret;
-
-    if (already_running) {
-	unsigned char request[5], *response;
-	void *vresponse;
-	int resplen, retval;
-
-	request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
-	PUT_32BIT(request, 4);
-
-	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
-	assert(retval == 1);
-	response = vresponse;
-	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER) {
-            sfree(response);
-	    return NULL;
-        }
-
-	ret = snewn(resplen-5, unsigned char);
-	memcpy(ret, response+5, resplen-5);
-	sfree(response);
-
-	if (length)
-	    *length = resplen-5;
-    } else {
-	ret = make_keylist2(length);
-    }
-    return ret;
-}
-
-/*
- * This is the main agent function that answers messages.
- */
-static void answer_msg(void *msg)
-{
-    unsigned char *p = msg;
-    unsigned char *ret = msg;
-    unsigned char *msgend;
-    int type;
-
-    /*
-     * Get the message length.
-     */
-    msgend = p + 4 + GET_32BIT(p);
-
-    /*
-     * Get the message type.
-     */
-    if (msgend < p+5)
-	goto failure;
-    type = p[4];
-
-    p += 5;
-    switch (type) {
-      case SSH1_AGENTC_REQUEST_RSA_IDENTITIES:
-	/*
-	 * Reply with SSH1_AGENT_RSA_IDENTITIES_ANSWER.
-	 */
-	{
-	    int len;
-	    void *keylist;
-
-	    ret[4] = SSH1_AGENT_RSA_IDENTITIES_ANSWER;
-	    keylist = make_keylist1(&len);
-	    if (len + 5 > AGENT_MAX_MSGLEN) {
-		sfree(keylist);
-		goto failure;
-	    }
-	    PUT_32BIT(ret, len + 1);
-	    memcpy(ret + 5, keylist, len);
-	    sfree(keylist);
-	}
-	break;
-      case SSH2_AGENTC_REQUEST_IDENTITIES:
-	/*
-	 * Reply with SSH2_AGENT_IDENTITIES_ANSWER.
-	 */
-	{
-	    int len;
-	    void *keylist;
-
-	    ret[4] = SSH2_AGENT_IDENTITIES_ANSWER;
-	    keylist = make_keylist2(&len);
-	    if (len + 5 > AGENT_MAX_MSGLEN) {
-		sfree(keylist);
-		goto failure;
-	    }
-	    PUT_32BIT(ret, len + 1);
-	    memcpy(ret + 5, keylist, len);
-	    sfree(keylist);
-	}
-	break;
-      case SSH1_AGENTC_RSA_CHALLENGE:
-	/*
-	 * Reply with either SSH1_AGENT_RSA_RESPONSE or
-	 * SSH_AGENT_FAILURE, depending on whether we have that key
-	 * or not.
-	 */
-	{
-	    struct RSAKey reqkey, *key;
-	    Bignum challenge, response;
-	    unsigned char response_source[48], response_md5[16];
-	    struct MD5Context md5c;
-	    int i, len;
-
-	    p += 4;
-	    i = ssh1_read_bignum(p, msgend - p, &reqkey.exponent);
-	    if (i < 0)
-		goto failure;
-	    p += i;
-	    i = ssh1_read_bignum(p, msgend - p, &reqkey.modulus);
-	    if (i < 0) {
-                freebn(reqkey.exponent);
-		goto failure;
-            }
-	    p += i;
-	    i = ssh1_read_bignum(p, msgend - p, &challenge);
-	    if (i < 0) {
-                freebn(reqkey.exponent);
-                freebn(reqkey.modulus);
-		goto failure;
-            }
-	    p += i;
-	    if (msgend < p+16) {
-		freebn(reqkey.exponent);
-		freebn(reqkey.modulus);
-		freebn(challenge);
-		goto failure;
-	    }
-	    memcpy(response_source + 32, p, 16);
-	    p += 16;
-	    if (msgend < p+4 ||
-		GET_32BIT(p) != 1 ||
-		(key = find234(rsakeys, &reqkey, NULL)) == NULL) {
-		freebn(reqkey.exponent);
-		freebn(reqkey.modulus);
-		freebn(challenge);
-		goto failure;
-	    }
-	    response = rsadecrypt(challenge, key);
-	    for (i = 0; i < 32; i++)
-		response_source[i] = bignum_byte(response, 31 - i);
-
-	    MD5Init(&md5c);
-	    MD5Update(&md5c, response_source, 48);
-	    MD5Final(response_md5, &md5c);
-	    smemclr(response_source, 48);	/* burn the evidence */
-	    freebn(response);	       /* and that evidence */
-	    freebn(challenge);	       /* yes, and that evidence */
-	    freebn(reqkey.exponent);   /* and free some memory ... */
-	    freebn(reqkey.modulus);    /* ... while we're at it. */
-
-	    /*
-	     * Packet is the obvious five byte header, plus sixteen
-	     * bytes of MD5.
-	     */
-	    len = 5 + 16;
-	    PUT_32BIT(ret, len - 4);
-	    ret[4] = SSH1_AGENT_RSA_RESPONSE;
-	    memcpy(ret + 5, response_md5, 16);
-	}
-	break;
-      case SSH2_AGENTC_SIGN_REQUEST:
-	/*
-	 * Reply with either SSH2_AGENT_SIGN_RESPONSE or
-	 * SSH_AGENT_FAILURE, depending on whether we have that key
-	 * or not.
-	 */
-	{
-	    struct ssh2_userkey *key;
-	    struct blob b;
-	    unsigned char *data, *signature;
-	    int datalen, siglen, len;
-
-	    if (msgend < p+4)
-		goto failure;
-	    b.len = toint(GET_32BIT(p));
-            if (b.len < 0 || b.len > msgend - (p+4))
-                goto failure;
-	    p += 4;
-	    b.blob = p;
-	    p += b.len;
-	    if (msgend < p+4)
-		goto failure;
-	    datalen = toint(GET_32BIT(p));
-	    p += 4;
-	    if (datalen < 0 || datalen > msgend - p)
-		goto failure;
-	    data = p;
-	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
-	    if (!key)
-		goto failure;
-	    signature = key->alg->sign(key->data, data, datalen, &siglen);
-	    len = 5 + 4 + siglen;
-	    PUT_32BIT(ret, len - 4);
-	    ret[4] = SSH2_AGENT_SIGN_RESPONSE;
-	    PUT_32BIT(ret + 5, siglen);
-	    memcpy(ret + 5 + 4, signature, siglen);
-	    sfree(signature);
-	}
-	break;
-      case SSH1_AGENTC_ADD_RSA_IDENTITY:
-	/*
-	 * Add to the list and return SSH_AGENT_SUCCESS, or
-	 * SSH_AGENT_FAILURE if the key was malformed.
-	 */
-	{
-	    struct RSAKey *key;
-	    char *comment;
-            int n, commentlen;
-
-	    key = snew(struct RSAKey);
-	    memset(key, 0, sizeof(struct RSAKey));
-
-	    n = makekey(p, msgend - p, key, NULL, 1);
-	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-	    p += n;
-
-	    n = makeprivate(p, msgend - p, key);
-	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-	    p += n;
-
-	    n = ssh1_read_bignum(p, msgend - p, &key->iqmp);  /* p^-1 mod q */
-	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-	    p += n;
-
-	    n = ssh1_read_bignum(p, msgend - p, &key->p);  /* p */
-	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-	    p += n;
-
-	    n = ssh1_read_bignum(p, msgend - p, &key->q);  /* q */
-	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-	    p += n;
-
-	    if (msgend < p+4) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-            commentlen = toint(GET_32BIT(p));
-
-	    if (commentlen < 0 || commentlen > msgend - p) {
-		freersakey(key);
-		sfree(key);
-		goto failure;
-	    }
-
-	    comment = snewn(commentlen+1, char);
-	    if (comment) {
-		memcpy(comment, p + 4, commentlen);
-                comment[commentlen] = '\0';
-		key->comment = comment;
-	    }
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
-	    if (add234(rsakeys, key) == key) {
-		keylist_update();
-		ret[4] = SSH_AGENT_SUCCESS;
-	    } else {
-		freersakey(key);
-		sfree(key);
-	    }
-	}
-	break;
-      case SSH2_AGENTC_ADD_IDENTITY:
-	/*
-	 * Add to the list and return SSH_AGENT_SUCCESS, or
-	 * SSH_AGENT_FAILURE if the key was malformed.
-	 */
-	{
-	    struct ssh2_userkey *key;
-	    char *comment, *alg;
-	    int alglen, commlen;
-	    int bloblen;
-
-
-	    if (msgend < p+4)
-		goto failure;
-	    alglen = toint(GET_32BIT(p));
-	    p += 4;
-	    if (alglen < 0 || alglen > msgend - p)
-		goto failure;
-	    alg = p;
-	    p += alglen;
-
-	    key = snew(struct ssh2_userkey);
-	    /* Add further algorithm names here. */
-	    if (alglen == 7 && !memcmp(alg, "ssh-rsa", 7))
-		key->alg = &ssh_rsa;
-	    else if (alglen == 7 && !memcmp(alg, "ssh-dss", 7))
-		key->alg = &ssh_dss;
-	    else {
-		sfree(key);
-		goto failure;
-	    }
-
-	    bloblen = msgend - p;
-	    key->data = key->alg->openssh_createkey(&p, &bloblen);
-	    if (!key->data) {
-		sfree(key);
-		goto failure;
-	    }
-
-	    /*
-	     * p has been advanced by openssh_createkey, but
-	     * certainly not _beyond_ the end of the buffer.
-	     */
-	    assert(p <= msgend);
-
-	    if (msgend < p+4) {
-		key->alg->freekey(key->data);
-		sfree(key);
-		goto failure;
-	    }
-	    commlen = toint(GET_32BIT(p));
-	    p += 4;
-
-	    if (commlen < 0 || commlen > msgend - p) {
-		key->alg->freekey(key->data);
-		sfree(key);
-		goto failure;
-	    }
-	    comment = snewn(commlen + 1, char);
-	    if (comment) {
-		memcpy(comment, p, commlen);
-		comment[commlen] = '\0';
-	    }
-	    key->comment = comment;
-
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
-	    if (add234(ssh2keys, key) == key) {
-		keylist_update();
-		ret[4] = SSH_AGENT_SUCCESS;
-	    } else {
-		key->alg->freekey(key->data);
-		sfree(key->comment);
-		sfree(key);
-	    }
-	}
-	break;
-      case SSH1_AGENTC_REMOVE_RSA_IDENTITY:
-	/*
-	 * Remove from the list and return SSH_AGENT_SUCCESS, or
-	 * perhaps SSH_AGENT_FAILURE if it wasn't in the list to
-	 * start with.
-	 */
-	{
-	    struct RSAKey reqkey, *key;
-	    int n;
-
-	    n = makekey(p, msgend - p, &reqkey, NULL, 0);
-	    if (n < 0)
-		goto failure;
-
-	    key = find234(rsakeys, &reqkey, NULL);
-	    freebn(reqkey.exponent);
-	    freebn(reqkey.modulus);
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
-	    if (key) {
-		del234(rsakeys, key);
-		keylist_update();
-		freersakey(key);
-		sfree(key);
-		ret[4] = SSH_AGENT_SUCCESS;
-	    }
-	}
-	break;
-      case SSH2_AGENTC_REMOVE_IDENTITY:
-	/*
-	 * Remove from the list and return SSH_AGENT_SUCCESS, or
-	 * perhaps SSH_AGENT_FAILURE if it wasn't in the list to
-	 * start with.
-	 */
-	{
-	    struct ssh2_userkey *key;
-	    struct blob b;
-
-	    if (msgend < p+4)
-		goto failure;
-	    b.len = toint(GET_32BIT(p));
-	    p += 4;
-
-	    if (b.len < 0 || b.len > msgend - p)
-		goto failure;
-	    b.blob = p;
-	    p += b.len;
-
-	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
-	    if (!key)
-		goto failure;
-
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
-	    if (key) {
-		del234(ssh2keys, key);
-		keylist_update();
-		key->alg->freekey(key->data);
-		sfree(key);
-		ret[4] = SSH_AGENT_SUCCESS;
-	    }
-	}
-	break;
-      case SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES:
-	/*
-	 * Remove all SSH-1 keys. Always returns success.
-	 */
-	{
-	    struct RSAKey *rkey;
-
-	    while ((rkey = index234(rsakeys, 0)) != NULL) {
-		del234(rsakeys, rkey);
-		freersakey(rkey);
-		sfree(rkey);
-	    }
-	    keylist_update();
-
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_SUCCESS;
-	}
-	break;
-      case SSH2_AGENTC_REMOVE_ALL_IDENTITIES:
-	/*
-	 * Remove all SSH-2 keys. Always returns success.
-	 */
-	{
-	    struct ssh2_userkey *skey;
-
-	    while ((skey = index234(ssh2keys, 0)) != NULL) {
-		del234(ssh2keys, skey);
-		skey->alg->freekey(skey->data);
-		sfree(skey);
-	    }
-	    keylist_update();
-
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_SUCCESS;
-	}
-	break;
-      default:
-      failure:
-	/*
-	 * Unrecognised message. Return SSH_AGENT_FAILURE.
-	 */
-	PUT_32BIT(ret, 1);
-	ret[4] = SSH_AGENT_FAILURE;
-	break;
-    }
-}
-
-/*
- * Key comparison function for the 2-3-4 tree of RSA keys.
- */
-static int cmpkeys_rsa(void *av, void *bv)
-{
-    struct RSAKey *a = (struct RSAKey *) av;
-    struct RSAKey *b = (struct RSAKey *) bv;
-    Bignum am, bm;
-    int alen, blen;
-
-    am = a->modulus;
-    bm = b->modulus;
-    /*
-     * Compare by length of moduli.
-     */
-    alen = bignum_bitcount(am);
-    blen = bignum_bitcount(bm);
-    if (alen > blen)
-	return +1;
-    else if (alen < blen)
-	return -1;
-    /*
-     * Now compare by moduli themselves.
-     */
-    alen = (alen + 7) / 8;	       /* byte count */
-    while (alen-- > 0) {
-	int abyte, bbyte;
-	abyte = bignum_byte(am, alen);
-	bbyte = bignum_byte(bm, alen);
-	if (abyte > bbyte)
-	    return +1;
-	else if (abyte < bbyte)
-	    return -1;
-    }
-    /*
-     * Give up.
-     */
-    return 0;
-}
-
-/*
- * Key comparison function for the 2-3-4 tree of SSH-2 keys.
- */
-static int cmpkeys_ssh2(void *av, void *bv)
-{
-    struct ssh2_userkey *a = (struct ssh2_userkey *) av;
-    struct ssh2_userkey *b = (struct ssh2_userkey *) bv;
-    int i;
-    int alen, blen;
-    unsigned char *ablob, *bblob;
-    int c;
-
-    /*
-     * Compare purely by public blob.
-     */
-    ablob = a->alg->public_blob(a->data, &alen);
-    bblob = b->alg->public_blob(b->data, &blen);
-
-    c = 0;
-    for (i = 0; i < alen && i < blen; i++) {
-	if (ablob[i] < bblob[i]) {
-	    c = -1;
-	    break;
-	} else if (ablob[i] > bblob[i]) {
-	    c = +1;
-	    break;
-	}
-    }
-    if (c == 0 && i < alen)
-	c = +1;			       /* a is longer */
-    if (c == 0 && i < blen)
-	c = -1;			       /* a is longer */
-
-    sfree(ablob);
-    sfree(bblob);
-
-    return c;
-}
-
-/*
- * Key comparison function for looking up a blob in the 2-3-4 tree
- * of SSH-2 keys.
- */
-static int cmpkeys_ssh2_asymm(void *av, void *bv)
-{
-    struct blob *a = (struct blob *) av;
-    struct ssh2_userkey *b = (struct ssh2_userkey *) bv;
-    int i;
-    int alen, blen;
-    unsigned char *ablob, *bblob;
-    int c;
-
-    /*
-     * Compare purely by public blob.
-     */
-    ablob = a->blob;
-    alen = a->len;
-    bblob = b->alg->public_blob(b->data, &blen);
-
-    c = 0;
-    for (i = 0; i < alen && i < blen; i++) {
-	if (ablob[i] < bblob[i]) {
-	    c = -1;
-	    break;
-	} else if (ablob[i] > bblob[i]) {
-	    c = +1;
-	    break;
-	}
-    }
-    if (c == 0 && i < alen)
-	c = +1;			       /* a is longer */
-    if (c == 0 && i < blen)
-	c = -1;			       /* a is longer */
-
-    sfree(bblob);
-
-    return c;
+    sfree(err);
+    return;
 }
 
 /*
@@ -1453,7 +484,7 @@ static void prompt_add_keyfile(void)
 	if(strlen(filelist) > of.nFileOffset) {
 	    /* Only one filename returned? */
             Filename *fn = filename_from_str(filelist);
-	    add_keyfile(fn);
+	    win_add_keyfile(fn);
             filename_free(fn);
         } else {
 	    /* we are returned a bunch of strings, end to
@@ -1466,7 +497,7 @@ static void prompt_add_keyfile(void)
 	    while (*filewalker != '\0') {
 		char *filename = dupcat(dir, "\\", filewalker, NULL);
                 Filename *fn = filename_from_str(filename);
-		add_keyfile(fn);
+		win_add_keyfile(fn);
                 filename_free(fn);
 		sfree(filename);
 		filewalker += strlen(filewalker) + 1;
@@ -1474,7 +505,7 @@ static void prompt_add_keyfile(void)
 	}
 
 	keylist_update();
-	forget_passphrases();
+	pageant_forget_passphrases();
     }
     sfree(filelist);
 }
@@ -1482,7 +513,7 @@ static void prompt_add_keyfile(void)
 /*
  * Dialog-box function for the key list box.
  */
-static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     struct RSAKey *rkey;
@@ -1517,7 +548,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
 	keylist = hwnd;
 	{
-	    static int tabs[] = { 35, 60, 210 };
+	    static int tabs[] = { 35, 75, 250 };
 	    SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
 			       sizeof(tabs) / sizeof(*tabs),
 			       (LPARAM) tabs);
@@ -1568,35 +599,35 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				numSelected, (WPARAM)selectedArray);
 		
 		itemNum = numSelected - 1;
-		rCount = count234(rsakeys);
-		sCount = count234(ssh2keys);
+		rCount = pageant_count_ssh1_keys();
+		sCount = pageant_count_ssh2_keys();
 		
 		/* go through the non-rsakeys until we've covered them all, 
 		 * and/or we're out of selected items to check. note that
 		 * we go *backwards*, to avoid complications from deleting
 		 * things hence altering the offset of subsequent items
 		 */
-	    for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
-			skey = index234(ssh2keys, i);
+                for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
+                    skey = pageant_nth_ssh2_key(i);
 			
-			if (selectedArray[itemNum] == rCount + i) {
-				del234(ssh2keys, skey);
-				skey->alg->freekey(skey->data);
-				sfree(skey);
-			   	itemNum--; 
-			}
+                    if (selectedArray[itemNum] == rCount + i) {
+                        pageant_delete_ssh2_key(skey);
+                        skey->alg->freekey(skey->data);
+                        sfree(skey);
+                        itemNum--;
+                    }
 		}
 		
 		/* do the same for the rsa keys */
 		for (i = rCount - 1; (itemNum >= 0) && (i >= 0); i--) {
-			rkey = index234(rsakeys, i);
+                    rkey = pageant_nth_ssh1_key(i);
 
-			if(selectedArray[itemNum] == i) {
-				del234(rsakeys, rkey);
-				freersakey(rkey);
-				sfree(rkey);
-				itemNum--;
-			}
+                    if(selectedArray[itemNum] == i) {
+                        pageant_delete_ssh1_key(rkey);
+                        freersakey(rkey);
+                        sfree(rkey);
+                        itemNum--;
+                    }
 		}
 
 		sfree(selectedArray); 
@@ -1614,7 +645,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
       case WM_HELP:
         {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
-            char *topic = NULL;
+            const char *topic = NULL;
             switch (id) {
               case 100: topic = WINHELP_CTX_pageant_keylist; break;
               case 101: topic = WINHELP_CTX_pageant_addkey; break;
@@ -1765,7 +796,6 @@ PSID get_default_sid(void)
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
-    int ret;
     static int menuinprogress;
     static UINT msgTaskbarCreated = 0;
 
@@ -1800,10 +830,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    menuinprogress = 1;
 	    update_sessions();
 	    SetForegroundWindow(hwnd);
-	    ret = TrackPopupMenu(systray_menu,
-				 TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
-				 TPM_RIGHTBUTTON,
-				 wParam, lParam, 0, hwnd, NULL);
+	    TrackPopupMenu(systray_menu,
+			   TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
+			   TPM_RIGHTBUTTON,
+			   wParam, lParam, 0, hwnd, NULL);
 	    menuinprogress = 0;
 	}
 	break;
@@ -1811,9 +841,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
 	  case IDM_PUTTY:
-	    if((int)ShellExecute(hwnd, NULL, putty_path, _T(""), _T(""),
+	    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, _T(""), _T(""),
 				 SW_SHOW) <= 32) {
-		MessageBox(NULL, "Unable to execute PuTTY!",
+		MessageBox(NULL, "无法执行 PuTTY！",
 			   "错误", MB_OK | MB_ICONERROR);
 	    }
 	    break;
@@ -1878,9 +908,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    GetMenuItemInfo(session_menu, wParam, FALSE, &mii);
 		    strcpy(param, "@");
 		    strcat(param, mii.dwTypeData);
-		    if((int)ShellExecute(hwnd, NULL, putty_path, param,
+		    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
 					 _T(""), SW_SHOW) <= 32) {
-			MessageBox(NULL, "Unable to execute PuTTY!", "错误",
+			MessageBox(NULL, "无法执行 PuTTY！", "错误",
 				   MB_OK | MB_ICONERROR);
 		    }
 		}
@@ -2005,7 +1035,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 /*
  * Fork and Exec the command in cmdline. [DBW]
  */
-void spawn_cmd(char *cmdline, char * args, int show)
+void spawn_cmd(const char *cmdline, const char *args, int show)
 {
     if (ShellExecute(NULL, _T("open"), cmdline,
 		     args, NULL, show) <= (HINSTANCE) 32) {
@@ -2039,10 +1069,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     WNDCLASS wndclass;
     MSG msg;
-    char *command = NULL;
+    const char *command = NULL;
     int added_keys = 0;
     int argc, i;
     char **argv, **argstart;
+
+    dll_hijacking_protection();
 
     hinst = inst;
     hwnd = NULL;
@@ -2053,7 +1085,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (!init_winver())
     {
-	modalfatalbox("Windows refuses to report a version");
+	modalfatalbox("Windows 拒绝报告版本");
     }
     if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) {
 	has_security = TRUE;
@@ -2113,17 +1145,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     already_running = agent_exists();
 
     /*
-     * Initialise storage for RSA keys.
+     * Initialise the cross-platform Pageant code.
      */
     if (!already_running) {
-	rsakeys = newtree234(cmpkeys_rsa);
-	ssh2keys = newtree234(cmpkeys_ssh2);
+        pageant_init();
     }
-
-    /*
-     * Initialise storage for short-term passphrase cache.
-     */
-    passphrases = newtree234(NULL);
 
     /*
      * Process the command line and add keys as listed on it.
@@ -2133,6 +1159,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	if (!strcmp(argv[i], "-pgpfp")) {
 	    pgp_fingerprints();
 	    return 1;
+        } else if (!strcmp(argv[i], "-restrict-acl") ||
+                   !strcmp(argv[i], "-restrict_acl") ||
+                   !strcmp(argv[i], "-restrictacl")) {
+            restrict_process_acl();
 	} else if (!strcmp(argv[i], "-c")) {
 	    /*
 	     * If we see `-c', then the rest of the
@@ -2146,7 +1176,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    break;
 	} else {
             Filename *fn = filename_from_str(argv[i]);
-	    add_keyfile(fn);
+	    win_add_keyfile(fn);
             filename_free(fn);
 	    added_keys = TRUE;
 	}
@@ -2156,7 +1186,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Forget any passphrase that we retained while going over
      * command line keyfiles.
      */
-    forget_passphrases();
+    pageant_forget_passphrases();
 
     if (command) {
 	char *args;
@@ -2215,7 +1245,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	session_menu = CreateMenu();
 	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "新会话(&N)");
 	AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
-		   (UINT) session_menu, "保存会话(&S)");
+		   (UINT_PTR) session_menu, "保存会话(&S)");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,

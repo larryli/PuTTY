@@ -58,6 +58,7 @@ void init_help(void)
 	HINSTANCE dllHH = load_system32_dll("hhctrl.ocx");
 	GET_WINDOWS_FUNCTION(dllHH, HtmlHelpA);
 	if (!p_HtmlHelpA) {
+            sfree(chm_path);
 	    chm_path = NULL;
 	    if (dllHH)
 		FreeLibrary(dllHH);
@@ -105,7 +106,7 @@ void launch_help(HWND hwnd, const char *topic)
 #endif /* NO_HTMLHELP */
 	if (help_path) {
 	    char *cmd = dupprintf("JI(`',`%.*s')", colonpos, topic);
-	    WinHelp(hwnd, help_path, HELP_COMMAND, (DWORD)cmd);
+	    WinHelp(hwnd, help_path, HELP_COMMAND, (ULONG_PTR)cmd);
 	    sfree(cmd);
 	}
     } else {

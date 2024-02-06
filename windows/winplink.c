@@ -11,6 +11,7 @@
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
+#include "winsecur.h"
 
 #define WM_AGENT_CALLBACK (WM_APP + 4)
 
@@ -21,7 +22,7 @@ struct agent_callback {
     int len;
 };
 
-void fatalbox(char *p, ...)
+void fatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -35,7 +36,7 @@ void fatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -49,7 +50,7 @@ void modalfatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
-void nonfatal(char *p, ...)
+void nonfatal(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "ERROR: ");
@@ -58,7 +59,7 @@ void nonfatal(char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
 }
-void connection_fatal(void *frontend, char *p, ...)
+void connection_fatal(void *frontend, const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -72,7 +73,7 @@ void connection_fatal(void *frontend, char *p, ...)
     }
     cleanup_exit(1);
 }
-void cmdline_error(char *p, ...)
+void cmdline_error(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "plink: ");
@@ -98,7 +99,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void ldisc_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     DWORD mode;
@@ -145,7 +146,7 @@ int from_backend_eof(void *frontend_handle)
     return FALSE;   /* do not respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);
@@ -182,46 +183,52 @@ static void usage(void)
     printf("  -v        显示详细信息\n");
     printf("  -load 会话名  载入保存的会话信息\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
-    printf("            force use of a particular protocol\n");
+    printf("            强制使用特定协议\n");
     printf("  -P 端口   连接指定的端口\n");
     printf("  -l 用户名 使用指定的用户名连接\n");
     printf("  -batch    禁止所有交互提示\n");
-    printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
-    printf("            Specify the serial configuration (serial only)\n");
-    printf("The following options only apply to SSH connections:\n");
+    printf("  -proxycmd 命令\n");
+    printf("            使用 '命令' 作为本地代理\n");
+    printf("  -sercfg 配置字符串 (例如: 19200,8,n,1,X)\n");
+    printf("            指定串口配置(仅限串口)\n");
+    printf("以下选项仅适用于 SSH 连接:\n");
     printf("  -pw 密码  使用指定的密码登录\n");
-    printf("  -D [listen-IP:]listen-port\n");
-    printf("            Dynamic SOCKS-based port forwarding\n");
-    printf("  -L [listen-IP:]listen-port:host:port\n");
-    printf("            Forward local port to remote address\n");
-    printf("  -R [listen-IP:]listen-port:host:port\n");
-    printf("            Forward remote port to local address\n");
-    printf("  -X -x     enable / disable X11 forwarding\n");
-    printf("  -A -a     enable / disable agent forwarding\n");
-    printf("  -t -T     enable / disable pty allocation\n");
-    printf("  -1 -2     force use of particular protocol version\n");
+    printf("  -D [监听-IP:]监听-端口\n");
+    printf("            基于 SOCKS 协议的动态端口转发\n");
+    printf("  -L [监听-IP:]监听-端口:主机:端口\n");
+    printf("            转发本地端口到远程地址\n");
+    printf("  -R [监听-IP:]监听-端口:主机:端口\n");
+    printf("            转发远程端口到本地地址\n");
+    printf("  -X -x     启禁用 X11 转发\n");
+    printf("  -A -a     启禁用 agent 转发\n");
+    printf("  -t -T     启禁用 pty 转发\n");
+    printf("  -1 -2     强制使用特定协议版本\n");
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
     printf("  -C        允许压缩\n");
     printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  disable use of Pageant\n");
-    printf("  -agent    enable use of Pageant\n");
+    printf("  -noagent  禁用 Pageant 认证代理\n");
+    printf("  -agent    启用 Pageant 认证代理\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            manually specify a host key (may be repeated)\n");
-    printf("  -m file   read remote command(s) from file\n");
-    printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
-    printf("  -N        don't start a shell/command (SSH-2 only)\n");
-    printf("  -nc host:port\n");
-    printf("            open tunnel in place of session (SSH-2 only)\n");
-    printf("  -sshlog file\n");
-    printf("  -sshrawlog file\n");
-    printf("            log protocol details to a file\n");
+    printf("            手动指定主机密钥(可能重复)\n");
+    printf("  -m 文件   从文件读取远程命令\n");
+    printf("  -s        SSH 子系统远程命令(仅限 SSH-2)\n");
+    printf("  -N        不启动 shell 或执行命令(仅限 SSH-2)\n");
+    printf("  -nc 主机:端口\n");
+    printf("            打开隧道代替会话(仅限 SSH-2)\n");
+    printf("  -sshlog 文件\n");
+    printf("  -sshrawlog 文件\n");
+    printf("            记录协议详细日志到指定文件\n");
+    printf("  -shareexists\n");
+    printf("            测试是否存在上游共享连接\n");
     exit(1);
 }
 
 static void version(void)
 {
-    printf("plink: %s\n", ver);
-    exit(1);
+    char *buildinfo_text = buildinfo("\n");
+    printf("plink: %s\n%s\n", ver, buildinfo_text);
+    sfree(buildinfo_text);
+    exit(0);
 }
 
 char *do_select(SOCKET skt, int startup)
@@ -306,7 +313,10 @@ int main(int argc, char **argv)
     int errors;
     int got_host = FALSE;
     int use_subsystem = 0;
+    int just_test_share_exists = FALSE;
     unsigned long now, next, then;
+
+    dll_hijacking_protection();
 
     sklist = NULL;
     skcount = sksize = 0;
@@ -367,6 +377,8 @@ int main(int argc, char **argv)
             } else if (!strcmp(p, "-pgpfp")) {
                 pgp_fingerprints();
                 exit(1);
+	    } else if (!strcmp(p, "-shareexists")) {
+                just_test_share_exists = TRUE;
 	    } else {
 		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
 		errors = 1;
@@ -596,8 +608,36 @@ int main(int argc, char **argv)
 	return 1;
     }
 
+    /*
+     * Plink doesn't provide any way to add forwardings after the
+     * connection is set up, so if there are none now, we can safely set
+     * the "simple" flag.
+     */
+    if (conf_get_int(conf, CONF_protocol) == PROT_SSH &&
+	!conf_get_int(conf, CONF_x11_forward) &&
+	!conf_get_int(conf, CONF_agentfwd) &&
+	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
+	conf_set_int(conf, CONF_ssh_simple, TRUE);
+
     logctx = log_init(NULL, conf);
     console_provide_logctx(logctx);
+
+    if (just_test_share_exists) {
+        if (!back->test_for_upstream) {
+            fprintf(stderr, "Connection sharing not supported for connection "
+                    "type '%s'\n", back->name);
+            return 1;
+        }
+        if (back->test_for_upstream(conf_get_str(conf, CONF_host),
+                                    conf_get_int(conf, CONF_port), conf))
+            return 0;
+        else
+            return 1;
+    }
+
+    if (restricted_acl) {
+	logevent(NULL, "Running with restricted process ACL");
+    }
 
     /*
      * Start up the connection.

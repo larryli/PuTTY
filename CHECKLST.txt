@@ -1,6 +1,29 @@
 Checklists for PuTTY administrative procedures
 ==============================================
 
+Going into pre-release stabilisation
+------------------------------------
+
+When we begin to work towards a release and want to enabling
+pre-releases on the website:
+
+ - Make a branch whose tip will be the current state of the
+   pre-release. Regardless of whether the branch is from master or
+   from a prior release branch, the name of the branch must now be in
+   the form 'pre-X.YZ', or else the website will fail to link to it
+   properly in gitweb and the build script will check out the wrong
+   thing.
+
+ - Edit ~/adm/puttysnap.sh on my build machine to set $prerelver correctly.
+
+ - Edit ~/adm/puttysnap.sh on the master machine to enable pre-release
+   builds, by changing the 'if false' to 'if true'.
+
+ - Put the website into pre-release mode, by defining prerel_version()
+   in components/Base.mc to return the upcoming version number. Also
+   add a news announcement in components/news. (Previous naming
+   convention has been to name it in the form 'X.YZ-pre.mi'.)
+
 Preparing to make a release
 ---------------------------
 
@@ -56,8 +79,11 @@ for it:
 
  - Update the website, in a local checkout:
     * Write a release file in components/releases which identifies the
-      new version, its release date, a section for the Changes page,
-      and a news announcement for the front page.
+      new version, a section for the Changes page, and a news
+      announcement for the front page.
+       + The one thing this can't yet contain is the release date;
+         that has to be put in at the last minute, when the release
+         goes live. Fill in 'FIXME', for the moment.
     * Disable the pre-release sections of the website (if previously
       enabled), by editing prerel_version() in components/Base.mc to
       return undef.
@@ -72,15 +98,16 @@ for it:
       headers for those.
     * Add an entry to the @releases array in control/bugs2html.
 
- - Build the release, by checking out the release tag:
-     git checkout 0.XX
-     bob . RELEASE=0.XX
+ - Make a release-candidate build from the release tag, and put the
+   build.out and build.log dfiles somewhere safe. Normally I store
+   these in an adjacent directory, so I'll run a command like
+     bob -o ../X.YZ/build-X.YZ-rcN.out -l ../X.YZ/build-X.YZ-rcN.log -c X.YZ . RELEASE=X.YZ
    This should generate a basically valid release directory as
-   `build.out/putty', and provide link maps and sign.sh alongside that
-   in build.out.
+   `build-X.YZ-rcN.out/putty', and provide link maps and sign.sh
+   alongside that.
 
- - Double-check in build.log that the release was built from the right
-   git commit.
+ - Double-check in build-X.YZ-rcN.log that the release was built from
+   the right git commit.
 
  - Do a bit of checking of the release binaries:
     * make sure they basically work
@@ -90,15 +117,21 @@ for it:
     * test the Windows installer
     * test the Unix source tarball.
 
- - Sign the release: in the `build.out' directory, type
+ - Sign the release: in the `build-X.YZ-rcN.out' directory, type
      sh sign.sh -r putty
    and enter the passphrases a lot of times.
+
+ - For my own safety, make the release candidate build read-only.
+     chmod -R a-w build-X.YZ-rcN.out build-X.YZ-rcN.log
 
 The actual release procedure
 ----------------------------
 
 Once all the above preparation is done and the release has been built
 locally, this is the procedure for putting it up on the web.
+
+ - Make a final adjustment to your local website changes, filling in
+   the release date in components/releases/X.YZ.mi.
 
  - Upload the release itself and its link maps to everywhere it needs
    to be, by running this in the build.out directory:
@@ -124,7 +157,7 @@ locally, this is the procedure for putting it up on the web.
       commands along these lines:
         git push origin master        # update the master branch
         git push origin --tags        # should push the new release tag
-        git push origin :pre-0.XX     # delete the pre-release branch
+        git push origin :pre-X.YZ     # delete the pre-release branch
 
  - Run ~/adm/puttyweb.sh on atreus to update the website after all
    those git pushes.
@@ -150,7 +183,7 @@ locally, this is the procedure for putting it up on the web.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
- - Edit ~/adm/puttysnap.sh to disable pre-release builds, if they were
-   previously enabled.
+ - Edit the master ~/adm/puttysnap.sh to disable pre-release builds,
+   if they were previously enabled.
 
  - Relax (slightly).

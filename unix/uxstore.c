@@ -98,17 +98,78 @@ static char *make_filename(int index, const char *subname)
      */
     if (index == INDEX_DIR) {
 	struct passwd *pwd;
+        char *xdg_dir, *old_dir, *old_dir2, *old_dir3, *home, *pwd_home;
 
 	env = getenv("PUTTYDIR");
 	if (env)
 	    return dupstr(env);
-	env = getenv("HOME");
-	if (env)
-	    return dupprintf("%s/.putty", env);
+
+        home = getenv("HOME");
 	pwd = getpwuid(getuid());
-	if (pwd && pwd->pw_dir)
-	    return dupprintf("%s/.putty", pwd->pw_dir);
-	return dupstr("/.putty");
+        if (pwd && pwd->pw_dir) {
+            pwd_home = pwd->pw_dir;
+        } else {
+            pwd_home = NULL;
+        }
+
+        xdg_dir = NULL;
+        env = getenv("XDG_CONFIG_HOME");
+        if (env && *env) {
+            xdg_dir = dupprintf("%s/putty", env);
+        }
+        if (!xdg_dir) {
+            if (home) {
+                tmp = home;
+            } else if (pwd_home) {
+                tmp = pwd_home;
+            } else {
+                tmp = "";
+            }
+            xdg_dir = dupprintf("%s/.config/putty", tmp);
+        }
+        if (xdg_dir && access(xdg_dir, F_OK) == 0) {
+            return xdg_dir;
+        }
+
+        old_dir = old_dir2 = old_dir3 = NULL;
+        if (home) {
+            old_dir = dupprintf("%s/.putty", home);
+        }
+        if (pwd_home) {
+            old_dir2 = dupprintf("%s/.putty", pwd_home);
+        }
+        old_dir3 = dupstr("/.putty");
+
+        if (old_dir && access(old_dir, F_OK) == 0) {
+            ret = old_dir;
+            goto out;
+        }
+        if (old_dir2 && access(old_dir2, F_OK) == 0) {
+            ret = old_dir2;
+            goto out;
+        }
+        if (access(old_dir3, F_OK) == 0) {
+            ret = old_dir3;
+            goto out;
+        }
+#ifdef XDG_DEFAULT
+        if (xdg_dir) {
+            ret = xdg_dir;
+            goto out;
+        }
+#endif
+        ret = old_dir ? old_dir : (old_dir2 ? old_dir2 : old_dir3);
+
+      out:
+        if (ret != old_dir)
+            sfree(old_dir);
+        if (ret != old_dir2)
+            sfree(old_dir2);
+        if (ret != old_dir3)
+            sfree(old_dir3);
+        if (ret != xdg_dir)
+            sfree(xdg_dir);
+        return ret;
     }
     if (index == INDEX_SESSIONDIR) {
 	env = getenv("PUTTYSESSIONS");
@@ -159,7 +220,7 @@ static char *make_filename(int index, const char *subname)
 
 void *open_settings_w(const char *sessionname, char **errmsg)
 {
-    char *filename;
+    char *filename, *err;
     FILE *fp;
 
     *errmsg = NULL;
@@ -169,18 +230,18 @@ void *open_settings_w(const char *sessionname, char **errmsg)
      * subdir actually exist.
      */
     filename = make_filename(INDEX_DIR, NULL);
-    if (mkdir(filename, 0700) < 0 && errno != EEXIST) {
-        *errmsg = dupprintf("Unable to save session: mkdir(\"%s\") "
-                            "returned '%s'", filename, strerror(errno));
+    if ((err = make_dir_path(filename, 0700)) != NULL) {
+        *errmsg = dupprintf("Unable to save session: %s", err);
+        sfree(err);
         sfree(filename);
         return NULL;
     }
     sfree(filename);
 
     filename = make_filename(INDEX_SESSIONDIR, NULL);
-    if (mkdir(filename, 0700) < 0 && errno != EEXIST) {
-        *errmsg = dupprintf("Unable to save session: mkdir(\"%s\") "
-                            "returned '%s'", filename, strerror(errno));
+    if ((err = make_dir_path(filename, 0700)) != NULL) {
+        *errmsg = dupprintf("Unable to save session: %s", err);
+        sfree(err);
         sfree(filename);
         return NULL;
     }
@@ -589,6 +650,16 @@ int verify_host_key(const char *hostname, int port,
     return ret;
 }
 
+int have_ssh_host_key(const char *hostname, int port,
+		      const char *keytype)
+{
+    /*
+     * If we have a host key, verify_host_key will return 0 or 2.
+     * If we don't have one, it'll return 1.
+     */
+    return verify_host_key(hostname, port, keytype, "") != 1;
+}
+
 void store_host_key(const char *hostname, int port,
 		    const char *keytype, const char *key)
 {
@@ -603,12 +674,12 @@ void store_host_key(const char *hostname, int port,
     tmpfilename = make_filename(INDEX_HOSTKEYS_TMP, NULL);
     wfp = fopen(tmpfilename, "w");
     if (!wfp && errno == ENOENT) {
-        char *dir;
+        char *dir, *errmsg;
 
         dir = make_filename(INDEX_DIR, NULL);
-        if (mkdir(dir, 0700) < 0) {
-            nonfatal("Unable to store host key: mkdir(\"%s\") "
-                     "returned '%s'", dir, strerror(errno));
+        if ((errmsg = make_dir_path(dir, 0700)) != NULL) {
+            nonfatal("Unable to store host key: %s", errmsg);
+            sfree(errmsg);
             sfree(dir);
             sfree(tmpfilename);
             return;
@@ -696,12 +767,12 @@ void write_random_seed(void *data, int len)
             sfree(fname);
             return;
         }
-	char *dir;
+        char *dir, *errmsg;
 
 	dir = make_filename(INDEX_DIR, NULL);
-	if (mkdir(dir, 0700) < 0) {
-            nonfatal("Unable to write random seed: mkdir(\"%s\") "
-                     "returned '%s'", dir, strerror(errno));
+        if ((errmsg = make_dir_path(dir, 0700)) != NULL) {
+            nonfatal("Unable to write random seed: %s", errmsg);
+            sfree(errmsg);
             sfree(fname);
             sfree(dir);
             return;

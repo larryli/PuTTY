@@ -17,19 +17,17 @@ For building on Windows:
    systems. Change into the `windows' subdirectory and type `nmake
    -f Makefile.vc' to build all the PuTTY binaries.
 
-   Last time we checked, PuTTY built with vanilla VC7, or VC6 with
-   an up-to-date Platform SDK. (It might still be possible to build
-   with vanilla VC6, but you'll certainly have to remove some
-   functionality with directives such as NO_IPV6.)
+   As of 2017, we successfully compile PuTTY with both Visual Studio
+   7 (2003) and Visual Studio 14 (2015), so our guess is that it will
+   probably build with versions in between those as well.
 
-   (We've also had reports of success building with the
-   OpenWatcom compiler -- www.openwatcom.org -- using Makefile.vc
-   with `wmake -ms -f makefile.vc' and NO_MULTIMON, although we
-   haven't tried this ourselves. Version 1.3 is reported to work.)
+   (The binaries from Visual Studio 14 are only compatible with
+   Windows XP and up. Binaries from Visual Studio 7 ought to work
+   with anything from Windows 95 onward.)
 
  - Inside the windows/MSVC subdirectory are MS Visual Studio project
    files for doing GUI-based builds of the various PuTTY utilities.
-   These have been tested on Visual Studio 6.
+   These have been tested on Visual Studio 7 and 10.
 
    You should be able to build each PuTTY utility by loading the
    corresponding .dsp file in Visual Studio. For example,
@@ -40,14 +38,17 @@ For building on Windows:
    Makefile.bor' while in the `windows' subdirectory to build all
    the PuTTY binaries.
 
- - windows/Makefile.cyg is for Cygwin / MinGW installations. Type
-   `make -f Makefile.cyg' while in the `windows' subdirectory to
+ - windows/Makefile.mgw is for MinGW / Cygwin installations. Type
+   `make -f Makefile.mgw' while in the `windows' subdirectory to
    build all the PuTTY binaries.
 
-   You'll probably need quite a recent version of the w32api package.
-   Note that by default the multiple monitor and HTML Help support are
-   excluded from the Cygwin build, since at the time of writing Cygwin
-   doesn't include the necessary headers.
+   MinGW and friends can lag behind other toolchains in their support
+   for the Windows API. Compile-time levers are provided to exclude
+   some features; the defaults are set appropriately for the
+   'mingw-w64' cross-compiler provided with Ubuntu 14.04. If you are
+   using an older toolchain, you may need to exclude more features;
+   alternatively, you may find that upgrading to a recent version of
+   the 'w32api' package helps.
 
  - windows/Makefile.lcc is for lcc-win32. Type `make -f
    Makefile.lcc' while in the `windows' subdirectory. (You will
@@ -56,7 +57,7 @@ For building on Windows:
  - Inside the windows/DEVCPP subdirectory are Dev-C++ project
    files for doing GUI-based builds of the various PuTTY utilities.
 
-The PuTTY team actively use Makefile.vc (with VC7) and Makefile.cyg
+The PuTTY team actively use Makefile.vc (with VC7/10) and Makefile.mgw
 (with mingw32), so we'll probably notice problems with those
 toolchains fairly quickly. Please report any problems with the other
 toolchains mentioned above.
@@ -72,10 +73,6 @@ For building on Unix:
    a normal Unix source archive but doesn't do so well at keeping the
    per-platform stuff in each platform's subdirectory; it's up to you.
 
-   Note that Unix PuTTY has mostly only been tested on Linux so far;
-   portability problems such as BSD-style ptys or different header file
-   requirements are expected.
-
  - unix/Makefile.gtk and unix/Makefile.ux are for non-autoconfigured
    builds. These makefiles expect you to change into the `unix'
    subdirectory, then run `make -f Makefile.gtk' or `make -f
@@ -83,14 +80,15 @@ For building on Unix:
    relies on Gtk, whereas Makefile.ux builds only the command-line
    utilities and has no Gtk dependence.
 
- - For the graphical utilities, Gtk+-1.2 and Gtk+-2.0 should both be
-   supported. If you have both installed, you can manually specify
-   which one you want by giving the option '--with-gtk=1' or
-   '--with-gtk=2' to the configure script. (2 is the default, of
-   course.) In the absence of either, the configure script will
-   automatically construct a Makefile which builds only the
-   command-line utilities; you can manually create this condition by
-   giving configure the option '--without-gtk'.
+ - For the graphical utilities, any of Gtk+-1.2, Gtk+-2.0, and Gtk+-3.0
+   should be supported. If you have more than one installed, you can
+   manually specify which one you want by giving the option
+   '--with-gtk=N' to the configure script where N is 1, 2, or 3.
+   (The default is the newest available, of course.) In the absence
+   of any Gtk version, the configure script will automatically
+   construct a Makefile which builds only the command-line utilities;
+   you can manually create this condition by giving configure the
+   option '--without-gtk'.
 
  - pterm would like to be setuid or setgid, as appropriate, to permit
    it to write records of user logins to /var/run/utmp and
@@ -108,7 +106,7 @@ For building on Unix:
 
  - It's also possible to build the Windows version of PuTTY to run
    on Unix by using Winelib.  To do this, change to the `windows'
-   directory and run `make -f Makefile.cyg CC=winegcc RC=wrc'.
+   directory and run `make -f Makefile.mgw CC=winegcc RC=wrc'.
 
 All of the Makefiles are generated automatically from the file
 `Recipe' by the Perl script `mkfiles.pl' (except for the Unix one,

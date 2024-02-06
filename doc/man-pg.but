@@ -21,8 +21,7 @@
 
 \c{puttygen} is a tool to generate and manipulate SSH public and
 private key pairs. It is part of the PuTTY suite, although it can
-also interoperate with the private key formats used by some other
-SSH clients.
+also interoperate with the key formats used by some other SSH clients.
 
 When you run \c{puttygen}, it does three things. Firstly, it either
 loads an existing key file (if you specified \e{keyfile}), or
@@ -37,24 +36,35 @@ the following section.
 \S{puttygen-manpage-options} OPTIONS
 
 In the first phase, \c{puttygen} either loads or generates a key.
-Note that generating a key requires random data (from
-\c{/dev/random}), which can cause \c{puttygen} to pause, possibly for
-some time if your system does not have much randomness available.
+Note that generating a key requires random data, which can cause
+\c{puttygen} to pause, possibly for some time if your system does
+not have much randomness available.
 
 The options to control this phase are:
 
 \dt \e{keyfile}
 
-\dd Specify a private key file to be loaded. This private key file can
-be in the (de facto standard) SSH-1 key format, or in PuTTY's SSH-2
-key format, or in either of the SSH-2 private key formats used by
-OpenSSH and ssh.com's implementation.
+\dd Specify a key file to be loaded.
+
+\lcont{
+
+Usually this will be a private key, which can be in the (de facto
+standard) SSH-1 key format, or in PuTTY's SSH-2 key format, or in
+either of the SSH-2 private key formats used by OpenSSH and
+ssh.com's implementation.
+
+You can also specify a file containing only a \e{public} key here.
+The operations you can do are limited to outputting another public
+key format or a fingerprint. Public keys can be in RFC 4716 or
+OpenSSH format, or the standard SSH-1 format.
+
+}
 
 \dt \cw{\-t} \e{keytype}
 
 \dd Specify a type of key to generate. The acceptable values here are
-\c{rsa} and \c{dsa} (to generate SSH-2 keys), and \c{rsa1} (to
-generate SSH-1 keys).
+\c{rsa}, \c{dsa}, \c{ecdsa}, and \c{ed25519} (to generate SSH-2 keys),
+and \c{rsa1} (to generate SSH-1 keys).
 
 \dt \cw{\-b} \e{bits}
 
@@ -63,6 +73,17 @@ generate SSH-1 keys).
 \dt \cw{\-q}
 
 \dd Suppress the progress display when generating a new key.
+
+\dt \cw{\-\-old\-passphrase} \e{file}
+
+\dd Specify a file name; the first line will be read from this file
+(removing any trailing newline) and used as the old passphrase.
+\s{CAUTION:} If the passphrase is important, the file should be stored
+on a temporary filesystem or else securely erased after use.
+
+\dt \cw{\-\-random\-device} \e{device}
+
+\dd Specify device to read entropy from (default \c{/dev/random}).
 
 In the second phase, \c{puttygen} optionally alters properties of
 the key it has loaded or generated. The options to control this are:
@@ -117,8 +138,14 @@ algorithms are believed compatible with OpenSSH.
 
 \dt \cw{private-openssh}
 
-\dd Save an SSH-2 private key in OpenSSH's format. This option is not
+\dd Save an SSH-2 private key in OpenSSH's format, using the oldest
+format available to maximise backward compatibility. This option is not
 permitted for SSH-1 keys.
+
+\dt \cw{private-openssh-new}
+
+\dd As \c{private-openssh}, except that it forces the use of OpenSSH's
+newer format even for RSA, DSA, and ECDSA keys.
 
 \dt \cw{private-sshcom}
 
@@ -149,6 +176,14 @@ fingerprint. Otherwise, the \c{\-o} option is required.
 \dt \cw{\-p}
 
 \dd Synonym for \q{\cw{-O public}}.
+
+\dt \cw{\-\-new\-passphrase} \e{file}
+
+\dd Specify a file name; the first line will be read from this file
+(removing any trailing newline) and used as the new passphrase. If the
+file is empty then the saved key will be unencrypted. \s{CAUTION:} If
+the passphrase is important, the file should be stored on a temporary
+filesystem or else securely erased after use.
 
 The following options do not run PuTTYgen as normal, but print
 informational messages and then quit:
@@ -204,8 +239,3 @@ To add the OpenSSH-format public half of a key to your authorised
 keys file:
 
 \c puttygen -L mykey.ppk >> $HOME/.ssh/authorized_keys
-
-\S{puttygen-manpage-bugs} BUGS
-
-There's currently no way to supply passphrases in batch mode, or
-even just to specify that you don't want a passphrase at all.

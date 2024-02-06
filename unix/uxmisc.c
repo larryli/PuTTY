@@ -11,6 +11,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <pwd.h>
 
 #include "putty.h"
@@ -104,7 +105,7 @@ char filename_char_sanitise(char c)
 #ifdef DEBUG
 static FILE *debug_fp = NULL;
 
-void dputs(char *buf)
+void dputs(const char *buf)
 {
     if (!debug_fp) {
 	debug_fp = fopen("debug.log", "w");
@@ -289,4 +290,62 @@ FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
         return NULL;
     *used = end - data + 1;
     return fontspec_new(data);
+}
+
+char *make_dir_and_check_ours(const char *dirname)
+{
+    struct stat st;
+
+    /*
+     * Create the directory. We might have created it before, so
+     * EEXIST is an OK error; but anything else is doom.
+     */
+    if (mkdir(dirname, 0700) < 0 && errno != EEXIST)
+        return dupprintf("%s: mkdir: %s", dirname, strerror(errno));
+
+    /*
+     * Now check that that directory is _owned by us_ and not writable
+     * by anybody else. This protects us against somebody else
+     * previously having created the directory in a way that's
+     * writable to us, and thus manipulating us into creating the
+     * actual socket in a directory they can see so that they can
+     * connect to it and use our authenticated SSH sessions.
+     */
+    if (stat(dirname, &st) < 0)
+        return dupprintf("%s: stat: %s", dirname, strerror(errno));
+    if (st.st_uid != getuid())
+        return dupprintf("%s: directory owned by uid %d, not by us",
+                         dirname, st.st_uid);
+    if ((st.st_mode & 077) != 0)
+        return dupprintf("%s: directory has overgenerous permissions %03o"
+                         " (expected 700)", dirname, st.st_mode & 0777);
+
+    return NULL;
+}
+
+char *make_dir_path(const char *path, mode_t mode)
+{
+    int pos = 0;
+    char *prefix;
+
+    while (1) {
+        pos += strcspn(path + pos, "/");
+
+        if (pos > 0) {
+            prefix = dupprintf("%.*s", pos, path);
+
+            if (mkdir(prefix, mode) < 0 && errno != EEXIST) {
+                char *ret = dupprintf("%s: mkdir: %s",
+                                      prefix, strerror(errno));
+                sfree(prefix);
+                return ret;
+            }
+
+            sfree(prefix);
+        }
+
+        if (!path[pos])
+            return NULL;
+        pos += strspn(path + pos, "/");
+    }
 }

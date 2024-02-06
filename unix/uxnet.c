@@ -344,6 +344,34 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
     }
 }
 
+/*
+ * This constructs a SockAddr that points at one specific sub-address
+ * of a parent SockAddr. The returned SockAddr does not own all its
+ * own memory: it points into the old one's data structures, so it
+ * MUST NOT be used after the old one is freed, and it MUST NOT be
+ * passed to sk_addr_free. (The latter is why it's returned by value
+ * rather than dynamically allocated - that should clue in anyone
+ * writing a call to it that something is weird about it.)
+ */
+static struct SockAddr_tag sk_extractaddr_tmp(
+    SockAddr addr, const SockAddrStep *step)
+{
+    struct SockAddr_tag toret;
+    toret = *addr;                    /* structure copy */
+    toret.refcount = 1;
+
+    if (addr->superfamily == IP) {
+#ifndef NO_IPV6
+        toret.ais = step->ai;
+#else
+	assert(SOCKADDR_FAMILY(addr, *step) == AF_INET);
+        toret.addresses += step->curraddr;
+#endif
+    }
+
+    return toret;
+}
+
 int sk_addr_needs_port(SockAddr addr)
 {
     if (addr->superfamily == UNRESOLVED || addr->superfamily == UNIX) {
@@ -561,7 +589,11 @@ static int try_connect(Actual_Socket sock)
     if (sock->s >= 0)
         close(sock->s);
 
-    plug_log(sock->plug, 0, sock->addr, sock->port, NULL, 0);
+    {
+        struct SockAddr_tag thisaddr = sk_extractaddr_tmp(
+            sock->addr, &sock->step);
+        plug_log(sock->plug, 0, &thisaddr, sock->port, NULL, 0);
+    }
 
     /*
      * Open socket.
@@ -728,8 +760,11 @@ static int try_connect(Actual_Socket sock)
      */
     add234(sktree, sock);
 
-    if (err)
-	plug_log(sock->plug, 1, sock->addr, sock->port, strerror(err), err);
+    if (err) {
+        struct SockAddr_tag thisaddr = sk_extractaddr_tmp(
+            sock->addr, &sock->step);
+	plug_log(sock->plug, 1, &thisaddr, sock->port, strerror(err), err);
+    }
     return err;
 }
 
@@ -778,7 +813,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int orig_address_family)
+Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
+                      int local_host_only, int orig_address_family)
 {
     int s;
 #ifndef NO_IPV6
@@ -1341,21 +1377,7 @@ static int net_select_result(int fd, int event)
 	    }
 	}
 	if (ret < 0) {
-            /*
-             * An error at this point _might_ be an error reported
-             * by a non-blocking connect(). So before we return a
-             * panic status to the user, let's just see whether
-             * that's the case.
-             */
-            int err = errno;
-	    if (s->addr) {
-		plug_log(s->plug, 1, s->addr, s->port, strerror(err), err);
-		while (s->addr && sk_nextaddr(s->addr, &s->step)) {
-		    err = try_connect(s);
-		}
-	    }
-            if (err != 0)
-                return plug_closing(s->plug, strerror(err), err, 0);
+            return plug_closing(s->plug, strerror(errno), errno, 0);
 	} else if (0 == ret) {
             s->incomingeof = TRUE;     /* stop trying to read now */
             uxsel_tell(s);
@@ -1377,11 +1399,52 @@ static int net_select_result(int fd, int event)
 	if (!s->connected) {
 	    /*
 	     * select() reports a socket as _writable_ when an
-	     * asynchronous connection is completed.
+	     * asynchronous connect() attempt either completes or
+	     * fails. So first we must find out which.
 	     */
+            {
+                int err;
+                socklen_t errlen = sizeof(err);
+                char *errmsg = NULL;
+                if (getsockopt(s->s, SOL_SOCKET, SO_ERROR, &err, &errlen)<0) {
+                    errmsg = dupprintf("getsockopt(SO_ERROR): %s",
+                                       strerror(errno));
+                    err = errno;       /* got to put something in here */
+                } else if (err != 0) {
+                    errmsg = dupstr(strerror(err));
+                }
+                if (errmsg) {
+                    /*
+                     * The asynchronous connection attempt failed.
+                     * Report the problem via plug_log, and try again
+                     * with the next candidate address, if we have
+                     * more than one.
+                     */
+                    struct SockAddr_tag thisaddr;
+                    assert(s->addr);
+
+                    thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
+                    plug_log(s->plug, 1, &thisaddr, s->port, errmsg, err);
+
+                    while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
+                        err = try_connect(s);
+                    }
+                    if (err)
+                        return plug_closing(s->plug, strerror(err), err, 0);
+                    if (!s->connected)
+                        return 0;      /* another async attempt in progress */
+                }
+            }
+
+            /*
+             * If we get here, we've managed to make a connection.
+             */
+            if (s->addr) {
+                sk_addr_free(s->addr);
+                s->addr = NULL;
+            }
 	    s->connected = s->writable = 1;
 	    uxsel_tell(s);
-	    break;
 	} else {
 	    int bufsize_before, bufsize_after;
 	    s->writable = 1;
@@ -1557,7 +1620,8 @@ SockAddr unix_sock_addr(const char *path)
 
     if (n < 0)
 	ret->error = "snprintf failed";
-    else if (n >= sizeof ret->hostname)
+    else if (n >= sizeof ret->hostname ||
+             n >= sizeof(((struct sockaddr_un *)0)->sun_path))
 	ret->error = "socket pathname too long";
 
 #ifndef NO_IPV6

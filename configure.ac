@@ -42,11 +42,32 @@ AS_IF([test "x$setidtype" = "xsetgid"],
 AC_SUBST(SETID_CMD)
 AC_SUBST(SETID_MODE)
 
+AC_ARG_ENABLE([git-commit],
+  [AS_HELP_STRING([--disable-git-commit],
+                  [disable embedding current git HEAD in binaries])],
+  [],
+  [if test -d "$srcdir/.git"; then
+    enable_git_commit=yes; else enable_git_commit=no; fi])
+
+if test "x$enable_git_commit" = "xyes" -a ! -d "$srcdir/.git"; then
+  AC_ERROR([Cannot --enable-git-commit when source tree is not a git checkout])
+fi
+AM_CONDITIONAL(AUTO_GIT_COMMIT, [test "x$enable_git_commit" = "xyes"])
+
 AC_ARG_WITH([gssapi],
   [AS_HELP_STRING([--without-gssapi],
                   [disable GSSAPI support])],
   [],
   [with_gssapi=yes])
+
+AC_ARG_WITH([quartz],
+  [AS_HELP_STRING([--with-quartz],
+                  [build for the MacOS Quartz GTK back end])],
+  [AC_DEFINE([OSX_GTK], [1], [Define if building with GTK for MacOS.])
+   with_quartz=yes],
+  [with_quartz=no])
+
+AM_CONDITIONAL([HAVE_QUARTZ],[test "x$with_quartz" = "xyes"])
 
 WITH_GSSAPI=
 AS_IF([test "x$with_gssapi" != xno],
@@ -54,14 +75,14 @@ AS_IF([test "x$with_gssapi" != xno],
 
 AC_ARG_WITH([gtk],
   [AS_HELP_STRING([--with-gtk=VER],
-                  [specify GTK version to use (`1' or `2')])
+                  [specify GTK version to use (`1', `2' or `3')])
 AS_HELP_STRING([--without-gtk],
                   [do not use GTK (build command-line tools only)])],
   [gtk_version_desired="$withval"],
   [gtk_version_desired="any"])
 
 case "$gtk_version_desired" in
-  1 | 2 | any | no) ;;
+  1 | 2 | 3 | any | no) ;;
   yes) gtk_version_desired="any" ;;
   *) AC_ERROR([Invalid GTK version specified])
 esac
@@ -70,10 +91,18 @@ AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 
-# Look for both GTK 2 and GTK 1, in descending order of preference. If
-# we can't find either, have the makefile only build the CLI programs.
+# Look for GTK 3, GTK 2 and GTK 1, in descending order of preference.
+# If we can't find any, have the makefile only build the CLI programs.
 
 gtk=none
+
+case "$gtk_version_desired:$gtk" in
+  3:none | any:none)
+    ifdef([AM_PATH_GTK_3_0],[
+    AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])
+    ],[AC_WARNING([generating configure script without GTK 3 autodetection])])
+    ;;
+esac
 
 case "$gtk_version_desired:$gtk" in
   2:none | any:none)
@@ -101,7 +130,7 @@ esac
 
 AM_CONDITIONAL(HAVE_GTK, [test "$gtk" != "none"])
 
-if test "$gtk" = "2"; then
+if test "$gtk" = "2" -o "$gtk" = "3"; then
   ac_save_CFLAGS="$CFLAGS"
   ac_save_LIBS="$LIBS"
   CFLAGS="$CFLAGS $GTK_CFLAGS"
@@ -174,7 +203,7 @@ psftp will be built.
 EOF
 elif test "$gtk" = "none"; then cat <<EOF
 
-'configure' was unable to find either the GTK 1 or GTK 2 libraries on
+'configure' was unable to find any version of the GTK libraries on
 your system. Therefore, PuTTY itself and the other GUI utilities will
 not be built by the generated Makefile: only the command-line tools
 such as puttygen, plink and psftp will be built.

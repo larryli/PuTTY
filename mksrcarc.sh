@@ -20,7 +20,7 @@ text=`{ find . -name CVS -prune -o \
 # files.
 bintext=testdata/*.txt
 # These are actual binary files which we don't want transforming.
-bin=`{ ls -1 windows/*.ico windows/putty.iss windows/website.url macosx/*.icns; \
+bin=`{ ls -1 windows/*.ico windows/putty.iss windows/website.url; \
        find . -name '*.dsp' -print -o -name '*.dsw' -print; }`
 
 verbosely() {

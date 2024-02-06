@@ -12,15 +12,15 @@
 # Overall project name.
 !name putty
 # Locations and types of output Makefiles.
+!makefile clangcl windows/Makefile.clangcl
 !makefile vc windows/Makefile.vc
 !makefile vcproj windows/MSVC
-!makefile cygwin windows/Makefile.cyg
+!makefile cygwin windows/Makefile.mgw
 !makefile borland windows/Makefile.bor
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile unix unix/Makefile.ux
 !makefile am Makefile.am
-!makefile osx macosx/Makefile
 !makefile devcppproj windows/DEVCPP
 !makefile vstudio10 windows/VS2010
 !makefile vstudio12 windows/VS2012
@@ -28,7 +28,6 @@
 !srcdir charset/
 !srcdir windows/
 !srcdir unix/
-!srcdir macosx/
 
 # Help text added to the top of each Makefile, with /D converted
 # into -D as appropriate for the particular Makefile.
@@ -47,14 +46,16 @@
 #      does this.
 #
 #  - COMPAT=/DNO_SECURITY (Windows only)
-#      Disables Pageant's use of <aclapi.h>, which is not available
-#      with some development environments (such as older versions of
-#      the Cygwin/mingw GNU toolchain). This means that Pageant
-#      won't care about the local user ID of processes accessing it; a
-#      version of Pageant built with this option will therefore refuse
-#      to run under NT-series OSes on security grounds (although it
-#      will run fine on Win95-series OSes where there is no access
-#      control anyway).
+#      Disables use of <aclapi.h>, which is not available with some
+#      development environments (such as very old versions of the
+#      mingw/Cygwin GNU toolchain). This has the following effects:
+#       - Pageant won't care about the local user ID of processes
+#         accessing it; a version of Pageant built with this option
+#         will therefore refuse to run under NT-series OSes on
+#         security grounds (although it will run fine on Win95-series
+#         OSes where there is no access control anyway).
+#       - SSH connection sharing is disabled.
+#       - There is no support for restriction of the process ACLs.
 #
 #  - COMPAT=/DNO_MULTIMON (Windows only)
 #      Disables PuTTY's use of <multimon.h>, which is not available
@@ -62,20 +63,14 @@
 #      full-screen mode (configurable to work on Alt-Enter) will
 #      not behave usefully in a multi-monitor environment.
 #
-#      Note that this definition is always enabled in the Cygwin
-#      build, since at the time of writing this <multimon.h> is
-#      known not to be available in Cygwin.
-#
 #  - COMPAT=/DNO_HTMLHELP (Windows only)
 #      Disables PuTTY's use of <htmlhelp.h>, which is not available
 #      with some development environments. The resulting binary
 #      will only look for an old-style WinHelp file (.HLP/.CNT), and
 #      will ignore any .CHM file.
 #
-#      Note that this definition is always enabled in the Cygwin
-#      build, since at the time of writing this <htmlhelp.h> is
-#      known not to be available in Cygwin (although you can use
-#      the htmlhelp.h supplied with HTML Help Workshop).
+#      If you don't have this header, you may be able to use the copy
+#      supplied with HTML Help Workshop.
 #
 #  - RCFL=/DNO_MANIFESTS (Windows only)
 #      Disables inclusion of XML application manifests in the PuTTY
@@ -103,8 +98,7 @@
 #
 #  - COMPAT=/DNO_SECUREZEROMEMORY (Windows only)
 #      Disables PuTTY's use of SecureZeroMemory(), which is missing
-#      from some environments' header files.  This is enabled by
-#      default in the Cygwin Makefile.
+#      from some environments' header files.
 #
 #  - XFLAGS=/DTELNET_DEFAULT
 #      Causes PuTTY to default to the Telnet protocol (in the absence
@@ -113,10 +107,6 @@
 #
 #  - XFLAGS=/DDEBUG
 #      Causes PuTTY to enable internal debugging.
-#
-#  - XFLAGS=/DUNPROTECT
-#      Disable tightened ACL on PuTTY process so that e.g. debuggers
-#      can attach to it.
 #
 #  - XFLAGS=/DMALLOC_LOG
 #      Causes PuTTY to emit a file called putty_mem.log, logging every
@@ -129,13 +119,37 @@
 #      show up as GPFs at the point of failure rather than appearing
 #      later on as second-level damage.
 #
+#  - XFLAGS=/DFUZZING
+#      Builds a version of PuTTY with some tweaks to make fuzz testing
+#      easier: the SSH random number generator is replaced by one that
+#      always returns the same thing.  Note that this makes SSH
+#      completely insecure -- a FUZZING build should never be used to
+#      connect to a real server.
 !end
 
 # ------------------------------------------------------------
 # Additional text added verbatim to each individual Makefile.
 
+!cflags am version
+!begin am
+if AUTO_GIT_COMMIT
+BUILT_SOURCES = empty.h
+CLEANFILES = empty.h
+libversion_a_CFLAGS += -DSOURCE_COMMIT=\"`git --git-dir=$(srcdir)/.git rev-parse HEAD 2>/dev/null`\"
+empty.h: $(allsources)
+	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
+endif
+!end
+!begin >empty.h
+/* Empty file touched by automake makefile to force rebuild of version.o */
+!end
+
 !begin vc vars
 CFLAGS = $(CFLAGS) /DHAS_GSSAPI
+!end
+
+!begin clangcl vars
+CFLAGS += /DHAS_GSSAPI
 !end
 
 # `make install' target for Unix.
@@ -167,9 +181,6 @@ install:
 install-strip:
 	$(MAKE) install INSTALL_PROGRAM="$(INSTALL_PROGRAM) -s"
 !end
-!begin osx vars
-CFLAGS += -DMACOSX
-!end
 
 # List the man pages for the automake makefile.
 !begin am
@@ -183,6 +194,18 @@ if HAVE_SETID_CMD
 install-exec-local:
 	@SETID_CMD@ $(bindir)/pterm
 	chmod @SETID_MODE@ $(bindir)/pterm
+endif
+!end
+
+# In automake makefile, build the OS X app bundle, if configured in
+# Quartz mode.
+!begin am
+if HAVE_QUARTZ
+noinst_SCRIPTS = unix/PuTTY.app unix/Pterm.app
+unix/PuTTY.app: unix/putty.bundle puttyapp osxlaunch
+	rm -rf $@ && gtk-mac-bundler $<
+unix/Pterm.app: unix/pterm.bundle ptermapp osxlaunch
+	rm -rf $@ && gtk-mac-bundler $<
 endif
 !end
 
@@ -211,8 +234,8 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
-GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols xkeysym
-OSXTERM  = UXTERM osxwin osxdlg osxctrls
+GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym
+	 + x11misc gtkcomm
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc pinger
@@ -220,8 +243,8 @@ NONSSH   = telnet raw rlogin ldisc pinger
 # SSH back end (putty, plink, pscp, psftp).
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
-         + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
-         + sshgssc pgssapi sshshare
+         + sshaes sshccp sshsh256 sshsh512 sshbn wildcard pinger ssharcf
+         + sshgssc pgssapi sshshare sshecc aqsync
 WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
          + winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
@@ -231,11 +254,14 @@ SFTP     = sftp int64 logging
 
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
-MISC     = timing callback misc version settings tree234 proxy conf
+MISC     = timing callback misc version settings tree234 proxy conf be_misc
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur
 UXMISC   = MISC uxstore uxsel uxnet uxpeer cmdline uxmisc uxproxy time
-OSXMISC  = MISC uxstore uxsel osxsel uxnet uxpeer uxmisc uxproxy time
+
+# import.c and dependencies, for PuTTYgen-like utilities that have to
+# load foreign key files.
+IMPORT   = import sshbcrypt sshblowf
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
@@ -272,35 +298,66 @@ pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + psftp.res winnojmp LIBS
 
-pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
-         + misc sshaes sshsha winsecur winpgntc sshdss sshsh256 sshsh512
-	 + winutils winmisc winhelp conf pageant.res LIBS
+pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes sshbn sshmd5 version
+	 + tree234 misc sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
+	 + sshsh512 winutils sshecc winmisc winhelp conf pageant.res LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
-         + sshpubk sshaes sshsh256 sshsh512 import winutils puttygen.res
-	 + tree234 notiming winhelp winnojmp conf LIBS wintime
+         + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
+         + tree234 notiming winhelp winnojmp conf LIBS wintime sshecc
+         + sshecdsag winsecur
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
-	 + nogss
+	 + nogss gtkmain
 putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
-         + xpmpucfg
+         + xpmpucfg gtkmain
 puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC xpmputty xpmpucfg
-	 + nogss
+	 + nogss gtkmain
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
-         + ux_x11 noterm
+         + ux_x11 noterm uxnogtk
 
-puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
+PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
-         + sshpubk sshaes sshsh256 sshsh512 import puttygen.res time tree234
-	 + uxgen notiming conf
+         + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
+         + uxgen notiming conf sshecc sshecdsag uxnogtk
+puttygen : [U] cmdgen PUTTYGEN_UNIX
+cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
-pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
-psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
+pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
+psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
 
-PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
-         + ux_x11 uxpty uxsignal testback putty.icns info.plist
+pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes sshbn
+	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
+	 + sshecc conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
+	 + gtkask gtkmisc UXMISC
+
+ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
+         + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
+         + nogss gtkapp
+puttyapp : [XT] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
+         + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
+         + xpmpucfg gtkapp
+osxlaunch : [UT] osxlaunch
+
+fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
+	 + uxstore be_none uxnogtk
+testbn   : [UT] testbn sshbn misc version conf tree234 uxmisc uxnogtk
+testbn   : [C] testbn sshbn misc version conf tree234 winmisc LIBS
+
+# ----------------------------------------------------------------------
+# On Windows, provide a means of removing local test binaries that we
+# aren't going to actually ship. (I prefer this to not building them
+# in the first place, so that we find out about build breakage early.)
+!begin vc
+cleantestprogs:
+	-del $(BUILDDIR)testbn.exe
+!end
+!begin clangcl
+cleantestprogs:
+	-rm -f $(BUILDDIR)testbn.exe
+!end

@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- WiX source code for the PuTTY installer. -->
+
+<?if $(var.Win64) = yes ?>
+  <?define Bitness = " (64-bit)" ?>
+  <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY64" ?>
+  <?define InstallerVersion = "200" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?define UpgradeCode_GUID = "C9EAA861-2B72-4FAF-9FEE-EEB1AD5FD15E" ?>
+  <?define PuTTY_Component_GUID = "C673C970-25AE-4659-9621-A1FE0598E9DC" ?>
+  <?define Pageant_Component_GUID = "BA37328A-9A9C-4912-B84D-9C4A21B4E79A" ?>
+  <?define PSFTP_Component_GUID = "8BC2740F-CD4A-4076-8C33-2847ECA17B4E" ?>
+  <?define PuTTYgen_Component_GUID = "4E3F554E-C9C9-419B-9816-94135D1F6EFF" ?>
+  <?define Plink_Component_GUID = "72C38830-1C06-40D5-B2C5-BE21F4C9D529" ?>
+  <?define PSCP_Component_GUID = "58FCAA52-CEF9-4665-B95E-7695FCF8F0A9" ?>
+  <?define HelpFile_Component_GUID = "B880CECB-2CDA-4DB1-8EB3-1627D29394FB" ?>
+  <?define Website_Component_GUID = "08A334E8-D376-438A-98C7-4E65BE09A335" ?>
+  <?define LICENCE_Component_GUID = "D15E5FA9-C912-4F7A-A663-9FE3CFD5FB01" ?>
+  <?define README_Component_GUID = "B8F2F9DE-0311-436E-86A4-BEFED84968C0" ?>
+  <?define PPK_Assoc_Component_GUID = "70B4360C-7A2E-4C9E-9135-289C5467CB04" ?>
+  <?define Path_Component_GUID = "A0CFC986-489D-452B-8A8F-F9DBEF6916F4" ?>
+  <?define ProgramMenuDir_GUID = "3B2B7A2B-25F1-4EC4-987F-75BFD038632E" ?>
+  <?define Desktop_Shortcut_Component_GUID = "0A715416-EA6E-4A1C-8670-838307083EE5" ?>
+<?else ?>
+  <?define Bitness = "" ?>
+  <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY" ?>
+  <?define InstallerVersion = "100" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?define UpgradeCode_GUID = "DCE70C63-8808-4646-B16B-A677BD298385" ?>
+  <?define PuTTY_Component_GUID = "07ACF511-6DF6-4883-AABA-33BC14901324" ?>
+  <?define Pageant_Component_GUID = "649F963E-21C4-4755-8CE4-D80598DCEE6D" ?>
+  <?define PSFTP_Component_GUID = "3D7B9536-EC0E-4A6A-A3DF-8D285474391A" ?>
+  <?define PuTTYgen_Component_GUID = "4774F6B3-8A07-42A5-9F4D-E7FE6AA78B84" ?>
+  <?define Plink_Component_GUID = "7D96F9BB-4154-49D6-86AE-0D8F1379ACBC" ?>
+  <?define PSCP_Component_GUID = "71519D4A-3ED5-4A46-A7E4-B6E4600A8684" ?>
+  <?define HelpFile_Component_GUID = "72806A73-9D4D-49BF-8CAA-E90B0D83AEED" ?>
+  <?define Website_Component_GUID = "7DAD6536-C1A7-430C-BC8A-90176CCB78D0" ?>
+  <?define LICENCE_Component_GUID = "6AB710C0-F7A1-4B7A-AC2E-6993D6E98332" ?>
+  <?define README_Component_GUID = "0AB63F2A-0FD9-4961-B8F7-AB85C22D9986" ?>
+  <?define PPK_Assoc_Component_GUID = "13BBF036-F4C0-4F5B-9167-7BA35C673AAB" ?>
+  <?define Path_Component_GUID = "D1F68AAA-D20D-4047-828F-D0AC443FAF64" ?>
+  <?define ProgramMenuDir_GUID = "C12C3BB3-EC24-4883-8349-4AC8017C9E6A" ?>
+  <?define Desktop_Shortcut_Component_GUID = "D039E3D1-CE42-488D-96CC-90E1DE3796F8" ?>
+<?endif ?>
+
+<?define ProgramName = "PuTTY$(var.Bitness)" ?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <!--
+      Product tag. The Id component is set to "*", which causes WiX to
+      make up a new GUID every time it's run, whereas UpgradeCode is
+      set to a fixed GUID. This combination allows Windows to
+      recognise each new PuTTY installer as different (because of Id)
+      versions of the same underlying thing (because of the common
+      UpgradeCode).
+
+      $(var.Winver) is define on candle.exe's command line by the
+      build script, and is expected to be a dotted tuple of four
+      16-bit decimal integers (similar to a Windows VERSIONINFO
+      resource). For PuTTY's particular conventions, see comment in
+      Buildscr.
+  -->
+  <Product
+      Name="$(var.Puttytextver)$(var.Bitness)"
+      Manufacturer="Simon Tatham"
+      Id="*"
+      UpgradeCode="$(var.UpgradeCode_GUID)"
+      Language="1033" Codepage="1252" Version="$(var.Winver)">
+
+    <!--
+        We force the install scope to perMachine, largely because I
+        don't really understand how to make it usefully switchable
+        between the two. If anyone is a WiX expert and does want to
+        install PuTTY locally in a user account, I hope they'll send a
+        well explained patch!
+
+        $(var.Puttytextver) is again defined on the candle command
+        line, and describes the version of PuTTY in human-readable
+        form, e.g. "PuTTY 0.67" or "PuTTY development snapshot [foo]".
+    -->
+    <Package Id="*" Keywords="Installer"
+             Description="$(var.Puttytextver) installer"
+             Manufacturer="Simon Tatham"
+             InstallerVersion="$(var.InstallerVersion)" Languages="1033"
+             Compressed="yes" SummaryCodepage="1252"
+             InstallScope="perMachine" />
+
+    <!--
+        Permit installing an arbitrary one of these PuTTY installers
+        over the top of an existing one, whether it's an upgrade or a
+        downgrade. In particular, this makes it easy to switch between
+        trunk development snapshots and a release or prerelease, in
+        cases where you change your mind about whether you want the
+        features or the stability.
+
+        Setting the REINSTALLMODE property to "amus" (from its default
+        of "omus") forces every component replaced by a different
+        version of the installer to be _actually_ reinstalled; the 'o'
+        flag in the default setting breaks the downgrade case by
+        causing Windows to disallow installation of an older version
+        over the top of a newer one - and to do so _silently_, so the
+        installer claims to have worked fine but putty.exe isn't
+        there.
+    -->
+    <MajorUpgrade AllowDowngrades="yes" MigrateFeatures="yes" />
+    <Property Id="REINSTALLMODE" Value="amus"/>
+
+    <!-- Boilerplate -->
+    <Media Id="1" Cabinet="putty.cab" EmbedCab="yes" />
+
+    <!--
+        The actual directory structure and list of 'components'
+        (individual files or shortcuts or additions to PATH) that are
+        installed.
+
+        We install directly under "Program Files\PuTTY" rather than
+        the recommended three-level pathname including a manufacturer.
+        It's bad enough that I put my name irrevocably in everyone's
+        Registry without putting it in all of their filesystems as
+        well...
+    -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
+        <Directory Id="INSTALLDIR" Name="PuTTY">
+
+          <!--
+              The following components all install things in the main
+              install directory (implicitly, by being nested where
+              they are in the XML structure). Most of them also put a
+              shortcut in a subdir of the Start menu, though some of
+              the more obscure things like LICENCE are just there for
+              the sake of being _somewhere_ and don't rate a shortcut.
+          -->
+          <Component Id="PuTTY_Component"
+                     Guid="$(var.PuTTY_Component_GUID)">
+            <File Id="PuTTY_File"
+                  Source="$(var.Builddir)putty.exe" KeyPath="yes">
+              <Shortcut Id="startmenuPuTTY" Directory="ProgramMenuDir"
+                        WorkingDirectory="INSTALLDIR"
+                        Name="PuTTY" Advertise="no" />
+            </File>
+          </Component>
+          <Component Id="Pageant_Component"
+                     Guid="$(var.Pageant_Component_GUID)">
+            <File Id="Pageant_File"
+                  Source="$(var.Builddir)pageant.exe" KeyPath="yes">
+              <Shortcut Id="startmenuPageant" Directory="ProgramMenuDir"
+                        WorkingDirectory="INSTALLDIR"
+                        Name="Pageant" Advertise="no" />
+            </File>
+          </Component>
+          <Component Id="PSFTP_Component"
+                     Guid="$(var.PSFTP_Component_GUID)">
+            <File Id="PSFTP_File"
+                  Source="$(var.Builddir)psftp.exe" KeyPath="yes">
+              <Shortcut Id="startmenuPSFTP" Directory="ProgramMenuDir"
+                        WorkingDirectory="INSTALLDIR"
+                        Name="PSFTP" Advertise="no" />
+            </File>
+          </Component>
+          <Component Id="PuTTYgen_Component"
+                     Guid="$(var.PuTTYgen_Component_GUID)">
+            <File Id="PuTTYgen_File"
+                  Source="$(var.Builddir)puttygen.exe" KeyPath="yes">
+              <Shortcut Id="startmenuPuTTYgen" Directory="ProgramMenuDir"
+                        WorkingDirectory="INSTALLDIR"
+                        Name="PuTTYgen" Advertise="no" />
+            </File>
+          </Component>
+          <Component Id="Plink_Component"
+                     Guid="$(var.Plink_Component_GUID)">
+            <File Id="Plink_File"
+                  Source="$(var.Builddir)plink.exe" KeyPath="yes" />
+          </Component>
+          <Component Id="PSCP_Component"
+                     Guid="$(var.PSCP_Component_GUID)">
+            <File Id="PSCP_File"
+                  Source="$(var.Builddir)pscp.exe" KeyPath="yes" />
+          </Component>
+
+          <Component Id="HelpFile_Component"
+                     Guid="$(var.HelpFile_Component_GUID)">
+            <File Id="HelpFile_File"
+                  Source="..\doc\putty.chm" KeyPath="yes">
+              <Shortcut Id="startmenuManual" Directory="ProgramMenuDir"
+                        Name="PuTTY Manual"
+                        Advertise="no" />
+            </File>
+          </Component>
+          <Component Id="Website_Component"
+                     Guid="$(var.Website_Component_GUID)">
+            <File Id="Website_File"
+                  Source="website.url" KeyPath="yes">
+              <Shortcut Id="startmenuWebsite" Directory="ProgramMenuDir"
+                        Name="PuTTY Web Site"
+                        Advertise="no" />
+            </File>
+          </Component>
+          <Component Id="LICENCE_Component"
+                     Guid="$(var.LICENCE_Component_GUID)">
+            <File Id="LICENCE_File"
+                  Source="..\LICENCE" KeyPath="yes" />
+          </Component>
+          <Component Id="README_Component"
+                     Guid="$(var.README_Component_GUID)">
+            <File Id="README_File"
+                  Source="README-msi.txt" Name="README.txt" KeyPath="yes" />
+          </Component>
+
+          <!--
+              This component sets up the file associations for the
+              .ppk private key file extension: right-clicking should
+              give options to launch both Pageant and PuTTYgen with a
+              given key.
+
+              Unlike all the above components, this one also puts a
+              registry entry in HKEY_LOCAL_MACHINE, which is the 'key
+              path' for the component, i.e. the thing Windows checks
+              to know whether this component is installed. Those have
+              to be either files or registry entries; so for all the
+              above things the key paths are the actual files we
+              wanted to install, whereas for this one we have to
+              invent a spurious extra thing to be the key path.
+          -->
+          <Component Id="PPK_Assoc_Component"
+                     Guid="$(var.PPK_Assoc_Component_GUID)">
+            <ProgId Id="PPK_Assoc_ProgId"
+                    Description="PuTTY Private Key File">
+              <Extension Id="ppk"
+                         ContentType="application/x-putty-private-key">
+                <Verb Id="open" Command="Load into Pageant"
+                      TargetFile="Pageant_File" Argument='"%1"'/>
+                <Verb Id="edit" Command="Edit with PuTTYgen"
+                      TargetFile="PuTTYgen_File" Argument='"%1"' />
+              </Extension>
+            </ProgId>
+            <RegistryValue Root="HKLM"
+                           Key="$(var.RegKeyPathLocation)\PPKAssociation"
+                           Type="string" Value="" KeyPath="yes" />
+          </Component>
+
+          <!--
+              This component appends the install directory to PATH, so
+              that command prompt windows automatically get the
+              ability to run the command-line utilities (PSCP, PSFTP
+              and Plink, though all the others are available too if
+              you want). Again, it needs a pointless registry entry to
+              act as a key path.
+          -->
+          <Component Id="Path_Component"
+                     Guid="$(var.Path_Component_GUID)">
+            <Environment Id="Path_Environment"
+                         Name="PATH"
+                         Value="[INSTALLDIR]"
+                         Permanent="no"
+                         Part="last"
+                         Action="set"
+                         System="yes"/>
+            <RegistryValue Root="HKLM"
+                           Key="$(var.RegKeyPathLocation)\PathEntry"
+                           Type="string" Value="" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+
+      <!--
+          This component doesn't actually install anything, but it
+          arranges for the Start Menu _directory_ to be removed again
+          on uninstall. All the actual shortcuts inside the directory
+          are placed by code above here.
+      -->
+      <Directory Id="ProgramMenuFolder" Name="Programs">
+        <Directory Id="ProgramMenuDir" Name="$(var.ProgramName)">
+          <Component Id="ProgramMenuDir"
+                     Guid="$(var.ProgramMenuDir_GUID)">
+            <RemoveFolder Id="ProgramMenuDir" On="uninstall" />
+            <RegistryValue Root="HKLM"
+                           Key="$(var.RegKeyPathLocation)\StartMenu"
+                           Type="string" Value="" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+
+      <!--
+          This component puts a shortcut to PuTTY itself on the
+          desktop.
+      -->
+      <Directory Id="DesktopFolder" Name="Desktop">
+        <Component Id="Desktop_Shortcut_Component"
+                   Guid="$(var.Desktop_Shortcut_Component_GUID)">
+          <Shortcut Id="DesktopPuTTY"
+                    WorkingDirectory="INSTALLDIR" Target="[INSTALLDIR]putty.exe"
+                    Name="$(var.ProgramName)" Advertise="no" />
+          <RegistryValue Root="HKLM"
+                         Key="$(var.RegKeyPathLocation)\DesktopEntry"
+                         Type="string" Value="" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </Directory>
+
+    <!--
+        Detect an installation of PuTTY made by the old Inno Setup
+        installer, and refuse to run if we find one. I don't know what
+        would happen if you tried anyway, but since they install files
+        at the same pathnames, it surely wouldn't end well.
+
+        It could be argued that a better approach would be to actually
+        _launch_ the Inno Setup uninstaller automatically at this
+        point (prompting the user first, of course), but I'm not
+        nearly skilled enough with WiX to know how, or even if it's
+        feasible.
+    -->
+    <Property Id="LEGACYINNOSETUPINSTALLERNATIVE32PROPERTY">
+      <RegistrySearch
+          Id="LegacyInnoSetupInstallerNative32RegSearch"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PuTTY_is1"
+          Name="QuietUninstallString" Type="raw" />
+    </Property>
+    <Property Id="LEGACYINNOSETUPINSTALLER32ON64PROPERTY">
+      <RegistrySearch
+          Id="LegacyInnoSetupInstaller32On64RegSearch"
+          Root="HKLM"
+          Key="SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\PuTTY_is1"
+          Name="QuietUninstallString" Type="raw" />
+    </Property>
+    <Condition Message="A version of PuTTY is already installed on this system using the old Inno Setup installer. Please uninstall that before running the new installer.">
+      <![CDATA[Installed OR
+               (LEGACYINNOSETUPINSTALLERNATIVE32PROPERTY = "" AND
+                LEGACYINNOSETUPINSTALLER32ON64PROPERTY = "")]]>
+    </Condition>
+
+    <!--
+        Separate the installation into 'features', which are parts of
+        the install that can be chosen separately.
+
+        Since PuTTY is tiny, I haven't bothered to separate the actual
+        _files_ into features; I've just put them all in a single
+        feature that's always installed. The only features that are
+        separately disableable are the auxiliary ones for desktop
+        shortcuts, .PPK file extension and modifying PATH.
+
+        DesktopFeature (the desktop icon) is disabled by default, on
+        the basis of not cluttering up desktops too much unless
+        someone actually wants it. The .PPK association and PATH are
+        behind-the-scenes sorts of thing, so they're on by default.
+
+        (The old Inno Setup installer also made it optional whether
+        PuTTY got a Start Menu subfolder. That seems to be harder in
+        WiX, because the Start Menu shortcuts are tied in to the
+        installation of the files themselves, so the Start Menu
+        subfolder is mandatory if you're using this installer at all.
+        That doesn't seem unreasonable to me - if you don't want
+        _that_, you might as well just unpack the zip file and not
+        bother with an installer at all.)
+    -->
+    <Feature Id="FilesFeature" Level="1" Absent="disallow" AllowAdvertise="no"
+             Title="Install PuTTY files">
+      <ComponentRef Id="PuTTY_Component" />
+      <ComponentRef Id="Pageant_Component" />
+      <ComponentRef Id="PSFTP_Component" />
+      <ComponentRef Id="PuTTYgen_Component" />
+      <ComponentRef Id="Plink_Component" />
+      <ComponentRef Id="PSCP_Component" />
+      <ComponentRef Id="HelpFile_Component" />
+      <ComponentRef Id="Website_Component" />
+      <ComponentRef Id="LICENCE_Component" />
+      <ComponentRef Id="README_Component" />
+      <ComponentRef Id="ProgramMenuDir" />
+    </Feature>
+    <Feature Id="DesktopFeature" Level="2" Absent="allow" AllowAdvertise="no"
+             Title="Add shortcut to PuTTY on the Desktop">
+      <ComponentRef Id="Desktop_Shortcut_Component" />
+    </Feature>
+    <Feature Id="PathFeature" Level="1" Absent="allow" AllowAdvertise="no"
+             Title="Put install directory on the PATH for command prompts">
+      <ComponentRef Id="Path_Component" />
+    </Feature>
+    <Feature Id="PPKFeature" Level="1" Absent="allow" AllowAdvertise="no"
+             Title="Associate .PPK files with PuTTYgen and Pageant">
+      <ComponentRef Id="PPK_Assoc_Component" />
+    </Feature>
+
+    <!--
+        Installer user interface.
+
+        WiX provides several pre-cooked UIs, but annoyingly, every
+        single one of them has the wrong combination of features for
+        what I want. For example, WixUI_InstallDir lets me select the
+        install directory, but not the feature set. WixUI_Advanced
+        lets me select both, but also insists on giving me the option
+        of per-user vs systemwide install (and I haven't managed to
+        get per-user to behave sensibly). And _most_ of them insist on
+        having a click-through EULA page in the interface, which I
+        absolutely don't want - the MIT licence does not need to be
+        presented as a EULA at all (if you didn't accept it in your
+        mind you had no business copying the software in the first
+        place, and it's not imposing any scary restrictions anyway).
+
+        So what we see below is my own sequence of UI dialogs, all
+        included by reference from the WiX standard set. It's probably
+        most similar to WixUI_InstallDir, but I've removed LicenseDlg
+        and included FeaturesDlg.
+
+        (I'm not actually sure that FeaturesDlg is all that good a fit
+        for this particular project, with a treeview control that
+        doesn't really get used as a tree, and inappropriate wording
+        in the dropdown you use to select or deselect features.
+        Perhaps in future I might replace it with a simpler dialog box
+        containing a checkbox for each of the desktop shortcut, the
+        PATH addition and the PPK associations.)
+    -->
+    <UIRef Id="WixUI_Common" />
+
+    <UI>
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="InstallDir" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="FeaturesDlg" />
+
+      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">NOT Installed</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="FeaturesDlg">Installed</Publish>
+
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="FeaturesDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+
+      <Publish Dialog="FeaturesDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">Installed</Publish>
+      <Publish Dialog="FeaturesDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg">NOT Installed</Publish>
+      <Publish Dialog="FeaturesDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">Installed AND PATCH</Publish>
+
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" 
+               Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+
+      <!--
+          This ARPNOMODIFY flag prohibits changing the set of
+          installed features, which would otherwise be possible by
+          reactivating the same MSI (from its original disk file, or
+          in Add/Remove Programs, or I think also by GUID on the
+          msiexec command line) and selecting 'Change' from the
+          maintenance-type dialog.
+
+          The reason I've prohibited it is because I couldn't get it
+          to *work* in my initial testing - it would look as if it had
+          done the right thing, but in fact the features it should
+          have removed would still be there after the installer
+          finished running. So if any WiX expert can help me fix this,
+          I'd love to take this flag out and make the installation
+          retrospectively modifiable!
+
+          (As well as removing this flag and fixing whatever the
+          problem is, I'd also have to add a line in the above set of
+          Publish tags which points MaintenanceTypeDlg's ChangeButton
+          at FeaturesDlg.)
+      -->
+      <Property Id="ARPNOMODIFY" Value="1" />
+    </UI>
+
+    <!--
+        Offer to display README after installation.
+    -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+              Value="View README file" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#README_File]" />
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA"
+                  DllEntry="WixShellExec" Impersonate="yes" />
+
+    <!-- Glue: tell the install dir part of the UI what id my actual
+         install dir is known by. Otherwise the former won't know how
+         to alter the setting of the latter. -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+    <!--
+        Include my custom installer artwork, created in Buildscr.
+    -->
+    <WixVariable Id="WixUIDialogBmp" Value="msidialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="msibanner.bmp" />
+
+    <!--
+        Set the icon that will show up in Add/Remove Programs.
+
+        http://www.codeproject.com/Articles/43564/WiX-Tricks says that
+        for some weird reason the Id of this icon has to end in .exe.
+    -->
+    <Icon Id="installericon.exe" SourceFile="puttyins.ico" />
+    <Property Id="ARPPRODUCTICON" Value="installericon.exe" />
+
+  </Product>
+</Wix>

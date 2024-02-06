@@ -1,0 +1,43 @@
+<?xml version="1.0" standalone="no"?> <!--*- mode: xml -*-->
+<app-bundle>
+
+  <meta>
+    <prefix name="default">${env:JHBUILD_PREFIX}</prefix>
+    <run-install-name-tool/>
+    <gtk>gtk+-3.0</gtk>
+    <!-- Optionally specify a launcher script to use. If the
+         application sets up everything needed itself, like
+         environment variable, linker paths, etc, a launcher script is
+         not needed. If the source path is left out, the default
+         script will be used.
+    -->
+    <launcher-script>${project}/../osxlaunch</launcher-script >
+  </meta>
+
+  <plist>${project}/pterm.plist</plist>
+
+  <main-binary dest="${bundle}/Contents/MacOS">
+    ${project}/../ptermapp
+  </main-binary>
+
+  <binary>
+    ${prefix}/lib/${gtkdir}/${pkg:${gtk}:gtk_binary_version}/immodules/*.so
+  </binary>
+
+  <binary>
+    ${prefix}/lib/${gtkdir}/${pkg:${gtk}:gtk_binary_version}/printbackends/*.so
+  </binary>
+
+  <data>
+    ${prefix}/share/themes/Adwaita
+  </data>
+
+  <data dest="${bundle}/Contents/Resources">
+    ${project}/../icons/Pterm.icns
+  </data>
+
+  <icon-theme icons="auto">
+    Adwaita
+  </icon-theme>
+
+</app-bundle>

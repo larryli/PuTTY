@@ -42,37 +42,6 @@ static char *make_parentdir_name(void)
     return parent;
 }
 
-static char *make_dir_and_check_ours(const char *dirname)
-{
-    struct stat st;
-
-    /*
-     * Create the directory. We might have created it before, so
-     * EEXIST is an OK error; but anything else is doom.
-     */
-    if (mkdir(dirname, 0700) < 0 && errno != EEXIST)
-        return dupprintf("%s: mkdir: %s", dirname, strerror(errno));
-
-    /*
-     * Now check that that directory is _owned by us_ and not writable
-     * by anybody else. This protects us against somebody else
-     * previously having created the directory in a way that's
-     * writable to us, and thus manipulating us into creating the
-     * actual socket in a directory they can see so that they can
-     * connect to it and use our authenticated SSH sessions.
-     */
-    if (stat(dirname, &st) < 0)
-        return dupprintf("%s: stat: %s", dirname, strerror(errno));
-    if (st.st_uid != getuid())
-        return dupprintf("%s: directory owned by uid %d, not by us",
-                         dirname, st.st_uid);
-    if ((st.st_mode & 077) != 0)
-        return dupprintf("%s: directory has overgenerous permissions %03o"
-                         " (expected 700)", dirname, st.st_mode & 0777);
-
-    return NULL;
-}
-
 static char *make_dirname(const char *pi_name, char **logtext)
 {
     char *name, *parentdirname, *dirname, *err;

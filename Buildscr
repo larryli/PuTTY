@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 15860 # update this at every release
+set Epoch 16214 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -80,11 +80,14 @@ ifneq "$(PRERELEASE)" "" set Autoconfver $(PRERELEASE)~pre$(Ndate).$(vcsid)
 ifneq "$(SNAPSHOT)" "" set Autoconfver $(Lastver)-$(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Autoconfver Custom.$(Date).$(vcsid)
 
-# Set up the filename for the Windows installer.
-ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer.exe
-ifneq "$(PRERELEASE)" "" set Ifilename putty-$(PRERELEASE)-pre$(Ndate)-installer.exe
-ifneq "$(SNAPSHOT)" "" set Ifilename putty-$(Date)-installer.exe
-ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Ifilename putty-custom-$(Date)-installer.exe
+# Set up the filenames for the Windows installer (minus extension,
+# which goes on later).
+ifneq "$(RELEASE)" "" set Isuffix $(RELEASE)-installer
+ifneq "$(PRERELEASE)" "" set Isuffix $(PRERELEASE)-pre$(Ndate)-installer
+ifneq "$(SNAPSHOT)" "" set Isuffix $(Date)-installer
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Isuffix custom-$(Date)-installer
+set Ifilename32 putty-$(Isuffix)
+set Ifilename64 putty-64bit-$(Isuffix)
 
 # Set up the version string for the Windows installer.
 ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
@@ -123,6 +126,7 @@ ifneq "$(SNAPSHOT)" "" in putty do echo '$#define SNAPSHOT' >> version.h
 in putty do echo '$#define TEXTVER "$(Textver)"' >> version.h
 in putty do echo '$#define SSHVER "$(Sshver)"' >> version.h
 in putty do echo '$#define BINARY_VERSION $(Winvercommas)' >> version.h
+in putty do echo '$#define SOURCE_COMMIT "$(vcsfullid)"' >> version.h
 
 # Set up the extra arguments for the main Windows nmake command. The
 # user can define XFLAGS and MAKEARGS on the bob command line, to pass
@@ -148,35 +152,72 @@ in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoVersion=)
 # Windowsify LICENCE, since it's going in the Windows installer.
 in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
+# Some gratuitous theming for the MSI installer UI.
+in putty/icons do make
+in putty do convert -size 164x312 'gradient:blue-white' -distort SRT -90 -swirl 180 \( -size 329x312 canvas:white \) +append \( icons/putty-48.png -geometry +28+24 \) -composite \( icons/pscp-48.png -geometry +88+96 \) -composite \( icons/puttygen-48.png -geometry +28+168 \) -composite \( icons/pageant-48.png -geometry +88+240 \) -composite windows/msidialog.bmp
+in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +440+5 \) -composite windows/msibanner.bmp
+
 delegate windows
-  # FIXME: Cygwin alternative?
-  in putty/windows do/win vcvars32 && nmake -f Makefile.vc $(Makeargs)
+  # Build the original binaries.
+  in putty/windows with visualstudio do/win mkdir buildold && nmake -f Makefile.vc BUILDDIR=buildold\ $(Makeargs) all cleantestprogs
+
+  # Build the VS2015 binaries. For the 32-bit ones, we set a subsystem
+  # version of 5.01, which allows the resulting files to still run on
+  # Windows XP.
+  in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs
+  in putty/windows with visualstudio2015_64bit do/win mkdir build64 && nmake -f Makefile.vc BUILDDIR=build64\ $(Makeargs) all cleantestprogs
+
   # Code-sign the binaries, if the local bob config provides a script
   # to do so. We assume here that the script accepts an -i option to
   # provide a 'more info' URL, and an optional -n option to provide a
   # program name, and that it can take multiple .exe filename
   # arguments and sign them all in place.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ *.exe
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe
+
   # Ignore exit code from hhc, in favour of seeing whether the .chm
   # file was created. (Yuck; but hhc appears to return non-zero
   # exit codes on whim.)
-  in putty/doc do/win hhc putty.hhp & type putty.chm >nul
-  in putty/windows do/win iscc putty.iss
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" Output/setup.exe
-  return putty/windows/*.exe
-  return putty/windows/*.map
+  in putty/doc with htmlhelp do/win hhc putty.hhp & type putty.chm >nul
+
+  # Build a WiX MSI installer, for each of build32 and build64.
+  in putty/windows with wix do/win candle -arch x86 -dWin64=no -dBuilddir=build32\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi
+  in putty/windows with wix do/win candle -arch x64 -dWin64=yes -dBuilddir=build64\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi
+
+  # Build the old Inno Setup installer, for 32-bit only.
+  in putty/windows with innosetup do/win iscc putty.iss
+
+  # Sign the installers.
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi Output/installer.exe
+
+  # Finished Windows builds.
+  return putty/windows/buildold/*.exe
+  return putty/windows/buildold/*.map
+  return putty/windows/build32/*.exe
+  return putty/windows/build32/*.map
+  return putty/windows/build64/*.exe
+  return putty/windows/build64/*.map
   return putty/doc/putty.chm
-  return putty/windows/Output/setup.exe
+  return putty/windows/installer32.msi
+  return putty/windows/installer64.msi
+  return putty/windows/Output/installer.exe
 enddelegate
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever)
-in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/putty.chm ../doc/putty.hlp ../doc/putty.cnt
+in putty/windows/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
+in putty/windows/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
+in putty/windows/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/doc do zip puttydoc.zip *.html
 
 # Deliver the actual PuTTY release directory into a subdir `putty'.
-deliver putty/windows/*.exe putty/x86/$@
-deliver putty/windows/putty.zip putty/x86/$@
-deliver putty/windows/Output/setup.exe putty/x86/$(Ifilename)
+deliver putty/windows/buildold/*.exe putty/w32old/$@
+deliver putty/windows/buildold/putty.zip putty/w32old/$@
+deliver putty/windows/build32/*.exe putty/w32/$@
+deliver putty/windows/build32/putty.zip putty/w32/$@
+deliver putty/windows/build64/*.exe putty/w64/$@
+deliver putty/windows/build64/putty.zip putty/w64/$@
+deliver putty/windows/installer32.msi putty/w32/$(Ifilename32).msi
+deliver putty/windows/installer64.msi putty/w64/$(Ifilename64).msi
+deliver putty/windows/Output/installer.exe putty/w32/$(Ifilename32).exe
 deliver putty/doc/puttydoc.zip putty/$@
 deliver putty/doc/putty.chm putty/$@
 deliver putty/doc/putty.hlp putty/$@
@@ -187,7 +228,9 @@ deliver putty/putty-src.zip putty/$@
 deliver putty/*.tar.gz putty/$@
 
 # Deliver the map files alongside the `proper' release deliverables.
-deliver putty/windows/*.map maps-x86/$@
+deliver putty/windows/buildold/*.map maps/w32old/$@
+deliver putty/windows/build32/*.map maps/w32/$@
+deliver putty/windows/build64/*.map maps/w64/$@
 
 # Deliver sign.sh, so that whoever has just built PuTTY (the
 # snapshot scripts or me, depending) can conveniently sign it with
@@ -210,5 +253,5 @@ in-dest putty do echo "AddType application/octet-stream .chm" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
 in-dest putty do set -- putty*.tar.gz; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
-# And one in the x86 directory, providing a link for the installer.
-in-dest putty/x86 do set -- putty*installer.exe; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+# And one in each binary directory, providing links for the installers.
+in-dest putty do for params in "w32 putty-installer" "w64 putty-64bit-installer"; do (set -- $$params; subdir=$$1; installername=$$2; cd $$subdir && for ext in msi exe; do set -- putty*installer.$$ext; if test -f $$1; then for k in '' .gpg; do echo RedirectMatch temp '(.*/)'$${installername}.$$ext$$k\$$ '$$1'"$$1$$k" >> .htaccess; done; fi; done); done

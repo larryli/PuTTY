@@ -7,16 +7,20 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <gtk/gtk.h>
 #include <gdk/gdk.h>
 
 #include "putty.h"
 #include "storage.h"
+
+#include "gtkcompat.h"
 
 /*
  * Stubs to avoid uxpty.c needing to be linked in.
  */
 const int use_pty_argv = FALSE;
 char **pty_argv;		       /* never used */
+char *pty_osx_envrestore_prefix;
 
 /*
  * Clean up and exit.
@@ -49,10 +53,13 @@ int cfgbox(Conf *conf)
 static int got_host = 0;
 
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
+const int dup_check_launchable = 1;
 
-int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
+int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch)
 {
-    char *p, *q = arg;
+    char *argdup, *p, *q;
+    argdup = dupstr(arg);
+    q = argdup;
 
     if (got_host) {
         /*
@@ -61,7 +68,7 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
          * argument, so that it will be deferred until it's a good
          * moment to run it.
          */
-        int ret = cmdline_process_param("-P", arg, 1, conf);
+        int ret = cmdline_process_param("-P", argdup, 1, conf);
         assert(ret == 2);
     } else if (!strncmp(q, "telnet:", 7)) {
         /*
@@ -90,7 +97,7 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
         /*
          * Otherwise, treat this argument as a host name.
          */
-        p = arg;
+        p = argdup;
         while (*p && !isspace((unsigned char)*p))
             p++;
         if (*p)
@@ -100,6 +107,9 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
     }
     if (got_host)
 	*allow_launch = TRUE;
+
+    sfree(argdup);
+
     return 1;
 }
 
@@ -124,11 +134,8 @@ char *platform_get_x_display(void) {
 const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
-int main(int argc, char **argv)
+void setup(int single)
 {
-    extern int pt_main(int argc, char **argv);
-    int ret;
-
     sk_init();
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
     default_protocol = be_default_protocol;
@@ -139,7 +146,4 @@ int main(int argc, char **argv)
 	if (b)
 	    default_port = b->default_port;
     }
-    ret = pt_main(argc, argv);
-    cleanup_exit(ret);
-    return ret;             /* not reached, but placates optimisers */
 }

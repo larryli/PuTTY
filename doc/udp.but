@@ -46,7 +46,9 @@ on 32-bit architectures \e{or bigger}; so it's safe to assume that
 by ANSI C.  Similarly, we assume that the execution character
 encoding is a superset of the printable characters of ASCII, though
 we don't assume the numeric values of control characters,
-particularly \cw{'\\n'} and \cw{'\\r'}.)
+particularly \cw{'\\n'} and \cw{'\\r'}. Also, the X forwarding code
+assumes that \c{time_t} has the Unix format and semantics, i.e. an
+integer giving the number of seconds since 1970.)
 
 \H{udp-multi-backend} Multiple backends treated equally
 

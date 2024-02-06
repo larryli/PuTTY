@@ -67,8 +67,8 @@ void force_normal(HWND hwnd)
     recurse = 0;
 }
 
-static int CALLBACK LogProc(HWND hwnd, UINT msg,
-			    WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
+                                WPARAM wParam, LPARAM lParam)
 {
     int i;
 
@@ -162,8 +162,8 @@ static int CALLBACK LogProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
-				WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
+                                    WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
       case WM_INITDIALOG:
@@ -189,8 +189,8 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-static int CALLBACK AboutProc(HWND hwnd, UINT msg,
-			      WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
+                                  WPARAM wParam, LPARAM lParam)
 {
     char *str;
 
@@ -200,10 +200,12 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	SetWindowText(hwnd, str);
 	sfree(str);
         {
+            char *buildinfo_text = buildinfo("\r\n");
             char *text = dupprintf
-                ("%s\r\n\r\n%s\r\n\r\n%s",
-                 appname, ver,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+                ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+                 appname, ver, buildinfo_text,
+                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
+            sfree(buildinfo_text);
             SetDlgItemText(hwnd, IDA_TEXT, text);
             sfree(text);
         }
@@ -225,7 +227,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
 	  case IDA_WEB:
 	    /* Load web browser */
 	    ShellExecute(hwnd, "open",
-			 "https://larryli.cn/putty",
+			 "https://github.com/larryli/PuTTY",
 			 0, 0, SW_SHOWDEFAULT);
 	    return 0;
 	}
@@ -291,8 +293,8 @@ static void SaneEndDialog(HWND hwnd, int ret)
 /*
  * Null dialog procedure.
  */
-static int CALLBACK NullDlgProc(HWND hwnd, UINT msg,
-				WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK NullDlgProc(HWND hwnd, UINT msg,
+                                    WPARAM wParam, LPARAM lParam)
 {
     return 0;
 }
@@ -351,7 +353,7 @@ static void create_controls(HWND hwnd, char *path)
 	/*
 	 * Here we must create the basic standard controls.
 	 */
-	ctlposinit(&cp, hwnd, 3, 3, 235);
+	ctlposinit(&cp, hwnd, 3, 3, 240); // fix height 235
 	wc = &ctrls_base;
 	base_id = IDCX_STDBASE;
     } else {
@@ -375,8 +377,8 @@ static void create_controls(HWND hwnd, char *path)
  * (Being a dialog procedure, in general it returns 0 if the default
  * dialog processing should be performed, and 1 if it should not.)
  */
-static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
-				       WPARAM wParam, LPARAM lParam)
+static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
+                                           WPARAM wParam, LPARAM lParam)
 {
     HWND hw, treeview;
     struct treeview_faff tvfaff;
@@ -438,7 +440,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.left = 3;
 	    r.right = r.left + 95;
 	    r.top = 13;
-	    r.bottom = r.top + 219;
+	    r.bottom = r.top + 224; // fix height 219
 	    MapDialogRect(hwnd, &r);
 	    treeview = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREEVIEW, "",
 				      WS_CHILD | WS_VISIBLE |
@@ -513,6 +515,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
              * And create the actual control set for that panel, to
              * match the initial treeview selection.
              */
+            assert(firstpath);   /* config.c must have given us _something_ */
             create_controls(hwnd, firstpath);
 	    dlg_refresh(NULL, &dp);    /* and set up control values */
 	}
@@ -785,8 +788,8 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
-int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-                        char *keystr, char *fingerprint,
+int verify_ssh_host_key(void *frontend, char *host, int port,
+                        const char *keytype, char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
@@ -874,14 +877,40 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 {
     static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
-	"The first %s supported by the server\n"
-	"is %.64s, which is below the configured\n"
-	"warning threshold.\n"
-	"Do you want to continue with this connection?\n";
+	"服务器支持的第一个 %s\n"
+	"是 %.64s，其低于配置的警告阀值。\n"
+	"你要继续连接么？\n";
     char *message, *title;
     int mbret;
 
     message = dupprintf(msg, algtype, algname);
+    title = dupprintf(mbtitle, appname);
+    mbret = MessageBox(NULL, message, title,
+		       MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+    socket_reselect_all();
+    sfree(message);
+    sfree(title);
+    if (mbret == IDYES)
+	return 1;
+    else
+	return 0;
+}
+
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char mbtitle[] = "%s 安全警告";
+    static const char msg[] =
+	"我们储存的此服务器第一个主机密钥类型\n"
+	"为 %s，其低于配置的警告阀值。\n"
+	"此服务器同时也提供有我们没有储存的高\n"
+        "于阀值的下列主机密钥类型：\n"
+        "%s\n"
+	"你要继续连接么？\n";
+    char *message, *title;
+    int mbret;
+
+    message = dupprintf(msg, algname, betteralgs);
     title = dupprintf(mbtitle, appname);
     mbret = MessageBox(NULL, message, title,
 		       MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
@@ -902,18 +931,18 @@ int askappend(void *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
-	"The session log file \"%.*s\" already exists.\n"
-	"You can overwrite it with a new session log,\n"
-	"append your session log to the end of it,\n"
-	"or disable session logging for this session.\n"
-	"Hit Yes to wipe the file, No to append to it,\n"
-	"or Cancel to disable logging.";
+	"会话日志文件 \"%.*s\" 已经存在。\n"
+	"你可以使用新会话日志覆盖旧文件，\n"
+	"或者在旧日志文件结尾增加新日志，\n"
+	"或在此会话中禁止日志记录。\n"
+	"点击是覆盖为新文件，否附加到旧文件，\n"
+	"或者点击取消禁止日志记录。";
     char *message;
     char *mbtitle;
     int mbret;
 
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
-    mbtitle = dupprintf("%s Log to File", appname);
+    mbtitle = dupprintf("%s 日志记录到文件", appname);
 
     mbret = MessageBox(NULL, message, mbtitle,
 		       MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON3);
@@ -943,12 +972,12 @@ int askappend(void *frontend, Filename *filename,
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "%s Key File Warning";
+    static const char mbtitle[] = "%s 密钥文件警告";
     static const char message[] =
 	"现在载入的是一个旧版本文件格式的 SSH2\n"
 	" 私钥格式。这意味着该私钥文件不是\n"
-	"足够的安全。未来版本的 PuTTY 可能会\n"
-	"%s may stop supporting this private key format,\n"
+	"足够的安全。未来版本的 %s 可能会\n"
+	"停止支持此私钥格式，\n"
 	"建议将其转换为新的\n"
 	"格式。\n"
 	"\n"

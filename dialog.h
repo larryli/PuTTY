@@ -458,10 +458,10 @@ void ctrl_free_box(struct controlbox *);
 
 /* Set up a panel title. */
 struct controlset *ctrl_settitle(struct controlbox *,
-				 char *path, char *title);
+				 const char *path, const char *title);
 /* Retrieve a pointer to a controlset, creating it if absent. */
-struct controlset *ctrl_getset(struct controlbox *,
-			       char *path, char *name, char *boxtitle);
+struct controlset *ctrl_getset(struct controlbox *, const char *path,
+                               const char *name, const char *boxtitle);
 void ctrl_free_set(struct controlset *);
 
 void ctrl_free(union control *);
@@ -493,12 +493,12 @@ void *ctrl_alloc_with_free(struct controlbox *b, size_t size,
 
 /* `ncolumns' is followed by that many percentages, as integers. */
 union control *ctrl_columns(struct controlset *, int ncolumns, ...);
-union control *ctrl_editbox(struct controlset *, char *label, char shortcut,
-			    int percentage, intorptr helpctx,
+union control *ctrl_editbox(struct controlset *, const char *label,
+                            char shortcut, int percentage, intorptr helpctx,
 			    handler_fn handler,
 			    intorptr context, intorptr context2);
-union control *ctrl_combobox(struct controlset *, char *label, char shortcut,
-			     int percentage, intorptr helpctx,
+union control *ctrl_combobox(struct controlset *, const char *label,
+                             char shortcut, int percentage, intorptr helpctx,
 			     handler_fn handler,
 			     intorptr context, intorptr context2);
 /*
@@ -507,32 +507,32 @@ union control *ctrl_combobox(struct controlset *, char *label, char shortcut,
  * title is expected to be followed by a shortcut _iff_ `shortcut'
  * is NO_SHORTCUT.
  */
-union control *ctrl_radiobuttons(struct controlset *, char *label,
-				 char shortcut, int ncolumns,
-				 intorptr helpctx,
+union control *ctrl_radiobuttons(struct controlset *, const char *label,
+				 char shortcut, int ncolumns, intorptr helpctx,
 				 handler_fn handler, intorptr context, ...);
-union control *ctrl_pushbutton(struct controlset *,char *label,char shortcut,
-			       intorptr helpctx,
+union control *ctrl_pushbutton(struct controlset *, const char *label,
+                               char shortcut, intorptr helpctx,
 			       handler_fn handler, intorptr context);
-union control *ctrl_listbox(struct controlset *,char *label,char shortcut,
-			    intorptr helpctx,
+union control *ctrl_listbox(struct controlset *, const char *label,
+                            char shortcut, intorptr helpctx,
 			    handler_fn handler, intorptr context);
-union control *ctrl_droplist(struct controlset *, char *label, char shortcut,
-			     int percentage, intorptr helpctx,
+union control *ctrl_droplist(struct controlset *, const char *label,
+                             char shortcut, int percentage, intorptr helpctx,
 			     handler_fn handler, intorptr context);
-union control *ctrl_draglist(struct controlset *,char *label,char shortcut,
-			     intorptr helpctx,
+union control *ctrl_draglist(struct controlset *, const char *label,
+                             char shortcut, intorptr helpctx,
 			     handler_fn handler, intorptr context);
-union control *ctrl_filesel(struct controlset *,char *label,char shortcut,
-			    char const *filter, int write, char *title,
-			    intorptr helpctx,
+union control *ctrl_filesel(struct controlset *, const char *label,
+                            char shortcut, const char *filter, int write,
+                            const char *title, intorptr helpctx,
 			    handler_fn handler, intorptr context);
-union control *ctrl_fontsel(struct controlset *,char *label,char shortcut,
-			    intorptr helpctx,
+union control *ctrl_fontsel(struct controlset *, const char *label,
+                            char shortcut, intorptr helpctx,
 			    handler_fn handler, intorptr context);
-union control *ctrl_text(struct controlset *, char *text, intorptr helpctx);
-union control *ctrl_checkbox(struct controlset *, char *label, char shortcut,
-			     intorptr helpctx,
+union control *ctrl_text(struct controlset *, const char *text,
+                         intorptr helpctx);
+union control *ctrl_checkbox(struct controlset *, const char *label,
+                             char shortcut, intorptr helpctx,
 			     handler_fn handler, intorptr context);
 union control *ctrl_tabdelay(struct controlset *, union control *);
 
@@ -597,7 +597,7 @@ union control *dlg_last_focused(union control *ctrl, void *dlg);
  * error; dlg_error() puts up a message-box or equivalent.
  */
 void dlg_beep(void *dlg);
-void dlg_error_msg(void *dlg, char *msg);
+void dlg_error_msg(void *dlg, const char *msg);
 /*
  * This function signals to the front end that the dialog's
  * processing is completed, and passes an integer value (typically
@@ -647,8 +647,8 @@ void dlg_refresh(union control *ctrl, void *dlg);
  *          ... process this controlset ...
  *      }
  */
-int ctrl_find_path(struct controlbox *b, char *path, int index);
-int ctrl_path_elements(char *path);
+int ctrl_find_path(struct controlbox *b, const char *path, int index);
+int ctrl_path_elements(const char *path);
 /* Return the number of matching path elements at the starts of p1 and p2,
  * or INT_MAX if the paths are identical. */
-int ctrl_path_compare(char *p1, char *p2);
+int ctrl_path_compare(const char *p1, const char *p2);

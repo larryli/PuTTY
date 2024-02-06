@@ -356,12 +356,13 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int i;
 
-	static const struct { char *s; int c; } ciphers[] = {
+	static const struct { const char *s; int c; } ciphers[] = {
+            { "ChaCha20 (只限 SSH-2)",  CIPHER_CHACHA20 },
 	    { "3DES",			CIPHER_3DES },
 	    { "Blowfish",		CIPHER_BLOWFISH },
 	    { "DES",			CIPHER_DES },
 	    { "AES (只限 SSH-2)",	CIPHER_AES },
-	    { "Arcfour (SSH-2 only)",	CIPHER_ARCFOUR },
+	    { "Arcfour (只限 SSH-2)",	CIPHER_ARCFOUR },
 	    { "-- 下面为警告选项 --",	CIPHER_WARN }
 	};
 
@@ -372,7 +373,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 	for (i = 0; i < CIPHER_MAX; i++) {
 	    int c = conf_get_int_int(conf, CONF_ssh_cipherlist, i);
 	    int j;
-	    char *cstr = NULL;
+	    const char *cstr = NULL;
 	    for (j = 0; j < (sizeof ciphers) / (sizeof ciphers[0]); j++) {
 		if (ciphers[j].c == c) {
 		    cstr = ciphers[j].s;
@@ -428,11 +429,12 @@ static void kexlist_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int i;
 
-	static const struct { char *s; int k; } kexes[] = {
+	static const struct { const char *s; int k; } kexes[] = {
 	    { "Diffie-Hellman group 1",		KEX_DHGROUP1 },
 	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
 	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
 	    { "RSA-based key exchange", 	KEX_RSA },
+            { "ECDH key exchange",              KEX_ECDH },
 	    { "-- 下面为警告选项 --",		KEX_WARN }
 	};
 
@@ -443,7 +445,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	for (i = 0; i < KEX_MAX; i++) {
 	    int k = conf_get_int_int(conf, CONF_ssh_kexlist, i);
 	    int j;
-	    char *kstr = NULL;
+	    const char *kstr = NULL;
 	    for (j = 0; j < (sizeof kexes) / (sizeof kexes[0]); j++) {
 		if (kexes[j].k == k) {
 		    kstr = kexes[j].s;
@@ -464,6 +466,49 @@ static void kexlist_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void hklist_handler(union control *ctrl, void *dlg,
+                            void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    if (event == EVENT_REFRESH) {
+        int i;
+
+        static const struct { const char *s; int k; } hks[] = {
+            { "Ed25519",               HK_ED25519 },
+            { "ECDSA",                 HK_ECDSA },
+            { "DSA",                   HK_DSA },
+            { "RSA",                   HK_RSA },
+            { "-- 下面为警告选项 --", HK_WARN }
+        };
+
+        /* Set up the "host key preference" box. */
+        /* (hklist assumed to contain all algorithms) */
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        for (i = 0; i < HK_MAX; i++) {
+            int k = conf_get_int_int(conf, CONF_ssh_hklist, i);
+            int j;
+            const char *kstr = NULL;
+            for (j = 0; j < lenof(hks); j++) {
+                if (hks[j].k == k) {
+                    kstr = hks[j].s;
+                    break;
+                }
+            }
+            dlg_listbox_addwithid(ctrl, dlg, kstr, k);
+        }
+        dlg_update_done(ctrl, dlg);
+
+    } else if (event == EVENT_VALCHANGE) {
+        int i;
+
+        /* Update array to match the list box. */
+        for (i=0; i < HK_MAX; i++)
+            conf_set_int_int(conf, CONF_ssh_hklist, i,
+                             dlg_listbox_getid(ctrl, dlg, i));
+    }
+}
+
 static void printerbox_handler(union control *ctrl, void *dlg,
 			       void *data, int event)
 {
@@ -471,7 +516,7 @@ static void printerbox_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int nprinters, i;
 	printer_enum *pe;
-	char *printer;
+	const char *printer;
 
 	dlg_update_start(ctrl, dlg);
 	/*
@@ -783,17 +828,17 @@ struct colour_data {
 };
 
 static const char *const colours[] = {
-    "默认前景", "默认前景（粗）",
-    "默认背景", "默认背景（粗）",
+    "默认前景", "默认前景(粗)",
+    "默认背景", "默认背景(粗)",
     "光标文本", "光标颜色",
-    "ANSI 黑", "ANSI 黑（粗）",
-    "ANSI 红", "ANSI 红（粗）",
-    "ANSI 绿", "ANSI 绿（粗）",
-    "ANSI 黄", "ANSI 黄（粗）",
-    "ANSI 蓝", "ANSI 蓝（粗）",
-    "ANSI 紫", "ANSI 紫（粗）",
-    "ANSI 青", "ANSI 青（粗）",
-    "ANSI 白", "ANSI 白（粗）"
+    "ANSI 黑", "ANSI 黑(粗)",
+    "ANSI 红", "ANSI 红(粗)",
+    "ANSI 绿", "ANSI 绿(粗)",
+    "ANSI 黄", "ANSI 黄(粗)",
+    "ANSI 蓝", "ANSI 蓝(粗)",
+    "ANSI 紫", "ANSI 紫(粗)",
+    "ANSI 青", "ANSI 青(粗)",
+    "ANSI 白", "ANSI 白(粗)"
 };
 
 static void colour_handler(union control *ctrl, void *dlg,
@@ -1118,7 +1163,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
-	    char *family, *type, *src, *key, *val;
+	    const char *family, *type;
+            char *src, *key, *val;
 	    int whichbutton;
 
 #ifndef NO_IPV6
@@ -1177,7 +1223,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    if (i < 0) {
 		dlg_beep(dlg);
 	    } else {
-		char *key, *val, *p;
+		char *key, *p;
+                const char *val;
 
 		key = conf_get_str_nthstrkey(conf, CONF_portfwd, i);
 		if (key) {
@@ -1449,7 +1496,7 @@ void setup_config_box(struct controlbox *b, int midsession,
      * logging can sensibly be available.
      */
     {
-	char *sshlogname, *sshrawlogname;
+	const char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
 	    (!midsession && backend_from_proto(PROT_SSH))) {
 	    sshlogname = "SSH 包";
@@ -1643,6 +1690,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  HELPCTX(features_retitle),
 		  conf_checkbox_handler,
 		  I(CONF_no_remote_wintitle));
+    ctrl_checkbox(s, "禁止远程控制清除回滚(E)", 'e',
+		  HELPCTX(features_clearscroll),
+		  conf_checkbox_handler,
+		  I(CONF_no_remote_clearscroll));
     ctrl_radiobuttons(s, "远程标题查询回应(SECURITY)(Q)：", 'q', 3,
 		      HELPCTX(features_qtitle),
 		      conf_radiobutton_handler,
@@ -1926,9 +1977,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 #endif
 
 	    {
-		char *label = backend_from_proto(PROT_SSH) ?
+		const char *label = backend_from_proto(PROT_SSH) ?
 		    "远程主机的注册名字（如：使用 ssh 密钥寻找）：" :
-		    "远程主机的注册名字：";
+		    "Logical 远程主机的注册名字：";
 		s = ctrl_getset(b, "连接", "identity",
 				"远程主机的注册名字");
 		ctrl_editbox(s, label, 'm', 100,
@@ -2068,6 +2119,15 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     HELPCTX(proxy_command),
 		     conf_editbox_handler,
 		     I(CONF_proxy_telnet_command), I(1));
+
+	ctrl_radiobuttons(s, "在终端窗口"
+                          "输出代理诊断信息", 'r', 5,
+			  HELPCTX(proxy_logging),
+			  conf_radiobutton_handler,
+			  I(CONF_proxy_log_to_term),
+			  "否", I(FORCE_OFF),
+			  "是", I(FORCE_ON),
+			  "只在会话开始时", I(AUTO), NULL);
     }
 
     /*
@@ -2192,14 +2252,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 	if (!midsession) {
 	    s = ctrl_getset(b, "连接/SSH", "protocol", "协议选项");
 
-	    ctrl_radiobuttons(s, "首选的 SSH 协议版本：", NO_SHORTCUT, 4,
+	    ctrl_radiobuttons(s, "首选的 SSH 协议版本：", NO_SHORTCUT, 2,
 			      HELPCTX(ssh_protocol),
 			      conf_radiobutton_handler,
 			      I(CONF_sshprot),
-			      "只限 1(L)", 'l', I(0),
-			      "1", '1', I(1),
-			      "2", '2', I(2),
-			      "只限 2(Y)", 'y', I(3), NULL);
+			      "2", '2', I(3),
+			      "1 (不安全)", '1', I(0), NULL);
 	}
 
 	/*
@@ -2234,6 +2292,21 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 I(16));
 	    ctrl_text(s, "(使用 1M 表示 1 兆字节，1G 表示 1 吉字节))",
 		      HELPCTX(ssh_kex_repeat));
+	}
+
+	/*
+	 * The 'Connection/SSH/Host keys' panel.
+	 */
+	if (protcfginfo != 1 && protcfginfo != -1) {
+	    ctrl_settitle(b, "连接/SSH/主机密钥",
+			  "控制 SSH 主机密钥选项");
+
+	    s = ctrl_getset(b, "连接/SSH/主机密钥", "main",
+			    "主机密钥算法偏好");
+	    c = ctrl_draglist(s, "算法选择优先级：", 's',
+			      HELPCTX(ssh_hklist),
+			      hklist_handler, P(NULL));
+	    c->listbox.height = 5;
 	}
 
 	/*
@@ -2308,14 +2381,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  "SSH 认证设置");
 
 	    s = ctrl_getset(b, "连接/SSH/认证", "main", NULL);
-	    ctrl_checkbox(s, "完全绕过认证，只限于 SSH-2(B)", 'b',
-			  HELPCTX(ssh_auth_bypass),
-			  conf_checkbox_handler,
-			  I(CONF_ssh_no_userauth));
 	    ctrl_checkbox(s, "显示预认证提示，只限于 SSH-2(D)",
 			  'd', HELPCTX(ssh_auth_banner),
 			  conf_checkbox_handler,
 			  I(CONF_ssh_show_banner));
+	    ctrl_checkbox(s, "完全绕过认证，只限于 SSH-2(B)", 'b',
+			  HELPCTX(ssh_auth_bypass),
+			  conf_checkbox_handler,
+			  I(CONF_ssh_no_userauth));
 
 	    s = ctrl_getset(b, "连接/SSH/认证", "methods",
 			    "认证方式");
@@ -2571,27 +2644,21 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "连接/SSH/查错", "main",
 			    "检测已知的 SSH 服务器错误");
-	    ctrl_droplist(s, "阻塞 SSH-1 忽略信息(I)", 'i', 20,
-			  HELPCTX(ssh_bugs_ignore1),
-			  sshbug_handler, I(CONF_sshbug_ignore1));
-	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装(S)", 's', 20,
-			  HELPCTX(ssh_bugs_plainpw1),
-			  sshbug_handler, I(CONF_sshbug_plainpw1));
-	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证(R)", 'r', 20,
-			  HELPCTX(ssh_bugs_rsa1),
-			  sshbug_handler, I(CONF_sshbug_rsa1));
 	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息(2)", '2', 20,
 			  HELPCTX(ssh_bugs_ignore2),
 			  sshbug_handler, I(CONF_sshbug_ignore2));
-	    ctrl_droplist(s, "Chokes on PuTTY's SSH-2 'winadj' requests", 'j',
+	    ctrl_droplist(s, "严格 SSH-2 密钥再次验证操作(K)", 'k', 20,
+			  HELPCTX(ssh_bugs_rekey2),
+			  sshbug_handler, I(CONF_sshbug_rekey2));
+	    ctrl_droplist(s, "阻塞 PuTTY's SSH-2 'winadj' 请求", 'j',
                           20, HELPCTX(ssh_bugs_winadj),
 			  sshbug_handler, I(CONF_sshbug_winadj));
-	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥(M)", 'm', 20,
-			  HELPCTX(ssh_bugs_hmac2),
-			  sshbug_handler, I(CONF_sshbug_hmac2));
-	    ctrl_droplist(s, "混算 SSH-2 加密密钥(E)", 'e', 20,
-			  HELPCTX(ssh_bugs_derivekey2),
-			  sshbug_handler, I(CONF_sshbug_derivekey2));
+	    ctrl_droplist(s, "回复已关闭通道的请求(Q)", 'q', 20,
+			  HELPCTX(ssh_bugs_chanreq),
+			  sshbug_handler, I(CONF_sshbug_chanreq));
+	    ctrl_droplist(s, "忽略 SSH-2 最大包大小", 'x', 20,
+			  HELPCTX(ssh_bugs_maxpkt2),
+			  sshbug_handler, I(CONF_sshbug_maxpkt2));
 
 	    ctrl_settitle(b, "连接/SSH/更多查错",
 			  "处理 SSH 服务器更多错误设置");
@@ -2601,21 +2668,27 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "SSH-2 RSA 签名附加请求(P)", 'p', 20,
 			  HELPCTX(ssh_bugs_rsapad2),
 			  sshbug_handler, I(CONF_sshbug_rsapad2));
+	    ctrl_droplist(s, "只支持 pre-RFC4419 SSH-2 DH GEX", 'd', 20,
+			  HELPCTX(ssh_bugs_oldgex2),
+			  sshbug_handler, I(CONF_sshbug_oldgex2));
+	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥(M)", 'm', 20,
+			  HELPCTX(ssh_bugs_hmac2),
+			  sshbug_handler, I(CONF_sshbug_hmac2));
 	    ctrl_droplist(s, "错误 SSH-2 PK 认证会话 ID(N)", 'n', 20,
 			  HELPCTX(ssh_bugs_pksessid2),
 			  sshbug_handler, I(CONF_sshbug_pksessid2));
-	    ctrl_droplist(s, "严格 SSH-2 密钥再次验证操作(K)", 'k', 20,
-			  HELPCTX(ssh_bugs_rekey2),
-			  sshbug_handler, I(CONF_sshbug_rekey2));
-	    ctrl_droplist(s, "忽略 SSH-2 最大包大小", 'x', 20,
-			  HELPCTX(ssh_bugs_maxpkt2),
-			  sshbug_handler, I(CONF_sshbug_maxpkt2));
-	    ctrl_droplist(s, "Only supports pre-RFC4419 SSH-2 DH GEX", 'd', 20,
-			  HELPCTX(ssh_bugs_oldgex2),
-			  sshbug_handler, I(CONF_sshbug_oldgex2));
-	    ctrl_droplist(s, "Replies to requests on closed channels", 'q', 20,
-			  HELPCTX(ssh_bugs_chanreq),
-			  sshbug_handler, I(CONF_sshbug_chanreq));
+	    ctrl_droplist(s, "混算 SSH-2 加密密钥(E)", 'e', 20,
+			  HELPCTX(ssh_bugs_derivekey2),
+			  sshbug_handler, I(CONF_sshbug_derivekey2));
+	    ctrl_droplist(s, "阻塞 SSH-1 忽略信息(I)", 'i', 20,
+			  HELPCTX(ssh_bugs_ignore1),
+			  sshbug_handler, I(CONF_sshbug_ignore1));
+	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装(S)", 's', 20,
+			  HELPCTX(ssh_bugs_plainpw1),
+			  sshbug_handler, I(CONF_sshbug_plainpw1));
+	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证(R)", 'r', 20,
+			  HELPCTX(ssh_bugs_rsa1),
+			  sshbug_handler, I(CONF_sshbug_rsa1));
 	}
     }
 }

@@ -55,9 +55,9 @@ disk. Many people feel this is a good compromise between security
 and convenience. See \k{pageant} for further details.
 
 There is more than one \i{public-key algorithm} available. The most
-common is \i{RSA}, but others exist, notably \i{DSA} (otherwise known as
-DSS), the USA's federal Digital Signature Standard. The key types
-supported by PuTTY are described in \k{puttygen-keytype}.
+common are \i{RSA} and \i{ECDSA}, but others exist, notably \i{DSA}
+(otherwise known as DSS), the USA's federal Digital Signature Standard.
+The key types supported by PuTTY are described in \k{puttygen-keytype}.
 
 \H{pubkey-puttygen} Using \i{PuTTYgen}, the PuTTY key generator
 
@@ -66,7 +66,7 @@ supported by PuTTY are described in \k{puttygen-keytype}.
 PuTTYgen is a key generator. It \I{generating keys}generates pairs of
 public and private keys to be used with PuTTY, PSCP, and Plink, as well
 as the PuTTY authentication agent, Pageant (see \k{pageant}).  PuTTYgen
-generates RSA and DSA keys.
+generates RSA, DSA, ECDSA, and Ed25519 keys.
 
 When you run PuTTYgen you will see a window where you have two
 choices: \q{Generate}, to generate a new public/private key pair, or
@@ -109,7 +109,7 @@ server to accept it.
 \cfg{winhelp-topic}{puttygen.keytype}
 
 Before generating a key pair using PuTTYgen, you need to select
-which type of key you need. PuTTYgen currently supports three types
+which type of key you need. PuTTYgen currently supports these types
 of key:
 
 \b An \i{RSA} key for use with the SSH-1 protocol.
@@ -118,27 +118,18 @@ of key:
 
 \b A \i{DSA} key for use with the SSH-2 protocol.
 
+\b An \i{ECDSA} (\i{elliptic curve} DSA) key for use with the
+SSH-2 protocol.
+
+\b An \i{Ed25519} key (another elliptic curve algorithm) for use
+with the SSH-2 protocol.
+
 The SSH-1 protocol only supports RSA keys; if you will be connecting
 using the SSH-1 protocol, you must select the first key type or your
 key will be completely useless.
 
-The SSH-2 protocol supports more than one key type. The two types
-supported by PuTTY are RSA and DSA.
-
-The PuTTY developers \e{strongly} recommend you use RSA.
-\I{security risk}\i{DSA} has an intrinsic weakness which makes it very
-easy to create a signature which contains enough information to give
-away the \e{private} key!
-This would allow an attacker to pretend to be you for any number of
-future sessions. PuTTY's implementation has taken very careful
-precautions to avoid this weakness, but we cannot be 100% certain we
-have managed it, and if you have the choice we strongly recommend
-using RSA keys instead.
-
-If you really need to connect to an SSH server which only supports
-DSA, then you probably have no choice but to use DSA. If you do use
-DSA, we recommend you do not use the same key to authenticate with
-more than one server.
+The SSH-2 protocol supports more than one key type. The types
+supported by PuTTY are RSA, DSA, ECDSA, and Ed25519.
 
 \S{puttygen-strength} Selecting the size (strength) of the key
 
@@ -147,7 +138,14 @@ more than one server.
 The \q{Number of bits} input box allows you to choose the strength
 of the key PuTTYgen will generate.
 
-Currently 1024 bits should be sufficient for most purposes.
+\b For RSA, 2048 bits should currently be sufficient for most purposes.
+
+\#{FIXME: advice for DSA?}
+
+\b For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
+equivalent security to RSA with smaller key sizes.)
+
+\b For Ed25519, the only valid size is 256 bits.
 
 \S{puttygen-generate} The \q{Generate} button
 
@@ -183,7 +181,8 @@ appear in the window to indicate this.
 
 The \q{Key fingerprint} box shows you a fingerprint value for the
 generated key. This is derived cryptographically from the \e{public}
-key value, so it doesn't need to be kept secret.
+key value, so it doesn't need to be kept secret; it is supposed to
+be more manageable for human beings than the public key itself.
 
 The fingerprint value is intended to be cryptographically secure, in
 the sense that it is computationally infeasible for someone to
@@ -367,6 +366,16 @@ from the \q{Conversions} menu. Exporting a key works exactly like
 saving it (see \k{puttygen-savepriv}) - you need to have typed your
 passphrase in beforehand, and you will be warned if you are about to
 save a key without a passphrase.
+
+For OpenSSH there are two options. Modern OpenSSH actually has two
+formats it uses for storing private keys. \q{Export OpenSSH key}
+will automatically choose the oldest format supported for the key
+type, for maximum backward compatibility with older versions of
+OpenSSH; for newer key types like Ed25519, it will use the newer
+format as that is the only legal option. If you have some specific
+reason for wanting to use OpenSSH's newer format even for RSA, DSA,
+or ECDSA keys, you can choose \q{Export OpenSSH key (force new file
+format)}.
 
 Note that since only SSH-2 keys come in different formats, the export
 options are not available if you have generated an SSH-1 key.

@@ -27,7 +27,7 @@ sign() {
 
 cd "$1"
 echo "===== Signing with key '$keyname'"
-for i in putty*src.zip putty*.tar.gz x86/*.exe x86/*.zip; do
+for i in putty*src.zip putty*.tar.gz w32/*.exe w32/*.zip w32/*.msi w64/*.exe w64/*.zip w64/*.msi w32old/*.exe w32old/*.zip; do
     sign --detach-sign "$i" "$i.gpg"
 done
 for i in md5sums sha1sums sha256sums sha512sums; do

@@ -10,6 +10,7 @@
 const char *const appname = "pterm";
 const int use_event_log = 0;	       /* pterm doesn't need it */
 const int new_session = 0, saved_sessions = 0;   /* or these */
+const int dup_check_launchable = 0; /* no need to check host name in conf */
 const int use_pty_argv = TRUE;
 
 Backend *select_backend(Conf *conf)
@@ -33,7 +34,7 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
+int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch)
 {
     return 0;                          /* pterm doesn't have any. */
 }
@@ -43,18 +44,13 @@ char *make_default_wintitle(char *hostname)
     return dupstr("pterm");
 }
 
-int main(int argc, char **argv)
+void setup(int single)
 {
-    extern int pt_main(int argc, char **argv);
     extern void pty_pre_init(void);    /* declared in pty.c */
-    int ret;
 
     cmdline_tooltype = TOOLTYPE_NONNETWORK;
     default_protocol = -1;
 
-    pty_pre_init();
-
-    ret = pt_main(argc, argv);
-    cleanup_exit(ret);
-    return ret;             /* not reached, but placates optimisers */
+    if (single)
+        pty_pre_init();
 }

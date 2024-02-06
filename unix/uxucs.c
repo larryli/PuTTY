@@ -57,7 +57,7 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 }
 
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused,
+	     char *mbstr, int mblen, const char *defchr, int *defused,
 	     struct unicode_data *ucsdata)
 {
     /* FIXME: we should remove the defused param completely... */

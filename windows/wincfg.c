@@ -193,8 +193,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		      HELPCTX(appearance_font),
 		      conf_radiobutton_handler,
 		      I(CONF_font_quality),
-		      "Antialiased", I(FQ_ANTIALIASED),
-		      "Non-Antialiased", I(FQ_NONANTIALIASED),
+		      "抗锯齿", I(FQ_ANTIALIASED),
+		      "无抗锯齿", I(FQ_NONANTIALIASED),
 		      "ClearType", I(FQ_CLEARTYPE),
 		      "默认", I(FQ_DEFAULT), NULL);
 
@@ -395,8 +395,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      */
     if (!midsession && backend_from_proto(PROT_SSH)) {
 	s = ctrl_getset(b, "连接/SSH/X11", "x11", "X11 映射");
-	ctrl_filesel(s, "X authority file for local display", 't',
-		     NULL, FALSE, "Select X authority file",
+	ctrl_filesel(s, "用于本地显示的 X 认证文件(T)", 't',
+		     NULL, FALSE, "选择 X 认证文件",
 		     HELPCTX(ssh_tunnels_xauthority),
 		     conf_filesel_handler, I(CONF_xauthfile));
     }

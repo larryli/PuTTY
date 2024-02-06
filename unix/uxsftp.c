@@ -26,8 +26,8 @@
  * In PSFTP our selects are synchronous, so these functions are
  * empty stubs.
  */
-int uxsel_input_add(int fd, int rwx) { return 0; }
-void uxsel_input_remove(int id) { }
+uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
+void uxsel_input_remove(uxsel_id *id) { }
 
 char *x_get_default(const char *key)
 {
@@ -68,7 +68,7 @@ Filename *platform_default_filename(const char *name)
 
 char *get_ttymode(void *frontend, const char *mode) { return NULL; }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);
@@ -120,7 +120,7 @@ struct RFile {
     int fd;
 };
 
-RFile *open_existing_file(char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64 *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms)
 {
@@ -174,7 +174,7 @@ struct WFile {
     char *name;
 };
 
-WFile *open_new_file(char *name, long perms)
+WFile *open_new_file(const char *name, long perms)
 {
     int fd;
     WFile *ret;
@@ -192,7 +192,7 @@ WFile *open_new_file(char *name, long perms)
 }
 
 
-WFile *open_existing_wfile(char *name, uint64 *size)
+WFile *open_existing_wfile(const char *name, uint64 *size)
 {
     int fd;
     WFile *ret;
@@ -298,7 +298,7 @@ uint64 get_file_posn(WFile *f)
     return ret;
 }
 
-int file_type(char *name)
+int file_type(const char *name)
 {
     struct stat statbuf;
 
@@ -321,7 +321,7 @@ struct DirHandle {
     DIR *dir;
 };
 
-DirHandle *open_directory(char *name)
+DirHandle *open_directory(const char *name)
 {
     DIR *dir;
     DirHandle *ret;
@@ -356,7 +356,7 @@ void close_directory(DirHandle *dir)
     sfree(dir);
 }
 
-int test_wildcard(char *name, int cmdline)
+int test_wildcard(const char *name, int cmdline)
 {
     struct stat statbuf;
 
@@ -390,7 +390,7 @@ struct WildcardMatcher {
     glob_t globbed;
     int i;
 };
-WildcardMatcher *begin_wildcard_matching(char *name) {
+WildcardMatcher *begin_wildcard_matching(const char *name) {
     WildcardMatcher *ret = snew(WildcardMatcher);
 
     if (glob(name, 0, NULL, &ret->globbed) < 0) {
@@ -413,7 +413,21 @@ void finish_wildcard_matching(WildcardMatcher *dir) {
     sfree(dir);
 }
 
-int vet_filename(char *name)
+char *stripslashes(const char *str, int local)
+{
+    char *p;
+
+    /*
+     * On Unix, we do the same thing regardless of the 'local'
+     * parameter.
+     */
+    p = strrchr(str, '/');
+    if (p) str = p+1;
+
+    return (char *)str;
+}
+
+int vet_filename(const char *name)
 {
     if (strchr(name, '/'))
 	return FALSE;
@@ -424,12 +438,12 @@ int vet_filename(char *name)
     return TRUE;
 }
 
-int create_directory(char *name)
+int create_directory(const char *name)
 {
     return mkdir(name, 0777) == 0;
 }
 
-char *dir_file_cat(char *dir, char *file)
+char *dir_file_cat(const char *dir, const char *file)
 {
     return dupcat(dir, "/", file, NULL);
 }
@@ -517,7 +531,9 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
                     now = GETTICKCOUNT();
             } while (ret < 0 && errno == EINTR);
         } else {
-            ret = select(maxfd, &rset, &wset, &xset, NULL);
+            do {
+                ret = select(maxfd, &rset, &wset, &xset, NULL);
+            } while (ret < 0 && errno == EINTR);
         }
     } while (ret == 0);
 
@@ -559,7 +575,7 @@ int ssh_sftp_loop_iteration(void)
 /*
  * Read a PSFTP command line from stdin.
  */
-char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
+char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
 {
     char *buf;
     int buflen, bufsize, ret;
@@ -603,6 +619,8 @@ char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
 }
 
 void frontend_net_error_pending(void) {}
+
+void platform_psftp_pre_conn_setup(void) {}
 
 /*
  * Main program: do platform-specific initialisation and then call

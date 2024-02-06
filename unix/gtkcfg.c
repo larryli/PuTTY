@@ -129,6 +129,22 @@ void gtk_setup_config_box(struct controlbox *b, int midsession, void *win)
 		  conf_checkbox_handler,
 		  I(CONF_utf8_override));
 
+#ifdef OSX_META_KEY_CONFIG
+    /*
+     * On OS X, there are multiple reasonable opinions about whether
+     * Option or Command (or both, or neither) should act as a Meta
+     * key, or whether they should have their normal OS functions.
+     */
+    s = ctrl_getset(b, "Terminal/Keyboard", "meta",
+		    "Choose the Meta key:");
+    ctrl_checkbox(s, "Option key acts as Meta", 'p',
+		  HELPCTX(no_help),
+		  conf_checkbox_handler, I(CONF_osx_option_meta));
+    ctrl_checkbox(s, "Command key acts as Meta", 'm',
+		  HELPCTX(no_help),
+		  conf_checkbox_handler, I(CONF_osx_command_meta));
+#endif
+
     if (!midsession) {
         /*
          * Allow the user to specify the window class as part of the saved

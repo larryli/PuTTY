@@ -103,6 +103,21 @@ for i in range(1,4200):
     a, b, p = findprod((1<<i)+1, +1, (i, i+1))
     print "mul", hexstr(a), hexstr(b), hexstr(p)
 
+# Bare tests of division/modulo.
+prefixes = [2**63, int(2**63.5), 2**64-1]
+for nsize in range(20, 200):
+    for dsize in range(20, 200):
+        for dprefix in prefixes:
+            d = sqrt(3<<(2*dsize)) + (dprefix<<dsize)
+            for nprefix in prefixes:
+                nbase = sqrt(3<<(2*nsize)) + (nprefix<<nsize)
+                for modulus in sorted({-1, 0, +1, d/2, nbase % d}):
+                    n = nbase - (nbase % d) + modulus
+                    if n < 0:
+                        n += d
+                        assert n >= 0
+                    print "divmod", hexstr(n), hexstr(d), hexstr(n/d), hexstr(n%d)
+
 # Simple tests of modmul.
 for ai in range(20, 200, 60):
     a = sqrt(3<<(2*ai-1))

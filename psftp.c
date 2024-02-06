@@ -68,7 +68,7 @@ struct sftp_packet *sftp_wait_for_reply(struct sftp_request *req)
  * canonification fails, at least fall back to returning a _valid_
  * pathname (though it may be ugly, eg /home/simon/../foobar).
  */
-char *canonify(char *name)
+char *canonify(const char *name)
 {
     char *fullname, *canonname;
     struct sftp_packet *pktin;
@@ -77,7 +77,7 @@ char *canonify(char *name)
     if (name[0] == '/') {
 	fullname = dupstr(name);
     } else {
-	char *slash;
+	const char *slash;
 	if (pwd[strlen(pwd) - 1] == '/')
 	    slash = "";
 	else
@@ -167,30 +167,6 @@ char *canonify(char *name)
 	sfree(canonname);
 	return returnname;
     }
-}
-
-/*
- * Return a pointer to the portion of str that comes after the last
- * slash (or backslash or colon, if `local' is TRUE).
- */
-static char *stripslashes(char *str, int local)
-{
-    char *p;
-
-    if (local) {
-        p = strchr(str, ':');
-        if (p) str = p+1;
-    }
-
-    p = strrchr(str, '/');
-    if (p) str = p+1;
-
-    if (local) {
-	p = strrchr(str, '\\');
-	if (p) str = p+1;
-    }
-
-    return str;
 }
 
 /*
@@ -457,7 +433,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     xfer = xfer_download_init(fh, offset);
     while (!xfer_done(xfer)) {
 	void *vbuf;
-	int ret, len;
+	int len;
 	int wpos, wlen;
 
 	xfer_download_queue(xfer);
@@ -515,7 +491,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     struct sftp_request *req;
     uint64 offset;
     RFile *file;
-    int ret, err, eof;
+    int err = 0, eof;
     struct fxp_attrs attrs;
     long permissions;
 
@@ -668,6 +644,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     if (restart) {
 	char decbuf[30];
 	struct fxp_attrs attrs;
+        int ret;
 
 	req = fxp_fstat_send(fh);
         pktin = sftp_wait_for_reply(req);
@@ -675,11 +652,12 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 
 	if (!ret) {
 	    printf("read size of %s: %s\n", outfname, fxp_error());
+	    err = 1;
             goto cleanup;
 	}
 	if (!(attrs.flags & SSH_FILEXFER_ATTR_SIZE)) {
 	    printf("read size of %s: size was not given\n", outfname);
-            ret = 0;
+	    err = 1;
             goto cleanup;
 	}
 	offset = attrs.size;
@@ -698,9 +676,8 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
      * FIXME: we can use FXP_FSTAT here to get the file size, and
      * thus put up a progress bar.
      */
-    ret = 1;
     xfer = xfer_upload_init(fh, offset);
-    err = eof = 0;
+    eof = 0;
     while ((!err && !eof) || !xfer_done(xfer)) {
 	char buffer[4096];
 	int len, ret;
@@ -736,11 +713,16 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
   cleanup:
     req = fxp_close_send(fh);
     pktin = sftp_wait_for_reply(req);
-    fxp_close_recv(pktin, req);
+    if (!fxp_close_recv(pktin, req)) {
+	if (!err) {
+	    printf("error while closing: %s", fxp_error());
+	    err = 1;
+	}
+    }
 
     close_rfile(file);
 
-    return ret;
+    return (err == 0) ? 1 : 0;
 }
 
 /* ----------------------------------------------------------------------
@@ -1011,7 +993,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     struct fxp_names *names;
     struct fxp_name **ournames;
     int nnames, namesize;
-    char *dir, *cdir, *unwcdir, *wildcard;
+    const char *dir;
+    char *cdir, *unwcdir, *wildcard;
     struct sftp_packet *pktin;
     struct sftp_request *req;
     int i;
@@ -1901,7 +1884,7 @@ static int sftp_cmd_pling(struct sftp_command *cmd)
 static int sftp_cmd_help(struct sftp_command *cmd);
 
 static struct sftp_cmd_lookup {
-    char *name;
+    const char *name;
     /*
      * For help purposes, there are two kinds of command:
      * 
@@ -1915,8 +1898,8 @@ static struct sftp_cmd_lookup {
      *    contains the help that should double up for this command.
      */
     int listed;			       /* do we list this in primary help? */
-    char *shorthelp;
-    char *longhelp;
+    const char *shorthelp;
+    const char *longhelp;
     int (*obey) (struct sftp_command *);
 } sftp_lookup[] = {
     /*
@@ -2139,7 +2122,7 @@ static struct sftp_cmd_lookup {
     }
 };
 
-const struct sftp_cmd_lookup *lookup_command(char *name)
+const struct sftp_cmd_lookup *lookup_command(const char *name)
 {
     int i, j, k, cmp;
 
@@ -2456,7 +2439,7 @@ static int verbose = 0;
 /*
  *  Print an error message and perform a fatal exit.
  */
-void fatalbox(char *fmt, ...)
+void fatalbox(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -2470,7 +2453,7 @@ void fatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
-void modalfatalbox(char *fmt, ...)
+void modalfatalbox(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -2484,7 +2467,7 @@ void modalfatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
-void nonfatal(char *fmt, ...)
+void nonfatal(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -2496,7 +2479,7 @@ void nonfatal(char *fmt, ...)
     fputs(str2, stderr);
     sfree(str2);
 }
-void connection_fatal(void *frontend, char *fmt, ...)
+void connection_fatal(void *frontend, const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -2511,16 +2494,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
     cleanup_exit(1);
 }
 
-void ldisc_send(void *handle, char *buf, int len, int interactive)
-{
-    /*
-     * This is only here because of the calls to ldisc_send(NULL,
-     * 0) in ssh.c. Nothing in PSFTP actually needs to use the
-     * ldisc as an ldisc. So if we get called with any real data, I
-     * want to know about it.
-     */
-    assert(len == 0);
-}
+void ldisc_echoedit_update(void *handle) { }
 
 /*
  * In psftp, all agent requests should be synchronous, so this is a
@@ -2650,6 +2624,10 @@ int sftp_senddata(char *buf, int len)
     back->send(backhandle, buf, len);
     return 1;
 }
+int sftp_sendbuffer(void)
+{
+    return back->sendbuffer(backhandle);
+}
 
 /*
  *  Short description of parameters.
@@ -2679,6 +2657,8 @@ static void usage(void)
     printf("  -hostkey aa:bb:cc:...\n");
     printf("            手工指定主机密钥指纹 (可能是重复的)\n");
     printf("  -batch    禁止所有交互提示\n");
+    printf("  -proxycmd 命令\n");
+    printf("            使用 '命令' 作为本地代理\n");
     printf("  -sshlog 文件\n");
     printf("  -sshrawlog 文件\n");
     printf("            日志协议明细输出到文件\n");
@@ -2687,8 +2667,10 @@ static void usage(void)
 
 static void version(void)
 {
-  printf("psftp: %s\n", ver);
-  cleanup_exit(1);
+  char *buildinfo_text = buildinfo("\n");
+  printf("psftp: %s\n%s\n", ver, buildinfo_text);
+  sfree(buildinfo_text);
+  exit(0);
 }
 
 /*
@@ -2857,6 +2839,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     back = &ssh_backend;
 
+    logctx = log_init(NULL, conf);
+    console_provide_logctx(logctx);
+
+    platform_psftp_pre_conn_setup();
+
     err = back->init(NULL, &backhandle, conf,
 		     conf_get_str(conf, CONF_host),
 		     conf_get_int(conf, CONF_port),
@@ -2866,9 +2853,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
-    logctx = log_init(NULL, conf);
     back->provide_logctx(backhandle, logctx);
-    console_provide_logctx(logctx);
     while (!back->sendok(backhandle)) {
 	if (back->exitcode(backhandle) >= 0)
 	    return 1;
@@ -2884,7 +2869,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     return 0;
 }
 
-void cmdline_error(char *p, ...)
+void cmdline_error(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "psftp: ");

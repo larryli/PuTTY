@@ -45,7 +45,13 @@ int ssh_sftp_loop_iteration(void);
  * FALSE, a back end is not (intentionally) active at all (e.g.
  * psftp before an `open' command).
  */
-char *ssh_sftp_get_cmdline(char *prompt, int backend_required);
+char *ssh_sftp_get_cmdline(const char *prompt, int backend_required);
+
+/*
+ * Platform-specific function called when we're about to make a
+ * network connection.
+ */
+void platform_psftp_pre_conn_setup(void);
 
 /*
  * The main program in psftp.c. Called from main() in the platform-
@@ -59,13 +65,13 @@ int psftp_main(int argc, char *argv[]);
  * probably only ever be supported on Windows, so these functions
  * can safely be stubs on all other platforms.
  */
-void gui_update_stats(char *name, unsigned long size,
+void gui_update_stats(const char *name, unsigned long size,
 		      int percentage, unsigned long elapsed,
 		      unsigned long done, unsigned long eta,
 		      unsigned long ratebs);
 void gui_send_errcount(int list, int errs);
 void gui_send_char(int is_stderr, int c);
-void gui_enable(char *arg);
+void gui_enable(const char *arg);
 
 /*
  * It's likely that a given platform's implementation of file
@@ -87,15 +93,15 @@ typedef struct RFile RFile;
 typedef struct WFile WFile;
 /* Output params size, perms, mtime and atime can all be NULL if
  * desired. perms will be -1 if the OS does not support POSIX permissions. */
-RFile *open_existing_file(char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64 *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms);
-WFile *open_existing_wfile(char *name, uint64 *size);
+WFile *open_existing_wfile(const char *name, uint64 *size);
 /* Returns <0 on error, 0 on eof, or number of bytes read, as usual */
 int read_from_file(RFile *f, void *buffer, int length);
 /* Closes and frees the RFile */
 void close_rfile(RFile *f);
-WFile *open_new_file(char *name, long perms);
+WFile *open_new_file(const char *name, long perms);
 /* Returns <0 on error, 0 on eof, or number of bytes written, as usual */
 int write_to_file(WFile *f, void *buffer, int length);
 void set_file_times(WFile *f, unsigned long mtime, unsigned long atime);
@@ -117,13 +123,13 @@ uint64 get_file_posn(WFile *f);
 enum {
     FILE_TYPE_NONEXISTENT, FILE_TYPE_FILE, FILE_TYPE_DIRECTORY, FILE_TYPE_WEIRD
 };
-int file_type(char *name);
+int file_type(const char *name);
 
 /*
  * Read all the file names out of a directory.
  */
 typedef struct DirHandle DirHandle;
-DirHandle *open_directory(char *name);
+DirHandle *open_directory(const char *name);
 /* The string returned from this will need freeing if not NULL */
 char *read_filename(DirHandle *dir);
 void close_directory(DirHandle *dir);
@@ -145,13 +151,13 @@ void close_directory(DirHandle *dir);
 enum {
     WCTYPE_NONEXISTENT, WCTYPE_FILENAME, WCTYPE_WILDCARD
 };
-int test_wildcard(char *name, int cmdline);
+int test_wildcard(const char *name, int cmdline);
 
 /*
  * Actually return matching file names for a local wildcard.
  */
 typedef struct WildcardMatcher WildcardMatcher;
-WildcardMatcher *begin_wildcard_matching(char *name);
+WildcardMatcher *begin_wildcard_matching(const char *name);
 /* The string returned from this will need freeing if not NULL */
 char *wildcard_get_filename(WildcardMatcher *dir);
 void finish_wildcard_matching(WildcardMatcher *dir);
@@ -164,17 +170,34 @@ void finish_wildcard_matching(WildcardMatcher *dir);
  * 
  * Returns TRUE if the filename is kosher, FALSE if dangerous.
  */
-int vet_filename(char *name);
+int vet_filename(const char *name);
 
 /*
  * Create a directory. Returns 0 on error, !=0 on success.
  */
-int create_directory(char *name);
+int create_directory(const char *name);
 
 /*
  * Concatenate a directory name and a file name. The way this is
  * done will depend on the OS.
  */
-char *dir_file_cat(char *dir, char *file);
+char *dir_file_cat(const char *dir, const char *file);
+
+/*
+ * Return a pointer to the portion of str that comes after the last
+ * path component separator.
+ *
+ * If 'local' is false, path component separators are taken to just be
+ * '/', on the assumption that we're discussing the path syntax on the
+ * server. But if 'local' is true, the separators are whatever the
+ * local OS will treat that way - so that includes '\' and ':' on
+ * Windows.
+ *
+ * This function has the annoying strstr() property of taking a const
+ * char * and returning a char *. You should treat it as if it was a
+ * pair of overloaded functions, one mapping mutable->mutable and the
+ * other const->const :-(
+ */
+char *stripslashes(const char *str, int local);
 
 #endif /* PUTTY_PSFTP_H */

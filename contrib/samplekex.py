@@ -2,18 +2,27 @@
 
 # Example Python script to synthesise the server end of an SSH key exchange.
 
-# This is an output-only script; you run it by means of saying
-# something like
+# This script expects to be run with its standard input and output
+# channels both connected to PuTTY. Run it by means of a command such
+# as
 #
-#   samplekex.py | nc -l 2222 | hex dump utility of your choice
+#   rm -f test.log && ./plink -sshrawlog test.log -v -proxycmd './contrib/samplekex.py' dummy
 #
-# and then connecting PuTTY to port 2222. Being output-only, of
-# course, it cannot possibly get the key exchange _right_, so PuTTY
-# will terminate with an error when the signature in the final message
-# doesn't validate. But everything until then should be processed as
-# if it was a normal SSH-2 connection, which means you can use this
-# script as a starting point for constructing interestingly malformed
-# key exchanges to test bug fixes.
+# It will conduct the whole of an SSH connection setup, up to the
+# point where it ought to present a valid host key signature and
+# switch over to the encrypted protocol; but because this is a simple
+# script (and also because at that point PuTTY would annoyingly give a
+# host key prompt), it doesn't actually bother to do either, and will
+# instead present a nonsense signature and terminate. The above sample
+# command will log the whole of the exchange from PuTTY's point of
+# view in 'test.log'.
+#
+# The intention is that this forms example code that can be easily
+# adapted to demonstrate bugs in our SSH connection setup. With more
+# effort it could be expanded into some kind of a regression-testing
+# suite, although in order to reliably test particular corner cases
+# that would probably also need PuTTY-side modifications to make the
+# random numbers deterministic.
 
 import sys, random
 from encodelib import *
@@ -30,9 +39,17 @@ rsamod = 0xB98FE0C0BEE1E05B35FDDF5517B3E29D8A9A6A7834378B6783A19536968968F755E34
 # 16 bytes of random data for the start of KEXINIT.
 cookie = "".join([chr(random.randint(0,255)) for i in range(16)])
 
+def expect(var, expr):
+    expected_val = eval(expr)
+    if var != expected_val:
+        sys.stderr.write("Expected %s (%s), got %s\n" % (
+            expr, repr(expected_val), repr(var)))
+        sys.exit(1)
+
 sys.stdout.write(greeting("SSH-2.0-Example KEX synthesis"))
 
-# Expect client to send KEXINIT
+greeting = sys.stdin.readline()
+expect(greeting[:8], '"SSH-2.0-"')
 
 sys.stdout.write(
     clearpkt(SSH2_MSG_KEXINIT,
@@ -49,18 +66,27 @@ sys.stdout.write(
              name_list(()), # server->client languages
              boolean(False), # first kex packet does not follow
              uint32(0)))
+sys.stdout.flush()
 
-# Expect client to send SSH2_MSG_KEX_DH_GEX_REQUEST(0x1000)
+intype, inpkt = read_clearpkt(sys.stdin)
+expect(intype, "SSH2_MSG_KEXINIT")
+
+intype, inpkt = read_clearpkt(sys.stdin)
+expect(intype, "SSH2_MSG_KEX_DH_GEX_REQUEST")
+expect(inpkt, "uint32(0x400) + uint32(0x400) + uint32(0x2000)")
 
 sys.stdout.write(
     clearpkt(SSH2_MSG_KEX_DH_GEX_GROUP,
              mpint(group),
              mpint(groupgen)))
+sys.stdout.flush()
 
-# Expect client to send SSH2_MSG_KEX_DH_GEX_INIT
+intype, inpkt = read_clearpkt(sys.stdin)
+expect(intype, "SSH2_MSG_KEX_DH_GEX_INIT")
 
 sys.stdout.write(
     clearpkt(SSH2_MSG_KEX_DH_GEX_REPLY,
              ssh_rsa_key_blob(rsaexp, rsamod),
              mpint(random.randint(2, group-2)),
              ssh_rsa_signature_blob(random.randint(2, rsamod-2))))
+sys.stdout.flush()

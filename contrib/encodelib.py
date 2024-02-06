@@ -65,10 +65,11 @@ SSH2_MSG_KEXINIT = 20
 SSH2_MSG_NEWKEYS = 21
 SSH2_MSG_KEXDH_INIT = 30
 SSH2_MSG_KEXDH_REPLY = 31
-SSH2_MSG_KEX_DH_GEX_REQUEST = 30
+SSH2_MSG_KEX_DH_GEX_REQUEST_OLD = 30
 SSH2_MSG_KEX_DH_GEX_GROUP = 31
 SSH2_MSG_KEX_DH_GEX_INIT = 32
 SSH2_MSG_KEX_DH_GEX_REPLY = 33
+SSH2_MSG_KEX_DH_GEX_REQUEST = 34
 SSH2_MSG_KEXRSA_PUBKEY = 30
 SSH2_MSG_KEXRSA_SECRET = 31
 SSH2_MSG_KEXRSA_DONE = 32
@@ -113,3 +114,16 @@ def clearpkt(msgtype, *stuff):
         s += byte(random.randint(0,255))
     s = byte(padlen) + s
     return string(s)
+
+def decode_uint32(s):
+    assert len(s) == 4
+    return struct.unpack(">I", s)[0]
+
+def read_clearpkt(fh):
+    length_field = fh.read(4)
+    s = fh.read(decode_uint32(length_field))
+    import sys
+    padlen = ord(s[0])
+    s = s[1:-padlen]
+    msgtype = ord(s[0])
+    return msgtype, s[1:]

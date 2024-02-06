@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIconFile</key>
+	<string>Pterm.icns</string>
+	<key>CFBundleName</key>
+	<string>Pterm</string>
+	<key>CFBundleDisplayName</key>
+	<string>Pterm</string>
+	<key>CFBundleExecutable</key>
+	<string>Pterm</string>
+	<key>CFBundleVersion</key>
+	<string>Unidentified build</string>
+	<key>CFBundleShortVersionString</key>
+	<string>Unidentified build</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleIdentifier</key>
+	<string>org.tartarus.projects.putty.macpterm</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 1997-2015 Simon Tatham. All rights reserved.</string>
+</dict>
+</plist>
