@@ -31,5 +31,9 @@
          PerMonitorV2
        </dpiAwareness>
      </asmv3:windowsSettings>
+     <asmv3:windowsSettings
+         xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings"> 
+       <activeCodePage>zh-CN</activeCodePage> 
+     </asmv3:windowsSettings>
    </asmv3:application>
 </assembly>
