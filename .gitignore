@@ -69,13 +69,9 @@ cmake_install.cmake
 /*.cnt
 /*.hlp
 /.bmake
+/build
 /build.log
 /build.out
-/build/.cmake/*
-/build/CMakeCache.txt
-/build/putty.sln
-/build/shipped.txt
-/build/doc/*
 /empty.h
 Makefile
 /compile
