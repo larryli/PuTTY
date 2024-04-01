@@ -214,6 +214,14 @@ static void wrap_malloc_pre(void *wrapctx, void **user_data)
     *user_data = drwrap_get_arg(wrapctx, 0);
     dr_fprintf(outfile, "malloc %"PRIuMAX"\n", (uintmax_t)*user_data);
 }
+static void wrap_aligned_alloc_pre(void *wrapctx, void **user_data)
+{
+    logging_paused++;
+    size_t align = (size_t) drwrap_get_arg(wrapctx, 0);
+    *user_data = drwrap_get_arg(wrapctx, 1);
+    dr_fprintf(outfile, "aligned_alloc align=%zu size=%"PRIuMAX"\n",
+               align, (uintmax_t)*user_data);
+}
 static void wrap_free_pre(void *wrapctx, void **user_data)
 {
     logging_paused++;
@@ -239,71 +247,7 @@ static void wrap_alloc_post(void *wrapctx, void *user_data)
 }
 
 /*
- * We wrap the C library function memset, because I've noticed that at
- * least one optimised implementation of it diverges control flow
- * internally based on what appears to be the _alignment_ of the input
- * pointer - and that alignment check can vary depending on the
- * addresses of allocated blocks. So I can't guarantee no divergence
- * of control flow inside memset if malloc doesn't return the same
- * values, and instead I just have to trust that memset isn't reading
- * the contents of the block and basing control flow decisions on that.
- */
-static void wrap_memset_pre(void *wrapctx, void **user_data)
-{
-    uint was_already_paused = logging_paused++;
-
-    if (outfile == INVALID_FILE || was_already_paused)
-        return;
-
-    const void *addr = drwrap_get_arg(wrapctx, 0);
-    size_t size = (size_t)drwrap_get_arg(wrapctx, 2);
-
-    struct allocation *alloc = find_allocation(addr);
-    if (!alloc) {
-        dr_fprintf(outfile, "memset %"PRIuMAX" @ %"PRIxMAX"\n",
-                   (uintmax_t)size, (uintmax_t)addr);
-    } else {
-        dr_fprintf(outfile, "memset %"PRIuMAX" @ allocations[%"PRIuPTR"]"
-                   " + %"PRIxMAX"\n", (uintmax_t)size, alloc->index,
-                   (uintmax_t)(addr - alloc->start));
-    }
-}
-
-/*
- * Similarly to the above, wrap some versions of memmove.
- */
-static void wrap_memmove_pre(void *wrapctx, void **user_data)
-{
-    uint was_already_paused = logging_paused++;
-
-    if (outfile == INVALID_FILE || was_already_paused)
-        return;
-
-    const void *daddr = drwrap_get_arg(wrapctx, 0);
-    const void *saddr = drwrap_get_arg(wrapctx, 1);
-    size_t size = (size_t)drwrap_get_arg(wrapctx, 2);
-
-
-    struct allocation *alloc;
-
-    dr_fprintf(outfile, "memmove %"PRIuMAX" ", (uintmax_t)size);
-    if (!(alloc = find_allocation(daddr))) {
-        dr_fprintf(outfile, "to %"PRIxMAX" ", (uintmax_t)daddr);
-    } else {
-        dr_fprintf(outfile, "to allocations[%"PRIuPTR"] + %"PRIxMAX" ",
-                   alloc->index, (uintmax_t)(daddr - alloc->start));
-    }
-    if (!(alloc = find_allocation(saddr))) {
-        dr_fprintf(outfile, "from %"PRIxMAX"\n", (uintmax_t)saddr);
-    } else {
-        dr_fprintf(outfile, "from allocations[%"PRIuPTR"] + %"PRIxMAX"\n",
-                   alloc->index, (uintmax_t)(saddr - alloc->start));
-    }
-}
-
-/*
- * Common post-wrapper function for memset and free, whose entire
- * function is to unpause the logging.
+ * Common post-wrapper function to unpause the logging.
  */
 static void unpause_post(void *wrapctx, void *user_data)
 {
@@ -594,10 +538,9 @@ static void load_module(
         TRY_WRAP("dry_run_real", NULL, wrap_dryrun);
         if (libc) {
             TRY_WRAP("malloc", wrap_malloc_pre, wrap_alloc_post);
+            TRY_WRAP("aligned_alloc", wrap_aligned_alloc_pre, wrap_alloc_post);
             TRY_WRAP("realloc", wrap_realloc_pre, wrap_alloc_post);
             TRY_WRAP("free", wrap_free_pre, unpause_post);
-            TRY_WRAP("memset", wrap_memset_pre, unpause_post);
-            TRY_WRAP("memmove", wrap_memmove_pre, unpause_post);
 
             /*
              * More strangely named versions of standard C library
@@ -616,10 +559,6 @@ static void load_module(
             TRY_WRAP("__libc_malloc", wrap_malloc_pre, wrap_alloc_post);
             TRY_WRAP("__GI___libc_realloc", wrap_realloc_pre, wrap_alloc_post);
             TRY_WRAP("__GI___libc_free", wrap_free_pre, unpause_post);
-            TRY_WRAP("__memset_sse2_unaligned", wrap_memset_pre, unpause_post);
-            TRY_WRAP("__memset_sse2", wrap_memset_pre, unpause_post);
-            TRY_WRAP("__memmove_avx_unaligned_erms", wrap_memmove_pre,
-                     unpause_post);
             TRY_WRAP("cfree", wrap_free_pre, unpause_post);
         }
     }
