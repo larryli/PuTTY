@@ -762,6 +762,11 @@ void nullmac_next_message(ssh2_mac *m);
  * string with a given key in the most obvious way. */
 void mac_simple(const ssh2_macalg *alg, ptrlen key, ptrlen data, void *output);
 
+/* Constructor that makes an HMAC object given just a MAC. This object
+ * will have empty 'name' and 'etm_name' fields, so it's not suitable
+ * for use in SSH. It's used as a subroutine in RFC 6979. */
+ssh2_mac *hmac_new_from_hash(const ssh_hashalg *hash);
+
 struct ssh_hash {
     const ssh_hashalg *vt;
     BinarySink_DELEGATE_IMPLEMENTATION;
