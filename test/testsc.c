@@ -1567,6 +1567,7 @@ static void test_hash(const ssh_hashalg *halg)
         test_skipped = true;
         return;
     }
+    ssh_hash_free(h);
 
     size_t datalen = 256;
     uint8_t *data = snewn(datalen, uint8_t);
@@ -1576,16 +1577,14 @@ static void test_hash(const ssh_hashalg *halg)
         random_read(data, datalen);
 
         log_start();
+        h = ssh_hash_new(halg);
         put_data(h, data, datalen);
         ssh_hash_final(h, hash);
         log_end();
-
-        h = ssh_hash_new(halg);
     }
 
     sfree(data);
     sfree(hash);
-    ssh_hash_free(h);
 }
 
 #define HASH_TESTFN(Y_unused, hash)                             \
