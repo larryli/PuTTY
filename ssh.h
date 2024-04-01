@@ -629,11 +629,18 @@ mp_int *ssh_rsakex_decrypt(
     RSAKey *key, const ssh_hashalg *h, ptrlen ciphertext);
 
 /*
- * Helper function for k generation in DSA, reused in ECDSA
+ * System for generating k in DSA and ECDSA.
  */
-mp_int *dsa_gen_k(const char *id_string,
-                  mp_int *modulus, mp_int *private_key,
-                  unsigned char *digest, int digest_len);
+struct RFC6979Result {
+    mp_int *k;
+    unsigned ok;
+};
+RFC6979 *rfc6979_new(const ssh_hashalg *hashalg, mp_int *q, mp_int *x);
+void rfc6979_setup(RFC6979 *s, ptrlen message);
+RFC6979Result rfc6979_attempt(RFC6979 *s);
+void rfc6979_free(RFC6979 *s);
+mp_int *rfc6979(const ssh_hashalg *hashalg, mp_int *modulus,
+                mp_int *private_key, ptrlen message);
 
 struct ssh_cipher {
     const ssh_cipheralg *vt;
@@ -1210,6 +1217,7 @@ extern const ssh2_macalg ssh_hmac_sha1_buggy;
 extern const ssh2_macalg ssh_hmac_sha1_96;
 extern const ssh2_macalg ssh_hmac_sha1_96_buggy;
 extern const ssh2_macalg ssh_hmac_sha256;
+extern const ssh2_macalg ssh_hmac_sha384;
 extern const ssh2_macalg ssh_hmac_sha512;
 extern const ssh2_macalg ssh2_poly1305;
 extern const ssh2_macalg ssh2_aesgcm_mac;
