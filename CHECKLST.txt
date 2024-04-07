@@ -112,7 +112,7 @@ Making a release candidate build
  - Make a preliminary gpg signature, but don't run the full release-
    signing procedure. (We use the presence of a full set of GPG
    signatures to distinguish _abandoned_ release candidates from the
-   one that ended up being the release.) In the 'build.X.YZ-rcN.out'
+   one that ended up being the release.) In the 'build-X.YZ-rcN.out'
    directory, run
      sh sign.sh -r -p putty
    which will generate a clearsigned file called
