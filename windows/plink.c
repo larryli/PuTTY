@@ -293,6 +293,9 @@ int main(int argc, char **argv)
     enum TriState sanitise_stdout = AUTO, sanitise_stderr = AUTO;
     const struct BackendVtable *vt;
 
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+
     dll_hijacking_protection();
 
     /*

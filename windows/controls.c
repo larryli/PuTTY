@@ -381,6 +381,35 @@ void checkbox(struct ctlpos *cp, const char *text, int id)
           text, id);
 }
 
+static BOOL _GetTextExtentExPoint(HDC hdc, LPCSTR lpszString, int cchString, int nMaxExtent, LPINT lpnFit, LPINT lpnDx, LPSIZE lpSize)
+{
+    BOOL ret = GetTextExtentExPoint(hdc, lpszString, cchString, nMaxExtent, lpnFit, lpnDx, lpSize);
+    if (ret && GetACP() == CP_UTF8) {
+        // fix lpnFit to bytes from characters on utf-8 codepage
+        int n = 0;
+        for (int i = 0; i < *lpnFit; i++) {
+            unsigned char c = lpszString[n];
+            if (c >= 0 && c <= 127 ) {
+                n += 1;
+            } else if (c >= 192 && c <= 223) {
+                n += 2;
+            } else if (c >= 224 && c <= 239) {
+                n += 3;
+            } else if (c >= 240 && c <= 247) {
+                n += 4;
+            } else if (c >= 248 && c <= 255) {
+                n += 1;
+            }
+            if (n >= cchString) {
+                n = cchString;
+                break;
+            }
+        }
+        *lpnFit = n;
+    }
+    return ret;
+}
+
 /*
  * Wrap a piece of text for a static text control. Returns the
  * wrapped text (a malloc'ed string containing \ns), and also
@@ -423,8 +452,8 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
     oldfont = SelectObject(hdc, newfont);
 
     while (*p) {
-        if (!GetTextExtentExPoint(hdc, p, strlen(p), width,
-                                  &nfit, pwidths, &size) ||
+        if (!_GetTextExtentExPoint(hdc, p, strlen(p), width,
+                                   &nfit, pwidths, &size) ||
             (size_t)nfit >= strlen(p)) {
             /*
              * Either GetTextExtentExPoint returned failure, or the
