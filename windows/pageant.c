@@ -1258,7 +1258,7 @@ static void create_keylist_window(void)
 static BOOL _GetMenuItemInfo(HMENU hmenu, UINT item, BOOL fByPositon, LPMENUITEMINFO lpmii)
 {
     if (GetACP() == CP_UTF8) {
-        // fix the incomplete return of dwTypeData
+        // fix the incomplete return of dwTypeData on utf-8 codepage
         // IMPORTANT: This is NOT a complete implementation!!
         int cch = lpmii->cch; // Must keep
         LPTSTR mbs = lpmii->dwTypeData;
@@ -1266,7 +1266,7 @@ static BOOL _GetMenuItemInfo(HMENU hmenu, UINT item, BOOL fByPositon, LPMENUITEM
         lpmii->dwTypeData = (LPSTR)ws;
         BOOL ret = GetMenuItemInfoW(hmenu, item, fByPositon, (LPCMENUITEMINFOW)lpmii);
         if (ret) {
-            WideCharToMultiByte(CP_UTF8, 0, ws, -1, mbs, cch, NULL, NULL);
+            WideCharToMultiByte(CP_UTF8, 0, ws, lpmii->cch, mbs, cch, NULL, NULL);
         }
         lpmii->dwTypeData = mbs;
         return ret;
