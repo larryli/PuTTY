@@ -1255,6 +1255,25 @@ static void create_keylist_window(void)
     ShowWindow(keylist, SW_SHOWNORMAL);
 }
 
+static BOOL _GetMenuItemInfo(HMENU hmenu, UINT item, BOOL fByPositon, LPMENUITEMINFO lpmii)
+{
+    if (GetACP() == CP_UTF8) {
+        // fix the incomplete return of dwTypeData
+        // IMPORTANT: This is NOT a complete implementation!!
+        int cch = lpmii->cch; // Must keep
+        LPTSTR mbs = lpmii->dwTypeData;
+        wchar_t ws[MAX_PATH + 1]; // @fixme
+        lpmii->dwTypeData = (LPSTR)ws;
+        BOOL ret = GetMenuItemInfoW(hmenu, item, fByPositon, (LPCMENUITEMINFOW)lpmii);
+        if (ret) {
+            WideCharToMultiByte(CP_UTF8, 0, ws, -1, mbs, cch, NULL, NULL);
+        }
+        lpmii->dwTypeData = mbs;
+        return ret;
+    }
+    return SetMenuItemInfo(hmenu, item, fByPositon, lpmii);
+}
+
 static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                                     WPARAM wParam, LPARAM lParam)
 {
@@ -1378,7 +1397,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                 mii.fMask = MIIM_TYPE;
                 mii.cch = MAX_PATH;
                 mii.dwTypeData = buf;
-                GetMenuItemInfo(session_menu, wParam, false, &mii);
+                _GetMenuItemInfo(session_menu, wParam, false, &mii);
                 param[0] = '\0';
                 if (restrict_putty_acl)
                     strcat(param, "&R");

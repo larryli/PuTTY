@@ -83,8 +83,7 @@ dwmapi_test_wrapper()
 
 set(NO_SECURITY ${PUTTY_NO_SECURITY})
 
-add_compile_options("$<$<C_COMPILER_ID:MSVC>:/source-charset:utf-8>")
-add_compile_options("$<$<C_COMPILER_ID:MSVC>:/execution-charset:utf-8>")
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 
 add_compile_definitions(
   _WINDOWS
