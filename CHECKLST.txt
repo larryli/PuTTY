@@ -215,6 +215,13 @@ Preparing to make the release
    there's anything new on the branch, this is how it gets on to main
    as well.
 
+ - Log in to the MS Partner Center and make sure everything is in
+   order. If the UI has completely changed, make sure you can find
+   your way around the new one; if it wants you to read an enormous
+   document of revised T&Cs, get that out of the way in advance, so it
+   doesn't suddenly become a delay in the middle of the actual
+   release.
+
 The actual release procedure
 ----------------------------
 
