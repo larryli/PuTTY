@@ -283,12 +283,12 @@ void write_aclip(int clipboard, char *, int, bool);
  * these strings are of exactly the type needed to go in
  * `lpstrFilter' in an OPENFILENAME structure.
  */
-#define FILTER_KEY_FILES ("PuTTY Private Key Files (*.ppk)\0*.ppk\0" \
-                              "All Files (*.*)\0*\0\0\0")
-#define FILTER_WAVE_FILES ("Wave Files (*.wav)\0*.WAV\0" \
-                               "All Files (*.*)\0*\0\0\0")
-#define FILTER_DYNLIB_FILES ("Dynamic Library Files (*.dll)\0*.dll\0" \
-                                 "All Files (*.*)\0*\0\0\0")
+#define FILTER_KEY_FILES ("PuTTY 私钥文件 (*.ppk)\0*.ppk\0" \
+                              "所有文件 (*.*)\0*\0\0\0")
+#define FILTER_WAVE_FILES ("Wav 音频文件 (*.wav)\0*.WAV\0" \
+                               "所有文件 (*.*)\0*\0\0\0")
+#define FILTER_DYNLIB_FILES ("动态链接库文件 (*.dll)\0*.dll\0" \
+                                 "所有文件 (*.*)\0*\0\0\0")
 
 /*
  * Exports from network.c.
@@ -725,9 +725,9 @@ char *get_jumplist_registry_entries(void);
 /*
  * Windows clipboard-UI wording.
  */
-#define CLIPNAME_IMPLICIT "Last selected text"
-#define CLIPNAME_EXPLICIT "System clipboard"
-#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
+#define CLIPNAME_IMPLICIT "上次选择的文本"
+#define CLIPNAME_EXPLICIT "系统剪贴板"
+#define CLIPNAME_EXPLICIT_OBJECT "系统剪贴板"
 /* These defaults are the ones PuTTY has historically had */
 #define CLIPUI_DEFAULT_AUTOCOPY true
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_EXPLICIT

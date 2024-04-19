@@ -1065,10 +1065,10 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "PassiveTelnet", false, conf, CONF_passive_telnet);
     gppb(sesskey, "BackspaceIsDelete", true, conf, CONF_bksp_is_delete);
     gppb(sesskey, "RXVTHomeEnd", false, conf, CONF_rxvt_homeend);
-    gppi(sesskey, "LinuxFunctionKeys", 0, conf, CONF_funky_type);
+    gppi(sesskey, "LinuxFunctionKeys", 2, conf, CONF_funky_type);
     gppi(sesskey, "ShiftedArrowKeys", SHARROW_APPLICATION, conf,
          CONF_sharrow_type);
-    gppb(sesskey, "NoApplicationKeys", false, conf, CONF_no_applic_k);
+    gppb(sesskey, "NoApplicationKeys", true, conf, CONF_no_applic_k);
     gppb(sesskey, "NoApplicationCursors", false, conf, CONF_no_applic_c);
     gppb(sesskey, "NoMouseReporting", false, conf, CONF_no_mouse_rep);
     gppb(sesskey, "NoRemoteResize", false, conf, CONF_no_remote_resize);
@@ -1139,7 +1139,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
                  / 1000
 #endif
                  );
-    gppi(sesskey, "ScrollbackLines", 2000, conf, CONF_savelines);
+    gppi(sesskey, "ScrollbackLines", 9999, conf, CONF_savelines);
     gppb(sesskey, "DECOriginMode", false, conf, CONF_dec_om);
     gppb(sesskey, "AutoWrapMode", true, conf, CONF_wrap_mode);
     gppb(sesskey, "LFImpliesCR", false, conf, CONF_lfhascr);
@@ -1280,11 +1280,11 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppfont(sesskey, "WideBoldFont", conf, CONF_wideboldfont);
     gppi(sesskey, "ShadowBoldOffset", 1, conf, CONF_shadowboldoffset);
     gpps(sesskey, "SerialLine", "", conf, CONF_serline);
-    gppi(sesskey, "SerialSpeed", 9600, conf, CONF_serspeed);
+    gppi(sesskey, "SerialSpeed", 115200, conf, CONF_serspeed);
     gppi(sesskey, "SerialDataBits", 8, conf, CONF_serdatabits);
     gppi(sesskey, "SerialStopHalfbits", 2, conf, CONF_serstopbits);
     gppi(sesskey, "SerialParity", SER_PAR_NONE, conf, CONF_serparity);
-    gppi(sesskey, "SerialFlowControl", SER_FLOW_XONXOFF, conf, CONF_serflow);
+    gppi(sesskey, "SerialFlowControl", SER_FLOW_NONE, conf, CONF_serflow);
     gpps(sesskey, "WindowClass", "", conf, CONF_winclass);
     gppb(sesskey, "ConnectionSharing", false,
          conf, CONF_ssh_connection_sharing);
@@ -1317,9 +1317,9 @@ static int sessioncmp(const void *av, const void *bv)
      * Alphabetical order, except that "Default Settings" is a
      * special case and comes first.
      */
-    if (!strcmp(a, "Default Settings"))
+    if (!strcmp(a, "默认设置"))
         return -1;                     /* a comes first */
-    if (!strcmp(b, "Default Settings"))
+    if (!strcmp(b, "默认设置"))
         return +1;                     /* b comes first */
     /*
      * FIXME: perhaps we should ignore the first & in determining
@@ -1362,7 +1362,7 @@ void get_sesslist(struct sesslist *list, bool allocate)
         p = list->buffer;
         list->nsessions = 1;           /* "Default Settings" counts as one */
         while (*p) {
-            if (strcmp(p, "Default Settings"))
+            if (strcmp(p, "默认设置"))
                 list->nsessions++;
             while (*p)
                 p++;
@@ -1370,11 +1370,11 @@ void get_sesslist(struct sesslist *list, bool allocate)
         }
 
         list->sessions = snewn(list->nsessions + 1, const char *);
-        list->sessions[0] = "Default Settings";
+        list->sessions[0] = "默认设置";
         p = list->buffer;
         i = 1;
         while (*p) {
-            if (strcmp(p, "Default Settings"))
+            if (strcmp(p, "默认设置"))
                 list->sessions[i++] = p;
             while (*p)
                 p++;

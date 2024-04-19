@@ -2401,14 +2401,14 @@ static bool ssh2_transport_get_specials(
             need_separator = false;
         }
 
-        add_special(ctx, "Repeat key exchange", SS_REKEY, 0);
+        add_special(ctx, "重复密钥交换", SS_REKEY, 0);
         toret = true;
 
         if (s->n_uncert_hostkeys) {
             int i;
 
             add_special(ctx, NULL, SS_SEP, 0);
-            add_special(ctx, "Cache new host key type", SS_SUBMENU, 0);
+            add_special(ctx, "缓存新的主机密钥类型", SS_SUBMENU, 0);
             for (i = 0; i < s->n_uncert_hostkeys; i++) {
                 const ssh_keyalg *alg =
                     ssh2_hostkey_algs[s->uncert_hostkeys[i]].alg;

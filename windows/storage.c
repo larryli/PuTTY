@@ -37,7 +37,7 @@ settings_w *open_settings_w(const char *sessionname, char **errmsg)
     *errmsg = NULL;
 
     if (!sessionname || !*sessionname)
-        sessionname = "Default Settings";
+        sessionname = "默认设置";
 
     strbuf *sb = strbuf_new();
     escape_registry_key(sessionname, sb);
@@ -81,7 +81,7 @@ struct settings_r {
 settings_r *open_settings_r(const char *sessionname)
 {
     if (!sessionname || !*sessionname)
-        sessionname = "Default Settings";
+        sessionname = "默认设置";
 
     strbuf *sb = strbuf_new();
     escape_registry_key(sessionname, sb);
