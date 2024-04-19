@@ -108,6 +108,14 @@ include_directories(
   ${platform}
   ${extra_dirs})
 
+check_c_source_compiles("
+#define _ISOC11_SOURCE
+#include <stdlib.h>
+int main(int argc, char **argv) {
+    void *p = aligned_alloc(128, 12345);
+    free(p);
+}" HAVE_ALIGNED_ALLOC)
+
 if(PUTTY_DEBUG)
   add_compile_definitions(DEBUG)
 endif()

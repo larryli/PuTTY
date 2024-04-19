@@ -100,9 +100,15 @@ add_executable(cgtest
   $<TARGET_OBJECTS:puttygen-common>)
 target_link_libraries(cgtest keygen console crypto utils)
 
-add_executable(testsc
-  ${CMAKE_SOURCE_DIR}/test/testsc.c)
-target_link_libraries(testsc keygen crypto utils)
+if(HAVE_ALIGNED_ALLOC)
+  add_library(overaligned_alloc OBJECT
+    ${CMAKE_SOURCE_DIR}/utils/memory.c)
+  target_compile_definitions(overaligned_alloc PRIVATE ALLOCATION_ALIGNMENT=128)
+  add_executable(testsc
+    ${CMAKE_SOURCE_DIR}/test/testsc.c
+    $<TARGET_OBJECTS:overaligned_alloc>)
+  target_link_libraries(testsc keygen crypto utils)
+endif()
 
 add_executable(testzlib
   ${CMAKE_SOURCE_DIR}/test/testzlib.c
