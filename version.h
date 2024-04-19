@@ -8,6 +8,6 @@
  * default stuff used for local development runs of 'make'.
  */
 
-#define TEXTVER "发布版 0.80-cn2"
-#define SSHVER "-Release-0-80-CN2"
-#define BINARY_VERSION 0,80,0,2
+#define TEXTVER "发布版 0.81-cn2"
+#define SSHVER "-Release-0-81-CN2"
+#define BINARY_VERSION 0,81,0,2

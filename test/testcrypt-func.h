@@ -328,6 +328,12 @@ FUNC(opt_val_mpint, key_components_nth_mp, ARG(val_keycomponents, kc),
      ARG(uint, n))
 
 /*
+ * DSA nonce generation.
+ */
+FUNC(opt_val_mpint, rfc6979, ARG(hashalg, hash), ARG(val_mpint, modulus),
+     ARG(val_mpint, private_key), ARG(val_string_ptrlen, message))
+
+/*
  * The ssh_cipher abstraction. The in-place encrypt and decrypt
  * functions are wrapped to replace them with versions that take one
  * string and return a separate string.

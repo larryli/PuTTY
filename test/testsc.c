@@ -431,6 +431,8 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(argon2)                                   \
     X(primegen_probabilistic)                   \
     X(ntru)                                     \
+    X(rfc6979_setup)                            \
+    X(rfc6979_attempt)                          \
     /* end of list */
 
 static void test_mp_get_nbits(void)
@@ -1565,6 +1567,7 @@ static void test_hash(const ssh_hashalg *halg)
         test_skipped = true;
         return;
     }
+    ssh_hash_free(h);
 
     size_t datalen = 256;
     uint8_t *data = snewn(datalen, uint8_t);
@@ -1574,16 +1577,14 @@ static void test_hash(const ssh_hashalg *halg)
         random_read(data, datalen);
 
         log_start();
+        h = ssh_hash_new(halg);
         put_data(h, data, datalen);
         ssh_hash_final(h, hash);
         log_end();
-
-        h = ssh_hash_new(halg);
     }
 
     sfree(data);
     sfree(hash);
-    ssh_hash_free(h);
 }
 
 #define HASH_TESTFN(Y_unused, hash)                             \
@@ -1742,6 +1743,63 @@ static void test_ntru(void)
     sfree(plaintext);
     sfree(ciphertext);
     strbuf_free(buffer);
+}
+
+static void test_rfc6979_setup(void)
+{
+    mp_int *q = mp_new(512);
+    mp_int *x = mp_new(512);
+
+    strbuf *message = strbuf_new();
+    strbuf_append(message, 123);
+
+    RFC6979 *s = rfc6979_new(&ssh_sha256, q, x);
+
+    for (size_t i = 0; i < looplimit(20); i++) {
+        random_read(message->u, message->len);
+        mp_random_fill(q);
+        mp_random_fill(x);
+
+        log_start();
+        rfc6979_setup(s, ptrlen_from_strbuf(message));
+        log_end();
+    }
+
+    rfc6979_free(s);
+    mp_free(q);
+    mp_free(x);
+    strbuf_free(message);
+}
+
+static void test_rfc6979_attempt(void)
+{
+    mp_int *q = mp_new(512);
+    mp_int *x = mp_new(512);
+
+    strbuf *message = strbuf_new();
+    strbuf_append(message, 123);
+
+    RFC6979 *s = rfc6979_new(&ssh_sha256, q, x);
+
+    for (size_t i = 0; i < looplimit(5); i++) {
+        random_read(message->u, message->len);
+        mp_random_fill(q);
+        mp_random_fill(x);
+
+        rfc6979_setup(s, ptrlen_from_strbuf(message));
+
+        for (size_t j = 0; j < looplimit(10); j++) {
+            log_start();
+            RFC6979Result result = rfc6979_attempt(s);
+            mp_free(result.k);
+            log_end();
+        }
+    }
+
+    rfc6979_free(s);
+    mp_free(q);
+    mp_free(x);
+    strbuf_free(message);
 }
 
 static const struct test tests[] = {

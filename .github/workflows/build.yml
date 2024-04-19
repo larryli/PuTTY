@@ -31,7 +31,7 @@ jobs:
       if: ${{ github.ref_type == 'tag' }}
       uses: actions/upload-artifact@v4
       with:
-        name: putty${{matrix.archive}}-${{github.ref_name}}.zip
+        name: putty${{matrix.config.archive}}-${{github.ref_name}}.zip
         path: |
           build/Release/putty.exe
           build/Release/pscp.exe
