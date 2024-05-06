@@ -2701,6 +2701,9 @@ Socket *platform_start_subprocess(const char *cmd, Plug *plug,
 #define LOW_SURROGATE_END 0xdfff
 #endif
 
+/* REGIONAL INDICATOR SYMBOL LETTER A-Z */
+#define IS_REGIONAL_INDICATOR_LETTER(wc) ((unsigned)(wc) - 0x1F1E6U < 26)
+
 /* These macros exist in the Windows API, so the environment may
  * provide them. If not, define them in terms of the above. */
 #ifndef IS_HIGH_SURROGATE

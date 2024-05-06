@@ -5998,6 +5998,10 @@ static void do_paint_draw(Terminal *term, termline *ldata, int x, int y,
                       ldata->lattr, term->basic_erase_char.truecolour);
         win_draw_trust_sigil(term->win, x, y);
     } else {
+        if (ccount == 2 &&
+            IS_REGIONAL_INDICATOR_LETTER(ch[0]) &&
+            IS_REGIONAL_INDICATOR_LETTER(ch[1]))
+            attr |= ATTR_WIDE | TATTR_COMBINING;
         win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc);
         if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
             win_draw_cursor(term->win, x, y, ch, ccount,
@@ -6264,7 +6268,7 @@ static void do_paint(Terminal *term)
         tc = term->erase_char.truecolour;
         for (j = 0; j < term->cols; j++) {
             unsigned long tattr, tchar;
-            bool break_run, do_copy;
+            bool break_run, do_copy, next_run_dirty = false;
             termchar *d = lchars + j;
 
             tattr = newline[j].attr;
@@ -6301,6 +6305,29 @@ static void do_paint(Terminal *term)
                 break_run = true;
 
             /*
+             * Break on both sides of a regional indicator letter.
+             */
+            if (IS_REGIONAL_INDICATOR_LETTER(tchar)) {
+                break_run = true;
+                if (j+1 < term->cols) {
+                    /* Also, check if there are any changes to whether or
+                     * not we're drawing this and the next character as a
+                     * single flag glyph. */
+                    bool flag_now = IS_REGIONAL_INDICATOR_LETTER(d[1].chr);
+                    bool flag_before = (
+                        IS_REGIONAL_INDICATOR_LETTER(
+                            term->disptext[i]->chars[j].chr) &&
+                        IS_REGIONAL_INDICATOR_LETTER(
+                            term->disptext[i]->chars[j+1].chr) &&
+                        (term->disptext[i]->chars[j].attr & DATTR_STARTRUN));
+                    if (flag_now != flag_before)
+                        next_run_dirty = true; /* must redraw this flag */
+                }
+            } else if (j>0 && IS_REGIONAL_INDICATOR_LETTER(d[-1].chr)) {
+                break_run = true;
+            }
+
+            /*
              * Break on both sides of a trust sigil.
              */
             if (d->chr == TRUST_SIGIL_CHAR ||
@@ -6328,7 +6355,7 @@ static void do_paint(Terminal *term)
                 cset = CSET_OF(tchar);
                 if (term->ucsdata->dbcs_screenfont)
                     last_run_dirty = dirty_run;
-                dirty_run = dirty_line;
+                dirty_run = dirty_line || next_run_dirty;
             }
 
             do_copy = false;
@@ -6406,6 +6433,44 @@ static void do_paint(Terminal *term)
                         dirty_run = true;
                     copy_termchar(term->disptext[i], j, d);
                 }
+            }
+
+            /* If it's a regional indicator letter, and so is the next
+             * one, then also step to the next one, keeping the flag
+             * sequence together. */
+            if (IS_REGIONAL_INDICATOR_LETTER(d->chr) &&
+                (j+1 < term->cols && IS_REGIONAL_INDICATOR_LETTER(d[1].chr))) {
+                j++;
+                d++;
+
+                /* Set ATTR_WIDE, so that the pair is displayed as one */
+                attr |= ATTR_WIDE;
+
+                /* Include the second letter in the text buffer */
+                unsigned long rchar = d->chr;
+#ifdef PLATFORM_IS_UTF16
+                sgrowarrayn(ch, chlen, ccount, 2);
+                ch[ccount++] = (wchar_t)HIGH_SURROGATE_OF(rchar);
+                ch[ccount++] = (wchar_t)LOW_SURROGATE_OF(rchar);
+#else
+                sgrowarrayn(ch, chlen, ccount, 1);
+                ch[ccount++] = (wchar_t)rchar;
+#endif
+
+                /* Display the cursor, if it's on the right half */
+                if (i == our_curs_y && j == our_curs_x) {
+                    attr |= cursor;
+                    term->disptext[i]->chars[j-1].attr |= cursor;
+                }
+
+                if (!termchars_equal_override(
+                        &term->disptext[i]->chars[j],
+                        d, rchar, term->disptext[i]->chars[j-1].attr))
+                    dirty_run = true;
+
+                copy_termchar(term->disptext[i], j, d);
+                term->disptext[i]->chars[j].attr =
+                    term->disptext[i]->chars[j-1].attr & ~DATTR_STARTRUN;
             }
         }
         if (dirty_run && ccount > 0)
