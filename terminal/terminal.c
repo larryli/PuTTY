@@ -3637,10 +3637,6 @@ unsigned long term_translate(
             if (t > 0x10FFFF)
                 return UCSINVALID;
 
-            /* This is currently a TagPhobic application.. */
-            if (t >= 0xE0000 && t <= 0xE007F)
-                return UCSINCOMPLETE;
-
             /* U+FEFF is best seen as a null. */
             if (t == 0xFEFF)
                 return UCSINCOMPLETE;
