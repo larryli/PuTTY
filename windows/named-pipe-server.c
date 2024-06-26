@@ -176,7 +176,7 @@ static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
 
         errmsg = dupprintf("Error while listening to named pipe: %s",
                            win_strerror(error));
-        plug_log(ps->plug, 1, sk_namedpipe_addr(ps->pipename), 0,
+        plug_log(ps->plug, &ps->sock, 1, sk_namedpipe_addr(ps->pipename), 0,
                  errmsg, error);
         sfree(errmsg);
         break;

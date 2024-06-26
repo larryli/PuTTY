@@ -604,11 +604,11 @@ static void do_telnet_read(Telnet *telnet, const char *buf, size_t len)
     strbuf_free(outbuf);
 }
 
-static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
-                       const char *error_msg, int error_code)
+static void telnet_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
+                       int port, const char *error_msg, int error_code)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);
-    backend_socket_log(telnet->seat, telnet->logctx, type, addr, port,
+    backend_socket_log(telnet->seat, telnet->logctx, s, type, addr, port,
                        error_msg, error_code, telnet->conf,
                        telnet->socket_connected);
     if (type == PLUGLOG_CONNECT_SUCCESS) {

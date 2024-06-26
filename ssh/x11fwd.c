@@ -277,8 +277,8 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
     return NULL;
 }
 
-static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
-                    const char *error_msg, int error_code)
+static void x11_log(Plug *p, Socket *s, PlugLogType type, SockAddr *addr,
+                    int port, const char *error_msg, int error_code)
 {
     /* We have no interface to the logging module here, so we drop these. */
 }

@@ -142,8 +142,8 @@ static const SocketVtable SshProxy_sock_vt = {
 static void sshproxy_eventlog(LogPolicy *lp, const char *event)
 {
     SshProxy *sp = container_of(lp, SshProxy, logpolicy);
-    log_proxy_stderr(sp->plug, &sp->psb, event, strlen(event));
-    log_proxy_stderr(sp->plug, &sp->psb, "\n", 1);
+    log_proxy_stderr(sp->plug, &sp->sock, &sp->psb, event, strlen(event));
+    log_proxy_stderr(sp->plug, &sp->sock, &sp->psb, "\n", 1);
 }
 
 static int sshproxy_askappend(LogPolicy *lp, Filename *filename,
@@ -248,7 +248,8 @@ static void sshproxy_notify_session_started(Seat *seat)
         interactor_return_seat(sp->clientitr);
     sp->conn_established = true;
 
-    plug_log(sp->plug, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port, NULL, 0);
+    plug_log(sp->plug, &sp->sock, PLUGLOG_CONNECT_SUCCESS, sp->addr, sp->port,
+             NULL, 0);
 }
 
 static size_t sshproxy_output(Seat *seat, SeatOutputType type,
@@ -261,7 +262,7 @@ static size_t sshproxy_output(Seat *seat, SeatOutputType type,
         try_send_ssh_to_socket(sp);
         break;
       case SEAT_OUTPUT_STDERR:
-        log_proxy_stderr(sp->plug, &sp->psb, data, len);
+        log_proxy_stderr(sp->plug, &sp->sock, &sp->psb, data, len);
         break;
     }
     return bufchain_size(&sp->ssh_to_socket);
@@ -322,8 +323,8 @@ static void sshproxy_send_close(SshProxy *sp)
         interactor_return_seat(sp->clientitr);
 
     if (!sp->conn_established)
-        plug_log(sp->plug, PLUGLOG_CONNECT_FAILED, sp->addr, sp->port,
-                 sp->errmsg, 0);
+        plug_log(sp->plug, &sp->sock, PLUGLOG_CONNECT_FAILED, sp->addr,
+                 sp->port, sp->errmsg, 0);
 
     if (sp->errmsg)
         plug_closing_error(sp->plug, sp->errmsg);

@@ -93,8 +93,9 @@ static const SshChannelVtable psocks_scvt = {
     /* all the rest are NULL */
 };
 
-static void psocks_plug_log(Plug *p, PlugLogType type, SockAddr *addr,
-                            int port, const char *error_msg, int error_code);
+static void psocks_plug_log(Plug *p, Socket *s, PlugLogType type,
+                            SockAddr *addr, int port,
+                            const char *error_msg, int error_code);
 static void psocks_plug_closing(Plug *p, PlugCloseType, const char *error_msg);
 static void psocks_plug_receive(Plug *p, int urgent,
                                 const char *data, size_t len);
@@ -320,8 +321,9 @@ static void psocks_sc_unthrottle(SshChannel *sc, size_t bufsize)
 	sk_set_frozen(conn->socket, false);
 }
 
-static void psocks_plug_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                            int port, const char *error_msg, int error_code)
+static void psocks_plug_log(Plug *plug, Socket *s, PlugLogType type,
+                            SockAddr *addr, int port,
+                            const char *error_msg, int error_code)
 {
     psocks_connection *conn = container_of(plug, psocks_connection, plug);
     char addrbuf[256];

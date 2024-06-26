@@ -36,12 +36,13 @@ static void c_write(Raw *raw, const void *buf, size_t len)
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
-static void raw_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
-                    const char *error_msg, int error_code)
+static void raw_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
+                    int port, const char *error_msg, int error_code)
 {
     Raw *raw = container_of(plug, Raw, plug);
-    backend_socket_log(raw->seat, raw->logctx, type, addr, port, error_msg,
-                       error_code, raw->conf, raw->socket_connected);
+    backend_socket_log(raw->seat, raw->logctx, s, type, addr, port,
+                       error_msg, error_code, raw->conf,
+                       raw->socket_connected);
     if (type == PLUGLOG_CONNECT_SUCCESS) {
         raw->socket_connected = true;
         if (raw->ldisc)

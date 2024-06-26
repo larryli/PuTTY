@@ -138,8 +138,9 @@ static const SeatVtable server_seat_vt = {
     .get_cursor_position = nullseat_get_cursor_position,
 };
 
-static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                              int port, const char *error_msg, int error_code)
+static void server_socket_log(Plug *plug, Socket *s, PlugLogType type,
+                              SockAddr *addr, int port,
+                              const char *error_msg, int error_code)
 {
     /* server *srv = container_of(plug, server, plug); */
     /* FIXME */

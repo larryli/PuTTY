@@ -41,7 +41,7 @@ static void proxy_activate(ProxySocket *ps)
 
     proxy_negotiator_cleanup(ps);
 
-    plug_log(ps->plug, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
+    plug_log(ps->plug, &ps->sock, PLUGLOG_CONNECT_SUCCESS, NULL, 0, NULL, 0);
 
     /* we want to ignore new receive events until we have sent
      * all of our buffered receive data.
@@ -189,12 +189,13 @@ static const char *sk_proxy_socket_error (Socket *s)
 
 /* basic proxy plug functions */
 
-static void plug_proxy_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                           int port, const char *error_msg, int error_code)
+static void plug_proxy_log(Plug *plug, Socket *s, PlugLogType type,
+                           SockAddr *addr, int port,
+                           const char *error_msg, int error_code)
 {
     ProxySocket *ps = container_of(plug, ProxySocket, plugimpl);
 
-    plug_log(ps->plug, type, addr, port, error_msg, error_code);
+    plug_log(ps->plug, &ps->sock, type, addr, port, error_msg, error_code);
 }
 
 static void plug_proxy_closing(Plug *p, PlugCloseType type,
@@ -597,7 +598,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
                                      conf_get_str(conf, CONF_proxy_host),
                                      conf_get_int(conf, CONF_proxy_port),
                                      hostname, port);
-            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
+            plug_log(plug, &ps->sock, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 
@@ -605,7 +606,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
             char *logmsg = dns_log_msg(conf_get_str(conf, CONF_proxy_host),
                                        conf_get_int(conf, CONF_addressfamily),
                                        "proxy");
-            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
+            plug_log(plug, &ps->sock, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 
@@ -626,7 +627,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
             logmsg = dupprintf("Connecting to %s proxy at %s port %d",
                                vt->type, addrbuf,
                                conf_get_int(conf, CONF_proxy_port));
-            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
+            plug_log(plug, &ps->sock, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 

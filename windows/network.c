@@ -904,7 +904,7 @@ static DWORD try_connect(NetSocket *sock)
     {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, PLUGLOG_CONNECT_TRYING,
+        plug_log(sock->plug, &sock->sock, PLUGLOG_CONNECT_TRYING,
                  &thisaddr, sock->port, NULL, 0);
     }
 
@@ -1065,7 +1065,7 @@ static DWORD try_connect(NetSocket *sock)
          */
         sock->writable = true;
         SockAddr thisaddr = sk_extractaddr_tmp(sock->addr, &sock->step);
-        plug_log(sock->plug, PLUGLOG_CONNECT_SUCCESS,
+        plug_log(sock->plug, &sock->sock, PLUGLOG_CONNECT_SUCCESS,
                  &thisaddr, sock->port, NULL, 0);
     }
 
@@ -1081,7 +1081,7 @@ static DWORD try_connect(NetSocket *sock)
     if (err) {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, PLUGLOG_CONNECT_FAILED,
+        plug_log(sock->plug, &sock->sock, PLUGLOG_CONNECT_FAILED,
                  &thisaddr, sock->port, sock->error, err);
     }
     return err;
@@ -1578,8 +1578,8 @@ void select_result(WPARAM wParam, LPARAM lParam)
         if (s->addr) {
             SockAddr thisaddr = sk_extractaddr_tmp(
                 s->addr, &s->step);
-            plug_log(s->plug, PLUGLOG_CONNECT_FAILED, &thisaddr, s->port,
-                     winsock_error_string(err), err);
+            plug_log(s->plug, &s->sock, PLUGLOG_CONNECT_FAILED, &thisaddr,
+                     s->port, winsock_error_string(err), err);
             while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
                 err = try_connect(s);
             }
@@ -1604,7 +1604,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
         if (s->addr) {
             SockAddr thisaddr = sk_extractaddr_tmp(
                 s->addr, &s->step);
-            plug_log(s->plug, PLUGLOG_CONNECT_SUCCESS,
+            plug_log(s->plug, &s->sock, PLUGLOG_CONNECT_SUCCESS,
                      &thisaddr, s->port, NULL, 0);
 
             sk_addr_free(s->addr);

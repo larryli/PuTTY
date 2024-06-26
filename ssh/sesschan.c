@@ -371,8 +371,8 @@ bool sesschan_run_subsystem(Channel *chan, ptrlen subsys)
     return false;
 }
 
-static void fwd_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
-                    const char *error_msg, int error_code)
+static void fwd_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
+                    int port, const char *error_msg, int error_code)
 { /* don't expect any weirdnesses from a listening socket */ }
 static void fwd_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 { /* not here, either */ }

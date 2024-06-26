@@ -91,7 +91,7 @@ struct PlugVtable {
      * all Plugs must implement this method, even if only to ignore
      * the logged events.
      */
-    void (*log)(Plug *p, PlugLogType type, SockAddr *addr, int port,
+    void (*log)(Plug *p, Socket *s, PlugLogType type, SockAddr *addr, int port,
                 const char *error_msg, int error_code);
 
     /*
@@ -245,8 +245,9 @@ static inline void sk_write_eof(Socket *s)
 { s->vt->write_eof(s); }
 
 static inline void plug_log(
-    Plug *p, int type, SockAddr *addr, int port, const char *msg, int code)
-{ p->vt->log(p, type, addr, port, msg, code); }
+    Plug *p, Socket *s, int type, SockAddr *addr, int port,
+    const char *msg, int code)
+{ p->vt->log(p, s, type, addr, port, msg, code); }
 static inline void plug_closing(Plug *p, PlugCloseType type, const char *msg)
 { p->vt->closing(p, type, msg); }
 static inline void plug_closing_normal(Plug *p)
@@ -379,7 +380,7 @@ extern Plug *const nullplug;
  * In particular, nullplug_log is useful to Plugs that don't need to
  * worry about logging.
  */
-void nullplug_log(Plug *plug, PlugLogType type, SockAddr *addr,
+void nullplug_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
                   int port, const char *err_msg, int err_code);
 void nullplug_closing(Plug *plug, PlugCloseType type, const char *error_msg);
 void nullplug_receive(Plug *plug, int urgent, const char *data, size_t len);
@@ -391,7 +392,7 @@ void nullplug_sent(Plug *plug, size_t bufsize);
  * they use types defined here.
  */
 
-void backend_socket_log(Seat *seat, LogContext *logctx,
+void backend_socket_log(Seat *seat, LogContext *logctx, Socket *sock,
                         PlugLogType type, SockAddr *addr, int port,
                         const char *error_msg, int error_code, Conf *conf,
                         bool session_started);
@@ -403,8 +404,8 @@ typedef struct ProxyStderrBuf {
 } ProxyStderrBuf;
 void psb_init(ProxyStderrBuf *psb);
 void psb_set_prefix(ProxyStderrBuf *psb, const char *prefix);
-void log_proxy_stderr(
-    Plug *plug, ProxyStderrBuf *psb, const void *vdata, size_t len);
+void log_proxy_stderr(Plug *plug, Socket *sock, ProxyStderrBuf *psb,
+                      const void *vdata, size_t len);
 
 /* ----------------------------------------------------------------------
  * The DeferredSocketOpener trait. This is a thing that some Socket

@@ -107,7 +107,7 @@ static size_t handle_stderr(
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
     if (!err && len > 0)
-        log_proxy_stderr(hs->plug, &hs->psb, data, len);
+        log_proxy_stderr(hs->plug, &hs->sock, &hs->psb, data, len);
 
     return 0;
 }
@@ -354,7 +354,8 @@ static const SocketVtable HandleSocket_sockvt = {
 static void sk_handle_connect_success_callback(void *ctx)
 {
     HandleSocket *hs = (HandleSocket *)ctx;
-    plug_log(hs->plug, PLUGLOG_CONNECT_SUCCESS, hs->addr, hs->port, NULL, 0);
+    plug_log(hs->plug, &hs->sock, PLUGLOG_CONNECT_SUCCESS, hs->addr, hs->port,
+             NULL, 0);
 }
 
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,

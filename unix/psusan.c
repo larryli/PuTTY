@@ -265,8 +265,8 @@ static Plug *server_conn_plug(
         &inst->logpolicy, &unix_live_sftpserver_vt);
 }
 
-static void server_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
-                       const char *error_msg, int error_code)
+static void server_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
+                       int port, const char *error_msg, int error_code)
 {
     log_to_stderr(-1, error_msg);
 }

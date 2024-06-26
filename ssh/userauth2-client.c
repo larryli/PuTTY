@@ -318,8 +318,9 @@ static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
     return true;
 }
 
-static void authplugin_plug_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                                int port, const char *err_msg, int err_code)
+static void authplugin_plug_log(Plug *plug, Socket *sock, PlugLogType type,
+                                SockAddr *addr, int port,
+                                const char *err_msg, int err_code)
 {
     struct ssh2_userauth_state *s = container_of(
         plug, struct ssh2_userauth_state, authplugin_plug);
