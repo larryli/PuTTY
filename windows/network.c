@@ -821,7 +821,7 @@ static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static const char *sk_net_socket_error(Socket *s);
-static SocketPeerInfo *sk_net_peer_info(Socket *s);
+static SocketEndpointInfo *sk_net_peer_info(Socket *s);
 
 static const SocketVtable NetSocket_sockvt = {
     .plug = sk_net_plug,
@@ -1747,7 +1747,7 @@ static const char *sk_net_socket_error(Socket *sock)
     return s->error;
 }
 
-static SocketPeerInfo *sk_net_peer_info(Socket *sock)
+static SocketEndpointInfo *sk_net_peer_info(Socket *sock)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
 #ifdef NO_IPV6
@@ -1757,12 +1757,12 @@ static SocketPeerInfo *sk_net_peer_info(Socket *sock)
     char buf[INET6_ADDRSTRLEN];
 #endif
     int addrlen = sizeof(addr);
-    SocketPeerInfo *pi;
+    SocketEndpointInfo *pi;
 
     if (p_getpeername(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
         return NULL;
 
-    pi = snew(SocketPeerInfo);
+    pi = snew(SocketEndpointInfo);
     pi->addressfamily = ADDRTYPE_UNSPEC;
     pi->addr_text = NULL;
     pi->port = -1;

@@ -1885,7 +1885,7 @@ static int pageant_listen_accepting(Plug *plug,
         plug, struct pageant_listen_state, plug);
     struct pageant_conn_state *pc;
     const char *err;
-    SocketPeerInfo *peerinfo;
+    SocketEndpointInfo *peerinfo;
 
     pc = snew(struct pageant_conn_state);
     pc->plug.vt = &pageant_connection_plugvt;
@@ -1914,7 +1914,7 @@ static int pageant_listen_accepting(Plug *plug,
         pageant_listener_client_log(pl->plc, "c#%"SIZEu": new connection",
                                     pc->conn_index);
     }
-    sk_free_peer_info(peerinfo);
+    sk_free_endpoint_info(peerinfo);
 
     pageant_register_client(&pc->pc);
 

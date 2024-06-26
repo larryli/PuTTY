@@ -34,7 +34,7 @@ struct SocketVtable {
     void (*set_frozen) (Socket *s, bool is_frozen);
     /* ignored by tcp, but vital for ssl */
     const char *(*socket_error) (Socket *s);
-    SocketPeerInfo *(*peer_info) (Socket *s);
+    SocketEndpointInfo *(*peer_info) (Socket *s);
 };
 
 typedef union { void *p; int i; } accept_ctx_t;
@@ -292,23 +292,23 @@ static inline void sk_set_frozen(Socket *s, bool is_frozen)
 { s->vt->set_frozen(s, is_frozen); }
 
 /*
- * Return a structure giving some information about the other end of
+ * Return a structure giving some information about one end of
  * the socket. May be NULL, if nothing is available at all. If it is
  * not NULL, then it is dynamically allocated, and should be freed by
- * a call to sk_free_peer_info(). See below for the definition.
+ * a call to sk_free_endpoint_info(). See below for the definition.
  */
-static inline SocketPeerInfo *sk_peer_info(Socket *s)
+static inline SocketEndpointInfo *sk_peer_info(Socket *s)
 { return s->vt->peer_info(s); }
 
 /*
- * The structure returned from sk_peer_info, and a function to free
+ * The structure returned from sk_endpoint_info, and a function to free
  * one (in utils).
  */
-struct SocketPeerInfo {
+struct SocketEndpointInfo {
     int addressfamily;
 
     /*
-     * Text form of the IPv4 or IPv6 address of the other end of the
+     * Text form of the IPv4 or IPv6 address of the specified end of the
      * socket, if available, in the standard text representation.
      */
     const char *addr_text;
@@ -337,7 +337,7 @@ struct SocketPeerInfo {
      */
     const char *log_text;
 };
-void sk_free_peer_info(SocketPeerInfo *pi);
+void sk_free_endpoint_info(SocketEndpointInfo *ei);
 
 /*
  * Simple wrapper on getservbyname(), needed by portfwd.c. Returns the

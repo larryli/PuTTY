@@ -152,7 +152,7 @@ static SshChannel *wrap_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
     Socket *s, Channel *chan)
 {
-    SocketPeerInfo *pi;
+    SocketEndpointInfo *pi;
     char *description;
     SshChannel *toret;
 
@@ -163,7 +163,7 @@ static SshChannel *wrap_lportfwd_open(
         description = dupstr("forwarding");
     }
     toret = ssh_lportfwd_open(cl, hostname, port, description, pi, chan);
-    sk_free_peer_info(pi);
+    sk_free_endpoint_info(pi);
 
     sfree(description);
     return toret;

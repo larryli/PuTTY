@@ -72,7 +72,7 @@ struct psocks_connection {
 
 static SshChannel *psocks_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
-    const char *description, const SocketPeerInfo *pi, Channel *chan);
+    const char *description, const SocketEndpointInfo *pi, Channel *chan);
 
 static const ConnectionLayerVtable psocks_clvt = {
     .lportfwd_open = psocks_lportfwd_open,
@@ -154,7 +154,7 @@ static void psocks_connection_establish(void *vctx);
 
 static SshChannel *psocks_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
-    const char *description, const SocketPeerInfo *pi, Channel *chan)
+    const char *description, const SocketEndpointInfo *pi, Channel *chan)
 {
     psocks_state *ps = container_of(cl, psocks_state, cl);
     psocks_connection *conn = snew(psocks_connection);

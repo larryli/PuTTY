@@ -63,7 +63,7 @@ static const char *sk_namedpipeserver_socket_error(Socket *s)
     return ps->error;
 }
 
-static SocketPeerInfo *sk_namedpipeserver_peer_info(Socket *s)
+static SocketEndpointInfo *sk_namedpipeserver_peer_info(Socket *s)
 {
     return NULL;
 }

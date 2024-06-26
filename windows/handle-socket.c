@@ -296,7 +296,7 @@ static const char *sk_handle_socket_error(Socket *s)
     return hs->error;
 }
 
-static SocketPeerInfo *sk_handle_peer_info(Socket *s)
+static SocketEndpointInfo *sk_handle_peer_info(Socket *s)
 {
     HandleSocket *hs = container_of(s, HandleSocket, sock);
     ULONG pid;
@@ -326,7 +326,7 @@ static SocketPeerInfo *sk_handle_peer_info(Socket *s)
      */
     if (p_GetNamedPipeClientProcessId &&
         p_GetNamedPipeClientProcessId(hs->send_H, &pid)) {
-        SocketPeerInfo *pi = snew(SocketPeerInfo);
+        SocketEndpointInfo *pi = snew(SocketEndpointInfo);
         pi->addressfamily = ADDRTYPE_LOCAL;
         pi->addr_text = NULL;
         pi->port = -1;
@@ -431,7 +431,7 @@ static void sk_handle_deferred_set_frozen(Socket *s, bool is_frozen)
     hs->frozen = is_frozen;
 }
 
-static SocketPeerInfo *sk_handle_deferred_peer_info(Socket *s)
+static SocketEndpointInfo *sk_handle_deferred_peer_info(Socket *s)
 {
     return NULL;
 }

@@ -299,12 +299,12 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     if ((err = sk_socket_error(s)) != NULL)
         return 1;
 
-    SocketPeerInfo *pi = sk_peer_info(s);
+    SocketEndpointInfo *pi = sk_peer_info(s);
 
     char *msg = dupprintf("new connection from %s", pi->log_text);
     log_to_stderr(inst->id, msg);
     sfree(msg);
-    sk_free_peer_info(pi);
+    sk_free_endpoint_info(pi);
 
     sk_set_frozen(s, false);
     ssh_server_start(plug, s);

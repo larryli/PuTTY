@@ -39,7 +39,7 @@ static const char *sk_error_socket_error(Socket *s)
     return es->error;
 }
 
-static SocketPeerInfo *sk_error_peer_info(Socket *s)
+static SocketEndpointInfo *sk_error_peer_info(Socket *s)
 {
     return NULL;
 }

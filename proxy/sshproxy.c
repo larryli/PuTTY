@@ -123,7 +123,7 @@ static const char *sshproxy_socket_error(Socket *s)
     return sp->errmsg;
 }
 
-static SocketPeerInfo *sshproxy_peer_info(Socket *s)
+static SocketEndpointInfo *sshproxy_peer_info(Socket *s)
 {
     return NULL;
 }
