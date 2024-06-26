@@ -63,7 +63,8 @@ static const char *sk_namedpipeserver_socket_error(Socket *s)
     return ps->error;
 }
 
-static SocketEndpointInfo *sk_namedpipeserver_peer_info(Socket *s)
+static SocketEndpointInfo *sk_namedpipeserver_endpoint_info(
+    Socket *s, bool peer)
 {
     return NULL;
 }
@@ -196,7 +197,7 @@ static const SocketVtable NamedPipeServerSocket_sockvt = {
     .plug = sk_namedpipeserver_plug,
     .close = sk_namedpipeserver_close,
     .socket_error = sk_namedpipeserver_socket_error,
-    .peer_info = sk_namedpipeserver_peer_info,
+    .endpoint_info = sk_namedpipeserver_endpoint_info,
 };
 
 Socket *new_named_pipe_listener(const char *pipename, Plug *plug)

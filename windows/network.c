@@ -209,6 +209,8 @@ DECL_WINDOWS_FUNCTION(static, SOCKET, accept,
                       (SOCKET, struct sockaddr FAR *, int FAR *));
 DECL_WINDOWS_FUNCTION(static, int, getpeername,
                       (SOCKET, struct sockaddr FAR *, int FAR *));
+DECL_WINDOWS_FUNCTION(static, int, getsockname,
+                      (SOCKET, struct sockaddr FAR *, int FAR *));
 DECL_WINDOWS_FUNCTION(static, int, recv, (SOCKET, char FAR *, int, int));
 DECL_WINDOWS_FUNCTION(static, int, WSAIoctl,
                       (SOCKET, DWORD, LPVOID, DWORD, LPVOID, DWORD,
@@ -332,6 +334,7 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock_module, ioctlsocket);
     GET_WINDOWS_FUNCTION(winsock_module, accept);
     GET_WINDOWS_FUNCTION(winsock_module, getpeername);
+    GET_WINDOWS_FUNCTION(winsock_module, getsockname);
     GET_WINDOWS_FUNCTION(winsock_module, recv);
     GET_WINDOWS_FUNCTION(winsock_module, WSAIoctl);
 
@@ -821,7 +824,7 @@ static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static const char *sk_net_socket_error(Socket *s);
-static SocketEndpointInfo *sk_net_peer_info(Socket *s);
+static SocketEndpointInfo *sk_net_endpoint_info(Socket *s, bool peer);
 
 static const SocketVtable NetSocket_sockvt = {
     .plug = sk_net_plug,
@@ -831,7 +834,7 @@ static const SocketVtable NetSocket_sockvt = {
     .write_eof = sk_net_write_eof,
     .set_frozen = sk_net_set_frozen,
     .socket_error = sk_net_socket_error,
-    .peer_info = sk_net_peer_info,
+    .endpoint_info = sk_net_endpoint_info,
 };
 
 static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
@@ -1747,7 +1750,7 @@ static const char *sk_net_socket_error(Socket *sock)
     return s->error;
 }
 
-static SocketEndpointInfo *sk_net_peer_info(Socket *sock)
+static SocketEndpointInfo *sk_net_endpoint_info(Socket *sock, bool peer)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
 #ifdef NO_IPV6
@@ -1759,8 +1762,13 @@ static SocketEndpointInfo *sk_net_peer_info(Socket *sock)
     int addrlen = sizeof(addr);
     SocketEndpointInfo *pi;
 
-    if (p_getpeername(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
-        return NULL;
+    {
+        int retd = (peer ?
+                    p_getpeername(s->s, (struct sockaddr *)&addr, &addrlen) :
+                    p_getsockname(s->s, (struct sockaddr *)&addr, &addrlen));
+        if (retd < 0)
+            return NULL;
+    }
 
     pi = snew(SocketEndpointInfo);
     pi->addressfamily = ADDRTYPE_UNSPEC;

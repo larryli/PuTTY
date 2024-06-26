@@ -34,7 +34,7 @@ struct SocketVtable {
     void (*set_frozen) (Socket *s, bool is_frozen);
     /* ignored by tcp, but vital for ssl */
     const char *(*socket_error) (Socket *s);
-    SocketEndpointInfo *(*peer_info) (Socket *s);
+    SocketEndpointInfo *(*endpoint_info) (Socket *s, bool peer);
 };
 
 typedef union { void *p; int i; } accept_ctx_t;
@@ -297,8 +297,10 @@ static inline void sk_set_frozen(Socket *s, bool is_frozen)
  * not NULL, then it is dynamically allocated, and should be freed by
  * a call to sk_free_endpoint_info(). See below for the definition.
  */
+static inline SocketEndpointInfo *sk_endpoint_info(Socket *s, bool peer)
+{ return s->vt->endpoint_info(s, peer); }
 static inline SocketEndpointInfo *sk_peer_info(Socket *s)
-{ return s->vt->peer_info(s); }
+{ return sk_endpoint_info(s, true); }
 
 /*
  * The structure returned from sk_endpoint_info, and a function to free

@@ -415,6 +415,19 @@ SockAddr *name_lookup(const char *host, int port, char **canonicalname,
     }
 }
 
+static SocketEndpointInfo *sk_proxy_endpoint_info(Socket *s, bool peer)
+{
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
+
+    /* We can't reliably find out where we ended up connecting _to_:
+     * that's at the far end of the proxy, and might be anything. */
+    if (peer)
+        return NULL;
+
+    /* But we can at least tell where we're coming _from_. */
+    return sk_endpoint_info(ps->sub_socket, false);
+}
+
 static const SocketVtable ProxySocket_sockvt = {
     .plug = sk_proxy_plug,
     .close = sk_proxy_close,
@@ -423,7 +436,7 @@ static const SocketVtable ProxySocket_sockvt = {
     .write_eof = sk_proxy_write_eof,
     .set_frozen = sk_proxy_set_frozen,
     .socket_error = sk_proxy_socket_error,
-    .peer_info = NULL,
+    .endpoint_info = sk_proxy_endpoint_info,
 };
 
 static const PlugVtable ProxySocket_plugvt = {

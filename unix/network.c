@@ -488,7 +488,7 @@ static size_t sk_net_write(Socket *s, const void *data, size_t len);
 static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, bool is_frozen);
-static SocketEndpointInfo *sk_net_peer_info(Socket *s);
+static SocketEndpointInfo *sk_net_endpoint_info(Socket *s, bool peer);
 static const char *sk_net_socket_error(Socket *s);
 
 static const SocketVtable NetSocket_sockvt = {
@@ -499,7 +499,7 @@ static const SocketVtable NetSocket_sockvt = {
     .write_eof = sk_net_write_eof,
     .set_frozen = sk_net_set_frozen,
     .socket_error = sk_net_socket_error,
-    .peer_info = sk_net_peer_info,
+    .endpoint_info = sk_net_endpoint_info,
 };
 
 static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
@@ -1494,7 +1494,7 @@ static void sk_net_set_frozen(Socket *sock, bool is_frozen)
     uxsel_tell(s);
 }
 
-static SocketEndpointInfo *sk_net_peer_info(Socket *sock)
+static SocketEndpointInfo *sk_net_endpoint_info(Socket *sock, bool peer)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
     union sockaddr_union addr;
@@ -1504,8 +1504,12 @@ static SocketEndpointInfo *sk_net_peer_info(Socket *sock)
 #endif
     SocketEndpointInfo *pi;
 
-    if (getpeername(s->s, &addr.sa, &addrlen) < 0)
-        return NULL;
+    {
+        int retd = (peer ? getpeername(s->s, &addr.sa, &addrlen) :
+                    getsockname(s->s, &addr.sa, &addrlen));
+        if (retd < 0)
+            return NULL;
+    }
 
     pi = snew(SocketEndpointInfo);
     pi->addressfamily = ADDRTYPE_UNSPEC;

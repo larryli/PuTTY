@@ -296,13 +296,16 @@ static const char *sk_handle_socket_error(Socket *s)
     return hs->error;
 }
 
-static SocketEndpointInfo *sk_handle_peer_info(Socket *s)
+static SocketEndpointInfo *sk_handle_endpoint_info(Socket *s, bool peer)
 {
     HandleSocket *hs = container_of(s, HandleSocket, sock);
     ULONG pid;
     static HMODULE kernel32_module;
     DECL_WINDOWS_FUNCTION(static, BOOL, GetNamedPipeClientProcessId,
                           (HANDLE, PULONG));
+
+    if (!peer)
+        return NULL;
 
     if (!kernel32_module) {
         kernel32_module = load_system32_dll("kernel32.dll");
@@ -345,7 +348,7 @@ static const SocketVtable HandleSocket_sockvt = {
     .write_eof = sk_handle_write_eof,
     .set_frozen = sk_handle_set_frozen,
     .socket_error = sk_handle_socket_error,
-    .peer_info = sk_handle_peer_info,
+    .endpoint_info = sk_handle_endpoint_info,
 };
 
 static void sk_handle_connect_success_callback(void *ctx)
@@ -431,7 +434,8 @@ static void sk_handle_deferred_set_frozen(Socket *s, bool is_frozen)
     hs->frozen = is_frozen;
 }
 
-static SocketEndpointInfo *sk_handle_deferred_peer_info(Socket *s)
+static SocketEndpointInfo *sk_handle_deferred_endpoint_info(
+    Socket *s, bool peer)
 {
     return NULL;
 }
@@ -444,7 +448,7 @@ static const SocketVtable HandleSocket_deferred_sockvt = {
     .write_eof = sk_handle_deferred_write_eof,
     .set_frozen = sk_handle_deferred_set_frozen,
     .socket_error = sk_handle_socket_error,
-    .peer_info = sk_handle_deferred_peer_info,
+    .endpoint_info = sk_handle_deferred_endpoint_info,
 };
 
 Socket *make_deferred_handle_socket(DeferredSocketOpener *opener,
