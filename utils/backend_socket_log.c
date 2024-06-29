@@ -30,6 +30,16 @@ void backend_socket_log(Seat *seat, LogContext *logctx, Socket *sock,
         else /* fallback if address unavailable */
             sprintf(addrbuf, "remote host");
         msg = dupprintf("Connected to %s", addrbuf);
+        if (sock) {
+            SocketEndpointInfo *local_end = sk_endpoint_info(sock, false);
+            if (local_end) {
+                char *newmsg = dupprintf("%s (from %s)", msg,
+                                         local_end->log_text);
+                sfree(msg);
+                msg = newmsg;
+                sk_free_endpoint_info(local_end);
+            }
+        }
         break;
       case PLUGLOG_PROXY_MSG: {
         /* Proxy-related log messages have their own identifying
