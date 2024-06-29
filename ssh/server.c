@@ -138,14 +138,6 @@ static const SeatVtable server_seat_vt = {
     .get_cursor_position = nullseat_get_cursor_position,
 };
 
-static void server_socket_log(Plug *plug, Socket *s, PlugLogType type,
-                              SockAddr *addr, int port,
-                              const char *error_msg, int error_code)
-{
-    /* server *srv = container_of(plug, server, plug); */
-    /* FIXME */
-}
-
 static void server_closing(Plug *plug, PlugCloseType type,
                            const char *error_msg)
 {
@@ -254,7 +246,7 @@ Conf *make_ssh_server_conf(void)
 void ssh_check_sendok(Ssh *ssh) {}
 
 static const PlugVtable ssh_server_plugvt = {
-    .log = server_socket_log,
+    .log = nullplug_log,
     .closing = server_closing,
     .receive = server_receive,
     .sent = server_sent,

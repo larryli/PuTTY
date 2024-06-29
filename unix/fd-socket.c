@@ -315,11 +315,6 @@ static void fdsocket_select_result_input_error(int fd, int event)
     }
 }
 
-static SocketEndpointInfo *fdsocket_endpoint_info(Socket *s, bool peer)
-{
-    return NULL;
-}
-
 static const SocketVtable FdSocket_sockvt = {
     .plug = fdsocket_plug,
     .close = fdsocket_close,
@@ -328,7 +323,7 @@ static const SocketVtable FdSocket_sockvt = {
     .write_eof = fdsocket_write_eof,
     .set_frozen = fdsocket_set_frozen,
     .socket_error = fdsocket_socket_error,
-    .endpoint_info = fdsocket_endpoint_info,
+    .endpoint_info = nullsock_endpoint_info,
 };
 
 static void fdsocket_connect_success_callback(void *ctx)

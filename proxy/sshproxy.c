@@ -123,11 +123,6 @@ static const char *sshproxy_socket_error(Socket *s)
     return sp->errmsg;
 }
 
-static SocketEndpointInfo *sshproxy_endpoint_info(Socket *s, bool peer)
-{
-    return NULL;
-}
-
 static const SocketVtable SshProxy_sock_vt = {
     .plug = sshproxy_plug,
     .close = sshproxy_close,
@@ -136,7 +131,7 @@ static const SocketVtable SshProxy_sock_vt = {
     .write_eof = sshproxy_write_eof,
     .set_frozen = sshproxy_set_frozen,
     .socket_error = sshproxy_socket_error,
-    .endpoint_info = sshproxy_endpoint_info,
+    .endpoint_info = nullsock_endpoint_info,
 };
 
 static void sshproxy_eventlog(LogPolicy *lp, const char *event)

@@ -237,18 +237,12 @@ void keylist_update(void)
 
 static bool time_to_die = false;
 
-/*
- * These functions are part of the plug for our connection to the X
- * display, so they do get called. They needn't actually do anything,
- * except that x11_closing has to signal back to the main loop that
- * it's time to terminate.
- */
-static void x11_log(Plug *p, Socket *s, PlugLogType type, SockAddr *addr,
-                    int port, const char *error_msg, int error_code) {}
-static void x11_receive(Plug *plug, int urgent, const char *data, size_t len) {}
-static void x11_sent(Plug *plug, size_t bufsize) {}
 static void x11_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
+    /*
+     * When the X connection closes, signal back to the main loop that
+     * it's time to terminate.
+     */
     time_to_die = true;
 }
 struct X11Connection {
@@ -994,10 +988,10 @@ void run_client(void)
 }
 
 static const PlugVtable X11Connection_plugvt = {
-    .log = x11_log,
+    .log = nullplug_log,
     .closing = x11_closing,
-    .receive = x11_receive,
-    .sent = x11_sent,
+    .receive = nullplug_receive,
+    .sent = nullplug_sent,
 };
 
 

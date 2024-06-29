@@ -386,6 +386,11 @@ void nullplug_closing(Plug *plug, PlugCloseType type, const char *error_msg);
 void nullplug_receive(Plug *plug, int urgent, const char *data, size_t len);
 void nullplug_sent(Plug *plug, size_t bufsize);
 
+/*
+ * Similar no-op socket function.
+ */
+SocketEndpointInfo *nullsock_endpoint_info(Socket *s, bool peer);
+
 /* ----------------------------------------------------------------------
  * Functions defined outside the network code, which have to be
  * declared in this header file rather than the main putty.h because

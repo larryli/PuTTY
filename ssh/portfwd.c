@@ -96,20 +96,6 @@ static void free_portlistener_state(struct PortListener *pl)
     sfree(pl);
 }
 
-static void pfd_log(Plug *plug, Socket *s, PlugLogType type,
-                    SockAddr *addr, int port,
-                    const char *error_msg, int error_code)
-{
-    /* we have to dump these since we have no interface to logging.c */
-}
-
-static void pfl_log(Plug *plug, Socket *s, PlugLogType type,
-                    SockAddr *addr, int port,
-                    const char *error_msg, int error_code)
-{
-    /* we have to dump these since we have no interface to logging.c */
-}
-
 static void pfd_close(struct PortForwarding *pf);
 
 static void pfd_closing(Plug *plug, PlugCloseType type, const char *error_msg)
@@ -433,7 +419,7 @@ static void pfd_sent(Plug *plug, size_t bufsize)
 }
 
 static const PlugVtable PortForwarding_plugvt = {
-    .log = pfd_log,
+    .log = nullplug_log,
     .closing = pfd_closing,
     .receive = pfd_receive,
     .sent = pfd_sent,
@@ -556,7 +542,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 }
 
 static const PlugVtable PortListener_plugvt = {
-    .log = pfl_log,
+    .log = nullplug_log,
     .closing = pfl_closing,
     .accepting = pfl_accepting,
 };
