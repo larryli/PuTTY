@@ -1,14 +1,23 @@
-This is the README for PuTTY, a free Windows and Unix Telnet and SSH
-client.
+PuTTY source code README
+========================
+
+This is the README for the source code of PuTTY, a free Windows and
+Unix Telnet and SSH client.
 
 PuTTY is built using CMake <https://cmake.org/>. To compile in the
-simplest way (on any of Linux, Windows or Mac), run these commands in
-the source directory:
+simplest way (on any of Linux, Windows or Mac), the general method is
+to run these commands in the source directory:
 
   cmake .
   cmake --build .
 
-Then, to install in the simplest way on Linux or Mac:
+These commands will expect to find a usable compile toolchain on your
+path. So if you're building on Windows with MSVC, you'll need to make
+sure that the MSVC compiler (cl.exe) is on your path, by running one
+of the 'vcvars32.bat' setup scripts provided with the tools. Then the
+cmake commands above should work.
+
+To install in the simplest way on Linux or Mac:
 
   cmake --build . --target install
 
