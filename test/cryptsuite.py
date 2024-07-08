@@ -2708,6 +2708,62 @@ culpa qui officia deserunt mollit anim id est laborum.
                         self.assertFalse(ssh_key_verify(
                             key, badsig, test_message))
 
+    def testShortRSASignatures(self):
+        key = ssh_key_new_priv('rsa', b64("""
+AAAAB3NzaC1yc2EAAAADAQABAAABAQDeoTvwEDg46K7vYrQFFwbo2sBPahNoiw7i
+RMbpwuOIH8sAOFAWzDvIZpDODGkobwc2hM8FRlZUg3lTgDaqVuMJOupG0xzOqehu
+Fw3kXrm6ScWxaUXs+b5o88sqXBBYs91KmsWqYKTUUwDBuDHdo8Neq8h8SJqspCo4
+qctIoLoTrXYMqonfHXZp4bIn5WPN6jNL9pLi7Y+sl8aLe4w73aZzxMphecQfMMVJ
+ezmv9zgA7gKw5ErorIGKCF44YRbvNisZA5j2DyLLsd/ztw2ikIEnx9Ng33+tGEBC
+zq2RYb4ZtuT9dHXcNiHx3CqLLlFrjl13hQamjwoVy4ydDIdQZjYz
+"""), b64("""
+AAABADhDwXUrdDoVvFhttpduuWVSG7Y2Vc9fDZTr0uWzRnPZrSFSGhOY7Cb6nPAm
+PNFmNgl2SSfJHfpf++K5jZdBPEHR7PGXWzlzwXVJSE6GDiRhjqAGvhBlEdVOf/Ml
+r0/rrSq0sO4dXKr4i0FqPtgIElEz0whuBQFKwAzwBJtHW5+rBzGLvoHh560UN4IK
+SU3jv/nDMvPohEBfOA0puqYAfZM8PmU/kbgERPLyPp/dfnGBC4LlOnAcak+2RNu6
+yQ5v0NKksyYidCI76Ztf3B9asNNN4AbTg8JbzABwjtxR+0bDOOi0RwAJC2Wn2FOy
+WiJsQWjz/fMnJW8WVg3DR/va/4EAAACBAP8rwn1vy4Y/S1EixR1XZM9F1OvJQwzN
+EKhD1Qbr1YlLX3oZRnulJg/j0HupGnKCRh8DulNbrmXlMFdeZHDVFw87/o73DTCQ
+g2qnRNUwJdBkePrA563vVx6OXe5TSF3+3SRNMesAdN8ExvGeOFP10z0FZhS3Zuco
+y4WrxQBXVetBAAAAgQDfWmh5CRJEBCJbLHMdZK8QAw2QbKiD0VTw7PkDWJuSbYDB
+AvEhoFuXUO/yMIfCCFjUuzO+3iumk8F/lFTkJ620Aah5tzRcKCtyW4YuoQUYMgpW
+5/hGIL4M4bvUDGUGI3+SOn8qfAzCCsFD0FdR6ms0pMubaJQmeiI2wyM9ehOIcwAA
+AIEAmKEX1YZHNtx/D/SaTsl6z+KwmOluqjzyjrwL16QLpIR1/F7lAjSnMGz3yORp
++314D3yZzKutpalwwsS4+z7838pilVaV7iWqF4TMDKYZ/6/baRXpwxrwFqvWXwQ3
+cLerc7bpA/IeVovoTirt0RNxdMPIVv3XsXE7pqatJBwOcQE=
+"""))
+
+        def decode(data):
+            pos = 0
+            alg, data = ssh_decode_string(data, True)
+            sig, data = ssh_decode_string(data, True)
+            self.assertEqual(data, b'')
+            return alg, sig
+
+        # An RSA signature over each hash which comes out a byte short
+        # with this key. Found in the obvious manner, by signing
+        # "message0", "message1", ... until one was short.
+        #
+        # We expect the ssh-rsa signature to be stored short, and the
+        # other two to be padded with a zero byte.
+        blob = ssh_key_sign(key, "message79", 0)
+        alg, sig = decode(blob)
+        self.assertEqual(alg, b"ssh-rsa")
+        self.assertEqual(len(sig), 255) # one byte short
+        self.assertNotEqual(sig[0], 0)
+
+        blob = ssh_key_sign(key, "message208", 2)
+        alg, sig = decode(blob)
+        self.assertEqual(alg, b"rsa-sha2-256")
+        self.assertEqual(len(sig), 256) # full-length
+        self.assertEqual(sig[0], 0) # and has a leading zero byte
+
+        blob = ssh_key_sign(key, "message461", 4)
+        alg, sig = decode(blob)
+        self.assertEqual(alg, b"rsa-sha2-512")
+        self.assertEqual(len(sig), 256) # full-length
+        self.assertEqual(sig[0], 0) # and has a leading zero byte
+
     def testPPKLoadSave(self):
         # Stability test of PPK load/save functions.
         input_clear_key = b"""\
