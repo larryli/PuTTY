@@ -168,7 +168,7 @@ static void gppfile(settings_r *sesskey, const char *name,
 static bool gppb_raw(settings_r *sesskey, const char *name, bool def)
 {
     def = platform_default_b(name, def);
-    return sesskey ? read_setting_i(sesskey, name, def) != 0 : def;
+    return read_setting_i(sesskey, name, def) != 0;
 }
 
 static void gppb(settings_r *sesskey, const char *name, bool def,
