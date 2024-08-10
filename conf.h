@@ -903,6 +903,11 @@ CONF_OPTION(no_bidi,
     DEFAULT_BOOL(false),
     SAVE_KEYWORD("DisableBidi"),
 )
+CONF_OPTION(no_bracketed_paste,
+    VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(false),
+    SAVE_KEYWORD("DisableBracketedPaste"),
+)
 
 /* Colour options */
 CONF_OPTION(ansi_colour,

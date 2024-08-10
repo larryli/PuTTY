@@ -1639,6 +1639,7 @@ static void term_copy_stuff_from_conf(Terminal *term)
     term->bellovl_s = conf_get_int(term->conf, CONF_bellovl_s);
     term->bellovl_t = conf_get_int(term->conf, CONF_bellovl_t);
     term->no_bidi = conf_get_bool(term->conf, CONF_no_bidi);
+    term->no_bracketed_paste = conf_get_bool(term->conf, CONF_no_bracketed_paste);
     term->bksp_is_delete = conf_get_bool(term->conf, CONF_bksp_is_delete);
     term->blink_cur = conf_get_bool(term->conf, CONF_blink_cur);
     term->blinktext = conf_get_bool(term->conf, CONF_blinktext);
@@ -7130,7 +7131,7 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
     term->paste_pos = term->paste_len = 0;
     term->paste_buffer = snewn(len + 12, wchar_t);
 
-    if (term->bracketed_paste)
+    if (term->bracketed_paste && !term->no_bracketed_paste)
         term_bracketed_paste_start(term);
 
     p = data;
