@@ -2949,6 +2949,36 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
             self.assertEqual(rsa1_save_sb(k2, comment, pp),
                              input_encrypted_key)
 
+    def testRFC4716(self):
+        key = """\
+---- BEGIN SSH2 PUBLIC KEY ----
+Comment: "rsa-key-20240810"
+AAAAB3NzaC1yc2EAAAADAQABAAABAQCKdLtvsewMpsbWQCNs8VOWKlh6eQT0gzbc
+IoDLFPk5uVS1HjAEEjIZaXAB86PHTeJhkwEMlMXZ8mUZwAcZkuqKVCSib/VkuMEv
+wXa4cOf70XMBUtUgRJ5bJRMsA8PNkZN/OQHyyBLgTXGoFPWq73A3fxPZIe8BSAN+
+mPuILX1GHUKbBzT56xRNwB5nHkg0MStEotkIzg3xRNIXB9qyP6ILO4Qax2n7+XJS
+lmzr0KDJq5ZNSEZV4IprvAYBeEtvdBfLrRM4kifpVDE7ZrVXtKOIGDsxdEEBeqqy
+LzN/Ly+uECsga2hoc+P/ZHMULMZkCfrOyWdeXz7BR/acLZJoT579
+---- END SSH2 PUBLIC KEY ----
+"""
+
+        comment = b"rsa-key-20240810"
+        public_blob = b64("""
+AAAAB3NzaC1yc2EAAAADAQABAAABAQCKdLtvsewMpsbWQCNs8VOWKlh6eQT0gzbc
+IoDLFPk5uVS1HjAEEjIZaXAB86PHTeJhkwEMlMXZ8mUZwAcZkuqKVCSib/VkuMEv
+wXa4cOf70XMBUtUgRJ5bJRMsA8PNkZN/OQHyyBLgTXGoFPWq73A3fxPZIe8BSAN+
+mPuILX1GHUKbBzT56xRNwB5nHkg0MStEotkIzg3xRNIXB9qyP6ILO4Qax2n7+XJS
+lmzr0KDJq5ZNSEZV4IprvAYBeEtvdBfLrRM4kifpVDE7ZrVXtKOIGDsxdEEBeqqy
+LzN/Ly+uECsga2hoc+P/ZHMULMZkCfrOyWdeXz7BR/acLZJoT579
+""")
+
+        self.assertEqual(ppk_loadpub_s(key),
+                         (True, b'ssh-rsa', public_blob, comment, None))
+
+        self.assertEqual(ppk_loadpub_s(key[:len(key)//2]),
+                         (False, None, b'', None,
+                          b"invalid end line in SSH-2 public key file"))
+
     def testOpenSSHCert(self):
         def per_base_keytype_tests(alg, run_validation_tests=False,
                                    run_ca_rsa_tests=False, ca_signflags=None):

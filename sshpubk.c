@@ -1096,6 +1096,8 @@ static bool rfc4716_loadpub(BinarySource *src, char **algorithm,
             }
         }
         sfree(line); line = NULL;
+        if (!get_avail(src))
+            break;
         line = mkstr(get_chomped_line(src));
     }
 
