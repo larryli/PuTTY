@@ -119,7 +119,7 @@ static ConsoleIO *conio_setup(bool utf8)
     if (conio->hin == INVALID_HANDLE_VALUE)
         conio->hin = GetStdHandle(STD_INPUT_HANDLE);
     if (conio->hout == INVALID_HANDLE_VALUE)
-        conio->hout = GetStdHandle(STD_INPUT_HANDLE);
+        conio->hout = GetStdHandle(STD_OUTPUT_HANDLE);
 
     DWORD dummy;
     conio->hin_is_console = GetConsoleMode(conio->hin, &dummy);
