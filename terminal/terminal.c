@@ -1796,8 +1796,13 @@ void term_reconfig(Terminal *term, Conf *conf)
     conf_free(term->conf);
     term->conf = conf_copy(conf);
 
-    if (reset_wrap)
+    if (reset_wrap) {
         term->alt_wrap = term->wrap = conf_get_bool(term->conf, CONF_wrap_mode);
+        if (!term->wrap)
+            term->wrapnext = false;
+        if (!term->alt_wrap)
+            term->alt_wnext = false;
+    }
     if (reset_decom)
         term->alt_om = term->dec_om = conf_get_bool(term->conf, CONF_dec_om);
     if (reset_bce) {
@@ -3093,6 +3098,8 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             break;
           case 7:                      /* DECAWM: auto wrap */
             term->wrap = state;
+            if (!term->wrap)
+                term->wrapnext = false;
             break;
           case 8:                      /* DECARM: auto key repeat */
             term->repeat_off = !state;
@@ -3425,15 +3432,23 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
     term->curs.x++;
     if (term->curs.x >= linecols) {
         term->curs.x = linecols - 1;
-        term->wrapnext = true;
-        if (term->wrap && term->vt52_mode) {
-            cline->lattr |= LATTR_WRAPPED;
-            if (term->curs.y == term->marg_b)
-                scroll(term, term->marg_t, term->marg_b, 1, true);
-            else if (term->curs.y < term->rows - 1)
-                term->curs.y++;
-            term->curs.x = 0;
-            term->wrapnext = false;
+
+        if (term->wrap) {
+            if (!term->vt52_mode) {
+                /* Set the wrapnext flag, so that the next character
+                 * wraps, but this one doesn't. */
+                term->wrapnext = true;
+            } else {
+                /* VT52 mode expects simpler handling, and we just
+                 * wrap straight away. */
+                cline->lattr |= LATTR_WRAPPED;
+                if (term->curs.y == term->marg_b)
+                    scroll(term, term->marg_t, term->marg_b, 1, true);
+                else if (term->curs.y < term->rows - 1)
+                    term->curs.y++;
+                term->curs.x = 0;
+                term->wrapnext = false;
+            }
         }
     }
     seen_disp_event(term);
@@ -5655,6 +5670,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                   case 'w':            /* Autowrap off */
                     /* compatibility(ATARI) */
                     term->wrap = false;
+                    term->wrapnext = false;
                     break;
 
                   case 'R':
