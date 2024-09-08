@@ -7276,8 +7276,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
         (term->selstate != ABOUT_TO) && (term->selstate != DRAGGING)) {
         int encstate = 0, r, c;
         bool wheel;
-        char abuf[32];
-        int len = 0;
+        char *response = NULL;
 
         if (term->ldisc) {
 
@@ -7368,14 +7367,18 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 
             /* Check the extensions in decreasing order of preference. Encoding the release event above assumes that 1006 comes first. */
             if (term->xterm_extended_mouse) {
-                len = sprintf(abuf, "\033[<%d;%d;%d%c", encstate, c, r, a == MA_RELEASE ? 'm' : 'M');
+                response = dupprintf("\033[<%d;%d;%d%c", encstate, c, r,
+                                     a == MA_RELEASE ? 'm' : 'M');
             } else if (term->urxvt_extended_mouse) {
-                len = sprintf(abuf, "\033[%d;%d;%dM", encstate + 32, c, r);
+                response = dupprintf("\033[%d;%d;%dM", encstate + 32, c, r);
             } else if (c <= 223 && r <= 223) {
-                len = sprintf(abuf, "\033[M%c%c%c", encstate + 32, c + 32, r + 32);
+                response = dupprintf("\033[M%c%c%c", encstate + 32,
+                                     c + 32, r + 32);
             }
-            if (len > 0)
-                ldisc_send(term->ldisc, abuf, len, false);
+            if (response) {
+                ldisc_send(term->ldisc, response, strlen(response), false);
+                sfree(response);
+            }
         }
         return;
     }
