@@ -79,6 +79,7 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 
 #include "putty.h"
 #include "gtkmisc.h"
+#include "gtkcompat.h"
 
 char *x_get_default(const char *key) { return NULL; }
 
