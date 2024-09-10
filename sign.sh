@@ -38,7 +38,7 @@ sign() {
   # through.
   echo "----- Signing $2 with key '$keyname'"
   test -f "$3" || \
-    gpg --load-extension=idea "$1" -u "$keyname" -o "$3" "$2"
+    gpg "$1" -u "$keyname" -o "$3" "$2"
 }
 
 cd "$1"
