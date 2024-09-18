@@ -198,6 +198,7 @@ static void usage(void)
     printf("  -T           run with the lifetime of the controlling tty\n");
     printf("  --permanent  run permanently\n");
     printf("  --debug      run in debugging mode, without forking\n");
+    printf("  --foreground run permanently, without forking\n");
     printf("  --exec <command>   run with the lifetime of that command\n");
     printf("Client options, for talking to an existing agent:\n");
     printf("  -a           add key(s) to the existing agent\n");
@@ -425,7 +426,7 @@ bool have_controlling_tty(void)
 
 static char **exec_args = NULL;
 static enum {
-    LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
+    LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC, LIFE_FOREGROUND
 } life = LIFE_UNSPEC;
 static const char *display = NULL;
 static enum {
@@ -1222,6 +1223,9 @@ void run_agent(FILE *logfp, const char *symlink_path)
         pageant_fork_and_print_env(true);
     } else if (life == LIFE_PERM) {
         pageant_fork_and_print_env(false);
+    } else if (life == LIFE_FOREGROUND) {
+        setvbuf(stdout, NULL, _IOLBF, 0);
+        pageant_print_env(getpid());
     } else if (life == LIFE_DEBUG) {
         /* Force stdout to be line-buffered in preference to unbuffered, so
          * that if diagnostic output is being piped somewhere, it will arrive
@@ -1366,6 +1370,8 @@ int main(int argc, char **argv)
                 }
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
+            } else if (!strcmp(p, "--foreground")) {
+                life = LIFE_FOREGROUND;
             } else if (!strcmp(p, "--test-sign")) {
                 curr_keyact = KEYACT_CLIENT_SIGN;
                 sign_flags = 0;
