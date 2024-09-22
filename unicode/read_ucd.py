@@ -248,7 +248,7 @@ class Main:
                 else:
                     cs = [int(fields[0], 16)]
                 for c in cs:
-                    yield c, fields[1]
+                    yield c, fields[1].strip()
 
     @property
     def CompositionExclusions(self):
