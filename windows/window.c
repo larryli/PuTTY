@@ -1805,9 +1805,14 @@ static void reset_window(WinGuiSeat *wgs, int reinit)
         if (resize_action != RESIZE_TERM) {
             if (wgs->font_width != win_width/wgs->term->cols ||
                 wgs->font_height != win_height/wgs->term->rows) {
+                int fw = (win_width - 2*window_border) / wgs->term->cols;
+                int fh = (win_height - 2*window_border) / wgs->term->rows;
+                /* In case that subtraction made the font size go
+                 * negative in an edge case, bound it below by 1 */
+                if (fw < 1) fw = 1;
+                if (fh < 1) fh = 1;
                 deinit_fonts(wgs);
-                init_fonts(wgs, win_width/wgs->term->cols,
-                           win_height/wgs->term->rows);
+                init_fonts(wgs, fw, fh);
                 wgs->offset_width =
                     (win_width - wgs->font_width*wgs->term->cols) / 2;
                 wgs->offset_height =
@@ -1824,13 +1829,14 @@ static void reset_window(WinGuiSeat *wgs, int reinit)
                 /* Our only choice at this point is to change the
                  * size of the terminal; Oh well.
                  */
-                term_size(wgs->term, win_height / wgs->font_height,
-                          win_width / wgs->font_width,
+                term_size(wgs->term,
+                          (win_height - 2*window_border) / wgs->font_height,
+                          (win_width - 2*window_border) / wgs->font_width,
                           conf_get_int(wgs->conf, CONF_savelines));
                 wgs->offset_width =
-                    (win_width - wgs->font_width*wgs->term->cols) / 2;
+                    (win_width - window_border - wgs->font_width*wgs->term->cols) / 2;
                 wgs->offset_height =
-                    (win_height - wgs->font_height*wgs->term->rows) / 2;
+                    (win_height - window_border - wgs->font_height*wgs->term->rows) / 2;
                 InvalidateRect(wgs->term_hwnd, NULL, true);
 #ifdef RDB_DEBUG_PATCH
                 debug("reset_window() -> Zoomed term_size\n");
