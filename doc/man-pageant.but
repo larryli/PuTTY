@@ -196,7 +196,8 @@ Pageant.
 \lcont{
 
 After Pageant prints its environment setup commands, it closes its
-standard output, so that the parent process can simply read until it
+standard output. So if the parent process has run it in a pipe to
+retrieve the environment setup commands, it can simply read until it
 receives EOF, instead of having to know how many lines of output to
 expect.
 
