@@ -193,6 +193,15 @@ to standard input. This is useful if Pageant is spawned by a parent
 process that controls or otherwise programmatically interfaces with
 Pageant.
 
+\lcont{
+
+After Pageant prints its environment setup commands, it closes its
+standard output, so that the parent process can simply read until it
+receives EOF, instead of having to know how many lines of output to
+expect.
+
+}
+
 \S{pageant-manpage-client} CLIENT OPTIONS
 
 The following options tell Pageant to operate in client mode,
