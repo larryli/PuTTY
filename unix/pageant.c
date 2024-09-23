@@ -1223,6 +1223,11 @@ void run_agent(FILE *logfp, const char *symlink_path)
     } else if (life == LIFE_PERM) {
         pageant_fork_and_print_env(false);
     } else if (life == LIFE_DEBUG) {
+        /* Force stdout to be line-buffered in preference to unbuffered, so
+         * that if diagnostic output is being piped somewhere, it will arrive
+         * promptly at the other end of the pipe */
+        setvbuf(stdout, NULL, _IOLBF, 0);
+
         pageant_print_env(getpid());
         upc->logfp = stdout;
 
