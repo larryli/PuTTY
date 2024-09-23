@@ -39,7 +39,10 @@ struct value {
     union {
         bool boolval;
         int intval;
-        char *stringval;
+        struct {
+            char *str;
+            bool utf8;
+        } stringval;
         Filename *fileval;
         FontSpec *fontval;
     } u;
@@ -79,9 +82,12 @@ static int conf_cmp(void *av, void *bv)
             return +1;
         return 0;
       case CONF_TYPE_STR:
+      case CONF_TYPE_UTF8:
         return strcmp(a->secondary.s, b->secondary.s);
-      default:
+      case CONF_TYPE_NONE:
         return 0;
+      default:
+        unreachable("Unsupported subkey type");
     }
 }
 
@@ -102,9 +108,12 @@ static int conf_cmp_constkey(void *av, void *bv)
             return +1;
         return 0;
       case CONF_TYPE_STR:
+      case CONF_TYPE_UTF8:
         return strcmp(a->secondary.s, b->secondary.s);
-      default:
+      case CONF_TYPE_NONE:
         return 0;
+      default:
+        unreachable("Unsupported subkey type");
     }
 }
 
@@ -115,7 +124,8 @@ static int conf_cmp_constkey(void *av, void *bv)
  */
 static void free_key(struct key *key)
 {
-    if (conf_key_info[key->primary].subkey_type == CONF_TYPE_STR)
+    if (conf_key_info[key->primary].subkey_type == CONF_TYPE_STR ||
+        conf_key_info[key->primary].subkey_type == CONF_TYPE_UTF8)
         sfree(key->secondary.s);
 }
 
@@ -131,6 +141,7 @@ static void copy_key(struct key *to, struct key *from)
         to->secondary.i = from->secondary.i;
         break;
       case CONF_TYPE_STR:
+      case CONF_TYPE_UTF8:
         to->secondary.s = dupstr(from->secondary.s);
         break;
     }
@@ -143,8 +154,9 @@ static void copy_key(struct key *to, struct key *from)
  */
 static void free_value(struct value *val, int type)
 {
-    if (type == CONF_TYPE_STR)
-        sfree(val->u.stringval);
+    if (type == CONF_TYPE_STR || type == CONF_TYPE_UTF8 ||
+        type == CONF_TYPE_STR_AMBI)
+        sfree(val->u.stringval.str);
     else if (type == CONF_TYPE_FILENAME)
         filename_free(val->u.fileval);
     else if (type == CONF_TYPE_FONT)
@@ -165,7 +177,10 @@ static void copy_value(struct value *to, struct value *from, int type)
         to->u.intval = from->u.intval;
         break;
       case CONF_TYPE_STR:
-        to->u.stringval = dupstr(from->u.stringval);
+      case CONF_TYPE_UTF8:
+      case CONF_TYPE_STR_AMBI:
+        to->u.stringval.str = dupstr(from->u.stringval.str);
+        to->u.stringval.utf8 = from->u.stringval.utf8;
         break;
       case CONF_TYPE_FILENAME:
         to->u.fileval = filename_copy(from->u.fileval);
@@ -296,7 +311,37 @@ char *conf_get_str(Conf *conf, int primary)
     key.primary = primary;
     entry = find234(conf->tree, &key, NULL);
     assert(entry);
-    return entry->value.u.stringval;
+    return entry->value.u.stringval.str;
+}
+
+char *conf_get_utf8(Conf *conf, int primary)
+{
+    struct key key;
+    struct conf_entry *entry;
+
+    assert(conf_key_info[primary].subkey_type == CONF_TYPE_NONE);
+    assert(conf_key_info[primary].value_type == CONF_TYPE_UTF8);
+    key.primary = primary;
+    entry = find234(conf->tree, &key, NULL);
+    assert(entry);
+    return entry->value.u.stringval.str;
+}
+
+char *conf_get_str_ambi(Conf *conf, int primary, bool *utf8)
+{
+    struct key key;
+    struct conf_entry *entry;
+
+    assert(conf_key_info[primary].subkey_type == CONF_TYPE_NONE);
+    assert(conf_key_info[primary].value_type == CONF_TYPE_STR ||
+           conf_key_info[primary].value_type == CONF_TYPE_UTF8 ||
+           conf_key_info[primary].value_type == CONF_TYPE_STR_AMBI);
+    key.primary = primary;
+    entry = find234(conf->tree, &key, NULL);
+    assert(entry);
+    if (utf8)
+        *utf8 = entry->value.u.stringval.utf8;
+    return entry->value.u.stringval.str;
 }
 
 char *conf_get_str_str_opt(Conf *conf, int primary, const char *secondary)
@@ -309,7 +354,7 @@ char *conf_get_str_str_opt(Conf *conf, int primary, const char *secondary)
     key.primary = primary;
     key.secondary.s = (char *)secondary;
     entry = find234(conf->tree, &key, NULL);
-    return entry ? entry->value.u.stringval : NULL;
+    return entry ? entry->value.u.stringval.str : NULL;
 }
 
 char *conf_get_str_str(Conf *conf, int primary, const char *secondary)
@@ -338,7 +383,7 @@ char *conf_get_str_strs(Conf *conf, int primary,
     if (!entry || entry->key.primary != primary)
         return NULL;
     *subkeyout = entry->key.secondary.s;
-    return entry->value.u.stringval;
+    return entry->value.u.stringval.str;
 }
 
 char *conf_get_str_nthstrkey(Conf *conf, int primary, int n)
@@ -422,15 +467,48 @@ void conf_set_int_int(Conf *conf, int primary,
     conf_insert(conf, entry);
 }
 
-void conf_set_str(Conf *conf, int primary, const char *value)
+bool conf_try_set_str(Conf *conf, int primary, const char *value)
 {
     struct conf_entry *entry = snew(struct conf_entry);
 
     assert(conf_key_info[primary].subkey_type == CONF_TYPE_NONE);
-    assert(conf_key_info[primary].value_type == CONF_TYPE_STR);
+    if (conf_key_info[primary].value_type == CONF_TYPE_UTF8)
+        return false;
+    assert(conf_key_info[primary].value_type == CONF_TYPE_STR ||
+           conf_key_info[primary].value_type == CONF_TYPE_STR_AMBI);
     entry->key.primary = primary;
-    entry->value.u.stringval = dupstr(value);
+    entry->value.u.stringval.str = dupstr(value);
+    entry->value.u.stringval.utf8 = false;
     conf_insert(conf, entry);
+    return true;
+}
+
+void conf_set_str(Conf *conf, int primary, const char *value)
+{
+    bool success = conf_try_set_str(conf, primary, value);
+    assert(success && "conf_set_str on CONF_TYPE_UTF8");
+}
+
+bool conf_try_set_utf8(Conf *conf, int primary, const char *value)
+{
+    struct conf_entry *entry = snew(struct conf_entry);
+
+    assert(conf_key_info[primary].subkey_type == CONF_TYPE_NONE);
+    if (conf_key_info[primary].value_type == CONF_TYPE_STR)
+        return false;
+    assert(conf_key_info[primary].value_type == CONF_TYPE_UTF8 ||
+           conf_key_info[primary].value_type == CONF_TYPE_STR_AMBI);
+    entry->key.primary = primary;
+    entry->value.u.stringval.str = dupstr(value);
+    entry->value.u.stringval.utf8 = true;
+    conf_insert(conf, entry);
+    return true;
+}
+
+void conf_set_utf8(Conf *conf, int primary, const char *value)
+{
+    bool success = conf_try_set_utf8(conf, primary, value);
+    assert(success && "conf_set_utf8 on CONF_TYPE_STR");
 }
 
 void conf_set_str_str(Conf *conf, int primary, const char *secondary,
@@ -442,7 +520,8 @@ void conf_set_str_str(Conf *conf, int primary, const char *secondary,
     assert(conf_key_info[primary].value_type == CONF_TYPE_STR);
     entry->key.primary = primary;
     entry->key.secondary.s = dupstr(secondary);
-    entry->value.u.stringval = dupstr(value);
+    entry->value.u.stringval.str = dupstr(value);
+    entry->value.u.stringval.utf8 = false;
     conf_insert(conf, entry);
 }
 
@@ -508,7 +587,12 @@ void conf_serialise(BinarySink *bs, Conf *conf)
             put_uint32(bs, entry->value.u.intval);
             break;
           case CONF_TYPE_STR:
-            put_asciz(bs, entry->value.u.stringval);
+          case CONF_TYPE_UTF8:
+            put_asciz(bs, entry->value.u.stringval.str);
+            break;
+          case CONF_TYPE_STR_AMBI:
+            put_asciz(bs, entry->value.u.stringval.str);
+            put_bool(bs, entry->value.u.stringval.utf8);
             break;
           case CONF_TYPE_FILENAME:
             filename_serialise(bs, entry->value.u.fileval);
@@ -557,7 +641,16 @@ bool conf_deserialise(Conf *conf, BinarySource *src)
             entry->value.u.intval = toint(get_uint32(src));
             break;
           case CONF_TYPE_STR:
-            entry->value.u.stringval = dupstr(get_asciz(src));
+            entry->value.u.stringval.str = dupstr(get_asciz(src));
+            entry->value.u.stringval.utf8 = false;
+            break;
+          case CONF_TYPE_UTF8:
+            entry->value.u.stringval.str = dupstr(get_asciz(src));
+            entry->value.u.stringval.utf8 = true;
+            break;
+          case CONF_TYPE_STR_AMBI:
+            entry->value.u.stringval.str = dupstr(get_asciz(src));
+            entry->value.u.stringval.utf8 = get_bool(src);
             break;
           case CONF_TYPE_FILENAME:
             entry->value.u.fileval = filename_deserialise(src);

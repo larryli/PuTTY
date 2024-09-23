@@ -175,4 +175,13 @@ foreach(subdir ${platform} ${extra_dirs})
   add_subdirectory(${subdir})
 endforeach()
 
+# Nasty bodge: we'd like to run this command inside unix/CMakeLists,
+# adding the 'charset' library to everything that links with utils.
+# But that wasn't allowed until cmake 3.13 (see cmake policy CMP0073),
+# and we still have a min cmake version less than that. So we do it
+# here instead.
+if(platform STREQUAL unix)
+  target_link_libraries(utils charset)
+endif()
+
 configure_file(cmake/cmake.h.in ${GENERATED_SOURCES_DIR}/cmake.h)

@@ -270,6 +270,117 @@ void test_str_simple(int confid, const char *saveid, const char *defexp)
     conf_free(conf);
 }
 
+void test_utf8_simple(int confid, const char *saveid, const char *defexp)
+{
+    Conf *conf = conf_new();
+
+    do_defaults(NULL, conf);
+    const char *defgot = conf_get_utf8(conf, confid);
+    if (0 != strcmp(defgot, defexp)) {
+        printf("fail test_utf8_simple(%s): default = '%s', expected '%s'\n",
+               saveid, defgot, defexp);
+        nfails++;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        settings_w sw = {
+            .n = 1,
+            .si[0].key = saveid,
+            .si[0].type = SAVE_UNSET,
+        };
+        static const char *const teststrings[] = { "foo", "bar" };
+        const char *teststring = teststrings[i];
+        conf_set_utf8(conf, confid, teststring);
+        save_open_settings(&sw, conf);
+        if (sw.si[0].type != SAVE_S) {
+            printf("fail test_utf8_simple(%s): saved type = %d, expected %d\n",
+                   saveid, sw.si[0].type, SAVE_S);
+            nfails++;
+        } else if (0 != strcmp(sw.si[0].sval, teststring)) {
+            printf("fail test_utf8_simple(%s): "
+                   "saved string = '%s', expected '%s'\n",
+                   saveid, sw.si[0].sval, teststring);
+            nfails++;
+        }
+
+        conf_clear(conf);
+        settings_r sr = {
+            .n = 1,
+            .si[0].key = saveid,
+            .si[0].type = SAVE_S,
+        };
+        snprintf(sr.si[0].sval, sizeof(sr.si[0].sval), "%s", teststring);
+        load_open_settings(&sr, conf);
+        const char *loaded = conf_get_utf8(conf, confid);
+        if (0 != strcmp(loaded, teststring)) {
+            printf("fail test_utf8_simple(%s): "
+                   "loaded string = '%s', expected '%s'\n",
+                   saveid, loaded, teststring);
+            nfails++;
+        }
+    }
+
+    conf_free(conf);
+}
+
+void test_str_ambi_simple(int confid, const char *saveid,
+                          const char *defexp, bool defutf8)
+{
+    Conf *conf = conf_new();
+    bool utf8;
+
+    do_defaults(NULL, conf);
+    const char *defgot = conf_get_str_ambi(conf, confid, &utf8);
+    if (0 != strcmp(defgot, defexp) || utf8 != defutf8) {
+        printf("fail test_str_ambi_simple(%s): "
+               "default = '%s' (%s), expected '%s' (%s)\n",
+               saveid, defgot, utf8 ? "native" : "UTF-8",
+               defexp, defutf8 ? "native" : "UTF-8");
+        nfails++;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        settings_w sw = {
+            .n = 1,
+            .si[0].key = saveid,
+            .si[0].type = SAVE_UNSET,
+        };
+        static const char *const teststrings[] = { "foo", "bar" };
+        const char *teststring = teststrings[i];
+        conf_set_str(conf, confid, teststring);
+        save_open_settings(&sw, conf);
+        if (sw.si[0].type != SAVE_S) {
+            printf("fail test_str_ambi_simple(%s): "
+                   "saved type = %d, expected %d\n",
+                   saveid, sw.si[0].type, SAVE_S);
+            nfails++;
+        } else if (0 != strcmp(sw.si[0].sval, teststring)) {
+            printf("fail test_str_ambi_simple(%s): "
+                   "saved string = '%s', expected '%s'\n",
+                   saveid, sw.si[0].sval, teststring);
+            nfails++;
+        }
+
+        conf_clear(conf);
+        settings_r sr = {
+            .n = 1,
+            .si[0].key = saveid,
+            .si[0].type = SAVE_S,
+        };
+        snprintf(sr.si[0].sval, sizeof(sr.si[0].sval), "%s", teststring);
+        load_open_settings(&sr, conf);
+        const char *loaded = conf_get_str_ambi(conf, confid, &utf8);
+        if (0 != strcmp(loaded, teststring) || utf8) {
+            printf("fail test_str_ambi_simple(%s): "
+                   "loaded string = '%s' (%s), expected '%s' (native)\n",
+                   saveid, loaded, utf8 ? "native" : "UTF-8", teststring);
+            nfails++;
+        }
+    }
+
+    conf_free(conf);
+}
+
 void test_int_simple(int confid, const char *saveid, int defexp)
 {
     Conf *conf = conf_new();
@@ -864,7 +975,10 @@ void test_conf_key_info(void)
         }
 
         if ((td->got_default_int && info->value_type != CONF_TYPE_INT) ||
-            (td->got_default_str && info->value_type != CONF_TYPE_STR) ||
+            (td->got_default_str &&
+             (info->value_type != CONF_TYPE_STR &&
+              info->value_type != CONF_TYPE_STR_AMBI &&
+              info->value_type != CONF_TYPE_UTF8)) ||
             (td->got_default_bool && info->value_type != CONF_TYPE_BOOL)) {
             fprintf(stderr, "%s: default doesn't match type\n", td->name);
             nfails++;

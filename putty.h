@@ -1797,16 +1797,62 @@ enum config_primary_key {
     N_CONFIG_OPTIONS
 };
 
-/* Types that appear in Conf keys and values. CONF_TYPE_NONE is used
- * as the subkey type for options that don't have subkeys, and is also
- * available as a placeholder value for other kinds of 'no type found'
- * error. */
+/* Types that appear in Conf keys and values. */
 enum {
+    /*
+     * CONF_TYPE_NONE is included in this enum because sometimes you
+     * need a placeholder for 'no type found'. (In Rust you'd leave it
+     * out, and use Option<ConfType> for those situations.)
+     *
+     * In particular, it's used as the subkey type for options that
+     * don't have subkeys.
+     */
     CONF_TYPE_NONE,
+
+    /* Booleans, accessed via conf_get_bool and conf_set_bool */
     CONF_TYPE_BOOL,
+
+    /* Integers, accessed via conf_get_int and conf_set_int */
     CONF_TYPE_INT,
+
+    /*
+     * NUL-terminated char strings, accessed via conf_get_str and
+     * conf_set_str.
+     *
+     * Where character encoding is relevant, these are generally
+     * expected to be in the host system's default character encoding.
+     *
+     * (Character encoding might not be relevant at all: for example,
+     * if the string is going to be used as a shell command on Unix,
+     * then the exec system call will want a char string anyway.)
+     */
     CONF_TYPE_STR,
+
+    /* NUL-terminated char strings encoded in UTF-8, accessed via
+     * conf_get_utf8 and conf_set_utf8. */
+    CONF_TYPE_UTF8,
+
+    /*
+     * A type that can be _either_ a char string in system encoding
+     * (aka CONF_TYPE_STR), _or_ a char string in UTF-8 (aka
+     * CONF_TYPE_UTF8). You can set it to be one or the other via
+     * conf_set_str or conf_set_utf8. To read it, you must use
+     * conf_get_str_ambi(), which returns a char string and a boolean
+     * telling you whether it's UTF-8.
+     *
+     * These can't be used as _keys_ in Conf, only as values. (If you
+     * used them as keys, you'd have to answer the difficult question
+     * of whether a UTF-8 and a non-UTF-8 string should be considered
+     * equal.)
+     */
+    CONF_TYPE_STR_AMBI,
+
+    /* PuTTY's OS-specific 'Filename' data type, accessed via
+     * conf_get_filename and conf_set_filename */
     CONF_TYPE_FILENAME,
+
+    /* PuTTY's GUI-specific 'FontSpec' data type, accessed via
+     * conf_get_fontspec and conf_set_fontspec */
     CONF_TYPE_FONT,
 };
 
@@ -1853,6 +1899,9 @@ bool conf_get_bool(Conf *conf, int key);
 int conf_get_int(Conf *conf, int key);
 int conf_get_int_int(Conf *conf, int key, int subkey);
 char *conf_get_str(Conf *conf, int key);   /* result still owned by conf */
+char *conf_get_utf8(Conf *conf, int key);   /* result still owned by conf */
+char *conf_get_str_ambi( /* result still owned by conf; 'utf8' may be NULL */
+    Conf *conf, int key, bool *utf8);
 char *conf_get_str_str(Conf *conf, int key, const char *subkey);
 Filename *conf_get_filename(Conf *conf, int key);
 FontSpec *conf_get_fontspec(Conf *conf, int key); /* still owned by conf */
@@ -1870,6 +1919,9 @@ void conf_set_bool(Conf *conf, int key, bool value);
 void conf_set_int(Conf *conf, int key, int value);
 void conf_set_int_int(Conf *conf, int key, int subkey, int value);
 void conf_set_str(Conf *conf, int key, const char *value);
+void conf_set_utf8(Conf *conf, int key, const char *value);
+bool conf_try_set_str(Conf *conf, int key, const char *value);
+bool conf_try_set_utf8(Conf *conf, int key, const char *value);
 void conf_set_str_str(Conf *conf, int key,
                       const char *subkey, const char *val);
 void conf_del_str_str(Conf *conf, int key, const char *subkey);
