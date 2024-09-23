@@ -574,7 +574,9 @@ int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp);
 void dlg_checkbox_set(dlgcontrol *ctrl, dlgparam *dp, bool checked);
 bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp);
 void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text);
+void dlg_editbox_set_utf8(dlgcontrol *ctrl, dlgparam *dp, char const *text);
 char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp);   /* result must be freed by caller */
+char *dlg_editbox_get_utf8(dlgcontrol *ctrl, dlgparam *dp);   /* result must be freed by caller */
 void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,
                               size_t start, size_t len);
 /* The `listbox' functions can also apply to combo boxes. */

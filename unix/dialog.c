@@ -300,7 +300,7 @@ bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp)
     return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(uc->toplevel));
 }
 
-void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
+void dlg_editbox_set_utf8(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     GtkWidget *entry;
@@ -338,7 +338,14 @@ void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     sfree(tmpstring);
 }
 
-char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
+void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
+{
+    /* GTK specifies that its edit boxes are always in UTF-8 anyway,
+     * so legacy behaviour is to use those strings unmodified */
+    dlg_editbox_set_utf8(ctrl, dp, text);
+}
+
+char *dlg_editbox_get_utf8(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->type == CTRL_EDITBOX);
@@ -355,6 +362,13 @@ char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
     }
 
     unreachable("bad control type in editbox_get");
+}
+
+char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
+{
+    /* GTK specifies that its edit boxes are always in UTF-8 anyway,
+     * so legacy behaviour is to use those strings unmodified */
+    return dlg_editbox_get_utf8(ctrl, dp);
 }
 
 void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,

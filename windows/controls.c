@@ -2210,11 +2210,30 @@ void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     SetDlgItemText(dp->hwnd, c->base_id+1, text);
 }
 
+void dlg_editbox_set_utf8(dlgcontrol *ctrl, dlgparam *dp, char const *text)
+{
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    assert(c && c->ctrl->type == CTRL_EDITBOX);
+    wchar_t *wtext = dup_mb_to_wc(CP_UTF8, text);
+    SetDlgItemTextW(dp->hwnd, c->base_id+1, wtext);
+    sfree(wtext);
+}
+
 char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->type == CTRL_EDITBOX);
     return GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
+}
+
+char *dlg_editbox_get_utf8(dlgcontrol *ctrl, dlgparam *dp)
+{
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    assert(c && c->ctrl->type == CTRL_EDITBOX);
+    wchar_t *wtext = GetDlgItemTextW_alloc(dp->hwnd, c->base_id+1);
+    char *text = dup_wc_to_mb(CP_UTF8, wtext, "");
+    sfree(wtext);
+    return text;
 }
 
 void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,
