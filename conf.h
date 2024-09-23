@@ -444,7 +444,7 @@ CONF_OPTION(environmt,
     LOAD_CUSTOM, SAVE_CUSTOM, /* necessary for mappings */
 )
 CONF_OPTION(username,
-    VALUE_TYPE(STR),
+    VALUE_TYPE(STR_AMBI),
     DEFAULT_STR(""),
     SAVE_KEYWORD("UserName"),
 )

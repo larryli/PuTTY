@@ -717,7 +717,7 @@ void test_simple(void)
     test_bool_simple(CONF_ssh_no_shell, "SshNoShell", false);
     test_str_simple(CONF_termtype, "TerminalType", "xterm");
     test_str_simple(CONF_termspeed, "TerminalSpeed", "38400,38400");
-    test_str_simple(CONF_username, "UserName", "");
+    test_str_ambi_simple(CONF_username, "UserName", "", false);
     test_bool_simple(CONF_username_from_env, "UserNameFromEnvironment", false);
     test_str_simple(CONF_localusername, "LocalUserName", "");
     test_bool_simple(CONF_rfc_environ, "RFCEnviron", false);

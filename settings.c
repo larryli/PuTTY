@@ -112,7 +112,9 @@ const struct BackendVtable *backend_vt_from_proto(int proto)
 
 char *get_remote_username(Conf *conf)
 {
-    char *username = conf_get_str(conf, CONF_username);
+    /* We don't worry about whether the username is stored as UTF-8,
+     * because SSH wants it as UTF-8 */
+    char *username = conf_get_str_ambi(conf, CONF_username, NULL);
     if (*username) {
         return dupstr(username);
     } else if (conf_get_bool(conf, CONF_username_from_env)) {

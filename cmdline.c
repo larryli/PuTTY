@@ -195,6 +195,7 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
 {
     int ret = 0;
     const char *p = cmdline_arg_to_str(arg);
+    const char *value_utf8 = cmdline_arg_to_utf8(nextarg);
     const char *value = cmdline_arg_to_str(nextarg);
 
     if (p[0] != '-') {
@@ -459,7 +460,10 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        conf_set_str(conf, CONF_username, value);
+        if (value_utf8)
+            conf_set_utf8(conf, CONF_username, value_utf8);
+        else
+            conf_set_str(conf, CONF_username, value);
     }
     if (!strcmp(p, "-loghost")) {
         RETURN(2);

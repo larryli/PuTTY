@@ -391,7 +391,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     /* Set username */
     if (user != NULL && user[0] != '\0') {
         conf_set_str(conf, CONF_username, user);
-    } else if (conf_get_str(conf, CONF_username)[0] == '\0') {
+    } else if (conf_get_str_ambi(conf, CONF_username, NULL)[0] == '\0') {
         user = get_username();
         if (!user)
             bump("Empty user name");

@@ -823,7 +823,7 @@ int main(int argc, char **argv)
      * If we have no better ideas for the remote username, use the local
      * one, as 'ssh' does.
      */
-    if (conf_get_str(conf, CONF_username)[0] == '\0') {
+    if (conf_get_str_ambi(conf, CONF_username, NULL)[0] == '\0') {
         char *user = get_username();
         if (user) {
             conf_set_str(conf, CONF_username, user);
