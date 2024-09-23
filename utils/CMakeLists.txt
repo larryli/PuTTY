@@ -16,6 +16,7 @@ add_sources_from_current_dir(utils
   conf.c
   conf_data.c
   conf_dest.c
+  conf_debug.c
   conf_launchable.c
   ctrlparse.c
   ctrlset_normalise.c
