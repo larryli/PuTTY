@@ -227,7 +227,7 @@ struct terminal_tag {
     int attr_mask;
 
     wchar_t *paste_buffer;
-    int paste_len, paste_pos;
+    size_t paste_len, paste_pos;
 
     Backend *backend;
 

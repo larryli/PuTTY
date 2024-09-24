@@ -3456,7 +3456,7 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
 }
 
 static strbuf *term_input_data_from_unicode(
-    Terminal *term, const wchar_t *widebuf, int len)
+    Terminal *term, const wchar_t *widebuf, size_t len)
 {
     strbuf *buf = strbuf_new();
 
@@ -3465,7 +3465,7 @@ static strbuf *term_input_data_from_unicode(
          * Translate input wide characters into UTF-8 to go in the
          * terminal's input data queue.
          */
-        for (int i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++) {
             unsigned long ch = widebuf[i];
 
             if (IS_SURROGATE(ch)) {
@@ -3508,7 +3508,7 @@ static strbuf *term_input_data_from_unicode(
 }
 
 static strbuf *term_input_data_from_charset(
-    Terminal *term, int codepage, const char *str, int len)
+    Terminal *term, int codepage, const char *str, size_t len)
 {
     strbuf *buf;
 
@@ -3516,7 +3516,7 @@ static strbuf *term_input_data_from_charset(
         buf = strbuf_new();
         put_data(buf, str, len);
     } else {
-        int widesize = len * 2;        /* allow for UTF-16 surrogates */
+        size_t widesize = len * 2;        /* allow for UTF-16 surrogates */
         wchar_t *widebuf = snewn(widesize, wchar_t);
         int widelen = mb_to_wc(codepage, 0, str, len, widebuf, widesize);
         buf = term_input_data_from_unicode(term, widebuf, widelen);
@@ -7077,7 +7077,7 @@ static void term_paste_callback(void *vterm)
         return;
 
     while (term->paste_pos < term->paste_len) {
-        int n = 0;
+        size_t n = 0;
         while (n + term->paste_pos < term->paste_len) {
             if (term->paste_buffer[term->paste_pos + n++] == '\015')
                 break;
@@ -7112,7 +7112,7 @@ static bool wstartswith(const wchar_t *a, size_t alen,
     return alen >= blen && !wcsncmp(a, b, blen);
 }
 
-void term_do_paste(Terminal *term, const wchar_t *data, int len)
+void term_do_paste(Terminal *term, const wchar_t *data, size_t len)
 {
     const wchar_t *p;
     bool paste_controls = conf_get_bool(term->conf, CONF_paste_controls);
@@ -7186,6 +7186,7 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
         if (term->ldisc) {
             strbuf *buf = term_input_data_from_unicode(
                 term, term->paste_buffer, term->paste_len);
+            assert(buf->len <= INT_MAX); /* because paste_len was also small */
             term_keyinput_internal(term, buf->s, buf->len, false);
             strbuf_free(buf);
         }
