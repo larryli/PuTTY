@@ -144,7 +144,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
             if (p_AddDllDirectory) {
                 /* Add MIT Kerberos' path to the DLL search path,
                  * it loads its own DLLs further down the road */
-                wchar_t *dllPath = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, bindir);
+                wchar_t *dllPath = dup_mb_to_wc(DEFAULT_CODEPAGE, bindir);
                 p_AddDllDirectory(dllPath);
                 sfree(dllPath);
             }

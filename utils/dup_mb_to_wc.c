@@ -9,14 +9,14 @@
 #include "putty.h"
 #include "misc.h"
 
-wchar_t *dup_mb_to_wc_c(int codepage, int flags, const char *string,
+wchar_t *dup_mb_to_wc_c(int codepage, const char *string,
                         size_t inlen, size_t *outlen_p)
 {
     assert(inlen <= INT_MAX);
     size_t mult;
     for (mult = 1 ;; mult++) {
         wchar_t *ret = snewn(mult*inlen + 2, wchar_t);
-        size_t outlen = mb_to_wc(codepage, flags, string, inlen, ret,
+        size_t outlen = mb_to_wc(codepage, 0, string, inlen, ret,
                                  mult*inlen + 1);
         if (outlen < mult*inlen+1) {
             if (outlen_p)
@@ -28,7 +28,7 @@ wchar_t *dup_mb_to_wc_c(int codepage, int flags, const char *string,
     }
 }
 
-wchar_t *dup_mb_to_wc(int codepage, int flags, const char *string)
+wchar_t *dup_mb_to_wc(int codepage, const char *string)
 {
-    return dup_mb_to_wc_c(codepage, flags, string, strlen(string), NULL);
+    return dup_mb_to_wc_c(codepage, string, strlen(string), NULL);
 }

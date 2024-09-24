@@ -10,7 +10,7 @@ Filename *filename_from_str(const char *str)
 {
     Filename *fn = snew(Filename);
     fn->cpath = dupstr(str);
-    fn->wpath = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, fn->cpath);
+    fn->wpath = dup_mb_to_wc(DEFAULT_CODEPAGE, fn->cpath);
     fn->utf8path = encode_wide_string_as_utf8(fn->wpath);
     return fn;
 }
@@ -19,7 +19,7 @@ Filename *filename_from_wstr(const wchar_t *str)
 {
     Filename *fn = snew(Filename);
     fn->wpath = dupwcs(str);
-    fn->cpath = dup_wc_to_mb(DEFAULT_CODEPAGE, 0, fn->wpath, "?");
+    fn->cpath = dup_wc_to_mb(DEFAULT_CODEPAGE, fn->wpath, "?");
     fn->utf8path = encode_wide_string_as_utf8(fn->wpath);
     return fn;
 }
@@ -29,7 +29,7 @@ Filename *filename_from_utf8(const char *ustr)
     Filename *fn = snew(Filename);
     fn->utf8path = dupstr(ustr);
     fn->wpath = decode_utf8_to_wide_string(fn->utf8path);
-    fn->cpath = dup_wc_to_mb(DEFAULT_CODEPAGE, 0, fn->wpath, "?");
+    fn->cpath = dup_wc_to_mb(DEFAULT_CODEPAGE, fn->wpath, "?");
     return fn;
 }
 
@@ -86,7 +86,7 @@ char filename_char_sanitise(char c)
 
 FILE *f_open(const Filename *fn, const char *mode, bool isprivate)
 {
-    wchar_t *wmode = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, mode);
+    wchar_t *wmode = dup_mb_to_wc(DEFAULT_CODEPAGE, mode);
     return _wfopen(fn->wpath, wmode);
     sfree(wmode);
 }

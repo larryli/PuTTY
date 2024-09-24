@@ -2012,7 +2012,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
             of.nMaxFile = lenof(filename);
             of.lpstrFileTitle = NULL;
             of.lpstrTitle = title_to_free = dup_mb_to_wc(
-                DEFAULT_CODEPAGE, 0, ctrl->fileselect.title);
+                DEFAULT_CODEPAGE, ctrl->fileselect.title);
             of.Flags = 0;
             if (request_file_w(NULL, &of, false,
                                ctrl->fileselect.for_writing)) {

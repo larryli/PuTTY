@@ -71,12 +71,12 @@ void strbuf_finalise_agent_query(strbuf *buf);
 
 /* String-to-Unicode converters that auto-allocate the destination and
  * work around the rather deficient interface of mb_to_wc. */
-wchar_t *dup_mb_to_wc_c(int codepage, int flags, const char *string,
+wchar_t *dup_mb_to_wc_c(int codepage, const char *string,
                         size_t len, size_t *outlen_p);
-wchar_t *dup_mb_to_wc(int codepage, int flags, const char *string);
-char *dup_wc_to_mb_c(int codepage, int flags, const wchar_t *string,
+wchar_t *dup_mb_to_wc(int codepage, const char *string);
+char *dup_wc_to_mb_c(int codepage, const wchar_t *string,
                      size_t len, const char *defchr, size_t *outlen_p);
-char *dup_wc_to_mb(int codepage, int flags, const wchar_t *string,
+char *dup_wc_to_mb(int codepage, const wchar_t *string,
                    const char *defchr);
 
 static inline int toint(unsigned u)

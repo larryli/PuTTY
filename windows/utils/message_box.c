@@ -50,8 +50,8 @@ int message_box(HWND owner, LPCTSTR text, LPCTSTR caption, DWORD style,
         wtext = decode_utf8_to_wide_string(text);
         wcaption = decode_utf8_to_wide_string(caption);
     } else {
-        wtext = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, text);
-        wcaption = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, caption);
+        wtext = dup_mb_to_wc(DEFAULT_CODEPAGE, text);
+        wcaption = dup_mb_to_wc(DEFAULT_CODEPAGE, caption);
     }
     mbox.lpszText = wtext;
     mbox.lpszCaption = wcaption;

@@ -3440,7 +3440,7 @@ static void gtkwin_set_title(TermWin *tw, const char *title, int codepage)
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->wintitle);
     if (codepage != CP_UTF8) {
-        wchar_t *title_w = dup_mb_to_wc(codepage, 0, title);
+        wchar_t *title_w = dup_mb_to_wc(codepage, title);
         inst->wintitle = encode_wide_string_as_utf8(title_w);
         sfree(title_w);
     } else {
@@ -3454,7 +3454,7 @@ static void gtkwin_set_icon_title(TermWin *tw, const char *title, int codepage)
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->icontitle);
     if (codepage != CP_UTF8) {
-        wchar_t *title_w = dup_mb_to_wc(codepage, 0, title);
+        wchar_t *title_w = dup_mb_to_wc(codepage, title);
         inst->icontitle = encode_wide_string_as_utf8(title_w);
         sfree(title_w);
     } else {

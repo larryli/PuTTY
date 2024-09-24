@@ -148,7 +148,7 @@ static void console_write(BinarySink *bs, const void *data, size_t len)
          * Convert the UTF-8 input into a wide string.
          */
         size_t wlen;
-        wchar_t *wide = dup_mb_to_wc_c(CP_UTF8, 0, data, len, &wlen);
+        wchar_t *wide = dup_mb_to_wc_c(CP_UTF8, data, len, &wlen);
         if (conio->hout_is_console) {
             /*
              * To write UTF-8 to a console, use WriteConsoleW on the
@@ -168,7 +168,7 @@ static void console_write(BinarySink *bs, const void *data, size_t len)
              * what else can you do?
              */
             size_t clen;
-            char *sys_cp = dup_wc_to_mb_c(CP_ACP, 0, wide, wlen, "?", &clen);
+            char *sys_cp = dup_wc_to_mb_c(CP_ACP, wide, wlen, "?", &clen);
             size_t pos = 0;
             DWORD nwritten;
 
