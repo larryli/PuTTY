@@ -859,7 +859,7 @@ bool aux_match_opt(AuxMatchOpt *amo, CmdlineArg **val,
                    const char *optname, ...);
 bool aux_match_done(AuxMatchOpt *amo);
 
-char *save_screenshot(HWND hwnd, const char *outfile);
+char *save_screenshot(HWND hwnd, Filename *outfile);
 void gui_terminal_ready(HWND hwnd, Seat *seat, Backend *backend);
 
 void setup_gui_timing(void);

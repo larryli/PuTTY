@@ -15,7 +15,7 @@ void out_of_memory(void) { fatal_error("out of memory"); }
 
 int main(int argc, char **argv)
 {
-    const char *outfile = NULL;
+    Filename *outfile = NULL;
 
     AuxMatchOpt amo = aux_match_opt_init(fatal_error);
     while (!aux_match_done(&amo)) {
@@ -28,7 +28,7 @@ int main(int argc, char **argv)
         if (aux_match_arg(&amo, &val)) {
             fatal_error("unexpected argument '%s'", cmdline_arg_to_str(val));
         } else if (match_optval("-o", "--output")) {
-            outfile = cmdline_arg_to_str(val);
+            outfile = cmdline_arg_to_filename(val);
         } else {
             fatal_error("unrecognised option '%s'\n",
                         cmdline_arg_to_str(amo.arglist->args[amo.index]));
@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     char *err = save_screenshot(NULL, outfile);
     if (err)
         fatal_error("%s", err);
+    filename_free(outfile);
 
     return 0;
 }

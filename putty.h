@@ -2436,6 +2436,7 @@ struct CmdlineArg {
 };
 const char *cmdline_arg_to_utf8(CmdlineArg *arg); /* may fail */
 const char *cmdline_arg_to_str(CmdlineArg *arg);  /* must not fail */
+Filename *cmdline_arg_to_filename(CmdlineArg *arg);  /* caller must free */
 void cmdline_arg_wipe(CmdlineArg *arg);
 CmdlineArg *cmdline_arg_from_str(CmdlineArgList *list, const char *string);
 /* Platforms provide their own constructors for CmdlineArgList */

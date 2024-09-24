@@ -162,6 +162,15 @@ const char *cmdline_arg_to_utf8(CmdlineArg *argp)
     return arg->utf8;
 }
 
+Filename *cmdline_arg_to_filename(CmdlineArg *argp)
+{
+    if (!argp)
+        return NULL;
+
+    CmdlineArgWin *arg = container_of(argp, CmdlineArgWin, argp);
+    return filename_from_wstr(arg->wide);
+}
+
 void cmdline_arg_wipe(CmdlineArg *argp)
 {
     if (!argp)

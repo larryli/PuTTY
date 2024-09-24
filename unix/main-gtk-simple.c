@@ -476,10 +476,9 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             conf_set_str(conf, CONF_wintitle, val);
 
         } else if (!strcmp(p, "-log")) {
-            Filename *fn;
             EXPECTS_ARG;
             SECOND_PASS_ONLY;
-            fn = filename_from_str(val);
+            Filename *fn = cmdline_arg_to_filename(nextarg);
             conf_set_filename(conf, CONF_logfilename, fn);
             conf_set_int(conf, CONF_logtype, LGTYP_DEBUG);
             filename_free(fn);

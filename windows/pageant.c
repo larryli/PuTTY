@@ -1537,7 +1537,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     const char *command = NULL;
     const char *unixsocket = NULL;
     bool show_keylist_on_startup = false;
-    const char *openssh_config_file = NULL;
+    Filename *openssh_config_file = NULL;
 
     typedef struct CommandLineKey {
         Filename *fn;
@@ -1612,7 +1612,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
              */
             sgrowarray(clkeys, clkeysize, nclkeys);
             CommandLineKey *clkey = &clkeys[nclkeys++];
-            clkey->fn = filename_from_str(cmdline_arg_to_str(valarg));
+            clkey->fn = cmdline_arg_to_filename(valarg);
             clkey->add_encrypted = add_keys_encrypted;
         } else if (match_opt("-pgpfp")) {
             pgp_fingerprints_msgbox(NULL);
@@ -1628,8 +1628,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         } else if (match_opt("-keylist")) {
             show_keylist_on_startup = true;
         } else if (match_optval("-openssh-config", "-openssh_config")) {
-            openssh_config_file = cmdline_arg_to_str(valarg);
+            openssh_config_file = cmdline_arg_to_filename(valarg);
         } else if (match_optval("-unix")) {
+            /* UNICODE: should this be a Unicode filename? Is there a
+             * Unicode version of connect() that lets you give a
+             * Unicode pathname when making an AF_UNIX socket? */
             unixsocket = cmdline_arg_to_str(valarg);
         } else if (match_opt("-c")) {
             /*
@@ -1735,10 +1738,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
              * pointing at the named pipe, do so.
              */
             if (openssh_config_file) {
-                FILE *fp = fopen(openssh_config_file, "w");
+                FILE *fp = f_open(openssh_config_file, "w", true);
                 if (!fp) {
-                    char *err = dupprintf("Unable to write OpenSSH config "
-                                          "file to %s", openssh_config_file);
+                    char *err = dupprintf(
+                        "Unable to write OpenSSH config file to %s",
+                        filename_to_str(openssh_config_file));
                     MessageBox(NULL, err, "Pageant Error",
                                MB_ICONERROR | MB_OK);
                     return 1;
@@ -1960,7 +1964,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
          * Leave this file around, but empty it, so that it doesn't
          * refer to a pipe we aren't listening on any more.
          */
-        FILE *fp = fopen(openssh_config_file, "w");
+        FILE *fp = f_open(openssh_config_file, "w", true);
         if (fp)
             fclose(fp);
     }

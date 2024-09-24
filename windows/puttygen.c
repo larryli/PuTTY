@@ -26,9 +26,9 @@
 #define DEFAULT_ECCURVE_INDEX 0
 #define DEFAULT_EDCURVE_INDEX 0
 
-static const char *cmdline_keyfile = NULL;
+static Filename *cmdline_keyfile = NULL;
 static ptrlen cmdline_demo_keystr;
-static const char *demo_screenshot_filename = NULL;
+static Filename *demo_screenshot_filename = NULL;
 
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
@@ -1737,9 +1737,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
          * Load a key file if one was provided on the command line.
          */
         if (cmdline_keyfile) {
-            Filename *fn = filename_from_str(cmdline_keyfile);
-            load_key_file(hwnd, state, fn, false);
-            filename_free(fn);
+            load_key_file(hwnd, state, cmdline_keyfile, false);
         } else if (cmdline_demo_keystr.ptr) {
             BinarySource src[1];
             BinarySource_BARE_INIT_PL(src, cmdline_demo_keystr);
@@ -2430,7 +2428,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                  * Assume the first argument to be a private key file, and
                  * attempt to load it.
                  */
-                cmdline_keyfile = cmdline_arg_to_str(valarg);
+                cmdline_keyfile = cmdline_arg_to_filename(valarg);
                 continue;
             } else {
                 opt_error("unexpected extra argument '%s'\n",
@@ -2550,7 +2548,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             }
             sfree(val);
         } else if (match_optval("-demo-screenshot")) {
-            demo_screenshot_filename = cmdline_arg_to_str(valarg);
+            demo_screenshot_filename = cmdline_arg_to_filename(valarg);
             cmdline_demo_keystr = PTRLEN_LITERAL(
                 "PuTTY-User-Key-File-3: ssh-ed25519\n"
                 "Encryption: none\n"

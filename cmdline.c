@@ -563,20 +563,23 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
         sfree(host);
     }
     if (!strcmp(p, "-m")) {
-        const char *filename;
+        Filename *filename;
         FILE *fp;
 
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
 
-        filename = value;
+        filename = cmdline_arg_to_filename(nextarg);
 
-        fp = fopen(filename, "r");
+        fp = f_open(filename, "r", false);
         if (!fp) {
-            cmdline_error("unable to open command file \"%s\"", filename);
+            cmdline_error("unable to open command file \"%s\"",
+                          filename_to_str(filename));
+            filename_free(filename);
             return ret;
         }
+        filename_free(filename);
         strbuf *command = strbuf_new();
         char readbuf[4096];
         while (1) {
@@ -628,7 +631,7 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
             cmdline_error("the -pwfile option can only be used with the "
                           "SSH protocol");
         else {
-            Filename *fn = filename_from_str(value);
+            Filename *fn = cmdline_arg_to_filename(nextarg);
             FILE *fp = f_open(fn, "r", false);
             if (!fp) {
                 cmdline_error("unable to open password file '%s'", value);
@@ -750,21 +753,19 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
     }
 
     if (!strcmp(p, "-i")) {
-        Filename *fn;
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        fn = filename_from_str(value);
+        Filename *fn = cmdline_arg_to_filename(nextarg);
         conf_set_filename(conf, CONF_keyfile, fn);
         filename_free(fn);
     }
 
     if (!strcmp(p, "-cert")) {
-        Filename *fn;
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        fn = filename_from_str(value);
+        Filename *fn = cmdline_arg_to_filename(nextarg);
         conf_set_filename(conf, CONF_detached_cert, fn);
         filename_free(fn);
     }
@@ -868,12 +869,11 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
     }
 
     if (!strcmp(p, "-sessionlog")) {
-        Filename *fn;
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER);
         /* but available even in TOOLTYPE_NONNETWORK, cf pterm "-log" */
         SAVEABLE(0);
-        fn = filename_from_str(value);
+        Filename *fn = cmdline_arg_to_filename(nextarg);
         conf_set_filename(conf, CONF_logfilename, fn);
         conf_set_int(conf, CONF_logtype, LGTYP_DEBUG);
         filename_free(fn);
@@ -881,11 +881,10 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
 
     if (!strcmp(p, "-sshlog") ||
         !strcmp(p, "-sshrawlog")) {
-        Filename *fn;
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        fn = filename_from_str(value);
+        Filename *fn = cmdline_arg_to_filename(nextarg);
         conf_set_filename(conf, CONF_logfilename, fn);
         conf_set_int(conf, CONF_logtype,
                      !strcmp(p, "-sshlog") ? LGTYP_PACKETS :

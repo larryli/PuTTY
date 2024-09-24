@@ -2,9 +2,9 @@
 #include "storage.h"
 
 extern bool sesslist_demo_mode;
-extern const char *dialog_box_demo_screenshot_filename;
+extern Filename *dialog_box_demo_screenshot_filename;
 static strbuf *demo_terminal_data = NULL;
-static const char *terminal_demo_screenshot_filename;
+static Filename *terminal_demo_screenshot_filename;
 
 const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG |
@@ -99,7 +99,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                 } else {
                     demo_config_box = true;
                     dialog_box_demo_screenshot_filename =
-                        cmdline_arg_to_str(arglist->args[arglistpos++]);
+                        cmdline_arg_to_filename(arglist->args[arglistpos++]);
                 }
             } else if (!strcmp(p, "-demo-terminal")) {
                 if (!arglist->args[arglistpos] ||
@@ -109,7 +109,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                     const char *infile =
                         cmdline_arg_to_str(arglist->args[arglistpos++]);
                     terminal_demo_screenshot_filename =
-                        cmdline_arg_to_str(arglist->args[arglistpos++]);
+                        cmdline_arg_to_filename(arglist->args[arglistpos++]);
                     FILE *fp = fopen(infile, "rb");
                     if (!fp)
                         cmdline_error("can't open input file '%s'", infile);

@@ -4,7 +4,7 @@
 
 #include <dwmapi.h>
 
-char *save_screenshot(HWND hwnd, const char *outfile)
+char *save_screenshot(HWND hwnd, Filename *outfile)
 {
     HDC dcWindow = NULL, dcSave = NULL;
     HBITMAP bmSave = NULL;
@@ -89,9 +89,9 @@ char *save_screenshot(HWND hwnd, const char *outfile)
         err = dupprintf("GetDIBits (get data): %s",
                         win_strerror(GetLastError()));
 
-    FILE *fp = fopen(outfile, "wb");
+    FILE *fp = f_open(outfile, "wb", false);
     if (!fp) {
-        err = dupprintf("'%s': unable to open file", outfile);
+        err = dupprintf("'%s': unable to open file", filename_to_str(outfile));
         goto out;
     }
 
@@ -118,7 +118,7 @@ char *save_screenshot(HWND hwnd, const char *outfile)
 #else /* HAVE_DWMAPI_H */
 
 /* Without <dwmapi.h> we can't get the right window rectangle */
-char *save_screenshot(HWND hwnd, const char *outfile)
+char *save_screenshot(HWND hwnd, Filename *outfile)
 {
     return dupstr("Demo screenshots not compiled in to this build");
 }

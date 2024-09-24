@@ -124,6 +124,15 @@ const char *cmdline_arg_to_utf8(CmdlineArg *argp)
     return NULL;
 }
 
+Filename *cmdline_arg_to_filename(CmdlineArg *argp)
+{
+    if (!argp)
+        return NULL;
+
+    CmdlineArgUnix *arg = container_of(argp, CmdlineArgUnix, argp);
+    return filename_from_str(arg->value);
+}
+
 void cmdline_arg_wipe(CmdlineArg *argp)
 {
     if (!argp)

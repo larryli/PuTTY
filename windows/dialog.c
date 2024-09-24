@@ -459,7 +459,7 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
     return newitem;
 }
 
-const char *dialog_box_demo_screenshot_filename = NULL;
+Filename *dialog_box_demo_screenshot_filename = NULL;
 
 /* ctrltrees indices for the main dialog box */
 enum {
