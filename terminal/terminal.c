@@ -6683,10 +6683,6 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
         }
 
         while (poslt(top, bottom) && poslt(top, nlpos)) {
-#if 0
-            char cbuf[16], *p;
-            sprintf(cbuf, "<U+%04x>", (ldata[top.x] & 0xFFFF));
-#else
             wchar_t cbuf[16], *p;
             int c;
             int x = top.x;
@@ -6757,7 +6753,6 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
                         }
                     }
                 }
-#endif
 
                 for (p = cbuf; *p; p++)
                     clip_addchar(&buf, *p, attr, tc);
