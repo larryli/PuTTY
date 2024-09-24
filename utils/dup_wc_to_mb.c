@@ -14,26 +14,11 @@
 char *dup_wc_to_mb_c(int codepage, const wchar_t *string,
                      size_t inlen, const char *defchr, size_t *outlen_p)
 {
-    assert(inlen <= INT_MAX);
-
-    size_t outsize = inlen+1;
-    char *out = snewn(outsize, char);
-
-    while (true) {
-        size_t outlen = wc_to_mb(codepage, 0, string, inlen, out, outsize,
-                                 defchr);
-        /* We can only be sure we've consumed the whole input if the
-         * output is not within a multibyte-character-length of the
-         * end of the buffer! */
-        if (outlen < outsize && outsize - outlen > MB_LEN_MAX) {
-            if (outlen_p)
-                *outlen_p = outlen;
-            out[outlen] = '\0';
-            return out;
-        }
-
-        sgrowarray(out, outsize, outsize);
-    }
+    strbuf *sb = strbuf_new();
+    put_wc_to_mb(sb, codepage, string, inlen, defchr);
+    if (outlen_p)
+        *outlen_p = sb->len;
+    return strbuf_to_str(sb);
 }
 
 char *dup_wc_to_mb(int codepage, const wchar_t *string,

@@ -1603,10 +1603,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             const wchar_t *wp;
             int wlen;
             int ulen;
+            buffer_sink bs[1];
 
-            wlen = mb_to_wc(DEFAULT_CODEPAGE, 0,
-                            event_string, strlen(event_string),
-                            widedata, lenof(widedata)-1);
+            buffer_sink_init(bs, widedata, sizeof(widedata) - sizeof(wchar_t));
+            put_mb_to_wc(bs, DEFAULT_CODEPAGE,
+                         event_string, strlen(event_string));
+            wlen = (wchar_t *)bs->out - widedata;
 
 #ifdef KEY_EVENT_DIAGNOSTICS
             {
@@ -2954,16 +2956,12 @@ static void clipboard_text_received(GtkClipboard *clipboard,
 {
     GtkFrontend *inst = (GtkFrontend *)data;
     wchar_t *paste;
-    int paste_len;
-    int length;
+    size_t paste_len;
 
     if (!text)
         return;
 
-    length = strlen(text);
-
-    paste = snewn(length, wchar_t);
-    paste_len = mb_to_wc(CS_UTF8, 0, text, length, paste, length);
+    paste = dup_mb_to_wc(CS_UTF8, text, length, &paste_len);
 
     term_do_paste(inst->term, paste, paste_len);
 
@@ -3102,17 +3100,15 @@ static void gtkwin_clip_write(
         state->pasteout_data_ctext_len = 0;
     }
 
-    state->pasteout_data = snewn(len*6, char);
-    state->pasteout_data_len = len*6;
-    state->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
-                                        data, len, state->pasteout_data,
-                                        state->pasteout_data_len, NULL);
-    if (state->pasteout_data_len == 0) {
-        sfree(state->pasteout_data);
-        state->pasteout_data = NULL;
-    } else {
-        state->pasteout_data =
-            sresize(state->pasteout_data, state->pasteout_data_len, char);
+    {
+        size_t outlen;
+        state->pasteout_data = dup_wc_to_mb_c(
+            inst->ucsdata.line_codepage, data, len, "", &outlen);
+        /* We can't handle pastes larger than INT_MAX, because
+         * gtk_selection_data_set_text's length parameter is a gint */
+        if (outlen > INT_MAX)
+            outlen = INT_MAX;
+        state->pasteout_data_len = outlen;
     }
 
 #ifndef NOT_X_WINDOWS
@@ -3240,7 +3236,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     const guchar *seldata_data = gtk_selection_data_get_data(seldata);
     gint seldata_length = gtk_selection_data_get_length(seldata);
     wchar_t *paste;
-    int paste_len;
+    size_t paste_len;
     struct clipboard_state *state = clipboard_from_atom(
         inst, gtk_selection_data_get_selection(seldata));
 
@@ -3333,11 +3329,8 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
         }
     }
 
-    paste = snewn(length, wchar_t);
-    paste_len = mb_to_wc(charset, 0, text, length, paste, length);
-
+    paste = dup_mb_to_wc_c(charset, text, length, &paste_len);
     term_do_paste(inst->term, paste, paste_len);
-
     sfree(paste);
 
 #ifndef NOT_X_WINDOWS

@@ -221,7 +221,7 @@ static bool console_read_line_to_strbuf(ConsoleIO *conio, bool echo,
         }
 
         if (conio->utf8) {
-            wchar_t wbuf[4096];
+            wchar_t wbuf[4097];
             size_t wlen;
 
             if (conio->hin_is_console) {
@@ -245,17 +245,15 @@ static bool console_read_line_to_strbuf(ConsoleIO *conio, bool echo,
                 if (!ReadFile(conio->hin, buf, lenof(buf), &nread, NULL))
                     goto out;
 
-                wlen = mb_to_wc(CP_ACP, 0, buf, nread, wbuf, lenof(wbuf));
+                buffer_sink bs[1];
+                buffer_sink_init(bs, wbuf, sizeof(wbuf) - sizeof(wchar_t));
+                put_mb_to_wc(bs, CP_ACP, buf, nread);
+                assert(!bs->overflowed);
+                wlen = (wchar_t *)bs->out - wbuf;
                 smemclr(buf, sizeof(buf));
             }
 
-            /* Allocate the maximum space in the strbuf that might be
-             * needed for this data */
-            size_t oldlen = sb->len, maxout = wlen * 4;
-            void *outptr = strbuf_append(sb, maxout);
-            size_t newlen = oldlen + wc_to_mb(CP_UTF8, 0, wbuf, wlen,
-                                              outptr, maxout, NULL);
-            strbuf_shrink_to(sb, newlen);
+            put_wc_to_mb(sb, CP_UTF8, wbuf, wlen, "");
             smemclr(wbuf, sizeof(wbuf));
         } else {
             /*

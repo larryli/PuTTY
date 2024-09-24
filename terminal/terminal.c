@@ -3497,11 +3497,7 @@ static strbuf *term_input_data_from_unicode(
          * (But also we must allow space for the trailing NUL that
          * wc_to_mb will write.)
          */
-        char *bufptr = strbuf_append(buf, len + 1);
-        int rv;
-        rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
-                      bufptr, len + 1, NULL);
-        strbuf_shrink_to(buf, rv < 0 ? 0 : rv);
+        put_wc_to_mb(buf, term->ucsdata->line_codepage, widebuf, len, "");
     }
 
     return buf;
@@ -3510,18 +3506,12 @@ static strbuf *term_input_data_from_unicode(
 static strbuf *term_input_data_from_charset(
     Terminal *term, int codepage, const char *str, size_t len)
 {
-    strbuf *buf;
+    strbuf *buf = strbuf_new();
 
-    if (codepage < 0) {
-        buf = strbuf_new();
+    if (codepage < 0)
         put_data(buf, str, len);
-    } else {
-        size_t widesize = len * 2;        /* allow for UTF-16 surrogates */
-        wchar_t *widebuf = snewn(widesize, wchar_t);
-        int widelen = mb_to_wc(codepage, 0, str, len, widebuf, widesize);
-        buf = term_input_data_from_unicode(term, widebuf, widelen);
-        sfree(widebuf);
-    }
+    else
+        put_mb_to_wc(buf, codepage, str, len);
 
     return buf;
 }
@@ -6734,23 +6724,24 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
 
                 if (DIRECT_FONT(uc)) {
                     if (c >= ' ' && c != 0x7F) {
-                        char buf[4];
-                        WCHAR wbuf[4];
-                        int rv;
+                        char buf[2];
+                        buffer_sink bs[1];
+                        buffer_sink_init(bs, cbuf,
+                                         sizeof(cbuf) - sizeof(wchar_t));
                         if (is_dbcs_leadbyte(term->ucsdata->font_codepage, (BYTE) c)) {
                             buf[0] = c;
                             buf[1] = (char) (0xFF & ldata->chars[top.x + 1].chr);
-                            rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 2, wbuf, 4);
+                            put_mb_to_wc(bs, term->ucsdata->font_codepage,
+                                         buf, 2);
                             top.x++;
                         } else {
                             buf[0] = c;
-                            rv = mb_to_wc(term->ucsdata->font_codepage, 0, buf, 1, wbuf, 4);
+                            put_mb_to_wc(bs, term->ucsdata->font_codepage,
+                                         buf, 1);
                         }
 
-                        if (rv > 0) {
-                            memcpy(cbuf, wbuf, rv * sizeof(wchar_t));
-                            cbuf[rv] = 0;
-                        }
+                        assert(!bs->overflowed);
+                        *(wchar_t *)bs->out = L'\0';
                     }
                 }
 

@@ -1232,8 +1232,7 @@ void get_unitab(int codepage, wchar_t *unitab, int ftype)
         for (i = 0; i < max; i++) {
             tbuf[0] = i;
 
-            if (mb_to_wc(codepage, flg, tbuf, 1, unitab + i, 1)
-                != 1)
+            if (MultiByteToWideChar(codepage, flg, tbuf, 1, unitab+i, 1) != 1)
                 unitab[i] = 0xFFFD;
         }
     } else {
@@ -1245,151 +1244,192 @@ void get_unitab(int codepage, wchar_t *unitab, int ftype)
     }
 }
 
-int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-             char *mbstr, int mblen, const char *defchr)
+bool BinarySink_put_wc_to_mb(
+    BinarySink *bs, int codepage, const wchar_t *wcstr, int wclen,
+    const char *defchr)
 {
+    if (!wclen)
+        return true;
+
     reverse_mapping *rmap = get_reverse_mapping(codepage);
 
     if (rmap) {
+        size_t defchr_len = 0;
+        bool defchr_len_known = false;
+
         /* Do this by array lookup if we can. */
-        if (wclen < 0) {
-            for (wclen = 0; wcstr[wclen++] ;);   /* will include the NUL */
-        }
-        char *p;
-        int i;
-        for (p = mbstr, i = 0; i < wclen; i++) {
+        for (size_t i = 0; i < wclen; i++) {
             wchar_t ch = wcstr[i];
             int by;
-            const char *p1;
+            const char *blk;
 
-            #define WRITECH(chr) do             \
-            {                                   \
-                assert(p - mbstr < mblen);      \
-                *p++ = (char)(chr);             \
-            } while (0)
-
-            if ((p1 = rmap->blocks[(ch >> 8) & 0xFF]) != NULL &&
-                (by = p1[ch & 0xFF]) != '\0')
-                WRITECH(by);
+            if ((blk = rmap->blocks[(ch >> 8) & 0xFF]) != NULL &&
+                (by = blk[ch & 0xFF]) != '\0')
+                put_byte(bs, by);
             else if (ch < 0x80)
-                WRITECH(ch);
-            else if (defchr)
-                for (const char *q = defchr; *q; q++)
-                    WRITECH(*q);
-#if 1
-            else
-                WRITECH('.');
-#endif
-
-            #undef WRITECH
+                put_byte(bs, ch);
+            else if (defchr) {
+                if (!defchr_len_known) {
+                    defchr_len = strlen(defchr);
+                    defchr_len_known = true;
+                }
+                put_data(bs, defchr, defchr_len);
+            }
         }
-        return p - mbstr;
-    } else {
-        int defused, ret;
-        ret = WideCharToMultiByte(codepage, flags, wcstr, wclen,
-                                  mbstr, mblen, defchr, &defused);
-        if (ret)
-            return ret;
+        return true;
+    }
+
+    {
+        char internalbuf[2048];
+        char *allocbuf = NULL;
+        size_t allocsize = 0;
+        char *currbuf = internalbuf;
+        size_t currsize = lenof(internalbuf);
+        bool success;
+
+        BOOL defused = false;
+        BOOL *defusedp = &defused;
+
+        if (codepage == CP_UTF8 || !defchr[0]) {
+            /*
+             * The Win32 API spec says that defchr and defused must be
+             * NULL when doing a UTF-8 conversion, on pain of
+             * ERROR_INVALID_PARAMETER.
+             *
+             * Also, translate defchr="" on input to NULL in the Win32
+             * API.
+             */
+            defchr = NULL;
+            defusedp = NULL;
+        }
+
+        while (true) {
+            int ret = WideCharToMultiByte(
+                codepage, 0, wcstr, wclen, currbuf, currsize,
+                defchr, defusedp);
+
+            if (ret) {
+                put_data(bs, currbuf, ret);
+                success = true;
+                break;
+            } else if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+                success = false;
+                break;
+            } else {
+                sgrowarray_nm(allocbuf, allocsize, currsize);
+                currbuf = allocbuf;
+                currsize = allocsize;
+            }
+        }
+
+        smemclr(allocbuf, allocsize);
+        if (success)
+            return true;
+    }
 
 #ifdef LEGACY_WINDOWS
-        /*
-         * Fallback for legacy platforms too old to support UTF-8: if
-         * the codepage is UTF-8, we can do the translation ourselves.
-         */
-        if (codepage == CP_UTF8 && mblen > 0 && wclen > 0) {
-            buffer_sink bs[1];
-            buffer_sink_init(bs, mbstr, mblen);
-
-            while (wclen > 0) {
-                unsigned long wc = (wclen--, *wcstr++);
-                if (wclen > 0 && IS_SURROGATE_PAIR(wc, *wcstr)) {
-                    wc = FROM_SURROGATES(wc, *wcstr);
-                    wclen--, wcstr++;
-                }
-
-                const char *prev_ptr = bs->out;
-                put_utf8_char(bs, wc);
-                if (bs->overflowed)
-                    return prev_ptr - mbstr;
+    /*
+     * Fallback for legacy platforms too old to support UTF-8: if
+     * the codepage is UTF-8, we can do the translation ourselves.
+     */
+    if (codepage == CP_UTF8 && wclen > 0) {
+        while (wclen > 0) {
+            unsigned long wc = (wclen--, *wcstr++);
+            if (wclen > 0 && IS_SURROGATE_PAIR(wc, *wcstr)) {
+                wc = FROM_SURROGATES(wc, *wcstr);
+                wclen--, wcstr++;
             }
-
-            return bs->out - mbstr;
+            put_utf8_char(bs, wc);
         }
+
+        return true;
+    }
 #endif
 
-        /* No other fallbacks are available */
-        return 0;
-    }
+    /* No other fallbacks are available */
+    return false;
 }
 
-int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
-             wchar_t *wcstr, int wclen)
+bool BinarySink_put_mb_to_wc(
+    BinarySink *bs, int codepage, const char *mbstr, int mblen)
 {
+    if (!mblen)
+        return true;
+
     if (codepage >= 65536) {
         /* Character set not known to Windows, so we'll have to
          * translate it ourself */
         size_t index = codepage - 65536;
         if (index >= lenof(cp_list))
-            return 0;
+            return false;
         const struct cp_list_item *cp = &cp_list[index];
         if (!cp->cp_table)
-            return 0;
+            return false;
 
-        size_t remaining = wclen;
-        wchar_t *p = wcstr;
         unsigned tablebase = 256 - cp->cp_size;
 
         while (mblen > 0) {
             mblen--;
             unsigned c = 0xFF & *mbstr++;
             wchar_t wc = (c < tablebase ? c : cp->cp_table[c - tablebase]);
-            if (remaining > 0) {
-                remaining--;
-                *p++ = wc;
+            put_data(bs, &wc, sizeof(wc));
+        }
+
+        return true;
+    }
+
+    {
+        wchar_t internalbuf[1024];
+        wchar_t *allocbuf = NULL;
+        size_t allocsize = 0;
+        wchar_t *currbuf = internalbuf;
+        size_t currsize = lenof(internalbuf);
+        bool success;
+
+        while (true) {
+            int ret = MultiByteToWideChar(
+                codepage, 0, mbstr, mblen, currbuf, currsize);
+
+            if (ret > 0) {
+                put_data(bs, currbuf, ret * sizeof(wchar_t));
+                success = true;
+                break;
+            } else if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+                success = false;
+                break;
             } else {
-                return p - wcstr;
+                sgrowarray_nm(allocbuf, allocsize, currsize);
+                currbuf = allocbuf;
+                currsize = allocsize;
             }
         }
 
-        return p - wcstr;
+        smemclr(allocbuf, allocsize * sizeof(wchar_t));
+        if (success)
+            return true;
     }
-
-    int ret = MultiByteToWideChar(codepage, flags, mbstr, mblen, wcstr, wclen);
-    if (ret)
-        return ret;
 
 #ifdef LEGACY_WINDOWS
     /*
      * Fallback for legacy platforms too old to support UTF-8: if the
      * codepage is UTF-8, we can do the translation ourselves.
      */
-    if (codepage == CP_UTF8 && mblen > 0 && wclen > 0) {
+    if (codepage == CP_UTF8 && mblen > 0) {
         BinarySource src[1];
         BinarySource_BARE_INIT(src, mbstr, mblen);
-
-        size_t remaining = wclen;
-        wchar_t *p = wcstr;
 
         while (get_avail(src)) {
             wchar_t wcbuf[2];
             size_t nwc = decode_utf8_to_wchar(src, wcbuf, NULL);
-
-            for (size_t i = 0; i < nwc; i++) {
-                if (remaining > 0) {
-                    remaining--;
-                    *p++ = wcbuf[i];
-                } else {
-                    return p - wcstr;
-                }
-            }
+            put_data(bs, wcbuf, nwc * sizeof(wchar_t));
         }
 
-        return p - wcstr;
+        return true;
     }
 #endif
 
     /* No other fallbacks are available */
-    return 0;
+    return false;
 }
 
 bool is_dbcs_leadbyte(int codepage, char byte)

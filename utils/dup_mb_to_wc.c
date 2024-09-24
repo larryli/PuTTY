@@ -12,20 +12,16 @@
 wchar_t *dup_mb_to_wc_c(int codepage, const char *string,
                         size_t inlen, size_t *outlen_p)
 {
-    assert(inlen <= INT_MAX);
-    size_t mult;
-    for (mult = 1 ;; mult++) {
-        wchar_t *ret = snewn(mult*inlen + 2, wchar_t);
-        size_t outlen = mb_to_wc(codepage, 0, string, inlen, ret,
-                                 mult*inlen + 1);
-        if (outlen < mult*inlen+1) {
-            if (outlen_p)
-                *outlen_p = outlen;
-            ret[outlen] = L'\0';
-            return ret;
-        }
-        sfree(ret);
-    }
+    strbuf *sb = strbuf_new();
+    put_mb_to_wc(sb, codepage, string, inlen);
+    if (outlen_p)
+        *outlen_p = sb->len / sizeof(wchar_t);
+
+    /* Append a trailing L'\0'. For this we only need to write one
+     * byte _fewer_ than sizeof(wchar_t), because strbuf will append a
+     * byte '\0' for us. */
+    put_padding(sb, sizeof(wchar_t) - 1, 0);
+    return (wchar_t *)strbuf_to_str(sb);
 }
 
 wchar_t *dup_mb_to_wc(int codepage, const char *string)
