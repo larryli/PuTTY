@@ -529,7 +529,7 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
 
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
-            exit(1);
+            exit(0);
 
         } else if (has_ca_config_box &&
                    (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||

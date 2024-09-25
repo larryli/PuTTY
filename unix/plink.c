@@ -747,7 +747,7 @@ int main(int argc, char **argv)
             exit(0);
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
-            exit(1);
+            exit(0);
         } else if (!strcmp(p, "-o")) {
             if (argc <= 1) {
                 fprintf(stderr,

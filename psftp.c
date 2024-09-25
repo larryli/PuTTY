@@ -2839,7 +2839,7 @@ int psftp_main(CmdlineArgList *arglist)
             cleanup_exit(0);
         } else if (strcmp(argstr, "-pgpfp") == 0) {
             pgp_fingerprints();
-            return 1;
+            return 0;
         } else if (strcmp(argstr, "-V") == 0 ||
                    strcmp(argstr, "--version") == 0) {
             version();

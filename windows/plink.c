@@ -352,7 +352,7 @@ int main(int argc, char **argv)
             exit(0);
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
-            exit(1);
+            exit(0);
         } else if (!strcmp(p, "-shareexists")) {
             just_test_share_exists = true;
         } else if (!strcmp(p, "-sanitise-stdout") ||

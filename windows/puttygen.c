@@ -2436,7 +2436,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             }
         } else if (match_opt("-pgpfp")) {
             pgp_fingerprints_msgbox(NULL);
-            return 1;
+            return 0;
         } else if (match_opt("-restrict-acl", "-restrict_acl",
                              "-restrictacl")) {
             restrict_process_acl();

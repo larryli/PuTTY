@@ -87,7 +87,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                 exit(0);
             } else if (!strcmp(p, "-pgpfp")) {
                 pgp_fingerprints_msgbox(NULL);
-                exit(1);
+                exit(0);
             } else if (has_ca_config_box &&
                        (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||
                         !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca"))) {

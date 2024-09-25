@@ -2299,7 +2299,7 @@ int psftp_main(CmdlineArgList *arglist)
                 verbose = true;
         } else if (strcmp(argstr, "-pgpfp") == 0) {
             pgp_fingerprints();
-            return 1;
+            return 0;
         } else if (strcmp(argstr, "-r") == 0) {
             recursive = true;
         } else if (strcmp(argstr, "-p") == 0) {
