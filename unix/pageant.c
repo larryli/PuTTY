@@ -218,7 +218,6 @@ static void usage(void)
     printf("  --tty-prompt force tty-based passphrase prompt\n");
     printf("  --gui-prompt force GUI-based passphrase prompt\n");
     printf("  --askpass <prompt>   behave like a standalone askpass program\n");
-    exit(1);
 }
 
 static void version(void)

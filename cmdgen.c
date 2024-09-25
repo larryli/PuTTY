@@ -718,10 +718,11 @@ int main(int argc, char **argv)
 
     /*
      * If run with at least one argument _but_ not the required
-     * ones, print the usage message and return failure.
+     * ones, fail with an error.
      */
     if (!infile && keytype == NOKEYGEN) {
-        usage(true);
+        fprintf(stderr, "puttygen: expected an input key file name, "
+                "or -t for a type of key to generate\n");
         RETURN(1);
     }
 

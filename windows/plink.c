@@ -189,7 +189,6 @@ static void usage(void)
     printf("            control what happens when a log file already exists\n");
     printf("  -shareexists\n");
     printf("            test whether a connection-sharing upstream exists\n");
-    exit(1);
 }
 
 static void version(void)
@@ -350,6 +349,7 @@ int main(int argc, char **argv)
             version();
         } else if (!strcmp(p, "--help")) {
             usage();
+            exit(0);
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
             exit(1);
@@ -395,7 +395,10 @@ int main(int argc, char **argv)
         return 1;
 
     if (!cmdline_host_ok(conf)) {
-        usage();
+        fprintf(stderr, "plink: no valid host name provided\n"
+                "try \"plink --help\" for help\n");
+        cmdline_arg_list_free(arglist);
+        return 1;
     }
 
     prepare_session(conf);

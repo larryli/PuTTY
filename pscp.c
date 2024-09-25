@@ -2236,7 +2236,6 @@ static void usage(void)
     printf("  -logoverwrite\n");
     printf("  -logappend\n");
     printf("            control what happens when a log file already exists\n");
-    cleanup_exit(1);
 }
 
 void version(void)
@@ -2311,6 +2310,7 @@ int psftp_main(CmdlineArgList *arglist)
                    strcmp(argstr, "-?") == 0 ||
                    strcmp(argstr, "--help") == 0) {
             usage();
+            cleanup_exit(0);
         } else if (strcmp(argstr, "-V") == 0 ||
                    strcmp(argstr, "--version") == 0) {
             version();
@@ -2351,12 +2351,12 @@ int psftp_main(CmdlineArgList *arglist)
 
     if (list) {
         if (nscpargs != 1)
-            usage();
+            cmdline_error("expected a single argument with -ls");
         get_dir_list(scpargs, nscpargs);
 
     } else {
         if (nscpargs < 2)
-            usage();
+            cmdline_error("expected at least two arguments");
         if (nscpargs > 2)
             targetshouldbedirectory = true;
 

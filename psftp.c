@@ -2565,7 +2565,6 @@ static void usage(void)
     printf("  -logoverwrite\n");
     printf("  -logappend\n");
     printf("            control what happens when a log file already exists\n");
-    cleanup_exit(1);
 }
 
 static void version(void)
@@ -2819,7 +2818,7 @@ int psftp_main(CmdlineArgList *arglist)
 
         if (argstr[0] != '-') {
             if (userhost)
-                usage();
+                cmdline_error("unexpected extra argument \"%s\"", argstr);
             else
                 userhost = dupstr(argstr);
             continue;
@@ -2837,6 +2836,7 @@ int psftp_main(CmdlineArgList *arglist)
                    strcmp(argstr, "-?") == 0 ||
                    strcmp(argstr, "--help") == 0) {
             usage();
+            cleanup_exit(0);
         } else if (strcmp(argstr, "-pgpfp") == 0) {
             pgp_fingerprints();
             return 1;
