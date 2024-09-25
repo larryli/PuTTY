@@ -77,6 +77,8 @@ typedef struct conf_tag Conf;
 typedef struct ConfKeyInfo ConfKeyInfo;
 typedef struct ConfSaveEnumValue ConfSaveEnumValue;
 typedef struct ConfSaveEnumType ConfSaveEnumType;
+typedef struct CmdlineArgList CmdlineArgList;
+typedef struct CmdlineArg CmdlineArg;
 
 typedef struct terminal_tag Terminal;
 typedef struct term_utf8_decode term_utf8_decode;

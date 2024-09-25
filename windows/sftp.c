@@ -650,7 +650,8 @@ int main(int argc, char *argv[])
 
     dll_hijacking_protection();
 
-    ret = psftp_main(argc, argv);
+    CmdlineArgList *arglist = cmdline_arg_list_from_GetCommandLineW();
+    ret = psftp_main(arglist);
 
     return ret;
 }

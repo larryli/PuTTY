@@ -2402,17 +2402,11 @@ void printer_finish_job(printer_job *);
  * Exports from cmdline.c (and also cmdline_error(), which is
  * defined differently in various places and required _by_
  * cmdline.c).
- *
- * Note that cmdline_process_param takes a const option string, but a
- * writable argument string. That's not a mistake - that's so it can
- * zero out password arguments in the hope of not having them show up
- * avoidably in Unix 'ps'.
  */
 struct cmdline_get_passwd_input_state { bool tried; };
 #define CMDLINE_GET_PASSWD_INPUT_STATE_INIT { .tried = false }
 extern const cmdline_get_passwd_input_state cmdline_get_passwd_input_state_new;
-
-int cmdline_process_param(const char *, char *, int, Conf *);
+int cmdline_process_param(CmdlineArg *, CmdlineArg *, int, Conf *);
 void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
 SeatPromptResult cmdline_get_passwd_input(
@@ -2420,6 +2414,32 @@ SeatPromptResult cmdline_get_passwd_input(
 bool cmdline_host_ok(Conf *);
 bool cmdline_verbose(void);
 bool cmdline_loaded_session(void);
+
+/*
+ * Abstraction provided by each platform to represent a command-line
+ * argument. May not be as simple as a default-encoded string: on
+ * Windows, command lines can be Unicode representing characters not
+ * in the system codepage, so you might need to retrieve the argument
+ * in a richer form.
+ */
+struct CmdlineArgList {
+    /* args[0], args[1], ... represent the original arguments in the
+     * command line. Then there's a null pointer. Further arguments
+     * can be invented to add to the array after that, in which case
+     * they'll be freed with the rest of the CmdlineArgList, but
+     * aren't logically part of the original command line. */
+    CmdlineArg **args;
+    size_t nargs, argssize;
+};
+struct CmdlineArg {
+    CmdlineArgList *list;
+};
+const char *cmdline_arg_to_utf8(CmdlineArg *arg); /* may fail */
+const char *cmdline_arg_to_str(CmdlineArg *arg);  /* must not fail */
+void cmdline_arg_wipe(CmdlineArg *arg);
+CmdlineArg *cmdline_arg_from_str(CmdlineArgList *list, const char *string);
+/* Platforms provide their own constructors for CmdlineArgList */
+void cmdline_arg_list_free(CmdlineArgList *list);
 
 /*
  * Here we have a flags word provided by each tool, which describes

@@ -328,16 +328,19 @@ int main(int argc, char **argv)
             }
         }
     }
-    while (--argc) {
-        char *p = *++argv;
-        int ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
-                                        1, conf);
+    CmdlineArgList *arglist = cmdline_arg_list_from_GetCommandLineW();
+    size_t arglistpos = 0;
+    while (arglist->args[arglistpos]) {
+        CmdlineArg *arg = arglist->args[arglistpos++];
+        CmdlineArg *nextarg = arglist->args[arglistpos];
+        const char *p = cmdline_arg_to_str(arg);
+        int ret = cmdline_process_param(arg, nextarg, 1, conf);
         if (ret == -2) {
             fprintf(stderr,
                     "plink: option \"%s\" requires an argument\n", p);
             errors = true;
         } else if (ret == 2) {
-            --argc, ++argv;
+            arglistpos++;
         } else if (ret == 1) {
             continue;
         } else if (!strcmp(p, "-s")) {
@@ -369,12 +372,11 @@ int main(int argc, char **argv)
         } else if (*p != '-') {
             strbuf *cmdbuf = strbuf_new();
 
-            while (argc > 0) {
+            while (arg) {
                 if (cmdbuf->len > 0)
                     put_byte(cmdbuf, ' '); /* add space separator */
-                put_dataz(cmdbuf, p);
-                if (--argc > 0)
-                    p = *++argv;
+                put_dataz(cmdbuf, cmdline_arg_to_str(arg));
+                arg = arglist->args[arglistpos++];
             }
 
             conf_set_str(conf, CONF_remote_cmd, cmdbuf->s);

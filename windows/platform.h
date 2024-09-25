@@ -848,20 +848,27 @@ void unlock_interprocess_mutex(HANDLE mutex);
 
 typedef void (*aux_opt_error_fn_t)(const char *, ...);
 typedef struct AuxMatchOpt {
-    int index, argc;
-    char **argv;
+    CmdlineArgList *arglist;
+    size_t index;
     bool doing_opts;
     aux_opt_error_fn_t error;
 } AuxMatchOpt;
-AuxMatchOpt aux_match_opt_init(int argc, char **argv, int start_index,
-                               aux_opt_error_fn_t opt_error);
-bool aux_match_arg(AuxMatchOpt *amo, char **val);
-bool aux_match_opt(AuxMatchOpt *amo, char **val, const char *optname, ...);
+AuxMatchOpt aux_match_opt_init(aux_opt_error_fn_t opt_error);
+bool aux_match_arg(AuxMatchOpt *amo, CmdlineArg **val);
+bool aux_match_opt(AuxMatchOpt *amo, CmdlineArg **val,
+                   const char *optname, ...);
 bool aux_match_done(AuxMatchOpt *amo);
 
 char *save_screenshot(HWND hwnd, const char *outfile);
 void gui_terminal_ready(HWND hwnd, Seat *seat, Backend *backend);
 
 void setup_gui_timing(void);
+
+/* Windows-specific extra functions in cmdline_arg.c */
+CmdlineArgList *cmdline_arg_list_from_GetCommandLineW(void);
+const wchar_t *cmdline_arg_remainder_wide(CmdlineArg *);
+char *cmdline_arg_remainder_acp(CmdlineArg *);
+char *cmdline_arg_remainder_utf8(CmdlineArg *);
+CmdlineArg *cmdline_arg_from_utf8(CmdlineArgList *list, const char *string);
 
 #endif /* PUTTY_WINDOWS_PLATFORM_H */

@@ -31,7 +31,7 @@
 #define NPRIORITIES 2
 
 struct cmdline_saved_param {
-    char *p, *value;
+    CmdlineArg *p, *value;
 };
 struct cmdline_saved_param_set {
     struct cmdline_saved_param *params;
@@ -44,11 +44,11 @@ struct cmdline_saved_param_set {
  */
 static struct cmdline_saved_param_set saves[NPRIORITIES];
 
-static void cmdline_save_param(const char *p, const char *value, int pri)
+static void cmdline_save_param(CmdlineArg *p, CmdlineArg *value, int pri)
 {
     sgrowarray(saves[pri].params, saves[pri].savesize, saves[pri].nsaved);
-    saves[pri].params[saves[pri].nsaved].p = dupstr(p);
-    saves[pri].params[saves[pri].nsaved].value = dupstr(value);
+    saves[pri].params[saves[pri].nsaved].p = p;
+    saves[pri].params[saves[pri].nsaved].value = value;
     saves[pri].nsaved++;
 }
 
@@ -73,7 +73,7 @@ void cmdline_cleanup(void)
 }
 
 #define SAVEABLE(pri) do { \
-    if (need_save) { cmdline_save_param(p, value, pri); return ret; } \
+    if (need_save) { cmdline_save_param(arg, nextarg, pri); return ret; }   \
 } while (0)
 
 /*
@@ -190,10 +190,12 @@ static void set_port(Conf *conf, int port)
     conf_set_int(conf, CONF_port, port);
 }
 
-int cmdline_process_param(const char *p, char *value,
+int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
                           int need_save, Conf *conf)
 {
     int ret = 0;
+    const char *p = cmdline_arg_to_str(arg);
+    const char *value = cmdline_arg_to_str(nextarg);
 
     if (p[0] != '-') {
         if (need_save < 0)
@@ -408,9 +410,8 @@ int cmdline_process_param(const char *p, char *value,
              * pretend we received a -P argument, so that it will be
              * deferred until it's a good moment to run it.
              */
-            char *dup = dupstr(p);     /* 'value' is not a const char * */
-            int retd = cmdline_process_param("-P", dup, 1, conf);
-            sfree(dup);
+            int retd = cmdline_process_param(
+                cmdline_arg_from_str(arg->list, "-P"), arg, 1, conf);
             assert(retd == 2);
             seen_port_argument = true;
             return 1;
@@ -608,11 +609,9 @@ int cmdline_process_param(const char *p, char *value,
             }
 
             cmdline_password = dupstr(value);
-            /* Assuming that `value' is directly from argv, make a good faith
-             * attempt to trample it, to stop it showing up in `ps' output
-             * on Unix-like systems. Not guaranteed, of course. */
-            smemclr(value, strlen(value));
         }
+
+        cmdline_arg_wipe(nextarg);
     }
 
     if (!strcmp(p, "-pwfile")) {
@@ -779,7 +778,7 @@ int cmdline_process_param(const char *p, char *value,
         conf_set_int(conf, CONF_addressfamily, ADDRTYPE_IPV6);
     }
     if (!strcmp(p, "-sercfg")) {
-        char* nextitem;
+        const char *nextitem;
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(1);
@@ -796,7 +795,6 @@ int cmdline_process_param(const char *p, char *value,
                 skip = 0;
             } else {
                 length = end - nextitem;
-                nextitem[length] = '\0';
                 skip = 1;
             }
             if (length == 1) {
@@ -851,7 +849,9 @@ int cmdline_process_param(const char *p, char *value,
                 /* Messy special case */
                 conf_set_int(conf, CONF_serstopbits, 3);
             } else {
-                int serspeed = atoi(nextitem);
+                char *speedstr = dupprintf("%.*s", length, nextitem);
+                int serspeed = atoi(speedstr);
+                sfree(speedstr);
                 if (serspeed != 0) {
                     conf_set_int(conf, CONF_serspeed, serspeed);
                 } else {
@@ -957,12 +957,9 @@ int cmdline_process_param(const char *p, char *value,
 void cmdline_run_saved(Conf *conf)
 {
     for (size_t pri = 0; pri < NPRIORITIES; pri++) {
-        for (size_t i = 0; i < saves[pri].nsaved; i++) {
+        for (size_t i = 0; i < saves[pri].nsaved; i++)
             cmdline_process_param(saves[pri].params[i].p,
                                   saves[pri].params[i].value, 0, conf);
-            sfree(saves[pri].params[i].p);
-            sfree(saves[pri].params[i].value);
-        }
         saves[pri].nsaved = 0;
     }
 }

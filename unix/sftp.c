@@ -577,5 +577,6 @@ const bool buildinfo_gtk_relevant = false;
 int main(int argc, char *argv[])
 {
     uxsel_init();
-    return psftp_main(argc, argv);
+    CmdlineArgList *arglist = cmdline_arg_list_from_argv(argc, argv);
+    return psftp_main(arglist);
 }

@@ -17,20 +17,21 @@ int main(int argc, char **argv)
 {
     const char *outfile = NULL;
 
-    AuxMatchOpt amo = aux_match_opt_init(argc-1, argv+1, 0, fatal_error);
+    AuxMatchOpt amo = aux_match_opt_init(fatal_error);
     while (!aux_match_done(&amo)) {
-        char *val;
+        CmdlineArg *val;
         #define match_opt(...) aux_match_opt( \
             &amo, NULL, __VA_ARGS__, (const char *)NULL)
         #define match_optval(...) aux_match_opt( \
             &amo, &val, __VA_ARGS__, (const char *)NULL)
 
         if (aux_match_arg(&amo, &val)) {
-            fatal_error("unexpected argument '%s'", val);
+            fatal_error("unexpected argument '%s'", cmdline_arg_to_str(val));
         } else if (match_optval("-o", "--output")) {
-            outfile = val;
+            outfile = cmdline_arg_to_str(val);
         } else {
-            fatal_error("unrecognised option '%s'\n", amo.argv[amo.index]);
+            fatal_error("unrecognised option '%s'\n",
+                        cmdline_arg_to_str(amo.arglist->args[amo.index]));
         }
     }
 

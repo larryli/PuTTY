@@ -477,4 +477,8 @@ void plug_closing_errno(Plug *plug, int error);
 
 SeatPromptResult make_spr_sw_abort_errno(const char *prefix, int errno_value);
 
+/* Unix-specific extra functions in cmdline_arg.c */
+CmdlineArgList *cmdline_arg_list_from_argv(int argc, char **argv);
+char **cmdline_arg_remainder(CmdlineArg *argp);
+
 #endif /* PUTTY_UNIX_PLATFORM_H */

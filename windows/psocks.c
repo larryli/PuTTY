@@ -8,13 +8,15 @@
 
 static const PsocksPlatform platform = {
     NULL /* open_pipes */,
+    NULL /* found_subcommand */,
     NULL /* start_subcommand */,
 };
 
 int main(int argc, char **argv)
 {
     psocks_state *ps = psocks_new(&platform);
-    psocks_cmdline(ps, argc, argv);
+    CmdlineArgList *arglist = cmdline_arg_list_from_GetCommandLineW();
+    psocks_cmdline(ps, arglist);
 
     sk_init();
     winselcli_setup();

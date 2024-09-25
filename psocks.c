@@ -50,7 +50,7 @@ struct psocks_state {
     unsigned log_flags;
     RecordDestination rec_dest;
     char *rec_cmd;
-    strbuf *subcmd;
+    bool got_subcmd;
 
     ConnectionLayer cl;
 };
@@ -409,7 +409,6 @@ psocks_state *psocks_new(const PsocksPlatform *platform)
     ps->log_flags = LOG_CONNSTATUS;
     ps->rec_dest = REC_NONE;
     ps->platform = platform;
-    ps->subcmd = strbuf_new();
 
     return ps;
 }
@@ -417,19 +416,19 @@ psocks_state *psocks_new(const PsocksPlatform *platform)
 void psocks_free(psocks_state *ps)
 {
     portfwdmgr_free(ps->portfwdmgr);
-    strbuf_free(ps->subcmd);
     sfree(ps->rec_cmd);
     sfree(ps);
 }
 
-void psocks_cmdline(psocks_state *ps, int argc, char **argv)
+void psocks_cmdline(psocks_state *ps, CmdlineArgList *arglist)
 {
     bool doing_opts = true;
-    bool accumulating_exec_args = false;
+    size_t arglistpos = 0;
     size_t args_seen = 0;
 
-    while (--argc > 0) {
-	const char *p = *++argv;
+    while (arglist->args[arglistpos]) {
+	CmdlineArg *arg = arglist->args[arglistpos++];
+        const char *p = cmdline_arg_to_str(arg);
 
 	if (doing_opts && p[0] == '-' && p[1]) {
             if (!strcmp(p, "--")) {
@@ -446,8 +445,9 @@ void psocks_cmdline(psocks_state *ps, int argc, char **argv)
                             "platform\n");
 		    exit(1);
                 }
-		if (--argc > 0) {
-		    ps->rec_cmd = dupstr(*++argv);
+		if (arglist->args[arglistpos] > 0) {
+		    ps->rec_cmd = dupstr(
+                        cmdline_arg_to_str(arglist->args[arglistpos++]));
 		} else {
 		    fprintf(stderr, "psocks: expected an argument to '-p'\n");
 		    exit(1);
@@ -459,10 +459,15 @@ void psocks_cmdline(psocks_state *ps, int argc, char **argv)
                             "supported on this platform\n");
 		    exit(1);
                 }
-                accumulating_exec_args = true;
+                if (!arglist->args[arglistpos]) {
+		    fprintf(stderr, "psocks: --exec requires a command\n");
+		    exit(1);
+                }
                 /* Now consume all further argv words for the
                  * subcommand, even if they look like options */
-                doing_opts = false;
+                ps->platform->found_subcommand(arglist->args[arglistpos]);
+                ps->got_subcmd = true;
+                break;
 	    } else if (!strcmp(p, "--help")) {
                 printf("usage: psocks [ -d ] [ -f");
                 if (ps->platform->open_pipes)
@@ -490,9 +495,7 @@ void psocks_cmdline(psocks_state *ps, int argc, char **argv)
                 exit(1);
             }
 	} else {
-            if (accumulating_exec_args) {
-                put_asciz(ps->subcmd, p);
-            } else switch (args_seen++) {
+            switch (args_seen++) {
               case 0:
                 ps->listen_port = atoi(p);
                 break;
@@ -515,8 +518,8 @@ void psocks_start(psocks_state *ps)
 
     portfwdmgr_config(ps->portfwdmgr, conf);
 
-    if (ps->subcmd->len)
-        ps->platform->start_subcommand(ps->subcmd);
+    if (ps->got_subcmd)
+        ps->platform->start_subcommand();
 
     conf_free(conf);
 }
