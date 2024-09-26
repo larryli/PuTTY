@@ -32,8 +32,8 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             if (nextarg) {
                 /* The command to execute is taken to be the unparsed
                  * version of the whole remainder of the command line. */
-                char *cmd = cmdline_arg_remainder_acp(nextarg);
-                conf_set_str(conf, CONF_remote_cmd, cmd);
+                char *cmd = cmdline_arg_remainder_utf8(nextarg);
+                conf_set_utf8(conf, CONF_remote_cmd, cmd);
                 sfree(cmd);
                 return;
             } else {

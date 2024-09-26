@@ -696,7 +696,7 @@ void test_simple(void)
     test_str_simple(CONF_proxy_telnet_command, "ProxyTelnetCommand", "connect %host %port\\n");
     test_int_translated(CONF_proxy_log_to_term, "ProxyLogToTerm", FORCE_OFF,
                         FORCE_ON, 0, FORCE_OFF, 1, AUTO, 2, -1);
-    test_str_simple(CONF_remote_cmd, "RemoteCommand", "");
+    test_str_ambi_simple(CONF_remote_cmd, "RemoteCommand", "", false);
     test_bool_simple(CONF_nopty, "NoPTY", false);
     test_bool_simple(CONF_compression, "Compression", false);
     test_bool_simple(CONF_ssh_prefer_known_hostkeys, "PreferKnownHostKeys", true);

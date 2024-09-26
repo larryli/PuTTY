@@ -154,7 +154,7 @@ CONF_OPTION(proxy_log_to_term,
 
 /* SSH options */
 CONF_OPTION(remote_cmd,
-    VALUE_TYPE(STR),
+    VALUE_TYPE(STR_AMBI),
     DEFAULT_STR(""),
     SAVE_KEYWORD("RemoteCommand"),
 )
@@ -165,7 +165,7 @@ CONF_OPTION(remote_cmd2,
      * methods of running an SFTP server at the remote end); never set
      * by user configuration, or loaded or saved.
      */
-    VALUE_TYPE(STR),
+    VALUE_TYPE(STR_AMBI),
     DEFAULT_STR(""),
     NOT_SAVED,
 )

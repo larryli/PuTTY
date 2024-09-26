@@ -394,8 +394,8 @@ static SeatPromptResult plink_get_userpass_input(Seat *seat, prompts_t *p)
 
 static bool plink_seat_interactive(Seat *seat)
 {
-    return (!*conf_get_str(conf, CONF_remote_cmd) &&
-            !*conf_get_str(conf, CONF_remote_cmd2) &&
+    return (!*conf_get_str_ambi(conf, CONF_remote_cmd, NULL) &&
+            !*conf_get_str_ambi(conf, CONF_remote_cmd2, NULL) &&
             !*conf_get_str(conf, CONF_ssh_nc_host));
 }
 
