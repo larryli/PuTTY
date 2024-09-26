@@ -428,8 +428,43 @@ int message_box(HWND owner, LPCTSTR text, LPCTSTR caption, DWORD style,
 void MakeDlgItemBorderless(HWND parent, int id);
 char *GetDlgItemText_alloc(HWND hwnd, int id);
 wchar_t *GetDlgItemTextW_alloc(HWND hwnd, int id);
-void split_into_argv(char *, bool includes_program_name,
-                     int *, char ***, char ***);
+/*
+ * The split_into_argv functions take a single string 'cmdline' (char
+ * or wide) to split up into arguments. They return an argc and argv
+ * pair, and also 'argstart', an array of pointers into the original
+ * command line, pointing at the place where each output argument
+ * begins. (Useful for retrieving the tail of the original command
+ * line corresponding to a certain argument onwards, or identifying a
+ * section of the original command line to blank out for privacy.)
+ *
+ * If the command line includes the program name (e.g. if it was
+ * returned from GetCommandLine()), set includes_program_name=true. If
+ * it doesn't (e.g. it was the arguments string received by WinMain),
+ * set that flag to false. This affects the rules for argument
+ * splitting, which is done differently in the program name
+ * (specifically, \ isn't special, and won't escape ").
+ *
+ * Mutability: the argv[] words are in fresh dynamically allocated
+ * memory, so you can write into them safely. The original cmdline is
+ * passed in as a const pointer, and not modified in this function.
+ * But the pointers into that string written into argstart have the
+ * type of a mutable char *. Similarly to strchr, this is due to the
+ * limitation of C that you can't specify argstart as having the same
+ * constness as cmdline: the idea is that you either pass a
+ * non-mutable cmdline and promise not to write through the argstart
+ * pointers, of you pass a mutable one and are free to write through
+ * it.
+ *
+ * Allocation: argv and argstart are dynamically allocated. There's
+ * also a dynamically allocated string behind the scenes storing the
+ * actual strings. argv[0] guarantees to point at the first character
+ * of that. So to free all the memory allocated by this function, you
+ * must free argv[0], then argv, and also argstart.
+ */
+void split_into_argv(const char *cmdline, bool includes_program_name,
+                     int *argc, char ***argv, char ***argstart);
+void split_into_argv_w(const wchar_t *cmdline, bool includes_program_name,
+                       int *argc, wchar_t ***argv, wchar_t ***argstart);
 
 /*
  * Private structure for prefslist state. Only in the header file

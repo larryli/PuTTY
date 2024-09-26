@@ -176,10 +176,10 @@ static inline bool is_word_sep(CHAR c)
     return c == ' ' || c == '\t';
 }
 
-void FUNCTION(CHAR *cmdline, bool includes_program_name,
+void FUNCTION(const CHAR *cmdline, bool includes_program_name,
               int *argc, CHAR ***argv, CHAR ***argstart)
 {
-    CHAR *p;
+    const CHAR *p;
     CHAR *outputline, *q;
     CHAR **outputargv, **outputargstart;
     int outputargc;
@@ -252,7 +252,7 @@ void FUNCTION(CHAR *cmdline, bool includes_program_name,
 
         /* We have an argument; start it. */
         outputargv[outputargc] = q;
-        outputargstart[outputargc] = p;
+        outputargstart[outputargc] = (CHAR *)p;
         outputargc++;
         quote = false;
 
