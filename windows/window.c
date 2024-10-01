@@ -4621,8 +4621,11 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
             p += format_function_key((char *)p, wgs->term, fkey_number,
                                      shift_state & 1, shift_state & 2,
                                      left_alt, &consumed_alt);
-            if (consumed_alt)
-                left_alt = false; /* supersedes the usual prefixing of Esc */
+            if (consumed_alt) {
+                /* supersedes the usual prefixing of Esc */
+                p -= 1;
+                memmove(output, output + 1, p - output);
+            }
             return p - output;
 
             SmallKeypadKey sk_key;
@@ -4637,11 +4640,15 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
             if (shift_state & 2)
                 break;
 
+            consumed_alt = false;
             p += format_small_keypad_key((char *)p, wgs->term, sk_key,
                                          shift_state & 1, shift_state & 2,
                                          left_alt, &consumed_alt);
-            if (consumed_alt)
-                left_alt = false; /* supersedes the usual prefixing of Esc */
+            if (consumed_alt) {
+                /* supersedes the usual prefixing of Esc */
+                p -= 1;
+                memmove(output, output + 1, p - output);
+            }
             return p - output;
 
             char xkey;
@@ -4654,8 +4661,11 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
             consumed_alt = false;
             p += format_arrow_key((char *)p, wgs->term, xkey, shift_state & 1,
                                   shift_state & 2, left_alt, &consumed_alt);
-            if (consumed_alt)
-                left_alt = false; /* supersedes the usual prefixing of Esc */
+            if (consumed_alt) {
+                /* supersedes the usual prefixing of Esc */
+                p -= 1;
+                memmove(output, output + 1, p - output);
+            }
             return p - output;
 
           case VK_RETURN:
