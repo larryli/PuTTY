@@ -65,6 +65,34 @@ where you connected to, you should not make a saved session for that
 connection. Instead, re-enter the details by hand every time you do
 it.
 
+\H{privacy-jumplist} Jump list
+
+On Windows, the operating system provides a feature called a \q{jump
+list}. This is a menu that pops up from an application's icon in the
+Windows taskbar, and the application can configure entries that appear
+in it. Applications typically include menu items to re-launch recently
+used documents or configurations.
+
+PuTTY updates its jump list whenever a saved session is loaded, either
+to launch it immediately or to load it within the configuration dialog
+box. So if you have a collection of saved sessions, the jump list will
+contain a record of which ones you have recently used.
+
+An exception is that saved sessions are not included in the jump list
+if they are not \q{launchable}, meaning that they actually specify a
+host name or serial port to connect to. A non-launchable session can
+specify all the other configuration details (such as fonts, window
+size, keyboard setup, SSH features, etc), but leave out the hostname.
+
+If you want to avoid leaving any evidence of having made a particular
+connection, then make the connection without creating a launchable
+saved session for it: either make no saved session at all, or create a
+non-launchable one which sets up every detail \e{except} the
+destination host name. Then it won't appear in the jump list.
+
+(The saved session itself would also be evidence, of course, as
+discussed in the previous section.)
+
 \H{privacy-logfiles} Log files
 
 PuTTY can be configured to save a log file of your entire session to
