@@ -5,12 +5,12 @@ import os
 import tempfile
 import shutil
 import subprocess
-import pipes
+import shlex
 
 def run(command, verbose):
     if verbose:
         sys.stdout.write("$ {}\n".format(" ".join(
-            pipes.quote(word) for word in command)))
+            shlex.quote(word) for word in command)))
     out = subprocess.check_output(command)
     if verbose:
         sys.stdout.write("".join(
