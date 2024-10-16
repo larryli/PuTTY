@@ -121,6 +121,7 @@ static void reset_window(WinGuiSeat *wgs, int reinit);
 static void flash_window(WinGuiSeat *wgs, int mode);
 static void sys_cursor_update(WinGuiSeat *wgs);
 static bool get_fullscreen_rect(WinGuiSeat *wgs, RECT *ss);
+static bool get_workingarea_rect(WinGuiSeat *wgs, RECT *ss);
 
 static void conf_cache_data(WinGuiSeat *wgs);
 
@@ -645,13 +646,51 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
-     * Resize the window, now we know what size we _really_ want it
-     * to be.
+     * Compute what size we _really_ want the window to be.
      */
     guess_width = wgs->extra_width + wgs->font_width * wgs->term->cols;
     guess_height = wgs->extra_height + wgs->font_height * wgs->term->rows;
-    SetWindowPos(wgs->term_hwnd, NULL, 0, 0, guess_width, guess_height,
-                 SWP_NOMOVE | SWP_NOREDRAW | SWP_NOZORDER);
+
+    /*
+     * Resize the window to that size, also repositioning it if it's extended
+     * off the edge of a monitor.
+     */
+    {
+        /* Find the previous coordinates of the window */
+        RECT winr;
+        GetWindowRect(wgs->term_hwnd, &winr);
+
+        int x = winr.left;
+        int y = winr.top;
+
+        /* Adjust them if necessary */
+        RECT war;
+        if (get_workingarea_rect(wgs, &war)) {
+            /*
+             * Try to ensure the window is entirely within the monitor's
+             * working area, by adjusting its position if not.
+             *
+             * We first move it left, if it overlaps off the right side. Then
+             * we move it right if it overlaps off the left side. This means
+             * that if it's wider than the working area (so that some overlap
+             * is unavoidable), we prefer to get its left edge in bounds than
+             * its right edge. Similarly, we do the y checks in the same
+             * order, privileging the top edge over the bottom.
+             */
+            if (x + guess_width > war.right)
+                x = war.right - guess_width;
+            if (x < war.left)
+                x = war.left;
+            if (y + guess_height > war.bottom)
+                y = war.bottom - guess_height;
+            if (y < war.top)
+                y = war.top;
+        }
+
+        /* And set the window to the final size and position we've chosen */
+        SetWindowPos(wgs->term_hwnd, NULL, x, y, guess_width, guess_height,
+                    SWP_NOREDRAW | SWP_NOZORDER);
+    }
 
     /*
      * Set up a caret bitmap, with no content.
@@ -5757,19 +5796,32 @@ static bool is_full_screen(WinGuiSeat *wgs)
     return true;
 }
 
-/* Get the rect/size of a full screen window using the nearest available
+/* Get a MONITORINFO structure for the nearest available monitor, if the
+ * multimon API is available and returns success. Shared subroutine between
+ * get_fullscreen_rect() and get_workingarea_rect(). */
+static bool get_monitor_info(WinGuiSeat *wgs, MONITORINFO *mi)
+{
+#if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
+    if (p_GetMonitorInfoA && p_MonitorFromWindow) {
+        HMONITOR mon;
+        mon = p_MonitorFromWindow(wgs->term_hwnd, MONITOR_DEFAULTTONEAREST);
+        mi->cbSize = sizeof(*mi);
+        p_GetMonitorInfoA(mon, mi);
+        return true;
+    }
+#endif
+    return false;
+}
+
+
+/* Get the rect/size of a full-screen window on the nearest available
  * monitor in multimon systems; default to something sensible if only
  * one monitor is present. */
 static bool get_fullscreen_rect(WinGuiSeat *wgs, RECT *ss)
 {
 #if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
-    if (p_GetMonitorInfoA && p_MonitorFromWindow) {
-        HMONITOR mon;
-        MONITORINFO mi;
-        mon = p_MonitorFromWindow(wgs->term_hwnd, MONITOR_DEFAULTTONEAREST);
-        mi.cbSize = sizeof(mi);
-        p_GetMonitorInfoA(mon, &mi);
-
+    MONITORINFO mi;
+    if (get_monitor_info(wgs, &mi)) {
         /* structure copy */
         *ss = mi.rcMonitor;
         return true;
@@ -5780,6 +5832,24 @@ static bool get_fullscreen_rect(WinGuiSeat *wgs, RECT *ss)
         ss->right = GetSystemMetrics(SM_CXSCREEN);
         ss->bottom = GetSystemMetrics(SM_CYSCREEN);
 */
+    return GetClientRect(GetDesktopWindow(), ss);
+}
+
+
+/* Similar to get_fullscreen_rect, but retrieves the working area of the
+ * monitor (minus the taskbar) instead of its full extent. */
+static bool get_workingarea_rect(WinGuiSeat *wgs, RECT *ss)
+{
+#if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
+    MONITORINFO mi;
+    if (get_monitor_info(wgs, &mi)) {
+        /* structure copy */
+        *ss = mi.rcWork;
+        return true;
+    }
+#endif
+    /* Fallback is the same as get_monitor_rect, which is good _enough_:
+     * if the window overlaps the taskbar, that's not too bad a failure. */
     return GetClientRect(GetDesktopWindow(), ss);
 }
 
