@@ -65,7 +65,7 @@ static const struct keyvalwhere hknames[] = {
  * This is currently precisely the same as the set in
  * ssh/ttymode-list.h, but could in principle differ if other backends
  * started to support tty modes (e.g., the pty backend).
- * The set of modes in in this array is currently significant for
+ * The set of modes in this array is currently significant for
  * settings migration from old versions; if they change, review the
  * gppmap() invocation for "TerminalModes".
  */
