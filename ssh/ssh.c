@@ -840,10 +840,12 @@ static char *connect_to_host(
                                 false, true, nodelay, keepalive,
                                 &ssh->plug, ssh->conf, &ssh->interactor);
         if ((err = sk_socket_error(ssh->s)) != NULL) {
+            char *toret = dupstr(err);
+            sk_close(ssh->s);
             ssh->s = NULL;
             seat_notify_remote_exit(ssh->seat);
             seat_notify_remote_disconnect(ssh->seat);
-            return dupstr(err);
+            return toret;
         }
     }
 
