@@ -28,7 +28,7 @@ However, you may need to be aware of the fact that it is stored on
 might be able to find a list of sites you have connected to, if you
 have saved details of them.)
 
-\H{privacy-hostkeys} Host key cache
+\S{privacy-hostkeys} Host key cache
 
 If you use the SSH protocol, then PuTTY stores a list of the SSH
 servers you have connected to, together with their host keys.
@@ -50,7 +50,7 @@ should check the key fingerprint yourself every time you connect.
 The host key cache is only used by SSH. No other protocol supported
 by PuTTY has any analogue of it.
 
-\H{privacy-savedsessions} Saved sessions
+\S{privacy-savedsessions} Saved sessions
 
 After you set up PuTTY's configuration for a particular network
 connection, you can choose to save it as a \q{saved session}, so that
@@ -65,7 +65,7 @@ where you connected to, you should not make a saved session for that
 connection. Instead, re-enter the details by hand every time you do
 it.
 
-\H{privacy-jumplist} Jump list
+\S{privacy-jumplist} Jump list
 
 On Windows, the operating system provides a feature called a \q{jump
 list}. This is a menu that pops up from an application's icon in the
@@ -93,7 +93,7 @@ destination host name. Then it won't appear in the jump list.
 (The saved session itself would also be evidence, of course, as
 discussed in the previous section.)
 
-\H{privacy-logfiles} Log files
+\S{privacy-logfiles} Log files
 
 PuTTY can be configured to save a log file of your entire session to
 the computer you run it on. By default it does not do so: the content
@@ -120,7 +120,7 @@ debugging purposes, for example if a server is refusing your password
 and you need to check whether the password is being sent correctly. We
 do not recommend enabling this option routinely.
 
-\H{privacy-randomseed} Random seed file
+\S{privacy-randomseed} Random seed file
 
 PuTTY stores a small file of random bytes under the name
 \cq{putty.rnd}, which is reloaded the next time it is run and used to
@@ -134,7 +134,7 @@ another computer, over a network or a serial port, and send
 information. However it only makes the network connections that its
 configuration instructs it to.
 
-\H{privacy-nophonehome} PuTTY only connects to the specified destination host
+\S{privacy-nophonehome} PuTTY only connects to the specified destination host
 
 No PuTTY tool will \q{phone home} to any site under the control of us
 (the development team), or to any other site apart from the
@@ -149,7 +149,7 @@ line, or files loaded by the file transfer tools) is sent to the
 server that PuTTY's configuration tells it to connect to. It is not
 sent anywhere else.
 
-\H{privacy-whatdata} What data is sent to the destination host
+\S{privacy-whatdata} What data is sent to the destination host
 
 When you log in to a server, PuTTY will send your username. If you use
 a password to authenticate to the server, PuTTY will send it that
