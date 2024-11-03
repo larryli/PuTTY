@@ -43,9 +43,15 @@ cache if you select the \q{Accept} action at one of the PuTTY suite's
 host key verification prompts. So if you want to make an SSH
 connection without PuTTY saving any trace of where you connected to,
 you can press \q{Connect Once} instead of \q{Accept}, which does not
-store the host key in the cache. However, if you do this, PuTTY can't
-automatically detect the host key changing in the future, so you
-should check the key fingerprint yourself every time you connect.
+store the host key in the cache.
+
+However, if you do this, PuTTY can't automatically detect the host key
+changing in the future, so you should check the key fingerprint
+yourself every time you connect. \s{This is vitally important.} If you
+don't let PuTTY cache host keys \e{and} don't check them yourself,
+then it becomes easy for an attacker to interpose a listener between
+you and the server you're connecting to. The entire cryptographic
+system of SSH depends on making sure the host key is right.
 
 The host key cache is only used by SSH. No other protocol supported
 by PuTTY has any analogue of it.
