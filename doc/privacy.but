@@ -144,7 +144,9 @@ configuration instructs it to.
 
 No PuTTY tool will \q{phone home} to any site under the control of us
 (the development team), or to any other site apart from the
-destination host or proxy host in its configuration.
+destination host or proxy host in its configuration, and any DNS
+server that is needed to look up the IP addresses corresponding to
+those host names.
 
 No information about your network sessions, and no information from
 the computer you run PuTTY on, is collected or recorded by the PuTTY
