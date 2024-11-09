@@ -1869,8 +1869,17 @@ static const ecdh_keyalg ssh_ntru_selector_vt = {
     .description = ssh_ntru_description,
 };
 
-static const ssh_kex ssh_ntru_curve25519 = {
+static const ssh_kex ssh_ntru_curve25519_openssh = {
     .name = "sntrup761x25519-sha512@openssh.com",
+    .main_type = KEXTYPE_ECDH,
+    .hash = &ssh_sha512,
+    .ecdh_vt = &ssh_ntru_selector_vt,
+};
+
+static const ssh_kex ssh_ntru_curve25519 = {
+    /* Same as sntrup761x25519-sha512@openssh.com but with an
+     * IANA-assigned name */
+    .name = "sntrup761x25519-sha512",
     .main_type = KEXTYPE_ECDH,
     .hash = &ssh_sha512,
     .ecdh_vt = &ssh_ntru_selector_vt,
@@ -1878,6 +1887,7 @@ static const ssh_kex ssh_ntru_curve25519 = {
 
 static const ssh_kex *const hybrid_list[] = {
     &ssh_ntru_curve25519,
+    &ssh_ntru_curve25519_openssh,
 };
 
 const ssh_kexes ssh_ntru_hybrid_kex = { lenof(hybrid_list), hybrid_list };
