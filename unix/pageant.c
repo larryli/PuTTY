@@ -1365,8 +1365,8 @@ int main(int argc, char **argv)
                 else if (curr_keyact == KEYACT_CLIENT_ADD)
                     curr_keyact = KEYACT_CLIENT_ADD_ENCRYPTED;
                 else {
-                    fprintf(stderr, "pageant: unexpected -E while not adding "
-                            "keys\n");
+                    fprintf(stderr, "pageant: unexpected %s while not adding "
+                            "keys\n", p);
                     exit(1);
                 }
             } else if (!strcmp(p, "--debug")) {
