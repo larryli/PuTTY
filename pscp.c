@@ -2253,7 +2253,7 @@ void cmdline_error(const char *p, ...)
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
-    fprintf(stderr, "\n      try typing just \"pscp\" for help\n");
+    fprintf(stderr, "\n      try typing \"pscp -h\" for help\n");
     exit(1);
 }
 
