@@ -36,7 +36,7 @@ void console_print_error_msg(const char *prefix, const char *msg)
  * System for getting I/O handles to talk to the console for
  * interactive prompts.
  *
- * In PuTTY 0.78 and before, these prompts used the standard I/O
+ * In PuTTY 0.81 and before, these prompts used the standard I/O
  * handles. But this means you can't redirect Plink's actual stdin
  * from a sensible data channel without the responses to login prompts
  * unwantedly being read from it too. Also, if you have a real
