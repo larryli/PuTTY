@@ -1184,3 +1184,57 @@ session at all. Instead, it will just display the configuration dialog
 box for host certification authorities, as described in
 \k{config-ssh-kex-cert}. When you dismiss that dialog box, PuTTY will
 terminate.
+
+\S2{using-cmdline-legacy-console} \i{\c{-legacy-stdio-prompts}},
+\i{\c{-legacy-charset-handling}}: handle Windows console prompts like
+older versions of PuTTY
+
+These options apply to all of PSCP, PSFTP and Plink on Windows: all
+the tools in the PuTTY suite that run in a Windows console and make
+SSH connections.
+
+These tools use the Windows console to prompt for various information:
+usernames, passwords, answers to questions about host keys, and so on.
+
+In current versions of PuTTY, these prompts work by direct access to
+the Windows console. This means that even if you redirect the standard
+input or output of the tool, prompts will \e{still} be sent to the
+console (and not where you've redirected your output), and the user's
+responses will be read from the console (and not from where you've
+redirected your input).
+
+Another advantage of reading directly from the Windows console is that
+the tools can read input as Unicode. So this also allows you to enter
+usernames and passwords that contain characters not in the Windows
+system's default character set.
+
+In older versions of PuTTY, the prompts used the tool's ordinary I/O
+handles, so prompt output and user responses could be redirected.
+
+We think the new behaviour is more likely to be useful. For example,
+if you have a local command that generates output, and you want to
+pipe that output into a command running remotely via Plink, you can
+run a command line such as
+
+\c local_command | plink hostname remote_command
+
+and the data piped into the remote command will be the same whether or
+not Plink has to stop to ask for a password. With the old behaviour
+you would have had to include the password in Plink's input, which is
+more awkward.
+
+However, we recognise that people may have customised complicated
+workflows around the old behaviour. So if you need to switch back to
+it, there are two options to switch some or all of the behaviour back
+to the old way:
+
+\c{-legacy-charset-handling} makes the tools read prompt responses in
+the system's default character set instead of Unicode. If the new
+Unicode-based input causes a username or password not to work as you
+expected, and it worked in earlier versions of PuTTY, you can use this
+option to switch back to doing it the old way.
+
+\c{-legacy-stdio-prompts} makes the tools use the redirectable I/O
+channels for prompts, instead of talking directly to the console. So
+if you were relying on being able to redirect prompt input and output,
+you can use this option.
