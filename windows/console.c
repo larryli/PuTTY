@@ -78,7 +78,13 @@ static ConsoleIO *conio_setup(bool utf8)
 
     conio->hin = conio->hout = INVALID_HANDLE_VALUE;
     conio->need_close_hin = conio->need_close_hout = false;
-    conio->utf8 = utf8 && conio_use_utf8;
+
+    init_winver();
+    if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS ||
+        osPlatformId == VER_PLATFORM_WIN32s)
+        conio->utf8 = false;           /* no Unicode support at all */
+    else
+        conio->utf8 = utf8 && conio_use_utf8;
 
     /*
      * First try opening the console itself, so that prompts will go
