@@ -87,6 +87,7 @@ char filename_char_sanitise(char c)
 FILE *f_open(const Filename *fn, const char *mode, bool isprivate)
 {
     wchar_t *wmode = dup_mb_to_wc(DEFAULT_CODEPAGE, mode);
-    return _wfopen(fn->wpath, wmode);
+    FILE *fp = _wfopen(fn->wpath, wmode);
     sfree(wmode);
+    return fp;
 }
