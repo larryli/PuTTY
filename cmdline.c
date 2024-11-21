@@ -926,7 +926,6 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
     if (!strcmp(p, "-legacy-stdio-prompts") ||
         !strcmp(p, "-legacy_stdio_prompts")) {
         RETURN(1);
-        SAVEABLE(0);
         if (!console_set_stdio_prompts(true)) {
             cmdline_report_unavailable(p);
             return ret;
@@ -936,7 +935,6 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
     if (!strcmp(p, "-legacy-charset-handling") ||
         !strcmp(p, "-legacy_charset_handling")) {
         RETURN(1);
-        SAVEABLE(0);
         if (!set_legacy_charset_handling(true)) {
             cmdline_report_unavailable(p);
             return ret;
