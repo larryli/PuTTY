@@ -469,13 +469,13 @@ void conf_set_int_int(Conf *conf, int primary,
 
 bool conf_try_set_str(Conf *conf, int primary, const char *value)
 {
-    struct conf_entry *entry = snew(struct conf_entry);
-
     assert(conf_key_info[primary].subkey_type == CONF_TYPE_NONE);
     if (conf_key_info[primary].value_type == CONF_TYPE_UTF8)
         return false;
     assert(conf_key_info[primary].value_type == CONF_TYPE_STR ||
            conf_key_info[primary].value_type == CONF_TYPE_STR_AMBI);
+
+    struct conf_entry *entry = snew(struct conf_entry);
     entry->key.primary = primary;
     entry->value.u.stringval.str = dupstr(value);
     entry->value.u.stringval.utf8 = false;
@@ -491,13 +491,13 @@ void conf_set_str(Conf *conf, int primary, const char *value)
 
 bool conf_try_set_utf8(Conf *conf, int primary, const char *value)
 {
-    struct conf_entry *entry = snew(struct conf_entry);
-
     assert(conf_key_info[primary].subkey_type == CONF_TYPE_NONE);
     if (conf_key_info[primary].value_type == CONF_TYPE_STR)
         return false;
     assert(conf_key_info[primary].value_type == CONF_TYPE_UTF8 ||
            conf_key_info[primary].value_type == CONF_TYPE_STR_AMBI);
+
+    struct conf_entry *entry = snew(struct conf_entry);
     entry->key.primary = primary;
     entry->value.u.stringval.str = dupstr(value);
     entry->value.u.stringval.utf8 = true;
