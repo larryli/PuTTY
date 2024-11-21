@@ -3506,14 +3506,19 @@ static strbuf *term_input_data_from_unicode(
 static strbuf *term_input_data_from_charset(
     Terminal *term, int codepage, const char *str, size_t len)
 {
-    strbuf *buf = strbuf_new();
-
-    if (codepage < 0)
+    if (codepage < 0) {
+        strbuf *buf = strbuf_new();
         put_data(buf, str, len);
-    else
-        put_mb_to_wc(buf, codepage, str, len);
+        return buf;
+    } else {
+        strbuf *wide = strbuf_new();
+        put_mb_to_wc(wide, codepage, str, len);
+        strbuf *buf = term_input_data_from_unicode(
+            term, (const wchar_t *)wide->s, wide->len / sizeof(wchar_t));
+        strbuf_free(wide);
+        return buf;
+    }
 
-    return buf;
 }
 
 static inline void term_bracketed_paste_start(Terminal *term)
