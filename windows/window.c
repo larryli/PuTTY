@@ -2201,11 +2201,11 @@ static void free_hdc(WinGuiSeat *wgs, HDC hdc)
     ReleaseDC(wgs->term_hwnd, hdc);
 }
 
-static void wm_size_resize_term(WinGuiSeat *wgs, LPARAM lParam, bool border)
+static void wm_size_resize_term(WinGuiSeat *wgs, LPARAM lParam)
 {
     int width = LOWORD(lParam);
     int height = HIWORD(lParam);
-    int border_size = border ? conf_get_int(wgs->conf, CONF_window_border) : 0;
+    int border_size = conf_get_int(wgs->conf, CONF_window_border);
 
     int w = (width - border_size*2) / wgs->font_width;
     int h = (height - border_size*2) / wgs->font_height;
@@ -3129,12 +3129,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 wgs->prev_rows = wgs->term->rows;
                 wgs->prev_cols = wgs->term->cols;
                 if (resize_action == RESIZE_TERM)
-                    wm_size_resize_term(wgs, lParam, false);
+                    wm_size_resize_term(wgs, lParam);
                 reset_window(wgs, 0);
             } else if (wParam == SIZE_RESTORED && wgs->was_zoomed) {
                 wgs->was_zoomed = false;
                 if (resize_action == RESIZE_TERM) {
-                    wm_size_resize_term(wgs, lParam, true);
+                    wm_size_resize_term(wgs, lParam);
                     reset_window(wgs, 2);
                 } else if (resize_action != RESIZE_FONT)
                     reset_window(wgs, 2);
@@ -3145,7 +3145,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             } else if (resize_action == RESIZE_TERM ||
                        (resize_action == RESIZE_EITHER &&
                         !is_alt_pressed())) {
-                wm_size_resize_term(wgs, lParam, true);
+                wm_size_resize_term(wgs, lParam);
 
                 /*
                  * Sometimes, we can get a spontaneous resize event
