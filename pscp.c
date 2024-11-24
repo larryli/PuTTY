@@ -2130,12 +2130,12 @@ static void tolocal(CmdlineArg **args, size_t nargs)
  */
 static void get_dir_list(CmdlineArg **args, size_t nargs)
 {
-    char *wsrc, *host, *user;
+    char *wsrc_orig, *wsrc, *host, *user;
     const char *src;
     const char *q;
     char c;
 
-    wsrc = dupstr(cmdline_arg_to_str(args[0]));
+    wsrc = wsrc_orig = dupstr(cmdline_arg_to_str(args[0]));
 
     /* Separate host from filename */
     host = wsrc;
@@ -2186,7 +2186,7 @@ static void get_dir_list(CmdlineArg **args, size_t nargs)
         stripctrl_free(scc);
     }
 
-    sfree(wsrc);
+    sfree(wsrc_orig);
 }
 
 /*
