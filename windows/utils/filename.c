@@ -86,6 +86,15 @@ char filename_char_sanitise(char c)
 
 FILE *f_open(const Filename *fn, const char *mode, bool isprivate)
 {
+#ifdef LEGACY_WINDOWS
+    /* Fallback for legacy pre-NT windows, where as far as I can see
+     * _wfopen just doesn't work at all */
+    init_winver();
+    if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS ||
+        osPlatformId == VER_PLATFORM_WIN32s)
+        return fopen(fn->cpath, mode);
+#endif
+
     wchar_t *wmode = dup_mb_to_wc(DEFAULT_CODEPAGE, mode);
     FILE *fp = _wfopen(fn->wpath, wmode);
     sfree(wmode);
