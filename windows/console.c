@@ -72,7 +72,7 @@ typedef struct ConsoleIO {
 
 static void console_write(BinarySink *bs, const void *data, size_t len);
 
-static ConsoleIO *conio_setup(bool utf8)
+static ConsoleIO *conio_setup(bool utf8, DWORD fallback_output)
 {
     ConsoleIO *conio = snew(ConsoleIO);
 
@@ -118,14 +118,15 @@ static ConsoleIO *conio_setup(bool utf8)
     }
 
     /*
-     * Fall back from that to using the standard handles. We use
-     * standard error rather than standard output for our prompts,
-     * because that has a better chance of separating them from 
+     * Fall back from that to using the standard handles.
+     * (For prompt output, some callers use STD_ERROR_HANDLE rather
+     * than STD_OUTPUT_HANDLE, because that has a better chance of
+     * separating them from session output.)
      */
     if (conio->hin == INVALID_HANDLE_VALUE)
         conio->hin = GetStdHandle(STD_INPUT_HANDLE);
     if (conio->hout == INVALID_HANDLE_VALUE)
-        conio->hout = GetStdHandle(STD_OUTPUT_HANDLE);
+        conio->hout = GetStdHandle(fallback_output);
 
     DWORD dummy;
     conio->hin_is_console = GetConsoleMode(conio->hin, &dummy);
@@ -389,7 +390,7 @@ SeatPromptResult console_confirm_ssh_host_key(
     char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    ConsoleIO *conio = conio_setup(false);
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE);
     SeatPromptResult result;
 
     const char *prompt = console_print_seatdialogtext(conio, text);
@@ -445,7 +446,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    ConsoleIO *conio = conio_setup(false);
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE);
     SeatPromptResult result;
 
     const char *prompt = console_print_seatdialogtext(conio, text);
@@ -475,7 +476,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    ConsoleIO *conio = conio_setup(false);
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE);
     SeatPromptResult result;
 
     const char *prompt = console_print_seatdialogtext(conio, text);
@@ -501,7 +502,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
 
 bool is_interactive(void)
 {
-    ConsoleIO *conio = conio_setup(false);
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE /* irrelevant */);
     bool toret = conio->hin_is_console;
     conio_free(conio);
     return toret;
@@ -568,7 +569,7 @@ int console_askappend(LogPolicy *lp, Filename *filename,
         "The session log file \"%.*s\" already exists.\n"
         "Logging will not be enabled.\n";
 
-    ConsoleIO *conio = conio_setup(true);
+    ConsoleIO *conio = conio_setup(true, STD_ERROR_HANDLE);
     int result;
 
     if (console_batch_mode) {
@@ -660,7 +661,7 @@ StripCtrlChars *console_stripctrl_new(
 
 SeatPromptResult console_get_userpass_input(prompts_t *p)
 {
-    ConsoleIO *conio = conio_setup(p->utf8);
+    ConsoleIO *conio = conio_setup(p->utf8, STD_OUTPUT_HANDLE);
     SeatPromptResult result;
     size_t curr_prompt;
 
