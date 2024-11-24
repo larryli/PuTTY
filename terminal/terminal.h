@@ -595,8 +595,8 @@ void lineedit_send_line(TermLineEditor *le);
     X(LE_INTERRUPT)           /* pass SS_IP back to client on ^C */ \
     X(LE_SUSPEND)             /* pass SS_SUSP back to client on ^Z */ \
     X(LE_ABORT)               /* pass SS_ABORT back to client on ^\ */ \
-    X(LE_EOF_ALWAYS)          /* pass SS_EOF to client on *any* ^Z
-                               * (X(not)just if the line buffer is empty) */ \
+    X(LE_EOF_ALWAYS)          /* pass SS_EOF to client on *any* ^D \
+                               * (not just if the line buffer is empty) */ \
     X(LE_ESC_ERASES)          /* make ESC erase the line, as well as ^U */ \
     X(LE_CRLF_NEWLINE)        /* interpret manual ^M^J the same as Return */ \
     /* end of list */
