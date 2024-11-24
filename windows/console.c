@@ -502,10 +502,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
 
 bool is_interactive(void)
 {
-    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE /* irrelevant */);
-    bool toret = conio->hin_is_console;
-    conio_free(conio);
-    return toret;
+    return is_console_handle(GetStdHandle(STD_INPUT_HANDLE));
 }
 
 bool console_antispoof_prompt = true;
