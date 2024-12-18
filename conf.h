@@ -477,7 +477,7 @@ CONF_OPTION(serline,
 )
 CONF_OPTION(serspeed,
     VALUE_TYPE(INT),
-    DEFAULT_INT(9600),
+    DEFAULT_INT(115200),
     SAVE_KEYWORD("SerialSpeed"),
 )
 CONF_OPTION(serdatabits,
@@ -498,7 +498,7 @@ CONF_OPTION(serparity,
 )
 CONF_OPTION(serflow,
     VALUE_TYPE(INT),
-    DEFAULT_INT(SER_FLOW_XONXOFF),
+    DEFAULT_INT(SER_FLOW_NONE),
     SAVE_KEYWORD("SerialFlowControl"),
     STORAGE_ENUM(serflow),
 )
@@ -539,7 +539,7 @@ CONF_OPTION(rxvt_homeend,
 )
 CONF_OPTION(funky_type,
     VALUE_TYPE(INT),
-    DEFAULT_INT(FUNKY_TILDE),
+    DEFAULT_INT(FUNKY_XTERM),
     SAVE_KEYWORD("LinuxFunctionKeys"),
     STORAGE_ENUM(funky_type),
 )
@@ -556,7 +556,7 @@ CONF_OPTION(no_applic_c, /* totally disable app cursor keys */
 )
 CONF_OPTION(no_applic_k, /* totally disable app keypad */
     VALUE_TYPE(BOOL),
-    DEFAULT_BOOL(false),
+    DEFAULT_BOOL(true),
     SAVE_KEYWORD("NoApplicationKeys"),
 )
 CONF_OPTION(no_mouse_rep, /* totally disable mouse reporting */
@@ -704,7 +704,7 @@ CONF_OPTION(wintitle, /* initial window title */
 /* Terminal options */
 CONF_OPTION(savelines,
     VALUE_TYPE(INT),
-    DEFAULT_INT(2000),
+    DEFAULT_INT(9999),
     SAVE_KEYWORD("ScrollbackLines"),
 )
 CONF_OPTION(dec_om,
