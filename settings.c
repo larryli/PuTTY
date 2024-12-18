@@ -1063,9 +1063,9 @@ static int sessioncmp(const void *av, const void *bv)
      * Alphabetical order, except that "Default Settings" is a
      * special case and comes first.
      */
-    if (!strcmp(a, "Default Settings"))
+    if (!strcmp(a, "默认设置"))
         return -1;                     /* a comes first */
-    if (!strcmp(b, "Default Settings"))
+    if (!strcmp(b, "默认设置"))
         return +1;                     /* b comes first */
     /*
      * FIXME: perhaps we should ignore the first & in determining
@@ -1108,7 +1108,7 @@ void get_sesslist(struct sesslist *list, bool allocate)
         p = list->buffer;
         list->nsessions = 1;           /* "Default Settings" counts as one */
         while (*p) {
-            if (strcmp(p, "Default Settings"))
+            if (strcmp(p, "默认设置"))
                 list->nsessions++;
             while (*p)
                 p++;
@@ -1116,11 +1116,11 @@ void get_sesslist(struct sesslist *list, bool allocate)
         }
 
         list->sessions = snewn(list->nsessions + 1, const char *);
-        list->sessions[0] = "Default Settings";
+        list->sessions[0] = "默认设置";
         p = list->buffer;
         i = 1;
         while (*p) {
-            if (strcmp(p, "Default Settings"))
+            if (strcmp(p, "默认设置"))
                 list->sessions[i++] = p;
             while (*p)
                 p++;

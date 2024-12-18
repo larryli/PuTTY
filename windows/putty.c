@@ -68,15 +68,15 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                  * and delete the random seed file.
                  */
                 char *s1, *s2;
-                s1 = dupprintf("This procedure will remove ALL Registry entries\n"
-                               "associated with %s, and will also remove\n"
-                               "the random seed file. (This only affects the\n"
-                               "currently logged-in user.)\n"
+                s1 = dupprintf("此过程将删除所有与 %s 相关联\n"
+                               "注册表项目，并且还将删除随机\n"
+                               "种子文件。（这只会影响到当前\n"
+                               "登录的用户。）\n"
                                "\n"
-                               "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
-                               "Are you really sure you want to continue?",
+                               "此操作将会摧毁保存的会话。\n"
+                               "真的确定要继续么？",
                                appname);
-                s2 = dupprintf("%s Warning", appname);
+                s2 = dupprintf("%s 警告", appname);
                 if (message_box(NULL, s1, s2,
                                 MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
                                 false, HELPCTXID(option_cleanup)) == IDYES) {
@@ -123,7 +123,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             } else if (*p != '-') {
                 cmdline_error("unexpected argument \"%s\"", p);
             } else {
-                cmdline_error("unknown option \"%s\"", p);
+                cmdline_error("未知选项 \"%s\"", p);
             }
         }
     }
@@ -168,8 +168,8 @@ const struct BackendVtable *backend_vt_from_conf(Conf *conf)
     const struct BackendVtable *vt = backend_vt_from_proto(
         conf_get_int(conf, CONF_protocol));
     if (!vt) {
-        char *str = dupprintf("%s Internal Error", appname);
-        MessageBox(NULL, "Unsupported protocol number found",
+        char *str = dupprintf("%s 内部错误", appname);
+        MessageBox(NULL, "发现不支持的协议号",
                    str, MB_OK | MB_ICONEXCLAMATION);
         sfree(str);
         cleanup_exit(1);
