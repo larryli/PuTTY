@@ -52,6 +52,7 @@ static const SeatVtable psftp_seat_vt = {
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = console_connection_fatal,
+    .nonfatal = console_nonfatal,
     .update_specials_menu = nullseat_update_specials_menu,
     .get_ttymode = nullseat_get_ttymode,
     .set_busy_status = nullseat_set_busy_status,
@@ -2392,7 +2393,7 @@ static void do_sftp_cleanup(void)
     }
 }
 
-int do_sftp(int mode, int modeflags, char *batchfile)
+int do_sftp(int mode, int modeflags, const char *batchfile)
 {
     FILE *fp;
     int ret;
@@ -2791,15 +2792,15 @@ const unsigned cmdline_tooltype = TOOLTYPE_FILETRANSFER;
 /*
  * Main program. Parse arguments etc.
  */
-int psftp_main(int argc, char *argv[])
+int psftp_main(CmdlineArgList *arglist)
 {
-    int i, toret;
+    int toret;
     int portnumber = 0;
     char *userhost, *user;
     int mode = 0;
     int modeflags = 0;
     bool sanitise_stderr = true;
-    char *batchfile = NULL;
+    const char *batchfile = NULL;
 
     sk_init();
 
@@ -2809,57 +2810,58 @@ int psftp_main(int argc, char *argv[])
     conf = conf_new();
     do_defaults(NULL, conf);
 
-    for (i = 1; i < argc; i++) {
-        int retd;
-        if (argv[i][0] != '-') {
+    size_t arglistpos = 0;
+    while (arglist->args[arglistpos]) {
+        CmdlineArg *arg = arglist->args[arglistpos++];
+        CmdlineArg *nextarg = arglist->args[arglistpos];
+        const char *argstr = cmdline_arg_to_str(arg);
+
+        if (argstr[0] != '-') {
             if (userhost)
-                usage();
+                cmdline_error("unexpected extra argument \"%s\"", argstr);
             else
-                userhost = dupstr(argv[i]);
+                userhost = dupstr(argstr);
             continue;
         }
-        retd = cmdline_process_param(
-            argv[i], i+1 < argc ? argv[i+1] : NULL, 1, conf);
+        int retd = cmdline_process_param(arg, nextarg, 1, conf);
         if (retd == -2) {
-            cmdline_error("option \"%s\" requires an argument", argv[i]);
+            cmdline_error("option \"%s\" requires an argument", argstr);
         } else if (retd == 2) {
-            i++;               /* skip next argument */
+            arglistpos++;              /* skip next argument */
         } else if (retd == 1) {
             /* We have our own verbosity in addition to `flags'. */
             if (cmdline_verbose())
                 verbose = true;
-        } else if (strcmp(argv[i], "-h") == 0 ||
-                   strcmp(argv[i], "-?") == 0 ||
-                   strcmp(argv[i], "--help") == 0) {
+        } else if (strcmp(argstr, "-h") == 0 ||
+                   strcmp(argstr, "-?") == 0 ||
+                   strcmp(argstr, "--help") == 0) {
             usage();
-        } else if (strcmp(argv[i], "-pgpfp") == 0) {
+            cleanup_exit(0);
+        } else if (strcmp(argstr, "-pgpfp") == 0) {
             pgp_fingerprints();
-            return 1;
-        } else if (strcmp(argv[i], "-V") == 0 ||
-                   strcmp(argv[i], "--version") == 0) {
+            return 0;
+        } else if (strcmp(argstr, "-V") == 0 ||
+                   strcmp(argstr, "--version") == 0) {
             version();
-        } else if (strcmp(argv[i], "-batch") == 0) {
-            console_batch_mode = true;
-        } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+        } else if (strcmp(argstr, "-b") == 0 && nextarg) {
             mode = 1;
-            batchfile = argv[++i];
-        } else if (strcmp(argv[i], "-bc") == 0) {
+            batchfile = cmdline_arg_to_str(nextarg);
+            arglistpos++;
+        } else if (strcmp(argstr, "-bc") == 0) {
             modeflags = modeflags | 1;
-        } else if (strcmp(argv[i], "-be") == 0) {
+        } else if (strcmp(argstr, "-be") == 0) {
             modeflags = modeflags | 2;
-        } else if (strcmp(argv[i], "-sanitise-stderr") == 0) {
+        } else if (strcmp(argstr, "-sanitise-stderr") == 0) {
             sanitise_stderr = true;
-        } else if (strcmp(argv[i], "-no-sanitise-stderr") == 0) {
+        } else if (strcmp(argstr, "-no-sanitise-stderr") == 0) {
             sanitise_stderr = false;
-        } else if (strcmp(argv[i], "--") == 0) {
-            i++;
+        } else if (strcmp(argstr, "--") == 0) {
+            arglistpos++;
             break;
         } else {
-            cmdline_error("unknown option \"%s\"", argv[i]);
+            cmdline_error("unknown option \"%s\"", argstr);
         }
     }
-    argc -= i;
-    argv += i;
     backend = NULL;
 
     stdio_sink_init(&stderr_ss, stderr);
@@ -2896,6 +2898,8 @@ int psftp_main(int argc, char *argv[])
         printf("psftp: no hostname specified; use \"open host.name\""
                " to connect\n");
     }
+
+    cmdline_arg_list_free(arglist);
 
     toret = do_sftp(mode, modeflags, batchfile);
 

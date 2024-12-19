@@ -15,33 +15,34 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
         handle_special_filemapping_cmdline(cmdline, conf))
         return;
 
-    int argc;
-    char **argv, **argstart;
-    split_into_argv(cmdline, &argc, &argv, &argstart);
-
-    for (int i = 0; i < argc; i++) {
-        char *arg = argv[i];
-        int retd = cmdline_process_param(
-            arg, i+1<argc?argv[i+1]:NULL, 1, conf);
+    CmdlineArgList *arglist = cmdline_arg_list_from_GetCommandLineW();
+    size_t arglistpos = 0;
+    while (arglist->args[arglistpos]) {
+        CmdlineArg *arg = arglist->args[arglistpos++];
+        CmdlineArg *nextarg = arglist->args[arglistpos];
+        const char *argstr = cmdline_arg_to_str(arg);
+        int retd = cmdline_process_param(arg, nextarg, 1, conf);
         if (retd == -2) {
-            cmdline_error("option \"%s\" requires an argument", arg);
+            cmdline_error("option \"%s\" requires an argument", argstr);
         } else if (retd == 2) {
-            i++;               /* skip next argument */
+            arglistpos++;              /* skip next argument */
         } else if (retd == 1) {
             continue;          /* nothing further needs doing */
-        } else if (!strcmp(arg, "-e")) {
-            if (i+1 < argc) {
+        } else if (!strcmp(argstr, "-e")) {
+            if (nextarg) {
                 /* The command to execute is taken to be the unparsed
                  * version of the whole remainder of the command line. */
-                conf_set_str(conf, CONF_remote_cmd, argstart[i+1]);
+                char *cmd = cmdline_arg_remainder_utf8(nextarg);
+                conf_set_utf8(conf, CONF_remote_cmd, cmd);
+                sfree(cmd);
                 return;
             } else {
-                cmdline_error("option \"%s\" requires an argument", arg);
+                cmdline_error("option \"%s\" requires an argument", argstr);
             }
-        } else if (arg[0] == '-') {
-            cmdline_error("unrecognised option \"%s\"", arg);
+        } else if (argstr[0] == '-') {
+            cmdline_error("unrecognised option \"%s\"", argstr);
         } else {
-            cmdline_error("unexpected non-option argument \"%s\"", arg);
+            cmdline_error("unexpected non-option argument \"%s\"", argstr);
         }
     }
 

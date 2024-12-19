@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 18819 # update this at every release
+set Epoch 19052 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -140,6 +140,9 @@ delegate -
 in putty do cmake . -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak" -DSTRICT=ON
 in putty do make -j$(nproc) VERBOSE=1
 in putty do python3 test/cryptsuite.py
+in putty do ./test_lineedit
+in putty do ./test_terminal
+in putty do ./test_conf
 enddelegate
 
 delegate -

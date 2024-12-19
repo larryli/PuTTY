@@ -6,6 +6,7 @@ add_sources_from_current_dir(utils
   utils/arm_arch_queries.c
   utils/aux_match_opt.c
   utils/centre_window.c
+  utils/cmdline_arg.c
   utils/cryptoapi.c
   utils/defaults.c
   utils/dll_hijacking_protection.c
@@ -16,6 +17,7 @@ add_sources_from_current_dir(utils
   utils/getdlgitemtext_alloc.c
   utils/get_system_dir.c
   utils/get_username.c
+  utils/gui-timing.c
   utils/interprocess_mutex.c
   utils/is_console_handle.c
   utils/load_system32_dll.c
@@ -33,6 +35,7 @@ add_sources_from_current_dir(utils
   utils/security.c
   utils/shinydialogbox.c
   utils/split_into_argv.c
+  utils/split_into_argv_w.c
   utils/version.c
   utils/win_strerror.c
   unicode.c)
@@ -100,6 +103,7 @@ add_executable(putty
   window.c
   putty.c
   help.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-console.c
   putty.rc)
 be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
 add_dependencies(putty generated_licence_h)
@@ -118,6 +122,7 @@ add_executable(puttytel
   help.c
   ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
   ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-console.c
   ${CMAKE_SOURCE_DIR}/stubs/no-rand.c
   ${CMAKE_SOURCE_DIR}/proxy/nocproxy.c
   ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
@@ -160,6 +165,7 @@ if(HAVE_CONPTY)
     conpty.c
     ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
     ${CMAKE_SOURCE_DIR}/stubs/no-ca-config.c
+    ${CMAKE_SOURCE_DIR}/stubs/no-console.c
     ${CMAKE_SOURCE_DIR}/stubs/no-rand.c
     ${CMAKE_SOURCE_DIR}/proxy/nosshproxy.c
     pterm.rc)
@@ -177,10 +183,32 @@ else()
 endif()
 
 add_executable(test_split_into_argv
-  utils/split_into_argv.c)
+  test/test_split_into_argv.c)
 target_compile_definitions(test_split_into_argv PRIVATE TEST)
 target_link_libraries(test_split_into_argv utils ${platform_libraries})
 
 add_executable(test_screenshot
-  test_screenshot.c)
+  test/test_screenshot.c)
 target_link_libraries(test_screenshot utils ${platform_libraries})
+
+add_executable(test_lineedit
+  ${CMAKE_SOURCE_DIR}/test/test_lineedit.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-logging.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-printing.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-storage.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-timing.c
+  no-jump-list.c)
+target_link_libraries(test_lineedit
+  guiterminal settings eventloop utils ${platform_libraries})
+
+add_executable(test_terminal
+  ${CMAKE_SOURCE_DIR}/test/test_terminal.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-gss.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-storage.c
+  ${CMAKE_SOURCE_DIR}/stubs/no-timing.c
+  no-jump-list.c)
+target_link_libraries(test_terminal
+  guiterminal settings eventloop utils ${platform_libraries})
+
+add_sources_from_current_dir(test_conf no-jump-list.c handle-wait.c)

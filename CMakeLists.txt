@@ -20,7 +20,7 @@ add_subdirectory(utils)
 add_subdirectory(stubs)
 
 add_library(logging OBJECT
-  logging.c)
+  logging.c utils/logeventf.c)
 
 add_library(eventloop STATIC
   callback.c timing.c)
@@ -36,7 +36,8 @@ add_library(crypto STATIC
 add_subdirectory(crypto)
 
 add_library(network STATIC
-  errsock.c logging.c x11disp.c
+  errsock.c x11disp.c
+  $<TARGET_OBJECTS:logging>
   proxy/proxy.c
   proxy/http.c
   proxy/socks4.c
@@ -54,7 +55,7 @@ add_library(agent STATIC
 
 add_library(guiterminal STATIC
   terminal/terminal.c terminal/bidi.c
-  ldisc.c config.c dialog.c
+  ldisc.c terminal/lineedit.c config.c dialog.c
   $<TARGET_OBJECTS:logging>)
 
 add_library(noterminal STATIC
@@ -87,6 +88,11 @@ add_executable(test_decode_utf8
 target_compile_definitions(test_decode_utf8 PRIVATE TEST)
 target_link_libraries(test_decode_utf8 utils ${platform_libraries})
 
+add_executable(test_unicode_norm
+  utils/unicode-norm.c)
+target_compile_definitions(test_unicode_norm PRIVATE TEST)
+target_link_libraries(test_unicode_norm utils ${platform_libraries})
+
 add_executable(test_tree234
   utils/tree234.c)
 target_compile_definitions(test_tree234 PRIVATE TEST)
@@ -111,7 +117,8 @@ add_executable(bidi_test
 target_link_libraries(bidi_test guiterminal utils ${platform_libraries})
 
 add_executable(plink
-  ${platform}/plink.c)
+  ${platform}/plink.c
+  stubs/no-lineedit.c)
 # Note: if we ever port Plink to a platform where we can't implement a
 # serial backend, this be_list command will need to become platform-
 # dependent, so that it only sets the SERIAL option on platforms where
@@ -151,8 +158,30 @@ target_link_libraries(psocks
   eventloop console network utils
   ${platform_libraries})
 
+add_executable(test_conf
+  test/test_conf.c
+  stubs/no-agent.c
+  stubs/no-callback.c
+  stubs/no-gss.c
+  stubs/no-ldisc.c
+  stubs/no-network.c
+  stubs/no-timing.c
+  proxy/noproxy.c # FIXME: move this to stubs
+)
+be_list(test_conf TestConf SSH SERIAL OTHERBACKENDS)
+target_link_libraries(test_conf sshclient otherbackends settings network crypto utils ${platform_libraries})
+
 foreach(subdir ${platform} ${extra_dirs})
   add_subdirectory(${subdir})
 endforeach()
+
+# Nasty bodge: we'd like to run this command inside unix/CMakeLists,
+# adding the 'charset' library to everything that links with utils.
+# But that wasn't allowed until cmake 3.13 (see cmake policy CMP0073),
+# and we still have a min cmake version less than that. So we do it
+# here instead.
+if(platform STREQUAL unix)
+  target_link_libraries(utils charset)
+endif()
 
 configure_file(cmake/cmake.h.in ${GENERATED_SOURCES_DIR}/cmake.h)

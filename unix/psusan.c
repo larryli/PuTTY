@@ -78,7 +78,7 @@ int platform_default_i(const char *name, int def)
 
 FontSpec *platform_default_fontspec(const char *name)
 {
-    return fontspec_new("");
+    return fontspec_new_default();
 }
 
 Filename *platform_default_filename(const char *name)
@@ -265,8 +265,8 @@ static Plug *server_conn_plug(
         &inst->logpolicy, &unix_live_sftpserver_vt);
 }
 
-static void server_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
-                       const char *error_msg, int error_code)
+static void server_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
+                       int port, const char *error_msg, int error_code)
 {
     log_to_stderr(-1, error_msg);
 }
@@ -299,12 +299,12 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     if ((err = sk_socket_error(s)) != NULL)
         return 1;
 
-    SocketPeerInfo *pi = sk_peer_info(s);
+    SocketEndpointInfo *pi = sk_peer_info(s);
 
     char *msg = dupprintf("new connection from %s", pi->log_text);
     log_to_stderr(inst->id, msg);
     sfree(msg);
-    sk_free_peer_info(pi);
+    sk_free_endpoint_info(pi);
 
     sk_set_frozen(s, false);
     ssh_server_start(plug, s);

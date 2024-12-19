@@ -27,7 +27,7 @@ def winmungestr(s):
     candot = 0
     r = ""
     for c in s:
-        if c in ' \*?%~' or ord(c)<ord(' ') or (c == '.' and not candot):
+        if c in r' \*?%~' or ord(c)<ord(' ') or (c == '.' and not candot):
             r = r + ("%%%02X" % ord(c))
         else:
             r = r + c
@@ -385,7 +385,7 @@ class OutputFormatter(object):
 class WindowsOutputFormatter(OutputFormatter):
     def header(self):
         # Output REG file header.
-        self.fh.write("""REGEDIT4
+        self.fh.write(r"""REGEDIT4
 
 [HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\SshHostKeys]
 """)

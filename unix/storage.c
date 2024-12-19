@@ -321,7 +321,6 @@ static int keycmp(void *av, void *bv)
 void provide_xrm_string(const char *string, const char *progname)
 {
     const char *p, *q;
-    char *key;
     struct skeyval *xrms, *ret;
 
     p = q = strchr(string, ':');
@@ -330,14 +329,13 @@ void provide_xrm_string(const char *string, const char *progname)
                 " \"%s\"\n", progname, string);
         return;
     }
-    q++;
+    xrms = snew(struct skeyval);
+
     while (p > string && p[-1] != '.' && p[-1] != '*')
         p--;
-    xrms = snew(struct skeyval);
-    key = snewn(q-p, char);
-    memcpy(key, p, q-p);
-    key[q-p-1] = '\0';
-    xrms->key = key;
+    xrms->key = mkstr(make_ptrlen(p, q-p));
+
+    q++;
     while (*q && isspace((unsigned char)*q))
         q++;
     xrms->value = dupstr(q);
@@ -828,7 +826,7 @@ bool have_ssh_host_key(const char *hostname, int port,
     return check_stored_host_key(hostname, port, keytype, "") != 1;
 }
 
-void store_host_key(const char *hostname, int port,
+void store_host_key(Seat *seat, const char *hostname, int port,
                     const char *keytype, const char *key)
 {
     FILE *rfp, *wfp;
@@ -846,7 +844,7 @@ void store_host_key(const char *hostname, int port,
 
         dir = make_filename(INDEX_DIR, NULL);
         if ((errmsg = make_dir_path(dir, 0700)) != NULL) {
-            nonfatal("Unable to store host key: %s", errmsg);
+            seat_nonfatal(seat, "Unable to store host key: %s", errmsg);
             sfree(errmsg);
             sfree(dir);
             sfree(tmpfilename);
@@ -857,8 +855,8 @@ void store_host_key(const char *hostname, int port,
         wfp = fopen(tmpfilename, "w");
     }
     if (!wfp) {
-        nonfatal("Unable to store host key: open(\"%s\") "
-                 "returned '%s'", tmpfilename, strerror(errno));
+        seat_nonfatal(seat, "Unable to store host key: open(\"%s\") "
+                      "returned '%s'", tmpfilename, strerror(errno));
         sfree(tmpfilename);
         return;
     }
@@ -889,9 +887,9 @@ void store_host_key(const char *hostname, int port,
     fclose(wfp);
 
     if (rename(tmpfilename, filename) < 0) {
-        nonfatal("Unable to store host key: rename(\"%s\",\"%s\")"
-                 " returned '%s'", tmpfilename, filename,
-                 strerror(errno));
+        seat_nonfatal(seat, "Unable to store host key: rename(\"%s\",\"%s\")"
+                      " returned '%s'", tmpfilename, filename,
+                      strerror(errno));
     }
 
     sfree(tmpfilename);

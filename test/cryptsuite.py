@@ -2708,6 +2708,62 @@ culpa qui officia deserunt mollit anim id est laborum.
                         self.assertFalse(ssh_key_verify(
                             key, badsig, test_message))
 
+    def testShortRSASignatures(self):
+        key = ssh_key_new_priv('rsa', b64("""
+AAAAB3NzaC1yc2EAAAADAQABAAABAQDeoTvwEDg46K7vYrQFFwbo2sBPahNoiw7i
+RMbpwuOIH8sAOFAWzDvIZpDODGkobwc2hM8FRlZUg3lTgDaqVuMJOupG0xzOqehu
+Fw3kXrm6ScWxaUXs+b5o88sqXBBYs91KmsWqYKTUUwDBuDHdo8Neq8h8SJqspCo4
+qctIoLoTrXYMqonfHXZp4bIn5WPN6jNL9pLi7Y+sl8aLe4w73aZzxMphecQfMMVJ
+ezmv9zgA7gKw5ErorIGKCF44YRbvNisZA5j2DyLLsd/ztw2ikIEnx9Ng33+tGEBC
+zq2RYb4ZtuT9dHXcNiHx3CqLLlFrjl13hQamjwoVy4ydDIdQZjYz
+"""), b64("""
+AAABADhDwXUrdDoVvFhttpduuWVSG7Y2Vc9fDZTr0uWzRnPZrSFSGhOY7Cb6nPAm
+PNFmNgl2SSfJHfpf++K5jZdBPEHR7PGXWzlzwXVJSE6GDiRhjqAGvhBlEdVOf/Ml
+r0/rrSq0sO4dXKr4i0FqPtgIElEz0whuBQFKwAzwBJtHW5+rBzGLvoHh560UN4IK
+SU3jv/nDMvPohEBfOA0puqYAfZM8PmU/kbgERPLyPp/dfnGBC4LlOnAcak+2RNu6
+yQ5v0NKksyYidCI76Ztf3B9asNNN4AbTg8JbzABwjtxR+0bDOOi0RwAJC2Wn2FOy
+WiJsQWjz/fMnJW8WVg3DR/va/4EAAACBAP8rwn1vy4Y/S1EixR1XZM9F1OvJQwzN
+EKhD1Qbr1YlLX3oZRnulJg/j0HupGnKCRh8DulNbrmXlMFdeZHDVFw87/o73DTCQ
+g2qnRNUwJdBkePrA563vVx6OXe5TSF3+3SRNMesAdN8ExvGeOFP10z0FZhS3Zuco
+y4WrxQBXVetBAAAAgQDfWmh5CRJEBCJbLHMdZK8QAw2QbKiD0VTw7PkDWJuSbYDB
+AvEhoFuXUO/yMIfCCFjUuzO+3iumk8F/lFTkJ620Aah5tzRcKCtyW4YuoQUYMgpW
+5/hGIL4M4bvUDGUGI3+SOn8qfAzCCsFD0FdR6ms0pMubaJQmeiI2wyM9ehOIcwAA
+AIEAmKEX1YZHNtx/D/SaTsl6z+KwmOluqjzyjrwL16QLpIR1/F7lAjSnMGz3yORp
++314D3yZzKutpalwwsS4+z7838pilVaV7iWqF4TMDKYZ/6/baRXpwxrwFqvWXwQ3
+cLerc7bpA/IeVovoTirt0RNxdMPIVv3XsXE7pqatJBwOcQE=
+"""))
+
+        def decode(data):
+            pos = 0
+            alg, data = ssh_decode_string(data, True)
+            sig, data = ssh_decode_string(data, True)
+            self.assertEqual(data, b'')
+            return alg, sig
+
+        # An RSA signature over each hash which comes out a byte short
+        # with this key. Found in the obvious manner, by signing
+        # "message0", "message1", ... until one was short.
+        #
+        # We expect the ssh-rsa signature to be stored short, and the
+        # other two to be padded with a zero byte.
+        blob = ssh_key_sign(key, "message79", 0)
+        alg, sig = decode(blob)
+        self.assertEqual(alg, b"ssh-rsa")
+        self.assertEqual(len(sig), 255) # one byte short
+        self.assertNotEqual(sig[0], 0)
+
+        blob = ssh_key_sign(key, "message208", 2)
+        alg, sig = decode(blob)
+        self.assertEqual(alg, b"rsa-sha2-256")
+        self.assertEqual(len(sig), 256) # full-length
+        self.assertEqual(sig[0], 0) # and has a leading zero byte
+
+        blob = ssh_key_sign(key, "message461", 4)
+        alg, sig = decode(blob)
+        self.assertEqual(alg, b"rsa-sha2-512")
+        self.assertEqual(len(sig), 256) # full-length
+        self.assertEqual(sig[0], 0) # and has a leading zero byte
+
     def testPPKLoadSave(self):
         # Stability test of PPK load/save functions.
         input_clear_key = b"""\
@@ -2892,6 +2948,36 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         with queued_specific_random_data(unhex("99f3")):
             self.assertEqual(rsa1_save_sb(k2, comment, pp),
                              input_encrypted_key)
+
+    def testRFC4716(self):
+        key = """\
+---- BEGIN SSH2 PUBLIC KEY ----
+Comment: "rsa-key-20240810"
+AAAAB3NzaC1yc2EAAAADAQABAAABAQCKdLtvsewMpsbWQCNs8VOWKlh6eQT0gzbc
+IoDLFPk5uVS1HjAEEjIZaXAB86PHTeJhkwEMlMXZ8mUZwAcZkuqKVCSib/VkuMEv
+wXa4cOf70XMBUtUgRJ5bJRMsA8PNkZN/OQHyyBLgTXGoFPWq73A3fxPZIe8BSAN+
+mPuILX1GHUKbBzT56xRNwB5nHkg0MStEotkIzg3xRNIXB9qyP6ILO4Qax2n7+XJS
+lmzr0KDJq5ZNSEZV4IprvAYBeEtvdBfLrRM4kifpVDE7ZrVXtKOIGDsxdEEBeqqy
+LzN/Ly+uECsga2hoc+P/ZHMULMZkCfrOyWdeXz7BR/acLZJoT579
+---- END SSH2 PUBLIC KEY ----
+"""
+
+        comment = b"rsa-key-20240810"
+        public_blob = b64("""
+AAAAB3NzaC1yc2EAAAADAQABAAABAQCKdLtvsewMpsbWQCNs8VOWKlh6eQT0gzbc
+IoDLFPk5uVS1HjAEEjIZaXAB86PHTeJhkwEMlMXZ8mUZwAcZkuqKVCSib/VkuMEv
+wXa4cOf70XMBUtUgRJ5bJRMsA8PNkZN/OQHyyBLgTXGoFPWq73A3fxPZIe8BSAN+
+mPuILX1GHUKbBzT56xRNwB5nHkg0MStEotkIzg3xRNIXB9qyP6ILO4Qax2n7+XJS
+lmzr0KDJq5ZNSEZV4IprvAYBeEtvdBfLrRM4kifpVDE7ZrVXtKOIGDsxdEEBeqqy
+LzN/Ly+uECsga2hoc+P/ZHMULMZkCfrOyWdeXz7BR/acLZJoT579
+""")
+
+        self.assertEqual(ppk_loadpub_s(key),
+                         (True, b'ssh-rsa', public_blob, comment, None))
+
+        self.assertEqual(ppk_loadpub_s(key[:len(key)//2]),
+                         (False, None, b'', None,
+                          b"invalid end line in SSH-2 public key file"))
 
     def testOpenSSHCert(self):
         def per_base_keytype_tests(alg, run_validation_tests=False,
@@ -3187,8 +3273,9 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
 
         def aesgcm(key, iv, aes_impl, gcm_impl):
             c = ssh_cipher_new('aes{:d}_gcm_{}'.format(8*len(key), aes_impl))
+            if c is None: return None, None # skip test if HW AES not available
             m = ssh2_mac_new('aesgcm_{}'.format(gcm_impl), c)
-            if m is None: return # skip test if HW GCM not available
+            if m is None: return None, None # skip test if HW GCM not available
             c.setkey(key)
             c.setiv(iv + b'\0'*4)
             m.setkey(b'')
@@ -3242,6 +3329,7 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
                            '5b60142bfcf4e5b0a9ada3451799866e')
 
             c, m = aesgcm(key, iv, aes_impl, gcm_impl)
+            if c is None or m is None: return # skip if HW impl unavailable
             len_dec = c.decrypt_length(aad, 123)
             self.assertEqual(len_dec, aad) # length not actually encrypted
             m.start()
@@ -3339,9 +3427,11 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         for impl in get_aes_impls():
             with self.subTest(aes_impl=impl):
                 gcm = ssh_cipher_new('aes{:d}_gcm_{}'.format(8*len(key), impl))
+                if gcm is None: continue  # skip if HW AES unavailable
                 gcm.setkey(key)
 
                 cbc = ssh_cipher_new('aes{:d}_cbc_{}'.format(8*len(key), impl))
+                # assume if gcm_<impl> is available, cbc_<impl> will be too
                 cbc.setkey(key)
 
                 # A simple test to ensure the low word gets

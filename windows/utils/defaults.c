@@ -11,7 +11,7 @@ FontSpec *platform_default_fontspec(const char *name)
     if (!strcmp(name, "Font"))
         return fontspec_new("新宋体", false, 12, GB2312_CHARSET);
     else
-        return fontspec_new("", false, 0, 0);
+        return fontspec_new_default();
 }
 
 Filename *platform_default_filename(const char *name)

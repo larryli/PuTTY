@@ -308,8 +308,8 @@ def _lex_testcrypt_header(header):
         # And then match a token
         '({})'.format('|'.join((
             # Punctuation
-            '\(',
-            '\)',
+            r'\(',
+            r'\)',
             ',',
             # Identifier
             '[A-Za-z_][A-Za-z0-9_]*',

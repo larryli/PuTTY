@@ -9,9 +9,9 @@
 
 Filename *filename_from_str(const char *str)
 {
-    Filename *ret = snew(Filename);
-    ret->path = dupstr(str);
-    return ret;
+    Filename *fn = snew(Filename);
+    fn->path = dupstr(str);
+    return fn;
 }
 
 Filename *filename_copy(const Filename *fn)

@@ -112,7 +112,7 @@ Making a release candidate build
  - Make a preliminary gpg signature, but don't run the full release-
    signing procedure. (We use the presence of a full set of GPG
    signatures to distinguish _abandoned_ release candidates from the
-   one that ended up being the release.) In the 'build.X.YZ-rcN.out'
+   one that ended up being the release.) In the 'build-X.YZ-rcN.out'
    directory, run
      sh sign.sh -r -p putty
    which will generate a clearsigned file called
@@ -164,12 +164,23 @@ Preparing to make the release
 
  - Prepare some 'what's new in this release' blurb for the Windows
    Store. This should be very brief - even briefer than the website
-   news item. Keep it to a couple of sentences in a single paragraph,
-   templated along the lines of 'X.YZ adds support for this, that and
-   the other, and fixes bugs including this and that', or 'X.YZ is a
-   bug-fix release, mostly in the area of Foo, with one important fix
-   to Bar'.
+   news item.
+    * Keep it to a couple of sentences in a single paragraph,
+      templated along the lines of
+        X.YZ adds support for this, that and the other, and fixes bugs
+        including this and that.
+      or
+        X.YZ is a bug-fix release, mostly in the area of Foo, with one
+        important fix to Bar.
     * Might as well check this into putty-aux too.
+
+ - Prepare a toot! I'm on Mastodon, so I should announce the release
+   there. This means writing a cut-down 500-char announcement, maybe
+   more like the website news item than like the email.
+    * Include any relevant hashtags. Refer to the software as #PuTTY;
+      if you mention SSH then write it as #SSH; similarly if we're
+      fixing a #vulnerability. That's how people will find the toot.
+    * Again, commit to putty-aux for team review.
 
  - Update the wishlist, in a local checkout:
     * If there are any last-minute wishlist entries (e.g. security
@@ -196,6 +207,21 @@ Preparing to make the release
      sh sign.sh -r putty     # and enter the release key passphrase
      chmod -R a-w putty
 
+ - If the release is on a branch (which I expect it generally will
+   be), prepare a merge of that branch to main. Even if the branch
+   consists of nothing but cherry-picks _from_ main, this will mean
+   that the 'update version number' change appears on main and the
+   snapshots start announcing themselves as post-X.YZ. But also, if
+   there's anything new on the branch, this is how it gets on to main
+   as well.
+
+ - Log in to the MS Partner Center and make sure everything is in
+   order. If the UI has completely changed, make sure you can find
+   your way around the new one; if it wants you to read an enormous
+   document of revised T&Cs, get that out of the way in advance, so it
+   doesn't suddenly become a delay in the middle of the actual
+   release.
+
 The actual release procedure
 ----------------------------
 
@@ -219,18 +245,12 @@ locally, this is the procedure for putting it up on the web.
    correctly and work:
       ../putty/release.pl --version=X.YZ --postcheck
 
- - If the release is on a branch (which I expect it generally will
-   be), merge that branch to main, so that the 'update version number'
-   change appears on main and the snapshots start announcing
-   themselves as post-X.YZ.
-
  - Push all the git repositories:
     * run 'git push' in the website checkout
     * run 'git push' in the wishlist checkout
     * push from the main PuTTY checkout. Typically this one will be
-      pushing both the release tag and the merge we just made to the
-      main branch, plus removing the pre-release branch, so you'll
-      want some
+      pushing both the release tag and the merge to the main branch,
+      plus removing the pre-release branch, so you'll want some
       commands along these lines:
         git push origin main          # update the main branch
         git push origin --tags        # should push the new release tag
@@ -276,6 +296,7 @@ locally, this is the procedure for putting it up on the web.
     + Mail that release announcement to
       <putty-announce@lists.tartarus.org>.
     + Post it to comp.security.ssh.
+    + Post the prepared toot to Mastodon.
     + Mention it in <TDHTT> on mono.
 
  - Edit the master ~/adm/puttysnap.sh to disable pre-release builds,

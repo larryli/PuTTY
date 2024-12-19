@@ -122,11 +122,19 @@ void conf_editbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
 
     if (type->type == EDIT_STR) {
         if (event == EVENT_REFRESH) {
-            char *field = conf_get_str(conf, key);
-            dlg_editbox_set(ctrl, dlg, field);
+            bool utf8;
+            char *field = conf_get_str_ambi(conf, key, &utf8);
+            if (utf8)
+                dlg_editbox_set_utf8(ctrl, dlg, field);
+            else
+                dlg_editbox_set(ctrl, dlg, field);
         } else if (event == EVENT_VALCHANGE) {
-            char *field = dlg_editbox_get(ctrl, dlg);
-            conf_set_str(conf, key, field);
+            char *field = dlg_editbox_get_utf8(ctrl, dlg);
+            if (!conf_try_set_utf8(conf, key, field)) {
+                sfree(field);
+                field = dlg_editbox_get(ctrl, dlg);
+                conf_set_str(conf, key, field);
+            }
             sfree(field);
         }
     } else {
@@ -2190,6 +2198,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_checkbox(s, "禁用双向文本显示(D)",
                   'd', HELPCTX(features_bidi), conf_checkbox_handler,
                   I(CONF_no_bidi));
+    ctrl_checkbox(s, "Disable bracketed paste mode",
+                  'p', HELPCTX(features_bracketed_paste), conf_checkbox_handler,
+                  I(CONF_no_bracketed_paste));
 
     /*
      * The Window panel.
@@ -2248,9 +2259,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       HELPCTX(appearance_cursor),
                       conf_radiobutton_handler,
                       I(CONF_cursor_type),
-                      "显示块(L)", 'l', I(0),
-                      "下划线(U)", 'u', I(1),
-                      "垂直线(V)", 'v', I(2));
+                      "显示块(L)", 'l', I(CURSOR_BLOCK),
+                      "下划线(U)", 'u', I(CURSOR_UNDERLINE),
+                      "垂直线(V)", 'v', I(CURSOR_VERTICAL_LINE));
     ctrl_checkbox(s, "光标闪烁(B)", 'b',
                   HELPCTX(appearance_cursor),
                   conf_checkbox_handler, I(CONF_blink_cur));
@@ -2420,9 +2431,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_radiobuttons(s, "粗体文字表现(B)：", 'b', 3,
                       HELPCTX(colours_bold),
                       conf_radiobutton_handler, I(CONF_bold_style),
-                      "字体", I(1),
-                      "颜色", I(2),
-                      "两者", I(3));
+                      "字体", I(BOLD_STYLE_FONT),
+                      "颜色", I(BOLD_STYLE_COLOUR),
+                      "两者", I(BOLD_STYLE_FONT | BOLD_STYLE_COLOUR));
 
     str = dupprintf("调整 %s 显示的精确颜色", appname);
     s = ctrl_getset(b, "窗口/颜色", "adjust", str);

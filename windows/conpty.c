@@ -176,7 +176,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     HPCON pcon;
     bool pcon_needs_cleanup = false;
 
-    STARTUPINFOEX si;
+    STARTUPINFOEXW si;
     memset(&si, 0, sizeof(si));
 
     if (!init_conpty_api()) {
@@ -238,16 +238,21 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     PROCESS_INFORMATION pi;
     memset(&pi, 0, sizeof(pi));
 
-    char *command;
-    const char *conf_cmd = conf_get_str(conf, CONF_remote_cmd);
-    if (*conf_cmd) {
-        command = dupstr(conf_cmd);
-    } else {
-        command = dupcat(get_system_dir(), "\\cmd.exe");
+    wchar_t *command;
+    {
+        bool utf8;
+        const char *conf_cmd = conf_get_str_ambi(conf, CONF_remote_cmd, &utf8);
+        if (*conf_cmd) {
+            command = dup_mb_to_wc(utf8 ? CP_UTF8 : CP_ACP, conf_cmd);
+        } else {
+            char *cmd = dupcat(get_system_dir(), "\\cmd.exe");
+            command = dup_mb_to_wc(CP_ACP, cmd);
+            sfree(cmd);
+        }
     }
-    bool created_ok = CreateProcess(NULL, command, NULL, NULL,
-                                    false, EXTENDED_STARTUPINFO_PRESENT,
-                                    NULL, NULL, &si.StartupInfo, &pi);
+    bool created_ok = CreateProcessW(NULL, command, NULL, NULL,
+                                     false, EXTENDED_STARTUPINFO_PRESENT,
+                                     NULL, NULL, &si.StartupInfo, &pi);
     sfree(command);
     if (!created_ok) {
         err = dupprintf("CreateProcess: %s",

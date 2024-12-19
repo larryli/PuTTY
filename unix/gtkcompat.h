@@ -218,3 +218,7 @@
     gdk_cursor_new_for_display(gdk_display_get_default(), cur)
 
 #endif /* 3.0 */
+
+#if !HAVE_G_APPLICATION_DEFAULT_FLAGS
+#define G_APPLICATION_DEFAULT_FLAGS G_APPLICATION_FLAGS_NONE
+#endif

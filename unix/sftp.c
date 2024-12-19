@@ -52,7 +52,7 @@ int platform_default_i(const char *name, int def)
 
 FontSpec *platform_default_fontspec(const char *name)
 {
-    return fontspec_new("");
+    return fontspec_new_default();
 }
 
 Filename *platform_default_filename(const char *name)
@@ -125,14 +125,14 @@ RFile *open_existing_file(const char *name, uint64_t *size,
                           long *perms)
 {
     int fd;
-    RFile *ret;
+    RFile *f;
 
     fd = open(name, O_RDONLY);
     if (fd < 0)
         return NULL;
 
-    ret = snew(RFile);
-    ret->fd = fd;
+    f = snew(RFile);
+    f->fd = fd;
 
     if (size || mtime || atime || perms) {
         struct stat statbuf;
@@ -154,7 +154,7 @@ RFile *open_existing_file(const char *name, uint64_t *size,
             *perms = statbuf.st_mode;
     }
 
-    return ret;
+    return f;
 }
 
 int read_from_file(RFile *f, void *buffer, int length)
@@ -176,33 +176,33 @@ struct WFile {
 WFile *open_new_file(const char *name, long perms)
 {
     int fd;
-    WFile *ret;
+    WFile *f;
 
     fd = open(name, O_CREAT | O_TRUNC | O_WRONLY,
               (mode_t)(perms ? perms : 0666));
     if (fd < 0)
         return NULL;
 
-    ret = snew(WFile);
-    ret->fd = fd;
-    ret->name = dupstr(name);
+    f = snew(WFile);
+    f->fd = fd;
+    f->name = dupstr(name);
 
-    return ret;
+    return f;
 }
 
 
 WFile *open_existing_wfile(const char *name, uint64_t *size)
 {
     int fd;
-    WFile *ret;
+    WFile *f;
 
     fd = open(name, O_APPEND | O_WRONLY);
     if (fd < 0)
         return NULL;
 
-    ret = snew(WFile);
-    ret->fd = fd;
-    ret->name = dupstr(name);
+    f = snew(WFile);
+    f->fd = fd;
+    f->name = dupstr(name);
 
     if (size) {
         struct stat statbuf;
@@ -214,7 +214,7 @@ WFile *open_existing_wfile(const char *name, uint64_t *size)
         *size = statbuf.st_size;
     }
 
-    return ret;
+    return f;
 }
 
 int write_to_file(WFile *f, void *buffer, int length)
@@ -311,18 +311,15 @@ struct DirHandle {
 
 DirHandle *open_directory(const char *name, const char **errmsg)
 {
-    DIR *dir;
-    DirHandle *ret;
-
-    dir = opendir(name);
-    if (!dir) {
+    DIR *dp = opendir(name);
+    if (!dp) {
         *errmsg = strerror(errno);
         return NULL;
     }
 
-    ret = snew(DirHandle);
-    ret->dir = dir;
-    return ret;
+    DirHandle *dir = snew(DirHandle);
+    dir->dir = dp;
+    return dir;
 }
 
 char *read_filename(DirHandle *dir)
@@ -388,16 +385,16 @@ struct WildcardMatcher {
     int i;
 };
 WildcardMatcher *begin_wildcard_matching(const char *name) {
-    WildcardMatcher *ret = snew(WildcardMatcher);
+    WildcardMatcher *dir = snew(WildcardMatcher);
 
-    if (glob(name, 0, NULL, &ret->globbed) < 0) {
-        sfree(ret);
+    if (glob(name, 0, NULL, &dir->globbed) < 0) {
+        sfree(dir);
         return NULL;
     }
 
-    ret->i = 0;
+    dir->i = 0;
 
-    return ret;
+    return dir;
 }
 char *wildcard_get_filename(WildcardMatcher *dir) {
     if (dir->i < dir->globbed.gl_pathc) {
@@ -580,5 +577,6 @@ const bool buildinfo_gtk_relevant = false;
 int main(int argc, char *argv[])
 {
     uxsel_init();
-    return psftp_main(argc, argv);
+    CmdlineArgList *arglist = cmdline_arg_list_from_argv(argc, argv);
+    return psftp_main(arglist);
 }

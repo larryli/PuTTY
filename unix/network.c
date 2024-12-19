@@ -271,18 +271,18 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
 
 SockAddr *sk_nonamelookup(const char *host)
 {
-    SockAddr *ret = snew(SockAddr);
-    ret->error = NULL;
-    ret->superfamily = UNRESOLVED;
-    strncpy(ret->hostname, host, lenof(ret->hostname));
-    ret->hostname[lenof(ret->hostname)-1] = '\0';
+    SockAddr *addr = snew(SockAddr);
+    addr->error = NULL;
+    addr->superfamily = UNRESOLVED;
+    strncpy(addr->hostname, host, lenof(addr->hostname));
+    addr->hostname[lenof(addr->hostname)-1] = '\0';
 #ifndef NO_IPV6
-    ret->ais = NULL;
+    addr->ais = NULL;
 #else
     ret->addresses = NULL;
 #endif
-    ret->refcount = 1;
-    return ret;
+    addr->refcount = 1;
+    return addr;
 }
 
 static bool sk_nextaddr(SockAddr *addr, SockAddrStep *step)
@@ -488,7 +488,7 @@ static size_t sk_net_write(Socket *s, const void *data, size_t len);
 static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, bool is_frozen);
-static SocketPeerInfo *sk_net_peer_info(Socket *s);
+static SocketEndpointInfo *sk_net_endpoint_info(Socket *s, bool peer);
 static const char *sk_net_socket_error(Socket *s);
 
 static const SocketVtable NetSocket_sockvt = {
@@ -499,48 +499,48 @@ static const SocketVtable NetSocket_sockvt = {
     .write_eof = sk_net_write_eof,
     .set_frozen = sk_net_set_frozen,
     .socket_error = sk_net_socket_error,
-    .peer_info = sk_net_peer_info,
+    .endpoint_info = sk_net_endpoint_info,
 };
 
 static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
 {
     int sockfd = ctx.i;
-    NetSocket *ret;
+    NetSocket *s;
 
     /*
      * Create NetSocket structure.
      */
-    ret = snew(NetSocket);
-    ret->sock.vt = &NetSocket_sockvt;
-    ret->error = NULL;
-    ret->plug = plug;
-    bufchain_init(&ret->output_data);
-    ret->writable = true;              /* to start with */
-    ret->sending_oob = 0;
-    ret->frozen = true;
-    ret->localhost_only = false;    /* unused, but best init anyway */
-    ret->pending_error = 0;
-    ret->oobpending = false;
-    ret->outgoingeof = EOF_NO;
-    ret->incomingeof = false;
-    ret->listener = false;
-    ret->parent = ret->child = NULL;
-    ret->addr = NULL;
-    ret->connected = true;
+    s = snew(NetSocket);
+    s->sock.vt = &NetSocket_sockvt;
+    s->error = NULL;
+    s->plug = plug;
+    bufchain_init(&s->output_data);
+    s->writable = true;              /* to start with */
+    s->sending_oob = 0;
+    s->frozen = true;
+    s->localhost_only = false;    /* unused, but best init anyway */
+    s->pending_error = 0;
+    s->oobpending = false;
+    s->outgoingeof = EOF_NO;
+    s->incomingeof = false;
+    s->listener = false;
+    s->parent = s->child = NULL;
+    s->addr = NULL;
+    s->connected = true;
 
-    ret->s = sockfd;
+    s->s = sockfd;
 
-    if (ret->s < 0) {
-        ret->error = strerror(errno);
-        return &ret->sock;
+    if (s->s < 0) {
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    ret->oobinline = false;
+    s->oobinline = false;
 
-    uxsel_tell(ret);
-    add234(sktree, ret);
+    uxsel_tell(s);
+    add234(sktree, s);
 
-    return &ret->sock;
+    return &s->sock;
 }
 
 static int try_connect(NetSocket *sock)
@@ -566,7 +566,7 @@ static int try_connect(NetSocket *sock)
     {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, PLUGLOG_CONNECT_TRYING,
+        plug_log(sock->plug, &sock->sock, PLUGLOG_CONNECT_TRYING,
                  &thisaddr, sock->port, NULL, 0);
     }
 
@@ -725,7 +725,7 @@ static int try_connect(NetSocket *sock)
         sock->writable = true;
 
         SockAddr thisaddr = sk_extractaddr_tmp(sock->addr, &sock->step);
-        plug_log(sock->plug, PLUGLOG_CONNECT_SUCCESS,
+        plug_log(sock->plug, &sock->sock, PLUGLOG_CONNECT_SUCCESS,
                  &thisaddr, sock->port, NULL, 0);
     }
 
@@ -741,7 +741,7 @@ static int try_connect(NetSocket *sock)
     if (err) {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, PLUGLOG_CONNECT_FAILED,
+        plug_log(sock->plug, &sock->sock, PLUGLOG_CONNECT_FAILED,
                  &thisaddr, sock->port, strerror(err), err);
     }
     return err;
@@ -750,51 +750,51 @@ static int try_connect(NetSocket *sock)
 Socket *sk_new(SockAddr *addr, int port, bool privport, bool oobinline,
                bool nodelay, bool keepalive, Plug *plug)
 {
-    NetSocket *ret;
+    NetSocket *s;
     int err;
 
     /*
      * Create NetSocket structure.
      */
-    ret = snew(NetSocket);
-    ret->sock.vt = &NetSocket_sockvt;
-    ret->error = NULL;
-    ret->plug = plug;
-    bufchain_init(&ret->output_data);
-    ret->connected = false;            /* to start with */
-    ret->writable = false;             /* to start with */
-    ret->sending_oob = 0;
-    ret->frozen = false;
-    ret->localhost_only = false;    /* unused, but best init anyway */
-    ret->pending_error = 0;
-    ret->parent = ret->child = NULL;
-    ret->oobpending = false;
-    ret->outgoingeof = EOF_NO;
-    ret->incomingeof = false;
-    ret->listener = false;
-    ret->addr = addr;
-    START_STEP(ret->addr, ret->step);
-    ret->s = -1;
-    ret->oobinline = oobinline;
-    ret->nodelay = nodelay;
-    ret->keepalive = keepalive;
-    ret->privport = privport;
-    ret->port = port;
+    s = snew(NetSocket);
+    s->sock.vt = &NetSocket_sockvt;
+    s->error = NULL;
+    s->plug = plug;
+    bufchain_init(&s->output_data);
+    s->connected = false;            /* to start with */
+    s->writable = false;             /* to start with */
+    s->sending_oob = 0;
+    s->frozen = false;
+    s->localhost_only = false;    /* unused, but best init anyway */
+    s->pending_error = 0;
+    s->parent = s->child = NULL;
+    s->oobpending = false;
+    s->outgoingeof = EOF_NO;
+    s->incomingeof = false;
+    s->listener = false;
+    s->addr = addr;
+    START_STEP(s->addr, s->step);
+    s->s = -1;
+    s->oobinline = oobinline;
+    s->nodelay = nodelay;
+    s->keepalive = keepalive;
+    s->privport = privport;
+    s->port = port;
 
     do {
-        err = try_connect(ret);
-    } while (err && sk_nextaddr(ret->addr, &ret->step));
+        err = try_connect(s);
+    } while (err && sk_nextaddr(s->addr, &s->step));
 
     if (err)
-        ret->error = strerror(err);
+        s->error = strerror(err);
 
-    return &ret->sock;
+    return &s->sock;
 }
 
 Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
                        bool local_host_only, int orig_address_family)
 {
-    int s;
+    int fd;
 #ifndef NO_IPV6
     struct addrinfo hints, *ai = NULL;
     char portstr[6];
@@ -802,7 +802,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     union sockaddr_union u;
     union sockaddr_union *addr;
     int addrlen;
-    NetSocket *ret;
+    NetSocket *s;
     int retcode;
     int address_family;
     int on = 1;
@@ -810,23 +810,23 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     /*
      * Create NetSocket structure.
      */
-    ret = snew(NetSocket);
-    ret->sock.vt = &NetSocket_sockvt;
-    ret->error = NULL;
-    ret->plug = plug;
-    bufchain_init(&ret->output_data);
-    ret->writable = false;             /* to start with */
-    ret->sending_oob = 0;
-    ret->frozen = false;
-    ret->localhost_only = local_host_only;
-    ret->pending_error = 0;
-    ret->parent = ret->child = NULL;
-    ret->oobpending = false;
-    ret->outgoingeof = EOF_NO;
-    ret->incomingeof = false;
-    ret->listener = true;
-    ret->addr = NULL;
-    ret->s = -1;
+    s = snew(NetSocket);
+    s->sock.vt = &NetSocket_sockvt;
+    s->error = NULL;
+    s->plug = plug;
+    bufchain_init(&s->output_data);
+    s->writable = false;             /* to start with */
+    s->sending_oob = 0;
+    s->frozen = false;
+    s->localhost_only = local_host_only;
+    s->pending_error = 0;
+    s->parent = s->child = NULL;
+    s->oobpending = false;
+    s->outgoingeof = EOF_NO;
+    s->incomingeof = false;
+    s->listener = true;
+    s->addr = NULL;
+    s->s = -1;
 
     /*
      * Translate address_family from platform-independent constants
@@ -850,30 +850,30 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     /*
      * Open socket.
      */
-    s = socket(address_family, SOCK_STREAM, 0);
+    fd = socket(address_family, SOCK_STREAM, 0);
 
 #ifndef NO_IPV6
     /* If the host doesn't support IPv6 try fallback to IPv4. */
-    if (s < 0 && address_family == AF_INET6) {
+    if (fd < 0 && address_family == AF_INET6) {
         address_family = AF_INET;
-        s = socket(address_family, SOCK_STREAM, 0);
+        fd = socket(address_family, SOCK_STREAM, 0);
     }
 #endif
 
-    if (s < 0) {
-        ret->error = strerror(errno);
-        return &ret->sock;
+    if (fd < 0) {
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    cloexec(s);
+    cloexec(fd);
 
-    ret->oobinline = false;
+    s->oobinline = false;
 
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
                    (const char *)&on, sizeof(on)) < 0) {
-        ret->error = strerror(errno);
-        close(s);
-        return &ret->sock;
+        s->error = strerror(errno);
+        close(fd);
+        return &s->sock;
     }
 
     retcode = -1;
@@ -941,7 +941,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
         }
     }
 
-    retcode = bind(s, &addr->sa, addrlen);
+    retcode = bind(fd, &addr->sa, addrlen);
 
 #ifndef NO_IPV6
     if (ai)
@@ -949,15 +949,15 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 #endif
 
     if (retcode < 0) {
-        close(s);
-        ret->error = strerror(errno);
-        return &ret->sock;
+        close(fd);
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    if (listen(s, SOMAXCONN) < 0) {
-        close(s);
-        ret->error = strerror(errno);
-        return &ret->sock;
+    if (listen(fd, SOMAXCONN) < 0) {
+        close(fd);
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
 #ifndef NO_IPV6
@@ -975,25 +975,25 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
         if (other) {
             if (!other->error) {
-                other->parent = ret;
-                ret->child = other;
+                other->parent = s;
+                s->child = other;
             } else {
                 /* If we couldn't create a listening socket on IPv4 as well
                  * as IPv6, we must return an error overall. */
-                close(s);
-                sfree(ret);
+                close(fd);
+                sfree(s);
                 return &other->sock;
             }
         }
     }
 #endif
 
-    ret->s = s;
+    s->s = fd;
 
-    uxsel_tell(ret);
-    add234(sktree, ret);
+    uxsel_tell(s);
+    add234(sktree, s);
 
-    return &ret->sock;
+    return &s->sock;
 }
 
 static void sk_net_close(Socket *sock)
@@ -1425,7 +1425,7 @@ static void net_select_result(int fd, int event)
                     assert(s->addr);
 
                     thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
-                    plug_log(s->plug, PLUGLOG_CONNECT_FAILED,
+                    plug_log(s->plug, &s->sock, PLUGLOG_CONNECT_FAILED,
                              &thisaddr, s->port, errmsg, err);
 
                     while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
@@ -1442,7 +1442,7 @@ static void net_select_result(int fd, int event)
                      * The connection attempt succeeded.
                      */
                     SockAddr thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
-                    plug_log(s->plug, PLUGLOG_CONNECT_SUCCESS,
+                    plug_log(s->plug, &s->sock, PLUGLOG_CONNECT_SUCCESS,
                              &thisaddr, s->port, NULL, 0);
                 }
             }
@@ -1494,7 +1494,7 @@ static void sk_net_set_frozen(Socket *sock, bool is_frozen)
     uxsel_tell(s);
 }
 
-static SocketPeerInfo *sk_net_peer_info(Socket *sock)
+static SocketEndpointInfo *sk_net_endpoint_info(Socket *sock, bool peer)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
     union sockaddr_union addr;
@@ -1502,12 +1502,16 @@ static SocketPeerInfo *sk_net_peer_info(Socket *sock)
 #ifndef NO_IPV6
     char buf[INET6_ADDRSTRLEN];
 #endif
-    SocketPeerInfo *pi;
+    SocketEndpointInfo *pi;
 
-    if (getpeername(s->s, &addr.sa, &addrlen) < 0)
-        return NULL;
+    {
+        int retd = (peer ? getpeername(s->s, &addr.sa, &addrlen) :
+                    getsockname(s->s, &addr.sa, &addrlen));
+        if (retd < 0)
+            return NULL;
+    }
 
-    pi = snew(SocketPeerInfo);
+    pi = snew(SocketEndpointInfo);
     pi->addressfamily = ADDRTYPE_UNSPEC;
     pi->addr_text = NULL;
     pi->port = -1;
@@ -1612,107 +1616,107 @@ char *get_hostname(void)
 
 SockAddr *platform_get_x11_unix_address(const char *sockpath, int displaynum)
 {
-    SockAddr *ret = snew(SockAddr);
+    SockAddr *addr = snew(SockAddr);
     int n;
 
-    memset(ret, 0, sizeof *ret);
-    ret->superfamily = UNIX;
+    memset(addr, 0, sizeof *addr);
+    addr->superfamily = UNIX;
     /*
      * In special circumstances (notably Mac OS X Leopard), we'll
      * have been passed an explicit Unix socket path.
      */
     if (sockpath) {
-        n = snprintf(ret->hostname, sizeof ret->hostname,
+        n = snprintf(addr->hostname, sizeof addr->hostname,
                      "%s", sockpath);
     } else {
-        n = snprintf(ret->hostname, sizeof ret->hostname,
+        n = snprintf(addr->hostname, sizeof addr->hostname,
                      "%s%d", X11_UNIX_PATH, displaynum);
     }
 
     if (n < 0)
-        ret->error = "snprintf failed";
-    else if (n >= sizeof ret->hostname)
-        ret->error = "X11 UNIX name too long";
+        addr->error = "snprintf failed";
+    else if (n >= sizeof addr->hostname)
+        addr->error = "X11 UNIX name too long";
 
 #ifndef NO_IPV6
-    ret->ais = NULL;
+    addr->ais = NULL;
 #else
     ret->addresses = NULL;
     ret->naddresses = 0;
 #endif
-    ret->refcount = 1;
-    return ret;
+    addr->refcount = 1;
+    return addr;
 }
 
 SockAddr *unix_sock_addr(const char *path)
 {
-    SockAddr *ret = snew(SockAddr);
+    SockAddr *addr = snew(SockAddr);
     int n;
 
-    memset(ret, 0, sizeof *ret);
-    ret->superfamily = UNIX;
-    n = snprintf(ret->hostname, sizeof ret->hostname, "%s", path);
+    memset(addr, 0, sizeof *addr);
+    addr->superfamily = UNIX;
+    n = snprintf(addr->hostname, sizeof addr->hostname, "%s", path);
 
     if (n < 0)
-        ret->error = "snprintf failed";
-    else if (n >= sizeof ret->hostname ||
+        addr->error = "snprintf failed";
+    else if (n >= sizeof addr->hostname ||
              n >= sizeof(((struct sockaddr_un *)0)->sun_path))
-        ret->error = "socket pathname too long";
+        addr->error = "socket pathname too long";
 
 #ifndef NO_IPV6
-    ret->ais = NULL;
+    addr->ais = NULL;
 #else
     ret->addresses = NULL;
     ret->naddresses = 0;
 #endif
-    ret->refcount = 1;
-    return ret;
+    addr->refcount = 1;
+    return addr;
 }
 
 Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
 {
-    int s;
+    int fd;
     union sockaddr_union u;
     union sockaddr_union *addr;
     int addrlen;
-    NetSocket *ret;
+    NetSocket *s;
     int retcode;
 
     /*
      * Create NetSocket structure.
      */
-    ret = snew(NetSocket);
-    ret->sock.vt = &NetSocket_sockvt;
-    ret->error = NULL;
-    ret->plug = plug;
-    bufchain_init(&ret->output_data);
-    ret->writable = false;             /* to start with */
-    ret->sending_oob = 0;
-    ret->frozen = false;
-    ret->localhost_only = true;
-    ret->pending_error = 0;
-    ret->parent = ret->child = NULL;
-    ret->oobpending = false;
-    ret->outgoingeof = EOF_NO;
-    ret->incomingeof = false;
-    ret->listener = true;
-    ret->addr = listenaddr;
-    ret->s = -1;
+    s = snew(NetSocket);
+    s->sock.vt = &NetSocket_sockvt;
+    s->error = NULL;
+    s->plug = plug;
+    bufchain_init(&s->output_data);
+    s->writable = false;             /* to start with */
+    s->sending_oob = 0;
+    s->frozen = false;
+    s->localhost_only = true;
+    s->pending_error = 0;
+    s->parent = s->child = NULL;
+    s->oobpending = false;
+    s->outgoingeof = EOF_NO;
+    s->incomingeof = false;
+    s->listener = true;
+    s->addr = listenaddr;
+    s->s = -1;
 
     assert(listenaddr->superfamily == UNIX);
 
     /*
      * Open socket.
      */
-    s = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (s < 0) {
-        ret->error = strerror(errno);
-        return &ret->sock;
+    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) {
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    cloexec(s);
+    cloexec(fd);
 
-    ret->oobinline = false;
+    s->oobinline = false;
 
     memset(&u, '\0', sizeof(u));
     u.su.sun_family = AF_UNIX;
@@ -1728,28 +1732,28 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
     addrlen = sizeof(u.su);
 
     if (unlink(u.su.sun_path) < 0 && errno != ENOENT) {
-        close(s);
-        ret->error = strerror(errno);
-        return &ret->sock;
+        close(fd);
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    retcode = bind(s, &addr->sa, addrlen);
+    retcode = bind(fd, &addr->sa, addrlen);
     if (retcode < 0) {
-        close(s);
-        ret->error = strerror(errno);
-        return &ret->sock;
+        close(fd);
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    if (listen(s, SOMAXCONN) < 0) {
-        close(s);
-        ret->error = strerror(errno);
-        return &ret->sock;
+    if (listen(fd, SOMAXCONN) < 0) {
+        close(fd);
+        s->error = strerror(errno);
+        return &s->sock;
     }
 
-    ret->s = s;
+    s->s = fd;
 
-    uxsel_tell(ret);
-    add234(sktree, ret);
+    uxsel_tell(s);
+    add234(sktree, s);
 
-    return &ret->sock;
+    return &s->sock;
 }

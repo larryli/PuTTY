@@ -21,81 +21,99 @@ bool is_dbcs_leadbyte(int codepage, char byte)
     return false;                      /* we don't do DBCS */
 }
 
-int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
-             wchar_t *wcstr, int wclen)
+bool BinarySink_put_mb_to_wc(
+    BinarySink *bs, int codepage, const char *mbstr, int mblen)
 {
     if (codepage == DEFAULT_CODEPAGE) {
-        int n = 0;
         mbstate_t state;
 
         memset(&state, 0, sizeof state);
 
         while (mblen > 0) {
-            if (n >= wclen)
-                return n;
-            size_t i = mbrtowc(wcstr+n, mbstr, (size_t)mblen, &state);
+            wchar_t wc;
+            size_t i = mbrtowc(&wc, mbstr, (size_t)mblen, &state);
             if (i == (size_t)-1 || i == (size_t)-2)
                 break;
-            n++;
+            put_data(bs, &wc, sizeof(wc));
             mbstr += i;
             mblen -= i;
         }
-
-        return n;
     } else if (codepage == CS_NONE) {
-        int n = 0;
-
         while (mblen > 0) {
-            if (n >= wclen)
-                return n;
-            wcstr[n] = 0xD800 | (mbstr[0] & 0xFF);
-            n++;
+            wchar_t wc = 0xD800 | (mbstr[0] & 0xFF);
+            put_data(bs, &wc, sizeof(wc));
             mbstr++;
             mblen--;
         }
+    } else {
+        wchar_t wbuf[1024];
+        while (mblen > 0) {
+            int wlen = charset_to_unicode(&mbstr, &mblen, wbuf, lenof(wbuf),
+                                          codepage, NULL, NULL, 0);
+            put_data(bs, wbuf, wlen * sizeof(wchar_t));
+        }
+    }
 
-        return n;
-    } else
-        return charset_to_unicode(&mbstr, &mblen, wcstr, wclen, codepage,
-                                  NULL, NULL, 0);
+    /* We never expect to receive invalid charset values on Unix,
+     * because we're not dependent on an externally defined space of
+     * OS-provided code pages */
+    return true;
 }
 
-int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-             char *mbstr, int mblen, const char *defchr)
+bool BinarySink_put_wc_to_mb(
+    BinarySink *bs, int codepage, const wchar_t *wcstr, int wclen,
+    const char *defchr)
 {
+    size_t defchr_len = 0;
+    bool defchr_len_known = false;
+
     if (codepage == DEFAULT_CODEPAGE) {
         char output[MB_LEN_MAX];
         mbstate_t state;
-        int n = 0;
 
         memset(&state, 0, sizeof state);
 
         while (wclen > 0) {
             size_t i = wcrtomb(output, wcstr[0], &state);
-            if (i == (size_t)-1 || i > n - mblen)
-                break;
-            memcpy(mbstr+n, output, i);
-            n += i;
+            if (i == (size_t)-1) {
+                if (!defchr_len_known) {
+                    defchr_len = strlen(defchr);
+                    defchr_len_known = true;
+                }
+                put_data(bs, defchr, defchr_len);
+            } else {
+                put_data(bs, output, i);
+            }
             wcstr++;
             wclen--;
         }
-
-        return n;
     } else if (codepage == CS_NONE) {
-        int n = 0;
-        while (wclen > 0 && n < mblen) {
-            if (*wcstr >= 0xD800 && *wcstr < 0xD900)
-                mbstr[n++] = (*wcstr & 0xFF);
-            else if (defchr)
-                mbstr[n++] = *defchr;
+        while (wclen > 0) {
+            if (*wcstr >= 0xD800 && *wcstr < 0xD900) {
+                put_byte(bs, *wcstr & 0xFF);
+            } else {
+                if (!defchr_len_known) {
+                    defchr_len = strlen(defchr);
+                    defchr_len_known = true;
+                }
+                put_data(bs, defchr, defchr_len);
+            }
             wcstr++;
             wclen--;
         }
-        return n;
     } else {
-        return charset_from_unicode(&wcstr, &wclen, mbstr, mblen, codepage,
-                                    NULL, defchr?defchr:NULL, defchr?1:0);
+        char buf[2048];
+        defchr_len = strlen(defchr);
+
+        while (wclen > 0) {
+            int len = charset_from_unicode(
+                &wcstr, &wclen, buf, lenof(buf), codepage,
+                NULL, defchr, defchr_len);
+            put_data(bs, buf, len);
+        }
     }
+
+    return true;
 }
 
 /*
@@ -241,6 +259,13 @@ bool init_ucs(struct unicode_data *ucsdata, char *linecharset,
     }
 
     return ret;
+}
+
+void init_ucs_generic(Conf *conf, struct unicode_data *ucsdata)
+{
+    init_ucs(ucsdata, conf_get_str(conf, CONF_line_codepage),
+             conf_get_bool(conf, CONF_utf8_override),
+             CS_NONE, conf_get_int(conf, CONF_vtmode));
 }
 
 const char *cp_name(int codepage)

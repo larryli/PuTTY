@@ -84,6 +84,10 @@ if(GTK_FOUND)
       ${HAVE_PANGO_FONT_FAMILY_IS_MONOSPACE} PARENT_SCOPE)
     set(HAVE_PANGO_FONT_MAP_LIST_FAMILIES
       ${HAVE_PANGO_FONT_MAP_LIST_FAMILIES} PARENT_SCOPE)
+    check_c_source_compiles("
+      #include <gtk/gtk.h>
+      int f = G_APPLICATION_DEFAULT_FLAGS;
+      int main(void) {}" HAVE_G_APPLICATION_DEFAULT_FLAGS)
   endfunction()
   pango_check_subscope()
 endif()

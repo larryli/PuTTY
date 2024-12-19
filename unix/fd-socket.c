@@ -306,7 +306,7 @@ static void fdsocket_select_result_input_error(int fd, int event)
 
     retd = read(fd, buf, sizeof(buf));
     if (retd > 0) {
-        log_proxy_stderr(fds->plug, &fds->psb, buf, retd);
+        log_proxy_stderr(fds->plug, &fds->sock, &fds->psb, buf, retd);
     } else {
         del234(fdsocket_by_inerrfd, fds);
         uxsel_del(fds->inerrfd);
@@ -323,14 +323,14 @@ static const SocketVtable FdSocket_sockvt = {
     .write_eof = fdsocket_write_eof,
     .set_frozen = fdsocket_set_frozen,
     .socket_error = fdsocket_socket_error,
-    .peer_info = NULL,
+    .endpoint_info = nullsock_endpoint_info,
 };
 
 static void fdsocket_connect_success_callback(void *ctx)
 {
     FdSocket *fds = (FdSocket *)ctx;
-    plug_log(fds->plug, PLUGLOG_CONNECT_SUCCESS, fds->addr, fds->port,
-             NULL, 0);
+    plug_log(fds->plug, &fds->sock, PLUGLOG_CONNECT_SUCCESS,
+             fds->addr, fds->port, NULL, 0);
 }
 
 void setup_fd_socket(Socket *s, int infd, int outfd, int inerrfd)

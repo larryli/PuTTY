@@ -45,11 +45,11 @@ static void c_write(Rlogin *rlogin, const void *buf, size_t len)
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
-static void rlogin_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
-                       const char *error_msg, int error_code)
+static void rlogin_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
+                       int port, const char *error_msg, int error_code)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
-    backend_socket_log(rlogin->seat, rlogin->logctx, type, addr, port,
+    backend_socket_log(rlogin->seat, rlogin->logctx, s, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, rlogin->socket_connected);
     if (type == PLUGLOG_CONNECT_SUCCESS) {

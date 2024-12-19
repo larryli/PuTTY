@@ -109,7 +109,7 @@ bool ssh2_connection_parse_global_request(
 PktOut *ssh2_portfwd_chanopen(
     struct ssh2_connection_state *s, struct ssh2_channel *c,
     const char *hostname, int port,
-    const char *description, const SocketPeerInfo *pi)
+    const char *description, const SocketEndpointInfo *pi)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
     PktOut *pktout;
@@ -158,7 +158,7 @@ SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan)
 }
 
 SshChannel *ssh2_serverside_x11_open(
-    ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi)
+    ConnectionLayer *cl, Channel *chan, const SocketEndpointInfo *pi)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);

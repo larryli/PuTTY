@@ -172,7 +172,7 @@ void random_destroy_seed(void) {}
 char *platform_default_s(const char *name) { return NULL; }
 bool platform_default_b(const char *name, bool def) { return def; }
 int platform_default_i(const char *name, int def) { return def; }
-FontSpec *platform_default_fontspec(const char *name) { return fontspec_new(""); }
+FontSpec *platform_default_fontspec(const char *name) { return fontspec_new_default(); }
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }
 char *x_get_default(const char *key) { return NULL; }
 
@@ -198,6 +198,7 @@ static void usage(void)
     printf("  -T           run with the lifetime of the controlling tty\n");
     printf("  --permanent  run permanently\n");
     printf("  --debug      run in debugging mode, without forking\n");
+    printf("  --foreground run permanently, without forking\n");
     printf("  --exec <command>   run with the lifetime of that command\n");
     printf("Client options, for talking to an existing agent:\n");
     printf("  -a           add key(s) to the existing agent\n");
@@ -217,7 +218,6 @@ static void usage(void)
     printf("  --tty-prompt force tty-based passphrase prompt\n");
     printf("  --gui-prompt force GUI-based passphrase prompt\n");
     printf("  --askpass <prompt>   behave like a standalone askpass program\n");
-    exit(1);
 }
 
 static void version(void)
@@ -237,18 +237,12 @@ void keylist_update(void)
 
 static bool time_to_die = false;
 
-/*
- * These functions are part of the plug for our connection to the X
- * display, so they do get called. They needn't actually do anything,
- * except that x11_closing has to signal back to the main loop that
- * it's time to terminate.
- */
-static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
-                    const char *error_msg, int error_code) {}
-static void x11_receive(Plug *plug, int urgent, const char *data, size_t len) {}
-static void x11_sent(Plug *plug, size_t bufsize) {}
 static void x11_closing(Plug *plug, PlugCloseType type, const char *error_msg)
 {
+    /*
+     * When the X connection closes, signal back to the main loop that
+     * it's time to terminate.
+     */
     time_to_die = true;
 }
 struct X11Connection {
@@ -431,7 +425,7 @@ bool have_controlling_tty(void)
 
 static char **exec_args = NULL;
 static enum {
-    LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
+    LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC, LIFE_FOREGROUND
 } life = LIFE_UNSPEC;
 static const char *display = NULL;
 static enum {
@@ -669,8 +663,7 @@ void key_find_callback(void *vctx, char **fingerprints,
 
     if ((ctx->match_comment && !strcmp(ctx->string, comment)) ||
         (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprints,
-                                                   ctx)))
-    {
+                                                   ctx))) {
         if (!ctx->found)
             ctx->found = pageant_pubkey_copy(key);
         ctx->nfound++;
@@ -995,10 +988,10 @@ void run_client(void)
 }
 
 static const PlugVtable X11Connection_plugvt = {
-    .log = x11_log,
+    .log = nullplug_log,
     .closing = x11_closing,
-    .receive = x11_receive,
-    .sent = x11_sent,
+    .receive = nullplug_receive,
+    .sent = nullplug_sent,
 };
 
 
@@ -1229,7 +1222,17 @@ void run_agent(FILE *logfp, const char *symlink_path)
         pageant_fork_and_print_env(true);
     } else if (life == LIFE_PERM) {
         pageant_fork_and_print_env(false);
+    } else if (life == LIFE_FOREGROUND) {
+        pageant_print_env(getpid());
+        /* Close stdout, so that a parent process at the other end of a pipe
+         * can do the simple thing of reading up to EOF */
+        fclose(stdout);
     } else if (life == LIFE_DEBUG) {
+        /* Force stdout to be line-buffered in preference to unbuffered, so
+         * that if diagnostic output is being piped somewhere, it will arrive
+         * promptly at the other end of the pipe */
+        setvbuf(stdout, NULL, _IOLBF, 0);
+
         pageant_print_env(getpid());
         upc->logfp = stdout;
 
@@ -1362,12 +1365,14 @@ int main(int argc, char **argv)
                 else if (curr_keyact == KEYACT_CLIENT_ADD)
                     curr_keyact = KEYACT_CLIENT_ADD_ENCRYPTED;
                 else {
-                    fprintf(stderr, "pageant: unexpected -E while not adding "
-                            "keys\n");
+                    fprintf(stderr, "pageant: unexpected %s while not adding "
+                            "keys\n", p);
                     exit(1);
                 }
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
+            } else if (!strcmp(p, "--foreground")) {
+                life = LIFE_FOREGROUND;
             } else if (!strcmp(p, "--test-sign")) {
                 curr_keyact = KEYACT_CLIENT_SIGN;
                 sign_flags = 0;

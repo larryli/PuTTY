@@ -82,7 +82,14 @@ static pid_t subcommand_pid = -1;
 
 static bool still_running = true;
 
-static void start_subcommand(strbuf *args)
+static char **exec_args = NULL;
+
+static void found_subcommand(CmdlineArg *arg)
+{
+    exec_args = cmdline_arg_remainder(arg);
+}
+
+static void start_subcommand(void)
 {
     pid_t pid;
 
@@ -95,24 +102,6 @@ static void start_subcommand(strbuf *args)
     }
     putty_signal(SIGCHLD, sigchld);
 
-    /*
-     * Make an array of argument pointers that execvp will like.
-     */
-    size_t nargs = 0;
-    for (size_t i = 0; i < args->len; i++)
-        if (args->s[i] == '\0')
-            nargs++;
-
-    char **exec_args = snewn(nargs + 1, char *);
-    char *p = args->s;
-    for (size_t a = 0; a < nargs; a++) {
-        exec_args[a] = p;
-        size_t len = strlen(p);
-        assert(len < args->len - (p - args->s));
-        p += 1 + len;
-    }
-    exec_args[nargs] = NULL;
-
     pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -123,12 +112,12 @@ static void start_subcommand(strbuf *args)
         _exit(127);
     } else {
         subcommand_pid = pid;
-        sfree(exec_args);
     }
 }
 
 static const PsocksPlatform platform = {
     open_pipes,
+    found_subcommand,
     start_subcommand,
 };
 
@@ -163,11 +152,13 @@ static bool psocks_continue(void *ctx, bool found_any_fd,
 int main(int argc, char **argv)
 {
     psocks_state *ps = psocks_new(&platform);
-    psocks_cmdline(ps, argc, argv);
+    CmdlineArgList *arglist = cmdline_arg_list_from_argv(argc, argv);
+    psocks_cmdline(ps, arglist);
 
     sk_init();
     uxsel_init();
     psocks_start(ps);
+    cmdline_arg_list_free(arglist);
 
     cli_main_loop(psocks_pw_setup, psocks_pw_check, psocks_continue, NULL);
 }

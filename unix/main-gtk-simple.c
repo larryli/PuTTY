@@ -254,7 +254,7 @@ int read_dupsession_data(Conf *conf, char *arg)
 }
 
 static void help(FILE *fp) {
-    if(fprintf(fp,
+    if (fprintf(fp,
 "pterm option summary:\n"
 "\n"
 "  --display DISPLAY         Specify X display to use (note '--')\n"
@@ -282,8 +282,8 @@ static void help(FILE *fp) {
 
 static void version(FILE *fp) {
     char *buildinfo_text = buildinfo("\n");
-    if(fprintf(fp, "%s: %s\n%s\n", appname, ver, buildinfo_text) < 0 ||
-       fflush(fp) < 0) {
+    if (fprintf(fp, "%s: %s\n%s\n", appname, ver, buildinfo_text) < 0 ||
+        fflush(fp) < 0) {
         perror("output error");
         exit(1);
     }
@@ -312,7 +312,6 @@ void window_setup_error(const char *errmsg)
 bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
 {
     bool err = false;
-    char *val;
 
     /*
      * Macros to make argument handling easier.
@@ -323,20 +322,26 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
      * {...} else ((void)0).
      */
 #define EXPECTS_ARG if (1) {                                            \
-        if (--argc <= 0) {                                              \
+        if (!nextarg) {                                                 \
             err = true;                                                 \
             fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
             continue;                                                   \
-        } else                                                          \
-            val = *++argv;                                              \
+        } else {                                                        \
+            arglistpos++;                                               \
+        }                                                               \
     } else ((void)0)
 #define SECOND_PASS_ONLY if (1) {               \
         if (!do_everything)                     \
             continue;                           \
     } else ((void)0)
 
-    while (--argc > 0) {
-        const char *p = *++argv;
+    CmdlineArgList *arglist = cmdline_arg_list_from_argv(argc, argv);
+    size_t arglistpos = 0;
+    while (arglist->args[arglistpos]) {
+        CmdlineArg *arg = arglist->args[arglistpos++];
+        CmdlineArg *nextarg = arglist->args[arglistpos];
+        const char *p = cmdline_arg_to_str(arg);
+        const char *val = cmdline_arg_to_str(nextarg);
         int ret;
 
         /*
@@ -350,13 +355,13 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             !strcmp(p, "-T"))
             p = "-title";
 
-        ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
-                                    do_everything ? 1 : -1, conf);
+        ret = cmdline_process_param(
+            arg, nextarg, do_everything ? 1 : -1, conf);
 
         if (ret == -2) {
             cmdline_error("option \"%s\" requires an argument", p);
         } else if (ret == 2) {
-            --argc, ++argv;            /* skip next argument */
+            arglistpos++;
             continue;
         } else if (ret == 1) {
             continue;
@@ -458,13 +463,8 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             if (!do_everything)
                 break;
 
-            if (--argc > 0) {
-                int i;
-                pty_argv = snewn(argc+1, char *);
-                ++argv;
-                for (i = 0; i < argc; i++)
-                    pty_argv[i] = argv[i];
-                pty_argv[argc] = NULL;
+            if (nextarg) {
+                pty_argv = cmdline_arg_remainder(nextarg);
                 break;                 /* finished command-line processing */
             } else
                 err = true, fprintf(stderr, "%s: -e expects an argument\n",
@@ -476,10 +476,9 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             conf_set_str(conf, CONF_wintitle, val);
 
         } else if (!strcmp(p, "-log")) {
-            Filename *fn;
             EXPECTS_ARG;
             SECOND_PASS_ONLY;
-            fn = filename_from_str(val);
+            Filename *fn = cmdline_arg_to_filename(nextarg);
             conf_set_filename(conf, CONF_logfilename, fn);
             conf_set_int(conf, CONF_logtype, LGTYP_DEBUG);
             filename_free(fn);
@@ -520,17 +519,17 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
             EXPECTS_ARG;
             provide_xrm_string(val, appname);
 
-        } else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
+        } else if (!strcmp(p, "-help") || !strcmp(p, "--help")) {
             help(stdout);
             exit(0);
 
-        } else if(!strcmp(p, "-version") || !strcmp(p, "--version")) {
+        } else if (!strcmp(p, "-version") || !strcmp(p, "--version")) {
             version(stdout);
             exit(0);
 
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
-            exit(1);
+            exit(0);
 
         } else if (has_ca_config_box &&
                    (!strcmp(p, "-host-ca") || !strcmp(p, "--host-ca") ||

@@ -1683,7 +1683,7 @@ void pageant_reencrypt_all(void)
 #define crGetChar(c) do                                         \
     {                                                           \
         while (len == 0) {                                      \
-            *crLine =__LINE__; return; case __LINE__:;          \
+            *crLine = __LINE__; return; case __LINE__:;         \
         }                                                       \
         len--;                                                  \
         (c) = (unsigned char)*data++;                           \
@@ -1885,7 +1885,7 @@ static int pageant_listen_accepting(Plug *plug,
         plug, struct pageant_listen_state, plug);
     struct pageant_conn_state *pc;
     const char *err;
-    SocketPeerInfo *peerinfo;
+    SocketEndpointInfo *peerinfo;
 
     pc = snew(struct pageant_conn_state);
     pc->plug.vt = &pageant_connection_plugvt;
@@ -1914,7 +1914,7 @@ static int pageant_listen_accepting(Plug *plug,
         pageant_listener_client_log(pl->plc, "c#%"SIZEu": new connection",
                                     pc->conn_index);
     }
-    sk_free_peer_info(peerinfo);
+    sk_free_endpoint_info(peerinfo);
 
     pageant_register_client(&pc->pc);
 
@@ -2673,14 +2673,14 @@ int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
     }
 }
 
-struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key)
+struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *orig)
 {
-    struct pageant_pubkey *ret = snew(struct pageant_pubkey);
-    ret->blob = strbuf_new();
-    put_data(ret->blob, key->blob->s, key->blob->len);
-    ret->comment = key->comment ? dupstr(key->comment) : NULL;
-    ret->ssh_version = key->ssh_version;
-    return ret;
+    struct pageant_pubkey *copy = snew(struct pageant_pubkey);
+    copy->blob = strbuf_new();
+    put_data(copy->blob, orig->blob->s, orig->blob->len);
+    copy->comment = orig->comment ? dupstr(orig->comment) : NULL;
+    copy->ssh_version = orig->ssh_version;
+    return copy;
 }
 
 void pageant_pubkey_free(struct pageant_pubkey *key)

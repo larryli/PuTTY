@@ -598,14 +598,14 @@ static bool x11font_has_glyph(unifont *font, wchar_t glyph)
          * This X font has 8-bit indices, so we must convert to the
          * appropriate character set.
          */
-        char sbstring[2];
-        int sblen = wc_to_mb(xfont->real_charset, 0, &glyph, 1,
-                             sbstring, 2, "");
-        if (sblen == 0 || !sbstring[0])
+        char c = '\0';
+        buffer_sink bs[1];
+        buffer_sink_init(bs, &c, 1);
+        put_wc_to_mb(bs, xfont->real_charset, &glyph, 1, "");
+        if (!c)
             return false;              /* not even in the charset */
 
-        return x11_font_has_glyph(xfont->fonts[0].xfs, 0,
-                                  (unsigned char)sbstring[0]);
+        return x11_font_has_glyph(xfont->fonts[0].xfs, 0, (unsigned char)c);
     }
 }
 
@@ -953,14 +953,13 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
          * This X font has 8-bit indices, so we must convert to the
          * appropriate character set.
          */
-        char *sbstring = snewn(len+1, char);
-        int sblen = wc_to_mb(xfont->real_charset, 0, string, len,
-                             sbstring, len+1, ".");
+        strbuf *sb = strbuf_new();
+        put_wc_to_mb(sb, xfont->real_charset, string, len, ".");
         x11font_really_draw_text(x11font_drawfuncs + index + 0, ctx,
                                  &xfont->fonts[sfid], xfont->disp, x, y,
-                                 sbstring, sblen, shadowoffset,
+                                 sb->s, sb->len, shadowoffset,
                                  xfont->variable, cellwidth * mult);
-        sfree(sbstring);
+        strbuf_free(sb);
     }
 }
 
@@ -1603,7 +1602,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
     PangoLayout *layout;
     PangoRectangle rect;
     char *utfstring, *utfptr;
-    int utflen;
+    size_t utflen;
     bool shadowbold = false;
     void (*draw_layout)(unifont_drawctx *ctx,
                         gint x, gint y, PangoLayout *layout) = NULL;
@@ -1642,12 +1641,11 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
      * Pango always expects UTF-8, so convert the input wide character
      * string to UTF-8.
      */
-    utfstring = snewn(len*6+1, char); /* UTF-8 has max 6 bytes/char */
-    utflen = wc_to_mb(CS_UTF8, 0, string, len, utfstring, len*6+1, ".");
+    utfstring = dup_wc_to_mb_c(CS_UTF8, string, len, "", &utflen);
 
     utfptr = utfstring;
     while (utflen > 0) {
-        int clen, n;
+        size_t clen, n;
         int desired = cellwidth * PANGO_SCALE;
 
         /*

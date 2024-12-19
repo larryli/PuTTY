@@ -21,3 +21,10 @@ Arabic and bidirectional text:
 Mixed LTR and RTL text: [44mجرير[m [41mرضي[m back to LTR.
 
 East Asian Ambiguous characters: ¼½¾¼½¾¼½¾¼½¾¼½¾¼½¾¼½¾¼½¾¼½¾¼½¾
+
+Emoji via U+FE0F: ❤️ ☺️ ☹️         (narrow, because wcwidth mishandles these)
+Dedicated emoji:  💜 🙂 🙁      (wide and should look correct)
+Combined via ZWJ: 👩‍💻          (PuTTY doesn't understand ZWJ)
+Skin tone mod:    👩🏻 👩🏿     (wcwidth doesn't know those are modifiers)
+Flags:            🇬🇧 🇺🇦 🇪🇺      (should work in GTK 2 or better)
+Flags using tags: 🏴󠁧󠁢󠁥󠁮󠁧󠁿 🏴󠁧󠁢󠁳󠁣󠁴󠁿 🏴󠁧󠁢󠁷󠁬󠁳󠁿      (the tags are treated as combining marks)

@@ -21,5 +21,5 @@ void pgp_fingerprints_msgbox(HWND owner)
         ", " PGP_PREV_MASTER_KEY_DETAILS "):\n"
         "  " PGP_PREV_MASTER_KEY_FP,
         "PGP 指纹", MB_ICONINFORMATION | MB_OK,
-        HELPCTXID(pgp_fingerprints));
+        false, HELPCTXID(pgp_fingerprints));
 }

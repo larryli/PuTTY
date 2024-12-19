@@ -26,6 +26,12 @@ const SeatDialogPromptDescriptions *console_prompt_descriptions(Seat *seat)
 
 bool console_batch_mode = false;
 
+bool console_set_batch_mode(bool newvalue)
+{
+    console_batch_mode = newvalue;
+    return true;
+}
+
 /*
  * Error message and/or fatal exit functions, all based on
  * console_print_error_msg which the platform front end provides.
@@ -67,6 +73,11 @@ void console_connection_fatal(Seat *seat, const char *msg)
 {
     console_print_error_msg("FATAL ERROR", msg);
     cleanup_exit(1);
+}
+
+void console_nonfatal(Seat *seat, const char *msg)
+{
+    console_print_error_msg("ERROR", msg);
 }
 
 /*

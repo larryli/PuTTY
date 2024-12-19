@@ -114,6 +114,21 @@ static void ssh2_userauth_server_add_session_id(
     }
 }
 
+static void ssh2_userauth_server_close_after_banner(void *vctx)
+{
+    struct ssh2_userauth_server_state *s =
+        (struct ssh2_userauth_server_state *)vctx;
+
+    if (pq_peek(s->ppl.out_pq)) {
+        /* Don't close the connection until we've passed on our final banner
+         * packet to the lower layer */
+        queue_toplevel_callback(ssh2_userauth_server_close_after_banner, s);
+    } else {
+        ssh_user_close(s->ppl.ssh, "Closing connection on request due to "
+                       "--close-after-banner");
+    }
+}
+
 static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
 {
     struct ssh2_userauth_server_state *s =
@@ -130,6 +145,11 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
         put_stringpl(pktout, s->ssc->banner);
         put_stringz(pktout, ""); /* language tag */
         pq_push(s->ppl.out_pq, pktout);
+    }
+
+    if (s->ssc->stunt_close_after_banner) {
+        queue_toplevel_callback(ssh2_userauth_server_close_after_banner, s);
+        crReturnV;
     }
 
     while (1) {

@@ -1,5 +1,9 @@
 /*
- * Message box with optional context help.
+ * Enhanced version of the MessageBox API function. Permits enabling a
+ * Help button by setting helpctxid to a context id in the help file
+ * relevant to this dialog box. Also permits setting the 'utf8' flag
+ * to indicate that the char strings given as 'text' and 'caption' are
+ * encoded in UTF-8 rather than the system code page.
  */
 
 #include "putty.h"
@@ -25,10 +29,10 @@ static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
         launch_help(message_box_owner, context);
 }
 
-int message_box(HWND owner, LPCTSTR text, LPCTSTR caption,
-                DWORD style, DWORD helpctxid)
+int message_box(HWND owner, LPCTSTR text, LPCTSTR caption, DWORD style,
+                bool utf8, DWORD helpctxid)
 {
-    MSGBOXPARAMS mbox;
+    MSGBOXPARAMSW mbox;
 
     /*
      * We use MessageBoxIndirect() because it allows us to specify a
@@ -37,13 +41,31 @@ int message_box(HWND owner, LPCTSTR text, LPCTSTR caption,
     mbox.cbSize = sizeof(mbox);
     /* Assumes the globals `hinst' and `hwnd' have sensible values. */
     mbox.hInstance = hinst;
-    mbox.hwndOwner = message_box_owner = owner;
-    mbox.lpfnMsgBoxCallback = &message_box_help_callback;
     mbox.dwLanguageId = LANG_NEUTRAL;
-    mbox.lpszText = text;
-    mbox.lpszCaption = caption;
-    mbox.dwContextHelpId = helpctxid;
+
+    mbox.hwndOwner = message_box_owner = owner;
+
+    wchar_t *wtext, *wcaption;
+    if (utf8) {
+        wtext = decode_utf8_to_wide_string(text);
+        wcaption = decode_utf8_to_wide_string(caption);
+    } else {
+        wtext = dup_mb_to_wc(DEFAULT_CODEPAGE, text);
+        wcaption = dup_mb_to_wc(DEFAULT_CODEPAGE, caption);
+    }
+    mbox.lpszText = wtext;
+    mbox.lpszCaption = wcaption;
+
     mbox.dwStyle = style;
+
+    mbox.dwContextHelpId = helpctxid;
     if (helpctxid != 0 && has_help()) mbox.dwStyle |= MB_HELP;
-    return MessageBoxIndirect(&mbox);
+    mbox.lpfnMsgBoxCallback = &message_box_help_callback;
+
+    int toret = MessageBoxIndirectW(&mbox);
+
+    sfree(wtext);
+    sfree(wcaption);
+
+    return toret;
 }

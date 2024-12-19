@@ -300,7 +300,7 @@ bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp)
     return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(uc->toplevel));
 }
 
-void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
+void dlg_editbox_set_utf8(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     GtkWidget *entry;
@@ -338,7 +338,14 @@ void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     sfree(tmpstring);
 }
 
-char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
+void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
+{
+    /* GTK specifies that its edit boxes are always in UTF-8 anyway,
+     * so legacy behaviour is to use those strings unmodified */
+    dlg_editbox_set_utf8(ctrl, dp, text);
+}
+
+char *dlg_editbox_get_utf8(dlgcontrol *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->type == CTRL_EDITBOX);
@@ -355,6 +362,13 @@ char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
     }
 
     unreachable("bad control type in editbox_get");
+}
+
+char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp)
+{
+    /* GTK specifies that its edit boxes are always in UTF-8 anyway,
+     * so legacy behaviour is to use those strings unmodified */
+    return dlg_editbox_get_utf8(ctrl, dp);
 }
 
 void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,
@@ -594,9 +608,7 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
         cols = cols ? cols : 1;
         for (i = 0; i < cols; i++) {
             int collen = strcspn(text, "\t");
-            char *tmpstr = snewn(collen+1, char);
-            memcpy(tmpstr, text, collen);
-            tmpstr[collen] = '\0';
+            char *tmpstr = mkstr(make_ptrlen(text, collen));
             gtk_list_store_set(uc->listmodel, &iter, i+1, tmpstr, -1);
             sfree(tmpstr);
             text += collen;
@@ -3540,7 +3552,8 @@ static void confirm_ssh_host_key_result_callback(void *vctx, int result)
          * doesn't care whether we saved the host key or not).
          */
         if (result == 2) {
-            store_host_key(ctx->host, ctx->port, ctx->keytype, ctx->keystr);
+            store_host_key(ctx->seat, ctx->host, ctx->port,
+                           ctx->keytype, ctx->keystr);
             logical_result = SPR_OK;
         } else if (result == 1) {
             logical_result = SPR_OK;

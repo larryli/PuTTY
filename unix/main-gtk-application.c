@@ -79,6 +79,7 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 
 #include "putty.h"
 #include "gtkmisc.h"
+#include "gtkcompat.h"
 
 char *x_get_default(const char *key) { return NULL; }
 
@@ -311,7 +312,7 @@ int main(int argc, char **argv)
     gtkcomm_setup();
 
     app = gtk_application_new("org.tartarus.projects.putty.macputty",
-                              G_APPLICATION_FLAGS_NONE);
+                              G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     g_signal_connect(app, "startup", G_CALLBACK(startup), NULL);
     g_action_map_add_action_entries(G_ACTION_MAP(app),

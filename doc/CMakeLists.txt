@@ -82,6 +82,7 @@ if(HALIBUT AND PERL_EXECUTABLE)
     ${CMAKE_CURRENT_SOURCE_DIR}/pgpkeys.but
     ${CMAKE_CURRENT_SOURCE_DIR}/sshnames.but
     ${CMAKE_CURRENT_SOURCE_DIR}/authplugin.but
+    ${CMAKE_CURRENT_SOURCE_DIR}/privacy.but
     ${CMAKE_CURRENT_SOURCE_DIR}/index.but
     ${VERSION_BUT})
 

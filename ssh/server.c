@@ -116,6 +116,7 @@ static const SeatVtable server_seat_vt = {
     .notify_remote_exit = nullseat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = nullseat_connection_fatal,
+    .nonfatal = nullseat_nonfatal,
     .update_specials_menu = nullseat_update_specials_menu,
     .get_ttymode = nullseat_get_ttymode,
     .set_busy_status = nullseat_set_busy_status,
@@ -136,13 +137,6 @@ static const SeatVtable server_seat_vt = {
     .interactive = nullseat_interactive_no,
     .get_cursor_position = nullseat_get_cursor_position,
 };
-
-static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                              int port, const char *error_msg, int error_code)
-{
-    /* server *srv = container_of(plug, server, plug); */
-    /* FIXME */
-}
 
 static void server_closing(Plug *plug, PlugCloseType type,
                            const char *error_msg)
@@ -252,7 +246,7 @@ Conf *make_ssh_server_conf(void)
 void ssh_check_sendok(Ssh *ssh) {}
 
 static const PlugVtable ssh_server_plugvt = {
-    .log = server_socket_log,
+    .log = nullplug_log,
     .closing = server_closing,
     .receive = server_receive,
     .sent = server_sent,
@@ -501,6 +495,7 @@ void ssh_sw_abort(Ssh *ssh, const char *fmt, ...)
 void ssh_user_close(Ssh *ssh, const char *fmt, ...)
 {
     server *srv = container_of(ssh, server, ssh);
+    ssh_bpp_handle_output(srv->bpp);
     LOG_FORMATTED_MSG(srv->logctx, fmt);
     queue_toplevel_callback(ssh_server_free_callback, srv);
 }

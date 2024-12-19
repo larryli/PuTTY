@@ -26,9 +26,9 @@
 #define DEFAULT_ECCURVE_INDEX 0
 #define DEFAULT_EDCURVE_INDEX 0
 
-static char *cmdline_keyfile = NULL;
+static Filename *cmdline_keyfile = NULL;
 static ptrlen cmdline_demo_keystr;
-static const char *demo_screenshot_filename = NULL;
+static Filename *demo_screenshot_filename = NULL;
 
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
@@ -1137,7 +1137,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
         char *msg = dupprintf("无法载入私钥 (%s)",
                               key_type_to_str(type));
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
     }
@@ -1200,7 +1200,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     if (ret == 0) {
         char *msg = dupprintf("无法载入私钥 (%s)", errmsg);
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
     } else if (ret == 1) {
         /*
@@ -1238,7 +1238,7 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
         char *msg = dupprintf("无法载入证书 (%s)",
                               key_type_to_str(type));
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
     }
@@ -1251,7 +1251,7 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
                        &error)) {
         char *msg = dupprintf("无法载入证书 (%s)", error);
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
         strbuf_free(pub);
         return;
@@ -1264,7 +1264,7 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
         char *msg = dupprintf("无法载入证书 (不支持的"
                               "算法 '%s')", algname);
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
         sfree(algname);
         strbuf_free(pub);
@@ -1292,7 +1292,7 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
     if (!match) {
         char *msg = dupprintf("证书公钥不匹配");
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
         strbuf_free(pub);
         return;
@@ -1308,7 +1308,7 @@ void add_certificate(HWND hwnd, struct MainDlgState *state,
     if (!newkey) {
         char *msg = dupprintf("无法合并证书密钥");
         message_box(hwnd, msg, "PuTTYgen 错误", MB_OK | MB_ICONERROR,
-                    HELPCTXID(errors_cantloadkey));
+                    false, HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
     }
@@ -1734,9 +1734,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
          * Load a key file if one was provided on the command line.
          */
         if (cmdline_keyfile) {
-            Filename *fn = filename_from_str(cmdline_keyfile);
-            load_key_file(hwnd, state, fn, false);
-            filename_free(fn);
+            load_key_file(hwnd, state, cmdline_keyfile, false);
         } else if (cmdline_demo_keystr.ptr) {
             BinarySource src[1];
             BinarySource_BARE_INIT_PL(src, cmdline_demo_keystr);
@@ -2388,8 +2386,6 @@ static NORETURN void opt_error(const char *fmt, ...)
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    int argc;
-    char **argv;
     int ret;
     struct InitialParams params[1];
 
@@ -2413,35 +2409,35 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     save_params = ppk_save_default_parameters;
 
-    split_into_argv(cmdline, &argc, &argv, NULL);
-
     int argbits = -1;
-    AuxMatchOpt amo = aux_match_opt_init(argc, argv, 0, opt_error);
+    AuxMatchOpt amo = aux_match_opt_init(opt_error);
     while (!aux_match_done(&amo)) {
-        char *val;
+        CmdlineArg *valarg;
         #define match_opt(...) aux_match_opt( \
             &amo, NULL, __VA_ARGS__, (const char *)NULL)
         #define match_optval(...) aux_match_opt( \
-            &amo, &val, __VA_ARGS__, (const char *)NULL)
+            &amo, &valarg, __VA_ARGS__, (const char *)NULL)
 
-        if (aux_match_arg(&amo, &val)) {
+        if (aux_match_arg(&amo, &valarg)) {
             if (!cmdline_keyfile) {
                 /*
                  * Assume the first argument to be a private key file, and
                  * attempt to load it.
                  */
-                cmdline_keyfile = val;
+                cmdline_keyfile = cmdline_arg_to_filename(valarg);
                 continue;
             } else {
-                opt_error("unexpected extra argument '%s'\n", val);
+                opt_error("unexpected extra argument '%s'\n",
+                          cmdline_arg_to_str(valarg));
             }
         } else if (match_opt("-pgpfp")) {
             pgp_fingerprints_msgbox(NULL);
-            return 1;
+            return 0;
         } else if (match_opt("-restrict-acl", "-restrict_acl",
                              "-restrictacl")) {
             restrict_process_acl();
         } else if (match_optval("-t")) {
+            const char *val = cmdline_arg_to_str(valarg);
             if (!strcmp(val, "rsa") || !strcmp(val, "rsa2")) {
                 params->keybutton = IDC_KEYSSH2RSA;
             } else if (!strcmp(val, "rsa1")) {
@@ -2462,8 +2458,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 opt_error("unknown key type '%s'\n", val);
             }
         } else if (match_optval("-b")) {
-            argbits = atoi(val);
+            argbits = atoi(cmdline_arg_to_str(valarg));
         } else if (match_optval("-E")) {
+            const char *val = cmdline_arg_to_str(valarg);
             if (!strcmp(val, "md5"))
                 params->fptype = SSH_FPTYPE_MD5;
             else if (!strcmp(val, "sha256"))
@@ -2471,6 +2468,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             else
                 opt_error("unknown fingerprint type '%s'\n", val);
         } else if (match_optval("-primes")) {
+            const char *val = cmdline_arg_to_str(valarg);
             if (!strcmp(val, "probable") ||
                 !strcmp(val, "probabilistic")) {
                 params->primepolicybutton = IDC_PRIMEGEN_PROB;
@@ -2491,6 +2489,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         } else if (match_opt("-strong-rsa")) {
             params->rsa_strong = true;
         } else if (match_optval("-ppk-param", "-ppk-params")) {
+            char *val = dupstr(cmdline_arg_to_str(valarg));
             char *nextval;
             for (; val; val = nextval) {
                 nextval = strchr(val, ',');
@@ -2543,8 +2542,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                     opt_error("unrecognised PPK parameter '%s'\n", val);
                 }
             }
+            sfree(val);
         } else if (match_optval("-demo-screenshot")) {
-            demo_screenshot_filename = val;
+            demo_screenshot_filename = cmdline_arg_to_filename(valarg);
             cmdline_demo_keystr = PTRLEN_LITERAL(
                 "PuTTY-User-Key-File-3: ssh-ed25519\n"
                 "Encryption: none\n"
@@ -2560,7 +2560,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             params->keybutton = IDC_KEYSSH2EDDSA;
             argbits = 255;
         } else {
-            opt_error("unrecognised option '%s'\n", amo.argv[amo.index]);
+            opt_error("unrecognised option '%s'\n",
+                      cmdline_arg_to_str(amo.arglist->args[amo.index]));
         }
     }
 

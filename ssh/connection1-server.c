@@ -315,7 +315,7 @@ static void ssh1sesschan_send_exit_signal(
 }
 
 SshChannel *ssh1_serverside_x11_open(
-    ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi)
+    ConnectionLayer *cl, Channel *chan, const SocketEndpointInfo *pi)
 {
     struct ssh1_connection_state *s =
         container_of(cl, struct ssh1_connection_state, cl);

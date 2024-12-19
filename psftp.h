@@ -55,7 +55,7 @@ void platform_psftp_pre_conn_setup(LogPolicy *lp);
  * The main program in psftp.c. Called from main() in the platform-
  * specific code, after doing any platform-specific initialisation.
  */
-int psftp_main(int argc, char *argv[]);
+int psftp_main(CmdlineArgList *arglist);
 
 /*
  * These functions are used by PSCP to transmit progress updates

@@ -28,4 +28,5 @@ add_sources_from_current_dir(utils
   null-mac.c
   null-opener.c
   null-plug.c
-  null-seat.c)
+  null-seat.c
+  null-socket.c)

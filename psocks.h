@@ -19,10 +19,11 @@ struct PsocksPlatform {
     PsocksDataSink *(*open_pipes)(
         const char *cmd, const char *const *direction_args,
         const char *index_arg, char **err);
-    void (*start_subcommand)(strbuf *args);
+    void (*found_subcommand)(CmdlineArg *arg);
+    void (*start_subcommand)(void);
 };
 
 psocks_state *psocks_new(const PsocksPlatform *);
 void psocks_free(psocks_state *ps);
-void psocks_cmdline(psocks_state *ps, int argc, char **argv);
+void psocks_cmdline(psocks_state *ps, CmdlineArgList *arglist);
 void psocks_start(psocks_state *ps);

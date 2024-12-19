@@ -584,6 +584,7 @@ NULLABLE_RETURN_WRAPPER(val_string, strbuf *)
 NULLABLE_RETURN_WRAPPER(val_string_asciz, char *)
 NULLABLE_RETURN_WRAPPER(val_string_asciz_const, const char *)
 NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
+NULLABLE_RETURN_WRAPPER(val_mac, ssh2_mac *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
 NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
 NULLABLE_RETURN_WRAPPER(val_mpint, mp_int *)
@@ -1613,13 +1614,8 @@ static void process_line(BinarySource *in, strbuf *out)
 
 #define FUNC_INNER(outtype, fname, realname, ...)       \
     DISPATCH_INTERNAL(#fname,handle_##fname);
-#define ARG1(type, arg)
-#define ARGN(type, arg)
-#define VOID
 #include "testcrypt-func.h"
 #undef FUNC_INNER
-#undef ARG
-#undef VOID
 
 #undef DISPATCH_INTERNAL
 

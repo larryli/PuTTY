@@ -14,7 +14,7 @@ void block_signal(int sig, bool block_it)
 
     sigemptyset(&ss);
     sigaddset(&ss, sig);
-    if(sigprocmask(block_it ? SIG_BLOCK : SIG_UNBLOCK, &ss, 0) < 0) {
+    if (sigprocmask(block_it ? SIG_BLOCK : SIG_UNBLOCK, &ss, 0) < 0) {
         perror("sigprocmask");
         exit(1);
     }

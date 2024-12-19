@@ -33,36 +33,344 @@ void console_print_error_msg(const char *prefix, const char *msg)
 }
 
 /*
+ * System for getting I/O handles to talk to the console for
+ * interactive prompts.
+ *
+ * In PuTTY 0.81 and before, these prompts used the standard I/O
+ * handles. But this means you can't redirect Plink's actual stdin
+ * from a sensible data channel without the responses to login prompts
+ * unwantedly being read from it too. Also, if you have a real
+ * console handle then you can read from it in Unicode mode, which is
+ * an option not available for any old file handle.
+ *
+ * However, many versions of PuTTY have worked the old way, so we need
+ * a method of falling back to it for the sake of whoever's workflow
+ * it turns out to break. So this structure equivocates between the
+ * two systems.
+ */
+static bool conio_use_standard_handles = false;
+bool console_set_stdio_prompts(bool newvalue)
+{
+    conio_use_standard_handles = newvalue;
+    return true;
+}
+
+static bool conio_use_utf8 = true;
+bool set_legacy_charset_handling(bool newvalue)
+{
+    conio_use_utf8 = !newvalue;
+    return true;
+}
+
+typedef struct ConsoleIO {
+    HANDLE hin, hout;
+    bool need_close_hin, need_close_hout;
+    bool hin_is_console, hout_is_console;
+    bool utf8;
+    BinarySink_IMPLEMENTATION;
+} ConsoleIO;
+
+static void console_write(BinarySink *bs, const void *data, size_t len);
+
+static ConsoleIO *conio_setup(bool utf8, DWORD fallback_output)
+{
+    ConsoleIO *conio = snew(ConsoleIO);
+
+    conio->hin = conio->hout = INVALID_HANDLE_VALUE;
+    conio->need_close_hin = conio->need_close_hout = false;
+
+    init_winver();
+    if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS ||
+        osPlatformId == VER_PLATFORM_WIN32s)
+        conio->utf8 = false;           /* no Unicode support at all */
+    else
+        conio->utf8 = utf8 && conio_use_utf8;
+
+    /*
+     * First try opening the console itself, so that prompts will go
+     * there regardless of I/O redirection. We don't do this if the
+     * user has deliberately requested a fallback to the old
+     * behaviour. We also don't do it in batch mode, because in that
+     * situation, any need for an interactive prompt will instead
+     * noninteractively abort the connection, and in that situation,
+     * the 'prompt' becomes more in the nature of an error message, so
+     * it should go to standard error like everything else.
+     */
+    if (!conio_use_standard_handles && !console_batch_mode) {
+        /*
+         * If we do open the console, it has to be done separately for
+         * input and output, with different magic file names.
+         *
+         * We need both read and write permission for both handles,
+         * because read permission is needed to read the console mode
+         * (in particular, to test if a file handle _is_ a console),
+         * and write permission to change it.
+         */
+        conio->hin = CreateFile("CONIN$", GENERIC_READ | GENERIC_WRITE,
+                                0, NULL, OPEN_EXISTING, 0, NULL);
+        if (conio->hin != INVALID_HANDLE_VALUE)
+            conio->need_close_hin = true;
+
+        conio->hout = CreateFile("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+                                 0, NULL, OPEN_EXISTING, 0, NULL);
+        if (conio->hout != INVALID_HANDLE_VALUE)
+            conio->need_close_hout = true;
+    }
+
+    /*
+     * Fall back from that to using the standard handles.
+     * (For prompt output, some callers use STD_ERROR_HANDLE rather
+     * than STD_OUTPUT_HANDLE, because that has a better chance of
+     * separating them from session output.)
+     */
+    if (conio->hin == INVALID_HANDLE_VALUE)
+        conio->hin = GetStdHandle(STD_INPUT_HANDLE);
+    if (conio->hout == INVALID_HANDLE_VALUE)
+        conio->hout = GetStdHandle(fallback_output);
+
+    DWORD dummy;
+    conio->hin_is_console = GetConsoleMode(conio->hin, &dummy);
+    conio->hout_is_console = GetConsoleMode(conio->hout, &dummy);
+
+    BinarySink_INIT(conio, console_write);
+
+    return conio;
+}
+
+static void conio_free(ConsoleIO *conio)
+{
+    if (conio->need_close_hin)
+        CloseHandle(conio->hin);
+    if (conio->need_close_hout)
+        CloseHandle(conio->hout);
+    sfree(conio);
+}
+
+static void console_write(BinarySink *bs, const void *data, size_t len)
+{
+    ConsoleIO *conio = BinarySink_DOWNCAST(bs, ConsoleIO);
+
+    if (conio->utf8) {
+        /*
+         * Convert the UTF-8 input into a wide string.
+         */
+        size_t wlen;
+        wchar_t *wide = dup_mb_to_wc_c(CP_UTF8, data, len, &wlen);
+        if (conio->hout_is_console) {
+            /*
+             * To write UTF-8 to a console, use WriteConsoleW on the
+             * wide string we've just made.
+             */
+            size_t pos = 0;
+            DWORD nwritten;
+
+            while (pos < wlen && WriteConsoleW(conio->hout, wide+pos, wlen-pos,
+                                               &nwritten, NULL))
+                pos += nwritten;
+        } else {
+            /*
+             * To write a string encoded in UTF-8 to any other file
+             * handle, the best we can do is to convert it into the
+             * system code page. This will lose some characters, but
+             * what else can you do?
+             */
+            size_t clen;
+            char *sys_cp = dup_wc_to_mb_c(CP_ACP, wide, wlen, "?", &clen);
+            size_t pos = 0;
+            DWORD nwritten;
+
+            while (pos < clen && WriteFile(conio->hout, sys_cp+pos, clen-pos,
+                                           &nwritten, NULL))
+                pos += nwritten;
+
+            burnstr(sys_cp);
+        }
+
+        burnwcs(wide);
+    } else {
+        /*
+         * If we're in legacy non-UTF-8 mode, just send the bytes
+         * we're given to the file handle without trying to be clever.
+         */
+        const char *cdata = (const char *)data;
+        size_t pos = 0;
+        DWORD nwritten;
+
+        while (pos < len && WriteFile(conio->hout, cdata+pos, len-pos,
+                                      &nwritten, NULL))
+            pos += nwritten;
+    }
+}
+
+static bool console_read_line_to_strbuf(ConsoleIO *conio, bool echo,
+                                        strbuf *sb)
+{
+    DWORD savemode;
+
+    if (conio->hin_is_console) {
+        GetConsoleMode(conio->hin, &savemode);
+        DWORD newmode = savemode | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT;
+        if (!echo)
+            newmode &= ~ENABLE_ECHO_INPUT;
+        else
+            newmode |= ENABLE_ECHO_INPUT;
+
+        SetConsoleMode(conio->hin, newmode);
+    }
+
+    bool toret = false;
+
+    while (true) {
+        if (ptrlen_endswith(ptrlen_from_strbuf(sb),
+                            PTRLEN_LITERAL("\n"), NULL)) {
+            toret = true;
+            goto out;
+        }
+
+        if (conio->utf8) {
+            wchar_t wbuf[4097];
+            size_t wlen;
+
+            if (conio->hin_is_console) {
+                /*
+                 * To read UTF-8 from a console, read wide character data
+                 * via ReadConsoleW, and convert it to UTF-8.
+                 */
+                DWORD nread;
+                if (!ReadConsoleW(conio->hin, wbuf, lenof(wbuf), &nread, NULL))
+                    goto out;
+                wlen = nread;
+            } else {
+                /*
+                 * To read UTF-8 from an ordinary file handle, read it
+                 * as normal bytes and then convert from CP_ACP to
+                 * UTF-8, in the reverse of what we did above for
+                 * output.
+                 */
+                char buf[4096];
+                DWORD nread;
+                if (!ReadFile(conio->hin, buf, lenof(buf), &nread, NULL))
+                    goto out;
+
+                buffer_sink bs[1];
+                buffer_sink_init(bs, wbuf, sizeof(wbuf) - sizeof(wchar_t));
+                put_mb_to_wc(bs, CP_ACP, buf, nread);
+                assert(!bs->overflowed);
+                wlen = (wchar_t *)bs->out - wbuf;
+                smemclr(buf, sizeof(buf));
+            }
+
+            put_wc_to_mb(sb, CP_UTF8, wbuf, wlen, "");
+            smemclr(wbuf, sizeof(wbuf));
+        } else {
+            /*
+             * If we're in legacy non-UTF-8 mode, just read bytes
+             * directly from the file handle into the output strbuf.
+             */
+            char buf[4096];
+            DWORD nread;
+            if (!ReadFile(conio->hin, buf, lenof(buf), &nread, NULL))
+                goto out;
+
+            put_data(sb, buf, nread);
+            smemclr(buf, sizeof(buf));
+        }
+    }
+
+  out:
+    if (!echo)
+        put_datalit(conio, "\r\n");
+    if (conio->hin_is_console)
+        SetConsoleMode(conio->hin, savemode);
+    return toret;
+}
+
+static char *console_read_line(ConsoleIO *conio, bool echo)
+{
+    strbuf *sb = strbuf_new_nm();
+    if (!console_read_line_to_strbuf(conio, echo, sb)) {
+        strbuf_free(sb);
+        return NULL;
+    } else {
+        return strbuf_to_str(sb);
+    }
+}
+
+typedef enum {
+    RESPONSE_ABANDON,
+    RESPONSE_YES,
+    RESPONSE_NO,
+    RESPONSE_INFO,
+    RESPONSE_UNRECOGNISED
+} ResponseType;
+
+static ResponseType parse_and_free_response(char *line)
+{
+    if (!line)
+        return RESPONSE_ABANDON;
+
+    ResponseType toret;
+    switch (line[0]) {
+        /* In case of misplaced reflexes from another program,
+         * recognise 'q' as 'abandon connection' as well as the
+         * advertised 'just press Return' */
+      case 'q':
+      case 'Q':
+      case '\n':
+      case '\r':
+      case '\0':
+        toret = RESPONSE_ABANDON;
+        break;
+      case 'y':
+      case 'Y':
+        toret = RESPONSE_YES;
+        break;
+      case 'n':
+      case 'N':
+        toret = RESPONSE_NO;
+        break;
+      case 'i':
+      case 'I':
+        toret = RESPONSE_INFO;
+        break;
+      default:
+        toret = RESPONSE_UNRECOGNISED;
+        break;
+    }
+
+    burnstr(line);
+    return toret;
+}
+
+/*
  * Helper function to print the message from a SeatDialogText. Returns
  * the final prompt to print on the input line, or NULL if a
  * batch-mode abort is needed. In the latter case it will have printed
  * the abort text already.
  */
-static const char *console_print_seatdialogtext(SeatDialogText *text)
+static const char *console_print_seatdialogtext(
+    ConsoleIO *conio, SeatDialogText *text)
 {
     const char *prompt = NULL;
-    stdio_sink errsink[1];
-    stdio_sink_init(errsink, stderr);
 
     for (SeatDialogTextItem *item = text->items,
              *end = item+text->nitems; item < end; item++) {
         switch (item->type) {
           case SDT_PARA:
-            wordwrap(BinarySink_UPCAST(errsink),
+            wordwrap(BinarySink_UPCAST(conio),
                      ptrlen_from_asciz(item->text), 60);
-            fputc('\n', stderr);
+            put_byte(conio, '\n');
             break;
           case SDT_DISPLAY:
-            fprintf(stderr, "  %s\n", item->text);
+            put_fmt(conio, "  %s\n", item->text);
             break;
           case SDT_SCARY_HEADING:
             /* Can't change font size or weight in this context */
-            fprintf(stderr, "%s\n", item->text);
+            put_fmt(conio, "%s\n", item->text);
             break;
           case SDT_BATCH_ABORT:
             if (console_batch_mode) {
-                fprintf(stderr, "%s\n", item->text);
-                fflush(stderr);
+                put_fmt(conio, "%s\n", item->text);
                 return NULL;
             }
             break;
@@ -82,42 +390,35 @@ SeatPromptResult console_confirm_ssh_host_key(
     char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    HANDLE hin;
-    DWORD savemode, i;
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE);
+    SeatPromptResult result;
 
-    const char *prompt = console_print_seatdialogtext(text);
-    if (!prompt)
-        return SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+    const char *prompt = console_print_seatdialogtext(conio, text);
+    if (!prompt) {
+        result = SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+        goto out;
+    }
 
-    char line[32];
+    ResponseType response;
 
     while (true) {
-        fprintf(stderr,
-                "%s (y/n, Return cancels connection, i for more info) ",
+        put_fmt(conio, "%s (y/n, Return cancels connection, i for more info) ",
                 prompt);
-        fflush(stderr);
 
-        line[0] = '\0';    /* fail safe if ReadFile returns no data */
+        response = parse_and_free_response(console_read_line(conio, true));
 
-        hin = GetStdHandle(STD_INPUT_HANDLE);
-        GetConsoleMode(hin, &savemode);
-        SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
-                             ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
-        ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
-        SetConsoleMode(hin, savemode);
-
-        if (line[0] == 'i' || line[0] == 'I') {
+        if (response == RESPONSE_INFO) {
             for (SeatDialogTextItem *item = text->items,
                      *end = item+text->nitems; item < end; item++) {
                 switch (item->type) {
                   case SDT_MORE_INFO_KEY:
-                    fprintf(stderr, "%s", item->text);
+                    put_dataz(conio, item->text);
                     break;
                   case SDT_MORE_INFO_VALUE_SHORT:
-                    fprintf(stderr, ": %s\n", item->text);
+                    put_fmt(conio, ": %s\n", item->text);
                     break;
                   case SDT_MORE_INFO_VALUE_BLOB:
-                    fprintf(stderr, ":\n%s\n", item->text);
+                    put_fmt(conio, ":\n%s\n", item->text);
                     break;
                   default:
                     break;
@@ -128,81 +429,75 @@ SeatPromptResult console_confirm_ssh_host_key(
         }
     }
 
-    /* In case of misplaced reflexes from another program, also recognise 'q'
-     * as 'abandon connection rather than trust this key' */
-    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n' &&
-        line[0] != 'q' && line[0] != 'Q') {
-        if (line[0] == 'y' || line[0] == 'Y')
-            store_host_key(host, port, keytype, keystr);
-        return SPR_OK;
+    if (response == RESPONSE_YES || response == RESPONSE_NO) {
+        if (response == RESPONSE_YES)
+            store_host_key(seat, host, port, keytype, keystr);
+        result = SPR_OK;
     } else {
-        fputs(console_abandoned_msg, stderr);
-        return SPR_USER_ABORT;
+        put_dataz(conio, console_abandoned_msg);
+        result = SPR_USER_ABORT;
     }
+  out:
+    conio_free(conio);
+    return result;
 }
 
 SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    HANDLE hin;
-    DWORD savemode, i;
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE);
+    SeatPromptResult result;
 
-    const char *prompt = console_print_seatdialogtext(text);
-    if (!prompt)
-        return SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
-                            "in batch mode");
-
-    char line[32];
-
-    fprintf(stderr, "%s (y/n) ", prompt);
-    fflush(stderr);
-
-    hin = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(hin, &savemode);
-    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
-                         ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
-    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
-    SetConsoleMode(hin, savemode);
-
-    if (line[0] == 'y' || line[0] == 'Y') {
-        return SPR_OK;
-    } else {
-        fputs(console_abandoned_msg, stderr);
-        return SPR_USER_ABORT;
+    const char *prompt = console_print_seatdialogtext(conio, text);
+    if (!prompt) {
+        result = SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
+                              "in batch mode");
+        goto out;
     }
+
+    put_fmt(conio, "%s (y/n) ", prompt);
+
+    ResponseType response = parse_and_free_response(
+        console_read_line(conio, true));
+
+    if (response == RESPONSE_YES) {
+        result = SPR_OK;
+    } else {
+        put_dataz(conio, console_abandoned_msg);
+        result = SPR_USER_ABORT;
+    }
+  out:
+    conio_free(conio);
+    return result;
 }
 
 SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-    HANDLE hin;
-    DWORD savemode, i;
+    ConsoleIO *conio = conio_setup(false, STD_ERROR_HANDLE);
+    SeatPromptResult result;
 
-    const char *prompt = console_print_seatdialogtext(text);
+    const char *prompt = console_print_seatdialogtext(conio, text);
     if (!prompt)
         return SPR_SW_ABORT("Cannot confirm a weak cached host key "
                             "in batch mode");
 
-    char line[32];
+    put_fmt(conio, "%s (y/n) ", prompt);
 
-    fprintf(stderr, "%s (y/n) ", prompt);
-    fflush(stderr);
+    ResponseType response = parse_and_free_response(
+        console_read_line(conio, true));
 
-    hin = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(hin, &savemode);
-    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
-                         ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
-    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
-    SetConsoleMode(hin, savemode);
-
-    if (line[0] == 'y' || line[0] == 'Y') {
-        return SPR_OK;
+    if (response == RESPONSE_YES) {
+        result = SPR_OK;
     } else {
-        fputs(console_abandoned_msg, stderr);
-        return SPR_USER_ABORT;
+        put_dataz(conio, console_abandoned_msg);
+        result = SPR_USER_ABORT;
     }
+
+    conio_free(conio);
+    return result;
 }
 
 bool is_interactive(void)
@@ -258,9 +553,6 @@ bool console_has_mixed_input_stream(Seat *seat)
 int console_askappend(LogPolicy *lp, Filename *filename,
                       void (*callback)(void *ctx, int result), void *ctx)
 {
-    HANDLE hin;
-    DWORD savemode, i;
-
     static const char msgtemplate[] =
         "会话日志文件 \"%.*s\" 已经存在。\n"
         "可以使用新会话日志覆盖旧文件，\n"
@@ -275,29 +567,28 @@ int console_askappend(LogPolicy *lp, Filename *filename,
         "会话日志文件 \"%.*s\" 已经存在。\n"
         "将不会启用日志记录。\n";
 
-    char line[32];
+    ConsoleIO *conio = conio_setup(true, STD_ERROR_HANDLE);
+    int result;
 
     if (console_batch_mode) {
-        fprintf(stderr, msgtemplate_batch, FILENAME_MAX, filename->path);
-        fflush(stderr);
-        return 0;
+        put_fmt(conio, msgtemplate_batch, FILENAME_MAX, filename->utf8path);
+        result = 0;
+        goto out;
     }
-    fprintf(stderr, msgtemplate, FILENAME_MAX, filename->path);
-    fflush(stderr);
+    put_fmt(conio, msgtemplate, FILENAME_MAX, filename->utf8path);
 
-    hin = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(hin, &savemode);
-    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
-                         ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
-    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
-    SetConsoleMode(hin, savemode);
+    ResponseType response = parse_and_free_response(
+        console_read_line(conio, true));
 
-    if (line[0] == 'y' || line[0] == 'Y')
-        return 2;
-    else if (line[0] == 'n' || line[0] == 'N')
-        return 1;
+    if (response == RESPONSE_YES)
+        result = 2;
+    else if (response == RESPONSE_NO)
+        result = 1;
     else
-        return 0;
+        result = 0;
+  out:
+    conio_free(conio);
+    return result;
 }
 
 /*
@@ -364,15 +655,10 @@ StripCtrlChars *console_stripctrl_new(
     return stripctrl_new(bs_out, false, 0);
 }
 
-static void console_write(HANDLE hout, ptrlen data)
-{
-    DWORD dummy;
-    WriteFile(hout, data.ptr, data.len, &dummy, NULL);
-}
-
 SeatPromptResult console_get_userpass_input(prompts_t *p)
 {
-    HANDLE hin = INVALID_HANDLE_VALUE, hout = INVALID_HANDLE_VALUE;
+    ConsoleIO *conio = conio_setup(p->utf8, STD_OUTPUT_HANDLE);
+    SeatPromptResult result;
     size_t curr_prompt;
 
     /*
@@ -391,24 +677,10 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
      * need to ensure that we're able to get the answers.
      */
     if (p->n_prompts) {
-        if (console_batch_mode)
-            return SPR_SW_ABORT("Cannot answer interactive prompts "
-                                "in batch mode");
-        hin = GetStdHandle(STD_INPUT_HANDLE);
-        if (hin == INVALID_HANDLE_VALUE) {
-            fprintf(stderr, "Cannot get standard input handle\n");
-            cleanup_exit(1);
-        }
-    }
-
-    /*
-     * And if we have anything to print, we need standard output.
-     */
-    if ((p->name_reqd && p->name) || p->instruction || p->n_prompts) {
-        hout = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (hout == INVALID_HANDLE_VALUE) {
-            fprintf(stderr, "Cannot get standard output handle\n");
-            cleanup_exit(1);
+        if (console_batch_mode) {
+            result = SPR_SW_ABORT("Cannot answer interactive prompts "
+                                  "in batch mode");
+            goto out;
         }
     }
 
@@ -418,86 +690,40 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
         ptrlen plname = ptrlen_from_asciz(p->name);
-        console_write(hout, plname);
+        put_datapl(conio, plname);
         if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
-            console_write(hout, PTRLEN_LITERAL("\n"));
+            put_datalit(conio, "\n");
     }
     /* ...but we always print any `instruction'. */
     if (p->instruction) {
         ptrlen plinst = ptrlen_from_asciz(p->instruction);
-        console_write(hout, plinst);
+        put_datapl(conio, plinst);
         if (!ptrlen_endswith(plinst, PTRLEN_LITERAL("\n"), NULL))
-            console_write(hout, PTRLEN_LITERAL("\n"));
+            put_datalit(conio, "\n");
     }
 
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
-
-        DWORD savemode, newmode;
         prompt_t *pr = p->prompts[curr_prompt];
 
-        GetConsoleMode(hin, &savemode);
-        newmode = savemode | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT;
-        if (!pr->echo)
-            newmode &= ~ENABLE_ECHO_INPUT;
-        else
-            newmode |= ENABLE_ECHO_INPUT;
-        SetConsoleMode(hin, newmode);
+        put_dataz(conio, pr->prompt);
 
-        console_write(hout, ptrlen_from_asciz(pr->prompt));
-
-        bool failed = false;
-        SeatPromptResult spr;
-        while (1) {
-            /*
-             * Amount of data to try to read from the console in one
-             * go. This isn't completely arbitrary: a user reported
-             * that trying to read more than 31366 bytes at a time
-             * would fail with ERROR_NOT_ENOUGH_MEMORY on Windows 7,
-             * and Ruby's Win32 support module has evidence of a
-             * similar workaround:
-             *
-             * https://github.com/ruby/ruby/blob/0aa5195262d4193d3accf3e6b9bad236238b816b/win32/win32.c#L6842
-             *
-             * To keep things simple, I stick with a nice round power
-             * of 2 rather than trying to go to the very limit of that
-             * bug. (We're typically reading user passphrases and the
-             * like here, so even this much is overkill really.)
-             */
-            DWORD toread = 16384;
-
-            size_t prev_result_len = pr->result->len;
-            void *ptr = strbuf_append(pr->result, toread);
-
-            DWORD ret = 0;
-            if (!ReadFile(hin, ptr, toread, &ret, NULL)) {
-                /* An OS error when reading from the console is treated as an
-                 * unexpected error and reported to the user. */
-                failed = true;
-                spr = make_spr_sw_abort_winerror(
-                    "Error reading from console", GetLastError());
-                break;
-            } else if (ret == 0) {
-                /* Regard EOF on the terminal as a deliberate user-abort */
-                failed = true;
-                spr = SPR_USER_ABORT;
-                break;
-            }
-
-            strbuf_shrink_to(pr->result, prev_result_len + ret);
+        if (!console_read_line_to_strbuf(conio, pr->echo, pr->result)) {
+            result = make_spr_sw_abort_winerror(
+                "Error reading from console", GetLastError());
+            goto out;
+        } else if (!pr->result->len) {
+            /* Regard EOF on the terminal as a deliberate user-abort */
+            result = SPR_USER_ABORT;
+            goto out;
+        } else {
             if (strbuf_chomp(pr->result, '\n')) {
                 strbuf_chomp(pr->result, '\r');
-                break;
             }
         }
-
-        SetConsoleMode(hin, savemode);
-
-        if (!pr->echo)
-            console_write(hout, PTRLEN_LITERAL("\r\n"));
-
-        if (failed)
-            return spr;
     }
 
-    return SPR_OK;
+    result = SPR_OK;
+  out:
+    conio_free(conio);
+    return result;
 }

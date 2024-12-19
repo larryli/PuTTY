@@ -362,7 +362,7 @@ struct dlgcontrol {
              * particular platform might choose to cast integers into
              * this pointer type...
              */
-            char const *filter;
+            FILESELECT_FILTER_TYPE filter;
             /*
              * Some systems like to know whether a file selector is
              * choosing a file to read or one to write (and possibly
@@ -552,8 +552,8 @@ dlgcontrol *ctrl_draglist(struct controlset *, const char *label,
                           char shortcut, HelpCtx helpctx,
                           handler_fn handler, intorptr context);
 dlgcontrol *ctrl_filesel(struct controlset *, const char *label,
-                         char shortcut, const char *filter, bool write,
-                         const char *title, HelpCtx helpctx,
+                         char shortcut, FILESELECT_FILTER_TYPE filter,
+                         bool write, const char *title, HelpCtx helpctx,
                          handler_fn handler, intorptr context);
 dlgcontrol *ctrl_fontsel(struct controlset *, const char *label,
                          char shortcut, HelpCtx helpctx,
@@ -574,7 +574,9 @@ int dlg_radiobutton_get(dlgcontrol *ctrl, dlgparam *dp);
 void dlg_checkbox_set(dlgcontrol *ctrl, dlgparam *dp, bool checked);
 bool dlg_checkbox_get(dlgcontrol *ctrl, dlgparam *dp);
 void dlg_editbox_set(dlgcontrol *ctrl, dlgparam *dp, char const *text);
+void dlg_editbox_set_utf8(dlgcontrol *ctrl, dlgparam *dp, char const *text);
 char *dlg_editbox_get(dlgcontrol *ctrl, dlgparam *dp);   /* result must be freed by caller */
+char *dlg_editbox_get_utf8(dlgcontrol *ctrl, dlgparam *dp);   /* result must be freed by caller */
 void dlg_editbox_select_range(dlgcontrol *ctrl, dlgparam *dp,
                               size_t start, size_t len);
 /* The `listbox' functions can also apply to combo boxes. */
