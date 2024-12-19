@@ -18,7 +18,6 @@ jobs:
         - { platform: "x64", archive: "-x64" }
         - { platform: "Win32", archive: "" }
         - { platform: "ARM64", archive: "-arm64" }
-        - { platform: "ARM", archive: "-arm" }
 
     steps:
     - name: Checkout
