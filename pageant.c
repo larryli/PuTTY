@@ -2203,13 +2203,13 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
     type = key_type(filename);
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
-        *retstr = dupprintf("Couldn't load this key (%s)",
+        *retstr = dupprintf("无法载入此密钥 (%s)",
                             key_type_to_str(type));
         return PAGEANT_ACTION_FAILURE;
     }
 
     if (add_encrypted && type == SSH_KEYTYPE_SSH1) {
-        *retstr = dupprintf("Can't add SSH-1 keys in encrypted form");
+        *retstr = dupprintf("无法以加密形式添加 SSH-1 密钥");
         return PAGEANT_ACTION_FAILURE;
     }
 
@@ -2224,7 +2224,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         if (type == SSH_KEYTYPE_SSH1) {
             if (!rsa1_loadpub_f(filename, BinarySink_UPCAST(blob),
                                 NULL, &error)) {
-                *retstr = dupprintf("Couldn't load private key (%s)", error);
+                *retstr = dupprintf("无法载入私钥 (%s)", error);
                 strbuf_free(blob);
                 return PAGEANT_ACTION_FAILURE;
             }
@@ -2232,7 +2232,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         } else {
             if (!ppk_loadpub_f(filename, NULL, BinarySink_UPCAST(blob),
                                NULL, &error)) {
-                *retstr = dupprintf("Couldn't load private key (%s)", error);
+                *retstr = dupprintf("无法载入私钥 (%s)", error);
                 strbuf_free(blob);
                 return PAGEANT_ACTION_FAILURE;
             }
@@ -2241,7 +2241,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
         if (kl) {
             if (kl->broken) {
-                *retstr = dupstr("Received broken key list from agent");
+                *retstr = dupstr("从代理收到损坏的密钥列表");
                 keylist_free(kl);
                 strbuf_free(blob);
                 return PAGEANT_ACTION_FAILURE;
@@ -2316,11 +2316,11 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
             if (reply == SSH_AGENT_FAILURE) {
                 /* The agent didn't understand the protocol extension
                  * at all. */
-                *retstr = dupstr("Agent doesn't support adding "
-                                 "encrypted keys");
+                *retstr = dupstr("代理不支持添加"
+                                 "加密密钥");
             } else {
-                *retstr = dupstr("The already running agent "
-                                 "refused to add the key.");
+                *retstr = dupstr("已运行的代理"
+                                 "拒绝添加此密钥。");
             }
             return PAGEANT_ACTION_FAILURE;
         }
@@ -2435,8 +2435,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         sfree(rkey);
 
         if (reply != SSH_AGENT_SUCCESS) {
-            *retstr = dupstr("The already running agent "
-                             "refused to add the key.");
+            *retstr = dupstr("已运行的代理"
+                             "拒绝添加此密钥。");
             return PAGEANT_ACTION_FAILURE;
         }
     } else {
@@ -2453,8 +2453,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         sfree(skey);
 
         if (reply != SSH_AGENT_SUCCESS) {
-            *retstr = dupstr("The already running agent "
-                             "refused to add the key.");
+            *retstr = dupstr("已运行的代理"
+                             "拒绝添加此密钥。");
             return PAGEANT_ACTION_FAILURE;
         }
     }
@@ -2470,13 +2470,13 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
     kl1 = pageant_get_keylist(1);
     if (kl1 && kl1->broken) {
-        *retstr = dupstr("Received broken SSH-1 key list from agent");
+        *retstr = dupstr("从代理收到损坏的 SSH-1 密钥列表");
         goto out;
     }
 
     kl2 = pageant_get_keylist(2);
     if (kl2 && kl2->broken) {
-        *retstr = dupstr("Received broken SSH-2 key list from agent");
+        *retstr = dupstr("从代理收到损坏的 SSH-2 密钥列表");
         goto out;
     }
 
@@ -2495,7 +2495,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                 get_rsa_ssh1_pub(src, &rkey, RSA_SSH1_EXPONENT_FIRST);
                 if (get_err(src)) {
                     *retstr = dupstr(
-                        "Received an invalid SSH-1 key from agent");
+                        "从代理收到无效的 SSH-1 密钥");
                     goto out;
                 }
             }
@@ -2555,7 +2555,7 @@ int pageant_delete_key(struct pageant_pubkey *key, char **retstr)
     pageant_client_op_free(pco);
 
     if (reply != SSH_AGENT_SUCCESS) {
-        *retstr = dupstr("Agent failed to delete key");
+        *retstr = dupstr("代理删除密钥失败");
         return PAGEANT_ACTION_FAILURE;
     } else {
         *retstr = NULL;
@@ -2573,7 +2573,7 @@ int pageant_delete_all_keys(char **retstr)
     reply = pageant_client_op_query(pco);
     pageant_client_op_free(pco);
     if (reply != SSH_AGENT_SUCCESS) {
-        *retstr = dupstr("Agent failed to delete SSH-2 keys");
+        *retstr = dupstr("代理删除 SSH-2 密钥失败");
         return PAGEANT_ACTION_FAILURE;
     }
 
@@ -2582,7 +2582,7 @@ int pageant_delete_all_keys(char **retstr)
     reply = pageant_client_op_query(pco);
     pageant_client_op_free(pco);
     if (reply != SSH_AGENT_SUCCESS) {
-        *retstr = dupstr("Agent failed to delete SSH-1 keys");
+        *retstr = dupstr("代理删除 SSH-1 密钥失败");
         return PAGEANT_ACTION_FAILURE;
     }
 
@@ -2595,7 +2595,7 @@ int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr)
     PageantClientOp *pco = pageant_client_op_new();
 
     if (key->ssh_version == 1) {
-        *retstr = dupstr("Can't re-encrypt an SSH-1 key");
+        *retstr = dupstr("无法重新加密 SSH-1 密钥");
         pageant_client_op_free(pco);
         return PAGEANT_ACTION_FAILURE;
     } else {
@@ -2610,9 +2610,9 @@ int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr)
     if (reply != SSH_AGENT_SUCCESS) {
         if (reply == SSH_AGENT_FAILURE) {
             /* The agent didn't understand the protocol extension at all. */
-            *retstr = dupstr("Agent doesn't support encrypted keys");
+            *retstr = dupstr("代理不支持加密密钥");
         } else {
-            *retstr = dupstr("Agent failed to re-encrypt key");
+            *retstr = dupstr("代理重新加密密钥失败");
         }
         return PAGEANT_ACTION_FAILURE;
     } else {
@@ -2632,17 +2632,17 @@ int pageant_reencrypt_all_keys(char **retstr)
     if (reply != SSH_AGENT_SUCCESS) {
         if (reply == SSH_AGENT_FAILURE) {
             /* The agent didn't understand the protocol extension at all. */
-            *retstr = dupstr("Agent doesn't support encrypted keys");
+            *retstr = dupstr("代理不支持加密密钥");
         } else {
-            *retstr = dupstr("Agent failed to re-encrypt any keys");
+            *retstr = dupstr("代理重新加密密钥失败");
         }
         return PAGEANT_ACTION_FAILURE;
     } else if (failures == 1) {
         /* special case for English grammar */
-        *retstr = dupstr("1 key remains unencrypted");
+        *retstr = dupstr("1 个密钥保持未加密状态");
         return PAGEANT_ACTION_WARNING;
     } else if (failures > 0) {
-        *retstr = dupprintf("%"PRIu32" keys remain unencrypted", failures);
+        *retstr = dupprintf("%"PRIu32" 个密钥保持未加密状态", failures);
         return PAGEANT_ACTION_WARNING;
     } else {
         *retstr = NULL;
@@ -2667,7 +2667,7 @@ int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
         pageant_client_op_free(pco);
         return PAGEANT_ACTION_OK;
     } else {
-        *retstr = dupstr("Agent failed to create signature");
+        *retstr = dupstr("代理创建签名失败");
         pageant_client_op_free(pco);
         return PAGEANT_ACTION_FAILURE;
     }
