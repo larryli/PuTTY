@@ -947,6 +947,30 @@ class ecc(MyTestBase):
             self.assertEqual(int(x), int(rGi.x))
             self.assertEqual(int(y), int(rGi.y))
 
+    def testWeierstrassBogusAssertionRegression(self):
+        curve = p256
+        wc = ecc_weierstrass_curve(curve.p, int(curve.a), int(curve.b), None)
+        # The point described by these coordinates has the property
+        # that 10*P and 11*P have the same affine y-coordinate. So
+        # when the Montgomery-ladder based multiply routine wants to
+        # make 21*P, it must add those two points, triggering a bug in
+        # which it failed an assertion if the two inputs to an
+        # addition were on the same horizontal line.
+        tx = 0x858d6d6329394a7720d4c9cb4dbcb38ccff10ef6faa9fc45fc0067a5021ff53e
+        ty = 0x32e9d51b7216745493e8ddc0d67fe15d6e39fa0e71cfc82e00045ca2763e0d74
+        rP = curve.point(tx, ty)
+        assert (10*rP).y == (11*rP).y
+
+        wP = ecc_weierstrass_point_new(wc, tx, ty)
+        self.assertTrue(ecc_weierstrass_point_valid(wP))
+
+        i = 21
+        wPi = ecc_weierstrass_multiply(wP, i)
+        x, y = ecc_weierstrass_get_affine(wPi)
+        rPi = rP * i
+        self.assertEqual(int(x), int(rPi.x))
+        self.assertEqual(int(y), int(rPi.y))
+
 class keygen(MyTestBase):
     def testPrimeCandidateSource(self):
         def inspect(pcs):
@@ -3541,6 +3565,27 @@ LzN/Ly+uECsga2hoc+P/ZHMULMZkCfrOyWdeXz7BR/acLZJoT579
         bad_sig = good_sig[:prefixlen+32] + bad_sstr
         self.assertEqual(len(bad_sig), len(good_sig))
         self.assertFalse(test_key.verify(bad_sig, test_string))
+
+    def testWeierstrassBogusAssertionRegressionSignature(self):
+        # This P256 public key contains the same test point as in
+        # ecc.testWeierstrassBogusAssertionRegression above, which
+        # causes an assertion failure if raised to the power 21.
+        tx = 0x858d6d6329394a7720d4c9cb4dbcb38ccff10ef6faa9fc45fc0067a5021ff53e
+        ty = 0x32e9d51b7216745493e8ddc0d67fe15d6e39fa0e71cfc82e00045ca2763e0d74
+        pubblob = ssh_string(b"ecdsa-sha2-nistp256") + ssh_string(b"nistp256") + ssh_string(b'\x04' + be_integer(tx, 256) + be_integer(ty, 256))
+        pubkey = ssh_key_new_pub('p256', pubblob)
+
+        # And this signature causes the key to be raised to the power
+        # 21, hence any attempt to verify the signature against
+        # anything provokes that assertion failure.
+        sig = ssh_string(b"ecdsa-sha2-nistp256") + ssh_string(ssh2_mpint(21) + ssh2_mpint(1))
+
+        # The message is unimportant: its hash isn't involved in the
+        # calculation leading to the crash. In a fixed version of the
+        # code, of course, we expect that this signature is totally
+        # bogus, but it should cleanly report failed verification
+        # rather than crashing.
+        self.assertFalse(ssh_key_verify(pubkey, sig, b'any old message'))
 
 class standard_test_vectors(MyTestBase):
     def testAES(self):
