@@ -902,42 +902,48 @@ class ecc(MyTestBase):
     # standard curves, because I want to have tested those a bit too.
 
     def testWeierstrassMultiply(self):
-        wc = ecc_weierstrass_curve(p256.p, int(p256.a), int(p256.b), None)
-        wG = ecc_weierstrass_point_new(wc, int(p256.G.x), int(p256.G.y))
+        curve = p256
+        wc = ecc_weierstrass_curve(curve.p, int(curve.a), int(curve.b), None)
+        wG = ecc_weierstrass_point_new(wc, int(curve.G.x), int(curve.G.y))
         self.assertTrue(ecc_weierstrass_point_valid(wG))
 
-        ints = set(i % p256.p for i in fibonacci_scattered(10))
+        ints = set(i % curve.G_order for i in fibonacci_scattered(10))
         ints.remove(0) # the zero multiple isn't expected to work
+        ints.add(curve.G_order - 1)
         for i in sorted(ints):
             wGi = ecc_weierstrass_multiply(wG, i)
             x, y = ecc_weierstrass_get_affine(wGi)
-            rGi = p256.G * i
+            rGi = curve.G * i
             self.assertEqual(int(x), int(rGi.x))
             self.assertEqual(int(y), int(rGi.y))
 
     def testMontgomeryMultiply(self):
+        curve = curve25519
         mc = ecc_montgomery_curve(
-            curve25519.p, int(curve25519.a), int(curve25519.b))
-        mG = ecc_montgomery_point_new(mc, int(curve25519.G.x))
+            curve.p, int(curve.a), int(curve.b))
+        mG = ecc_montgomery_point_new(mc, int(curve.G.x))
 
-        ints = set(i % p256.p for i in fibonacci_scattered(10))
+        ints = set(i % curve.G_order for i in fibonacci_scattered(10))
         ints.remove(0) # the zero multiple isn't expected to work
+        ints.add(curve.G_order - 1)
         for i in sorted(ints):
             mGi = ecc_montgomery_multiply(mG, i)
             x = ecc_montgomery_get_affine(mGi)
-            rGi = curve25519.G * i
+            rGi = curve.G * i
             self.assertEqual(int(x), int(rGi.x))
 
     def testEdwardsMultiply(self):
-        ec = ecc_edwards_curve(ed25519.p, int(ed25519.d), int(ed25519.a), None)
-        eG = ecc_edwards_point_new(ec, int(ed25519.G.x), int(ed25519.G.y))
+        curve = ed25519
+        ec = ecc_edwards_curve(curve.p, int(curve.d), int(curve.a), None)
+        eG = ecc_edwards_point_new(ec, int(curve.G.x), int(curve.G.y))
 
-        ints = set(i % ed25519.p for i in fibonacci_scattered(10))
+        ints = set(i % curve.G_order for i in fibonacci_scattered(10))
         ints.remove(0) # the zero multiple isn't expected to work
+        ints.add(curve.G_order - 1)
         for i in sorted(ints):
             eGi = ecc_edwards_multiply(eG, i)
             x, y = ecc_edwards_get_affine(eGi)
-            rGi = ed25519.G * i
+            rGi = curve.G * i
             self.assertEqual(int(x), int(rGi.x))
             self.assertEqual(int(y), int(rGi.y))
 
