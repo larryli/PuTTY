@@ -333,7 +333,7 @@ WeierstrassPoint *ecdsa_public(mp_int *private_key, const ssh_keyalg *alg)
     struct ec_curve *curve = extra->curve();
     assert(curve->type == EC_WEIERSTRASS);
 
-    mp_int *priv_reduced = mp_mod(private_key, curve->p);
+    mp_int *priv_reduced = mp_mod(private_key, curve->w.G_order);
     WeierstrassPoint *toret = ecc_weierstrass_multiply(
         curve->w.G, priv_reduced);
     mp_free(priv_reduced);
