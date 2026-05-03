@@ -1867,7 +1867,7 @@ connection.
 
 This could be useful if you are connecting to a server that is usually
 switched off but can be turned on remotely on demand, e.g via
-wake-on-LAN. If you have a script that will perform the wake-up
+\i{wake-on-LAN}. If you have a script that will perform the wake-up
 action, you can enter its command line in this box. (You should also
 make sure the script waits to terminate until the target machine is
 switched on and actually ready to receive an SSH connection.)
