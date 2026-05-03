@@ -1865,11 +1865,17 @@ If you enter a command line in this box, then PuTTY will run that
 command as a subprocess, just before making its main outgoing network
 connection.
 
-This could be useful if you are connecting to a server which requires
-a preliminary signal such as \q{\i{port knocking}} before it will accept
-a connection to its SSH server port in the first place. If you have a
-program that knows how to send the correct knock, you can enter its
-command line in this box.
+This could be useful if you are connecting to a server that is usually
+switched off but can be turned on remotely on demand, e.g via
+wake-on-LAN. If you have a script that will perform the wake-up
+action, you can enter its command line in this box. (You should also
+make sure the script waits to terminate until the target machine is
+switched on and actually ready to receive an SSH connection.)
+
+Another use might be a server which requires a preliminary signal such
+as \q{\i{port knocking}} before it will accept a connection to its SSH
+server port in the first place. If you have a program that knows how
+to send the correct knock, you can enter its command line in this box.
 
 In the command string, the special strings \c{%host} and \c{%port} will
 be replaced by the host name and port number you want to connect to,
