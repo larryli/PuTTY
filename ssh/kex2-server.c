@@ -321,10 +321,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         put_mp_ssh2(s->kex_shared_secret, K);
         mp_free(K);
 
-        if (s->rsa_kex_key_needs_freeing) {
+        if (s->rsa_kex_key_needs_freeing)
             ssh_rsakex_freekey(s->rsa_kex_key);
-            sfree(s->rsa_kex_key);
-        }
         s->rsa_kex_key = NULL;
         s->rsa_kex_key_needs_freeing = false;
 
