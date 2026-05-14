@@ -41,7 +41,7 @@ use Plink:
 
 \c C:\>plink --help
 \c Plink: command-line connection utility
-\c Release 0.83
+\c Release 0.84
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
@@ -58,6 +58,8 @@ use Plink:
 \c   -batch    disable all interactive prompts
 \c   -proxycmd command
 \c             use 'command' as local proxy
+\c   -preconnectcommand command
+\c             run 'command' before making network connection
 \c   -sercfg configuration-string (e.g. 19200,8,n,1,X)
 \c             Specify the serial configuration (serial only)
 \c The following options only apply to SSH connections:
