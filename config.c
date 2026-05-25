@@ -2513,9 +2513,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
                              conf_editbox_handler, I(CONF_loghost), ED_STR);
             }
 
-            s = ctrl_getset(b, "Connection", "hooks",
-                            "Command to run at connection event");
-            ctrl_editbox(s, "Command to run before connection", 'b', 100,
+            s = ctrl_getset(b, "连接", "hooks",
+                            "连接事件发生时运行的命令");
+            ctrl_editbox(s, "连接前运行命令(B)", 'b', 100,
                          HELPCTX(connection_pre_hook),
                          conf_editbox_handler, I(CONF_pre_connect_command), ED_STR);
         }
