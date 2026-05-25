@@ -596,7 +596,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 #endif
 
         if (!wgs->term_hwnd) {
-            modalfatalbox("Unable to create terminal window: %s",
+            modalfatalbox("无法创建终端窗口: %s",
                           win_strerror(GetLastError()));
         }
         memset(&wgs->dpi_info, 0, sizeof(struct _dpi_info));
@@ -1194,7 +1194,7 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg)
 static void win_seat_nonfatal(Seat *seat, const char *msg)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
-    char *title = dupprintf("%s Error", appname);
+    char *title = dupprintf("%s 错误", appname);
     show_mouseptr(wgs, true);
     MessageBox(wgs->term_hwnd, msg, title, MB_ICONERROR | MB_OK);
     sfree(title);
@@ -5631,9 +5631,9 @@ static void wintw_bell(TermWin *tw, int mode)
             char *buf, *otherbuf;
             show_mouseptr(wgs, true);
             buf = dupprintf(
-                "Unable to play sound file\n%s\nUsing default sound instead",
+                "无法播放声音文件\n%s\n使用默认声音代替",
                 bell_wavefile->utf8path);
-            otherbuf = dupprintf("%s Sound Error", appname);
+            otherbuf = dupprintf("%s 声音错误", appname);
             message_box(wgs->term_hwnd, buf, otherbuf,
                         MB_OK | MB_ICONEXCLAMATION, true, 0);
             sfree(buf);

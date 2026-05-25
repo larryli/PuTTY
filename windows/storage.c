@@ -531,7 +531,7 @@ static bool try_random_seed(char const *path, int action, HANDLE *ret)
 {
     if (action == DEL) {
         if (!DeleteFile(path) && GetLastError() != ERROR_FILE_NOT_FOUND) {
-            nonfatal("Unable to delete '%s': %s", path,
+            nonfatal("无法删除 '%s': %s", path,
                      win_strerror(GetLastError()));
         }
         *ret = INVALID_HANDLE_VALUE;

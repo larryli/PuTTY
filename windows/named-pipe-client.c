@@ -32,7 +32,7 @@ HANDLE connect_to_named_pipe(const char *pipename, char **err)
 
         if (GetLastError() != ERROR_PIPE_BUSY) {
             *err = dupprintf(
-                "Unable to open named pipe '%s': %s",
+                "无法打开命名管道 '%s': %s",
                 pipename, win_strerror(GetLastError()));
             return INVALID_HANDLE_VALUE;
         }
@@ -46,7 +46,7 @@ HANDLE connect_to_named_pipe(const char *pipename, char **err)
          */
         if (!WaitNamedPipe(pipename, NMPWAIT_USE_DEFAULT_WAIT)) {
             *err = dupprintf(
-                "Error waiting for named pipe '%s': %s",
+                "等待命名管道 '%s' 时出错: %s",
                 pipename, win_strerror(GetLastError()));
             return INVALID_HANDLE_VALUE;
         }
@@ -55,7 +55,7 @@ HANDLE connect_to_named_pipe(const char *pipename, char **err)
     if ((usersid = get_user_sid()) == NULL) {
         CloseHandle(pipehandle);
         *err = dupprintf(
-            "Unable to get user SID: %s", win_strerror(GetLastError()));
+            "无法获取用户 SID: %s", win_strerror(GetLastError()));
         return INVALID_HANDLE_VALUE;
     }
 
@@ -65,7 +65,7 @@ HANDLE connect_to_named_pipe(const char *pipename, char **err)
                           &psd) != ERROR_SUCCESS) {
         CloseHandle(pipehandle);
         *err = dupprintf(
-            "Unable to get named pipe security information: %s",
+            "无法获取命名管道安全信息: %s",
             win_strerror(GetLastError()));
         return INVALID_HANDLE_VALUE;
     }

@@ -1716,8 +1716,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             char *pipename = agent_named_pipe_name();
             Socket *sock = new_named_pipe_listener(pipename, pl_plug);
             if (sk_socket_error(sock)) {
-                char *err = dupprintf("Unable to open named pipe at %s "
-                                      "for SSH agent:\n%s", pipename,
+                char *err = dupprintf("无法打开命名管道 %s "
+                                      "用于 SSH 代理:\n%s", pipename,
                                       sk_socket_error(sock));
                 MessageBox(NULL, err, "Pageant 错误", MB_ICONERROR | MB_OK);
                 return 1;
@@ -1732,7 +1732,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 FILE *fp = f_open(openssh_config_file, "w", true);
                 if (!fp) {
                     char *err = dupprintf(
-                        "Unable to write OpenSSH config file to %s",
+                        "无法写入 OpenSSH 配置文件到 %s",
                         filename_to_str(openssh_config_file));
                     MessageBox(NULL, err, "Pageant 错误",
                                MB_ICONERROR | MB_OK);
@@ -1770,8 +1770,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 pageant_listener_new(&pl_plug, &wpc->plc);
             Socket *sock = sk_newlistener_unix(unixsocket, pl_plug);
             if (sk_socket_error(sock)) {
-                char *err = dupprintf("Unable to open AF_UNIX socket at %s "
-                                      "for SSH agent:\n%s", unixsocket,
+                char *err = dupprintf("无法打开 AF_UNIX 套接字 %s "
+                                      "用于 SSH 代理:\n%s", unixsocket,
                                       sk_socket_error(sock));
                 MessageBox(NULL, err, "Pageant 错误", MB_ICONERROR | MB_OK);
                 return 1;

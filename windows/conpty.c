@@ -125,11 +125,11 @@ static size_t conpty_gotdata(
         }
 
         if (err)
-            error_msg = dupprintf("Error reading from console pty: %s",
+            error_msg = dupprintf("从控制台 PTY 读取错误: %s",
                                   win_strerror(err));
         else
             error_msg = dupprintf(
-                "Unexpected end of file reading from console pty");
+                "从控制台 PTY 读取时意外到达文件末尾");
 
         logevent(conpty->logctx, error_msg);
         seat_connection_fatal(conpty->seat, "%s", error_msg);
@@ -146,7 +146,7 @@ static void conpty_sentdata(struct handle *h, size_t new_backlog, int err,
 {
     ConPTY *conpty = (ConPTY *)handle_get_privdata(h);
     if (err) {
-        const char *error_msg = "Error writing to conpty device";
+        const char *error_msg = "写入控制台 PTY 设备错误";
 
         conpty_terminate(conpty);
 

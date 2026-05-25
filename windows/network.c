@@ -270,7 +270,7 @@ void sk_init(void)
         winsock_module = load_system32_dll("wsock32.dll");
     }
     if (!winsock_module)
-        modalfatalbox("Unable to load any WinSock library");
+        modalfatalbox("无法加载任何 WinSock 库");
 
 #ifndef NO_IPV6
     /* Check if we have getaddrinfo in Winsock */
@@ -342,7 +342,7 @@ void sk_init(void)
     if (!sk_startup(2,2) &&
         !sk_startup(2,0) &&
         !sk_startup(1,1)) {
-        modalfatalbox("Unable to initialise WinSock");
+        modalfatalbox("无法初始化 WinSock");
     }
 
     sktree = newtree234(cmpfortree);
@@ -385,76 +385,75 @@ const char *winsock_error_string(int error)
      */
     switch (error) {
       case WSAEACCES:
-        return "Network error: Permission denied";
+        return "网络错误: 权限被拒绝";
       case WSAEADDRINUSE:
-        return "Network error: Address already in use";
+        return "网络错误: 地址已被使用";
       case WSAEADDRNOTAVAIL:
-        return "Network error: Cannot assign requested address";
+        return "网络错误: 无法分配请求的地址";
       case WSAEAFNOSUPPORT:
-        return
-            "Network error: Address family not supported by protocol family";
+        return "网络错误: 地址族不被协议支持";
       case WSAEALREADY:
-        return "Network error: Operation already in progress";
+        return "网络错误: 操作已在进行中";
       case WSAECONNABORTED:
-        return "Network error: Software caused connection abort";
+        return "网络错误: 软件导致连接中止";
       case WSAECONNREFUSED:
-        return "Network error: Connection refused";
+        return "网络错误: 连接被拒绝";
       case WSAECONNRESET:
-        return "Network error: Connection reset by peer";
+        return "网络错误: 连接被对方重置";
       case WSAEDESTADDRREQ:
-        return "Network error: Destination address required";
+        return "网络错误: 需要目标地址";
       case WSAEFAULT:
-        return "Network error: Bad address";
+        return "网络错误: 地址错误";
       case WSAEHOSTDOWN:
-        return "Network error: Host is down";
+        return "网络错误: 主机已关闭";
       case WSAEHOSTUNREACH:
-        return "Network error: No route to host";
+        return "网络错误: 无法到达主机";
       case WSAEINPROGRESS:
-        return "Network error: Operation now in progress";
+        return "网络错误: 操作正在进行中";
       case WSAEINTR:
-        return "Network error: Interrupted function call";
+        return "网络错误: 函数调用被中断";
       case WSAEINVAL:
-        return "Network error: Invalid argument";
+        return "网络错误: 无效参数";
       case WSAEISCONN:
-        return "Network error: Socket is already connected";
+        return "网络错误: 套接字已连接";
       case WSAEMFILE:
-        return "Network error: Too many open files";
+        return "网络错误: 打开的文件过多";
       case WSAEMSGSIZE:
-        return "Network error: Message too long";
+        return "网络错误: 消息过长";
       case WSAENETDOWN:
-        return "Network error: Network is down";
+        return "网络错误: 网络已关闭";
       case WSAENETRESET:
-        return "Network error: Network dropped connection on reset";
+        return "网络错误: 网络重置时断开连接";
       case WSAENETUNREACH:
-        return "Network error: Network is unreachable";
+        return "网络错误: 网络不可达";
       case WSAENOBUFS:
-        return "Network error: No buffer space available";
+        return "网络错误: 无可用缓冲区空间";
       case WSAENOPROTOOPT:
-        return "Network error: Bad protocol option";
+        return "网络错误: 错误的协议选项";
       case WSAENOTCONN:
-        return "Network error: Socket is not connected";
+        return "网络错误: 套接字未连接";
       case WSAENOTSOCK:
-        return "Network error: Socket operation on non-socket";
+        return "网络错误: 非套接字上的套接字操作";
       case WSAEOPNOTSUPP:
-        return "Network error: Operation not supported";
+        return "网络错误: 操作不支持";
       case WSAEPFNOSUPPORT:
-        return "Network error: Protocol family not supported";
+        return "网络错误: 协议族不支持";
       case WSAEPROCLIM:
-        return "Network error: Too many processes";
+        return "网络错误: 进程过多";
       case WSAEPROTONOSUPPORT:
-        return "Network error: Protocol not supported";
+        return "网络错误: 协议不支持";
       case WSAEPROTOTYPE:
-        return "Network error: Protocol wrong type for socket";
+        return "网络错误: 协议类型与套接字不匹配";
       case WSAESHUTDOWN:
-        return "Network error: Cannot send after socket shutdown";
+        return "网络错误: 套接字关闭后无法发送";
       case WSAESOCKTNOSUPPORT:
-        return "Network error: Socket type not supported";
+        return "网络错误: 套接字类型不支持";
       case WSAETIMEDOUT:
-        return "Network error: Connection timed out";
+        return "网络错误: 连接超时";
       case WSAEWOULDBLOCK:
-        return "Network error: Resource temporarily unavailable";
+        return "网络错误: 资源暂时不可用";
       case WSAEDISCON:
-        return "Network error: Graceful shutdown in progress";
+        return "网络错误: 正在优雅关闭";
     }
 
     /*

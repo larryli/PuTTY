@@ -395,7 +395,7 @@ SeatPromptResult console_confirm_ssh_host_key(
 
     const char *prompt = console_print_seatdialogtext(conio, text);
     if (!prompt) {
-        result = SPR_SW_ABORT("Cannot confirm a host key in batch mode");
+        result = SPR_SW_ABORT("无法在批处理模式下确认主机密钥");
         goto out;
     }
 
@@ -451,8 +451,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
 
     const char *prompt = console_print_seatdialogtext(conio, text);
     if (!prompt) {
-        result = SPR_SW_ABORT("Cannot confirm a weak crypto primitive "
-                              "in batch mode");
+        result = SPR_SW_ABORT("无法在批处理模式下确认弱加密基元");
         goto out;
     }
 
@@ -481,8 +480,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
 
     const char *prompt = console_print_seatdialogtext(conio, text);
     if (!prompt)
-        return SPR_SW_ABORT("Cannot confirm a weak cached host key "
-                            "in batch mode");
+        return SPR_SW_ABORT("无法在批处理模式下确认弱缓存主机密钥");
 
     put_fmt(conio, "%s (y/n) ", prompt);
 
@@ -678,8 +676,7 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
      */
     if (p->n_prompts) {
         if (console_batch_mode) {
-            result = SPR_SW_ABORT("Cannot answer interactive prompts "
-                                  "in batch mode");
+            result = SPR_SW_ABORT("无法在批处理模式下回答交互式提示");
             goto out;
         }
     }
@@ -709,7 +706,7 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
 
         if (!console_read_line_to_strbuf(conio, pr->echo, pr->result)) {
             result = make_spr_sw_abort_winerror(
-                "Error reading from console", GetLastError());
+                "从控制台读取错误", GetLastError());
             goto out;
         } else if (!pr->result->len) {
             /* Regard EOF on the terminal as a deliberate user-abort */

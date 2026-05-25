@@ -46,7 +46,7 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
      */
     name = capi_obfuscate_string(pi_name);
     if (!name) {
-        *logtext = dupprintf("Unable to call CryptProtectMemory: %s",
+        *logtext = dupprintf("无法调用 CryptProtectMemory: %s",
                              win_strerror(GetLastError()));
         return SHARE_NONE;
     }

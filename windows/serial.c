@@ -55,9 +55,9 @@ static size_t serial_gotdata(
          * may become meaningful here.
          */
         if (!err)
-            error_msg = "End of file reading from serial device";
+            error_msg = "从串口设备读取时到达文件末尾";
         else
-            error_msg = "Error reading from serial device";
+            error_msg = "从串口设备读取错误";
 
         serial_terminate(serial);
 
@@ -78,7 +78,7 @@ static void serial_sentdata(struct handle *h, size_t new_backlog, int err,
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
     if (err) {
-        const char *error_msg = "Error writing to serial device";
+        const char *error_msg = "写入串口设备错误";
 
         serial_terminate(serial);
 

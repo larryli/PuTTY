@@ -208,7 +208,7 @@ size_t stdin_gotdata(struct handle *h, const void *data, size_t len, int err)
         buf[lenof(buf)-1] = '\0';
         if (buf[strlen(buf)-1] == '\n')
             buf[strlen(buf)-1] = '\0';
-        fprintf(stderr, "Unable to read from standard input: %s\n", buf);
+        fprintf(stderr, "无法从标准输入读取: %s\n", buf);
         cleanup_exit(0);
     }
 
@@ -240,8 +240,8 @@ void stdouterr_sent(struct handle *h, size_t new_backlog, int err, bool close)
         buf[lenof(buf)-1] = '\0';
         if (buf[strlen(buf)-1] == '\n')
             buf[strlen(buf)-1] = '\0';
-        fprintf(stderr, "Unable to write to standard %s: %s\n",
-                (h == stdout_handle ? "output" : "error"), buf);
+        fprintf(stderr, "无法写入标准%s: %s\n",
+                (h == stdout_handle ? "输出" : "错误"), buf);
         cleanup_exit(0);
     }
 
@@ -540,7 +540,7 @@ int main(int argc, char **argv)
                              &realhost, nodelay,
                              conf_get_bool(conf, CONF_tcp_keepalives));
         if (error) {
-            fprintf(stderr, "Unable to open connection:\n%s", error);
+            fprintf(stderr, "无法打开连接:\n%s", error);
             sfree(error);
             return 1;
         }
@@ -556,7 +556,7 @@ int main(int argc, char **argv)
 
     exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
-        fprintf(stderr, "Remote process exit code unavailable\n");
+        fprintf(stderr, "无法获取远程进程退出代码\n");
         exitcode = 1;                  /* this is an error condition */
     }
     cleanup_exit(exitcode);
