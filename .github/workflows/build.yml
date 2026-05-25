@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        config:
+        - { platform: "x64", archive: "-x64" }
+        - { platform: "Win32", archive: "" }
+        - { platform: "ARM64", archive: "-arm64" }
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Configure
+      run: cmake -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -A ${{matrix.config.platform}} -B ${{github.workspace}}/build
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config Release --target putty pscp psftp puttytel plink pageant puttygen pterm -j
+    - name: Archive
+      if: ${{ github.ref_type == 'tag' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: putty${{matrix.config.archive}}-${{github.ref_name}}
+        path: |
+          build/Release/putty.exe
+          build/Release/pscp.exe
+          build/Release/psftp.exe
+          build/Release/puttytel.exe
+          build/Release/plink.exe
+          build/Release/pageant.exe
+          build/Release/puttygen.exe
+          build/Release/pterm.exe
+        retention-days: 1

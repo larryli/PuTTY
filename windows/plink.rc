@@ -1,7 +1,7 @@
 #include "rcstuff.h"
 
 #define APPNAME "Plink"
-#define APPDESC "Command-line SSH, Telnet, and Rlogin client"
+#define APPDESC "命令行 SSH、Telnet 和 Rlogin 客户端"
 
 200 ICON "putty.ico"
 

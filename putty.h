@@ -98,28 +98,28 @@ typedef enum {
 /* The list macro for the conf colours also gives the textual names
  * used in the GUI configurer */
 #define CONF_COLOUR_LIST(X)                     \
-    X(fg, "Default Foreground")                 \
-    X(fg_bold, "Default Bold Foreground")       \
-    X(bg, "Default Background")                 \
-    X(bg_bold, "Default Bold Background")       \
-    X(cursor_fg, "Cursor Text")                 \
-    X(cursor_bg, "Cursor Colour")               \
-    X(black, "ANSI Black")                      \
-    X(black_bold, "ANSI Black Bold")            \
-    X(red, "ANSI Red")                          \
-    X(red_bold, "ANSI Red Bold")                \
-    X(green, "ANSI Green")                      \
-    X(green_bold, "ANSI Green Bold")            \
-    X(yellow, "ANSI Yellow")                    \
-    X(yellow_bold, "ANSI Yellow Bold")          \
-    X(blue, "ANSI Blue")                        \
-    X(blue_bold, "ANSI Blue Bold")              \
-    X(magenta, "ANSI Magenta")                  \
-    X(magenta_bold, "ANSI Magenta Bold")        \
-    X(cyan, "ANSI Cyan")                        \
-    X(cyan_bold, "ANSI Cyan Bold")              \
-    X(white, "ANSI White")                      \
-    X(white_bold, "ANSI White Bold")            \
+    X(fg, "默认前景")                 \
+    X(fg_bold, "默认前景(粗)")       \
+    X(bg, "默认背景")                 \
+    X(bg_bold, "默认背景(粗)")       \
+    X(cursor_fg, "光标文本")                 \
+    X(cursor_bg, "光标颜色")               \
+    X(black, "ANSI 黑")                      \
+    X(black_bold, "ANSI 黑(粗)")            \
+    X(red, "ANSI 红")                          \
+    X(red_bold, "ANSI 红(粗)")                \
+    X(green, "ANSI 绿")                      \
+    X(green_bold, "ANSI 绿(粗)")            \
+    X(yellow, "ANSI 黄")                    \
+    X(yellow_bold, "ANSI 黄(粗)")          \
+    X(blue, "ANSI 蓝")                        \
+    X(blue_bold, "ANSI 蓝(粗)")              \
+    X(magenta, "ANSI 紫")                  \
+    X(magenta_bold, "ANSI 紫(粗)")        \
+    X(cyan, "ANSI 青")                        \
+    X(cyan_bold, "ANSI 青(粗)")              \
+    X(white, "ANSI 白")                      \
+    X(white_bold, "ANSI 白(粗)")            \
     /* end of list */
 
 #define OSCP_COLOUR_LIST(X)                     \

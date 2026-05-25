@@ -95,21 +95,21 @@ static bool do_filereq_a(
 
     switch (filter) {
       default: /* FILTER_ALL_FILES */
-        of.lpstrFilter = "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = "所有文件 (*.*)\0*\0\0\0";
         break;
       case FILTER_KEY_FILES:
-        of.lpstrFilter = "PuTTY Private Key Files (*.ppk)\0*.ppk\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = "PuTTY 私钥文件 (*.ppk)\0*.ppk\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = ".ppk";
         break;
       case FILTER_DYNLIB_FILES:
-        of.lpstrFilter = "Dynamic Library Files (*.dll)\0*.dll\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = "动态链接库文件 (*.dll)\0*.dll\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = ".dll";
         break;
       case FILTER_SOUND_FILES:
-        of.lpstrFilter = "Wave Files (*.wav)\0*.WAV\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = "波形文件 (*.wav)\0*.WAV\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = ".wav";
         break;
     }
@@ -166,21 +166,21 @@ static bool do_filereq_w(
 
     switch (filter) {
       default: /* FILTER_ALL_FILES */
-        of.lpstrFilter = L"All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = L"所有文件 (*.*)\0*\0\0\0";
         break;
       case FILTER_KEY_FILES:
-        of.lpstrFilter = L"PuTTY Private Key Files (*.ppk)\0*.ppk\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = L"PuTTY 私钥文件 (*.ppk)\0*.ppk\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = L".ppk";
         break;
       case FILTER_DYNLIB_FILES:
-        of.lpstrFilter = L"Dynamic Library Files (*.dll)\0*.dll\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = L"动态链接库文件 (*.dll)\0*.dll\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = L".dll";
         break;
       case FILTER_SOUND_FILES:
-        of.lpstrFilter = L"Wave Files (*.wav)\0*.WAV\0"
-            "All Files (*.*)\0*\0\0\0";
+        of.lpstrFilter = L"波形文件 (*.wav)\0*.WAV\0"
+            "所有文件 (*.*)\0*\0\0\0";
         of.lpstrDefExt = L".wav";
         break;
     }

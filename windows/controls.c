@@ -381,6 +381,35 @@ void checkbox(struct ctlpos *cp, const char *text, int id)
           text, id);
 }
 
+static BOOL _GetTextExtentExPoint(HDC hdc, LPCSTR lpszString, int cchString, int nMaxExtent, LPINT lpnFit, LPINT lpnDx, LPSIZE lpSize)
+{
+    BOOL ret = GetTextExtentExPoint(hdc, lpszString, cchString, nMaxExtent, lpnFit, lpnDx, lpSize);
+    if (ret && GetACP() == CP_UTF8) {
+        // fix lpnFit to bytes from characters on utf-8 codepage
+        int n = 0;
+        for (int i = 0; i < *lpnFit; i++) {
+            unsigned char c = lpszString[n];
+            if (c >= 0 && c <= 127 ) {
+                n += 1;
+            } else if (c >= 192 && c <= 223) {
+                n += 2;
+            } else if (c >= 224 && c <= 239) {
+                n += 3;
+            } else if (c >= 240 && c <= 247) {
+                n += 4;
+            } else if (c >= 248 && c <= 255) {
+                n += 1;
+            }
+            if (n >= cchString) {
+                n = cchString;
+                break;
+            }
+        }
+        *lpnFit = n;
+    }
+    return ret;
+}
+
 /*
  * Wrap a piece of text for a static text control. Returns the
  * wrapped text (a malloc'ed string containing \ns), and also
@@ -421,8 +450,8 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
     oldfont = SelectObject(hdc, newfont);
 
     while (*p) {
-        if (!GetTextExtentExPoint(hdc, p, strlen(p), width,
-                                  &nfit, pwidths, &size) ||
+        if (!_GetTextExtentExPoint(hdc, p, strlen(p), width,
+                                   &nfit, pwidths, &size) ||
             (size_t)nfit >= strlen(p)) {
             /*
              * Either GetTextExtentExPoint returned failure, or the
@@ -949,7 +978,7 @@ void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
             doctl(cp, r, "BUTTON",
                   BS_NOTIFY | WS_CHILD | WS_VISIBLE |
                   WS_TABSTOP | BS_PUSHBUTTON,
-                  0, "&Up", upbid);
+                  0, "上移(&U)", upbid);
 
             r.left = left; r.right = wid;
             r.top = cp->ypos + buttonpos + PUSHBTNHEIGHT + GAPBETWEEN;
@@ -957,7 +986,7 @@ void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
             doctl(cp, r, "BUTTON",
                   BS_NOTIFY | WS_CHILD | WS_VISIBLE |
                   WS_TABSTOP | BS_PUSHBUTTON,
-                  0, "&Down", dnbid);
+                  0, "下移(&D)", dnbid);
 
             break;
 
@@ -1670,7 +1699,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             num_ids = 3;
             if (!ctrl->fileselect.just_button) {
                 editbutton(&pos, escaped, base_id, base_id+1,
-                           "Browse...", base_id+2);
+                           "浏览...", base_id+2);
             } else {
                 button(&pos, escaped, base_id+2, false);
             }
@@ -1682,7 +1711,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                                       ctrl->fontselect.shortcut);
             shortcuts[nshortcuts++] = ctrl->fontselect.shortcut;
             statictext(&pos, escaped, 1, base_id);
-            staticbtn(&pos, "", base_id+1, "Change...", base_id+2);
+            staticbtn(&pos, "", base_id+1, "修改...", base_id+2);
             data = fontspec_new_default();
             sfree(escaped);
             break;
@@ -2434,13 +2463,13 @@ void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
     fontspec_free((FontSpec *)c->data);
     c->data = fontspec_copy(fs);
 
-    boldstr = (fs->isbold ? "bold, " : "");
+    boldstr = (fs->isbold ? "粗体, " : "");
     if (fs->height == 0)
-        buf = dupprintf("Font: %s, %sdefault height", fs->name, boldstr);
+        buf = dupprintf("字体: %s, %s默认高度", fs->name, boldstr);
     else
-        buf = dupprintf("Font: %s, %s%d-%s", fs->name, boldstr,
+        buf = dupprintf("字体: %s, %s%d %s", fs->name, boldstr,
                         (fs->height < 0 ? -fs->height : fs->height),
-                        (fs->height < 0 ? "pixel" : "point"));
+                        (fs->height < 0 ? "像素" : "点"));
     SetDlgItemText(dp->hwnd, c->base_id+1, buf);
     sfree(buf);
 

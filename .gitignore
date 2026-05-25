@@ -8,6 +8,7 @@ build.ninja
 /CMakeCache.txt
 CMakeFiles/
 Debug/
+Release/
 Win32/
 cmake_install.cmake
 /shipped.txt
@@ -68,6 +69,7 @@ cmake_install.cmake
 /*.cnt
 /*.hlp
 /.bmake
+/build
 /build.log
 /build.out
 /empty.h

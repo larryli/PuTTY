@@ -648,6 +648,9 @@ int main(int argc, char *argv[])
 {
     int ret;
 
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+    
     dll_hijacking_protection();
     enable_dit();
 

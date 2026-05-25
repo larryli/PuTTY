@@ -482,7 +482,7 @@ void mainchan_get_specials(
     #undef SIGNAL_MAIN
     #undef SIGNAL_SUB
 
-    add_special(ctx, "More signals", SS_SUBMENU, 0);
+    add_special(ctx, "更多信号", SS_SUBMENU, 0);
 
     #define SIGNAL_MAIN(name, desc)
     #define SIGNAL_SUB(name) \

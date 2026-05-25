@@ -9,17 +9,17 @@
 #include "misc.h"
 #include "console.h"
 
-const char console_abandoned_msg[] = "Connection abandoned.\n";
+const char console_abandoned_msg[] = "连接已放弃。\n";
 
 const SeatDialogPromptDescriptions *console_prompt_descriptions(Seat *seat)
 {
     static const SeatDialogPromptDescriptions descs = {
-        .hk_accept_action = "enter \"y\"",
-        .hk_connect_once_action = "enter \"n\"",
-        .hk_cancel_action = "press Return",
-        .hk_cancel_action_Participle = "Pressing Return",
-        .weak_accept_action = "enter \"y\"",
-        .weak_cancel_action = "enter \"n\"",
+        .hk_accept_action = "输入 \"y\"",
+        .hk_connect_once_action = "输入 \"n\"",
+        .hk_cancel_action = "按回车",
+        .hk_cancel_action_Participle = "按回车",
+        .weak_accept_action = "输入 \"y\"",
+        .weak_cancel_action = "输入 \"n\"",
     };
     return &descs;
 }

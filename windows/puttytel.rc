@@ -2,7 +2,7 @@
 #include "putty-rc.h"
 
 #define APPNAME "PuTTYtel"
-#define APPDESC "Telnet and Rlogin client"
+#define APPDESC "Telnet 和 Rlogin 客户端"
 
 IDI_MAINICON ICON "putty.ico"
 IDI_CFGICON ICON "puttycfg.ico"
