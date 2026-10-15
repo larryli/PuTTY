@@ -6,3 +6,7 @@
 200 ICON "pscp.ico"
 
 #include "version.rc2"
+
+#ifndef NO_MANIFESTS
+1 RT_MANIFEST "putty.mft"
+#endif /* NO_MANIFESTS */

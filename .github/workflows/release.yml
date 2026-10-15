@@ -1,0 +1,96 @@
+name: Release
+
+# Triggered when the Build workflow finishes. The workflow_run event allows
+# downloading artifacts across workflows via run-id + github-token.
+on:
+  workflow_run:
+    workflows: [ "Build" ]
+    types: [ completed ]
+
+jobs:
+  release:
+
+    runs-on: windows-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+    - name: Check if tag build
+      id: check
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const artifacts = await github.paginate(
+            github.rest.actions.listWorkflowRunArtifacts,
+            { owner: context.repo.owner, repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id, per_page: 100 });
+          if (!artifacts.some(a => a.name.startsWith('putty'))) {
+            core.info('Not a tag build (no putty* artifacts), skipping release');
+            return;
+          }
+          core.setOutput('tag', context.payload.workflow_run.head_branch);
+    - name: Download artifacts
+      if: ${{ steps.check.outputs.tag != '' }}
+      uses: actions/download-artifact@v7
+      with:
+        path: artifacts
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build filehash
+      # Build the x64 tool here: hashing only reads file bytes and is
+      # independent of the file's own architecture, so one x64 filehash
+      # covers the x64/Win32/ARM64 outputs (ARM64 binaries cannot run on
+      # the x64 runner).
+      if: ${{ steps.check.outputs.tag != '' }}
+      shell: cmd
+      run: |
+        cmake -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_C_FLAGS_RELEASE="/MT /O2" -A x64 -B build
+        cmake --build build --config Release --target filehash -j
+    - name: Download artifact zips
+      # Fetch the build zips byte-for-byte; they become the release assets.
+      if: ${{ steps.check.outputs.tag != '' }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: pwsh
+      run: |
+        $repo = '${{ github.repository }}'
+        gh api "repos/$repo/actions/runs/${{ github.event.workflow_run.id }}/artifacts" --paginate --jq '.artifacts[] | select(.name | startswith("putty")) | "\(.id) \(.name)"' | ForEach-Object {
+          $id, $name = $_ -split ' '
+          Write-Host "Downloading $name.zip"
+          curl.exe -sS -L -H "Authorization: Bearer $env:GH_TOKEN" -o "$name.zip" "https://api.github.com/repos/$repo/actions/artifacts/$id/zip"
+        }
+    - name: Hash and compose release notes
+      # Release notes text (including the platform section headings) lives in
+      # .github/release-notes.md; @@HASHES:<suffix>@@ placeholders are replaced
+      # with the MD5/SHA1 tables computed by filehash.
+      if: ${{ steps.check.outputs.tag != '' }}
+      shell: pwsh
+      run: |
+        $tag = '${{ steps.check.outputs.tag }}'
+        $names = 'putty','pscp','psftp','plink','pageant','puttygen','puttytel','pterm'
+        foreach ($a in '-x64', '', '-arm64') {
+          $files = $names | ForEach-Object { "artifacts/putty$a-$tag/$_.exe" }
+          $files += "putty$a-$tag.zip"
+          build\Release\filehash.exe -o "hashes$a.md" @files
+          if ($LASTEXITCODE -ne 0) { throw "filehash failed for platform '$a'" }
+        }
+        $body = Get-Content -Raw -Encoding utf8 .github/release-notes.md
+        foreach ($a in '-x64', '', '-arm64') {
+          $table = (Get-Content -Raw -Encoding utf8 "hashes$a.md").TrimEnd()
+          $body = $body.Replace("@@HASHES:$a@@", $table)
+        }
+        [IO.File]::WriteAllText("$PWD/body.md", $body, (New-Object Text.UTF8Encoding($false)))
+    - name: Create draft release
+      # Title is a placeholder; edit it in the draft before publishing.
+      if: ${{ steps.check.outputs.tag != '' }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: pwsh
+      run: gh release create '${{ steps.check.outputs.tag }}' --draft --title "PuTTY ${{ steps.check.outputs.tag }}" --notes-file body.md putty-x64-${{ steps.check.outputs.tag }}.zip putty-${{ steps.check.outputs.tag }}.zip putty-arm64-${{ steps.check.outputs.tag }}.zip

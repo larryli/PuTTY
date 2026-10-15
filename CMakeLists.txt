@@ -79,6 +79,11 @@ add_executable(testcrypt
 target_link_libraries(testcrypt
   keygen crypto utils ${platform_libraries})
 
+add_executable(filehash
+  utils/filehash.c)
+target_link_libraries(filehash
+  crypto utils ${platform_libraries})
+
 add_executable(test_bpp
   test/test_bpp.c
   test/test_random.c

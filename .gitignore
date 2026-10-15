@@ -61,6 +61,7 @@ cmake_install.cmake
 /testzlib
 /cgtest
 /scctest
+/filehash
 /test_host_strfoo
 /test_tree234
 /test_wildcard

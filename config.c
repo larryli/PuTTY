@@ -2747,10 +2747,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
          * downstream, or haven't decided yet.)
          */
         if (protcfginfo != 1 && protcfginfo != -1) {
-            ctrl_settitle(b, "连接/SSH/密钥",
+            ctrl_settitle(b, "连接/SSH/密钥交换",
                           "SSH 密钥交换设置");
 
-            s = ctrl_getset(b, "连接/SSH/密钥", "main",
+            s = ctrl_getset(b, "连接/SSH/密钥交换", "main",
                             "密钥交换算法选项");
             c = ctrl_draglist(s, "算法选择顺序(S)：", 's',
                               HELPCTX(ssh_kexlist),
@@ -2763,7 +2763,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           I(CONF_try_gssapi_kex));
 #endif
 
-            s = ctrl_getset(b, "连接/SSH/密钥", "repeat",
+            s = ctrl_getset(b, "连接/SSH/密钥交换", "repeat",
                             "密钥再次交换设置");
 
             ctrl_editbox(s, "重新交换最长时间(分钟，0 不限制)(T)：", 't', 20,
@@ -3084,10 +3084,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
         /*
          * The Tunnels panel _is_ still available in mid-session.
          */
-        ctrl_settitle(b, "连接/SSH/通道",
+        ctrl_settitle(b, "连接/SSH/隧道",
                       "SSH 端口转发设置");
 
-        s = ctrl_getset(b, "连接/SSH/通道", "portfwd",
+        s = ctrl_getset(b, "连接/SSH/隧道", "portfwd",
                         "端口转发");
         ctrl_checkbox(s, "本地端口接受其他主机的连接(T)",'t',
                       HELPCTX(ssh_tunnels_portfwd_localhost),

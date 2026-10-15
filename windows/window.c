@@ -764,7 +764,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             AppendMenu(m, MF_ENABLED, IDM_RECONF, "修改设置(&G)...");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             AppendMenu(m, MF_ENABLED, IDM_COPYALL, "复制所有内容到剪贴板(&O)");
-            AppendMenu(m, MF_ENABLED, IDM_CLRSB, "清除滚动条(&L)");
+            AppendMenu(m, MF_ENABLED, IDM_CLRSB, "清除回滚(&L)");
             AppendMenu(m, MF_ENABLED, IDM_RESET, "重置终端(&T)");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             AppendMenu(m, (conf_get_int(wgs->conf, CONF_resize_action)
