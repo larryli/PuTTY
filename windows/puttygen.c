@@ -774,7 +774,7 @@ static const int gotkey_ids_unconditional[] = {
 };
 static const int gotkey_ids_conditional[] = {
     IDC_PKSTATIC, IDC_KEYDISPLAY,
-    IDC_CERTSTATIC, IDC_CERTMOREINFO,
+    IDC_CERTSTATIC, IDC_CERTMOREINFO, 0
 };
 
 /*
