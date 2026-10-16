@@ -36,6 +36,12 @@ cmake --build build --config Release --target putty pscp psftp puttytel plink pa
 - cmake 也可用 BuildTools 自带版本：`%VS%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe`
 - `utils/filehash.c` 是调用项目内置 MD5/SHA-1 的哈希工具，供发布流程使用；在各平台 leg 中**只编译不执行**
 
+## 本地 Shell / 工具链约定
+
+- **优先探测并使用 PowerShell 7（`pwsh`）**。执行脚本统一 `pwsh -NoProfile -File <脚本>.ps1`；**不要**用 `pwsh -Command "<内联脚本>"`——内联里的 `$变量`、引号、管道易被外层包装 shell 吞掉或二次解析，导致变量被清空、报 ParserError。
+- 需要多步命令/中文提示时，**先写临时 `.ps1` 再 `pwsh -File` 执行**，不要在命令行里堆叠引号与 `&&`/`|`。
+- 若退化为 `cmd`：`.bat` 必须**纯 ASCII**。
+
 ## 发布流程
 
 ### 1. 获取上游最新 tag

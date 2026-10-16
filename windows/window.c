@@ -1511,16 +1511,32 @@ static void init_fonts(WinGuiSeat *wgs, int pick_width, int pick_height)
         memset(&info, 0xFF, sizeof(info));
 
         /* !!! Yes the next line is right */
-        if (cset == OEM_CHARSET)
-            wgs->ucsdata.font_codepage = GetOEMCP();
-        else if (TranslateCharsetInfo ((DWORD *)(ULONG_PTR)cset,
+        if (cset == OEM_CHARSET) {
+            DWORD oemcp = GetOEMCP();
+            if (oemcp == CP_UTF8) {
+                /* A UTF-8 active code page can make GetOEMCP() report
+                 * CP_UTF8; the OEM screen font is then a UTF-8 font, so
+                 * treat its codepage as UTF-8 and disable the DBCS
+                 * direct-to-font path. On a normal Chinese system the
+                 * OEM code page is still 936 and nothing changes. */
+                wgs->ucsdata.font_codepage = CP_UTF8;
+            } else {
+                wgs->ucsdata.font_codepage = oemcp;
+            }
+        } else if (TranslateCharsetInfo ((DWORD *)(ULONG_PTR)cset,
                                        &info, TCI_SRCCHARSET))
             wgs->ucsdata.font_codepage = info.ciACP;
         else
             wgs->ucsdata.font_codepage = -1;
 
-        GetCPInfo(wgs->ucsdata.font_codepage, &cpinfo);
-        wgs->ucsdata.dbcs_screenfont = (cpinfo.MaxCharSize > 1);
+        if (wgs->ucsdata.font_codepage == CP_UTF8) {
+            /* GetCPInfo() rejects CP_UTF8 (it won't fill cpinfo), so
+             * don't run the DBCS screen-font path for a UTF-8 font. */
+            wgs->ucsdata.dbcs_screenfont = false;
+        } else {
+            GetCPInfo(wgs->ucsdata.font_codepage, &cpinfo);
+            wgs->ucsdata.dbcs_screenfont = (cpinfo.MaxCharSize > 1);
+        }
     }
 
     f(FONT_UNDERLINE, font->charset, fw_dontcare, true);
