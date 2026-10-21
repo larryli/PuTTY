@@ -129,8 +129,8 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
         crMaybeWaitUntilV(bufchain_try_fetch_consume(pn->input, data, 2));
 
         if (data[0] != SOCKS5_REPLY_VERSION) {
-            pn->error = dupprintf("SOCKS proxy returned unexpected "
-                                  "reply version %d (expected %d)",
+            pn->error = dupprintf("SOCKS 代理返回了意外的"
+                                  "回复版本 %d（应为 %d）",
                                   (int)data[0], SOCKS5_REPLY_VERSION);
             crStopV;
         }
@@ -150,8 +150,8 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
                 }
 
             if (!found) {
-                pn->error = dupprintf("SOCKS server asked for auth method %d "
-                                      "(%s), which we did not offer",
+                pn->error = dupprintf("SOCKS 服务器请求的认证方法 %d"
+                                      "（%s），但我们未提供",
                                       (int)data[1], socks5_auth_name(data[1]));
                 crStopV;
             }
@@ -257,7 +257,7 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
 
         if (data[0] != SOCKS5_AUTH_PASSWORD_VERSION) {
             pn->error = dupprintf(
-                "SOCKS 5 password reply had version number %d (expected "
+                "SOCKS 5 密码回复版本号为 %d（应为"
                 "%d)", (int)data[0], SOCKS5_AUTH_PASSWORD_VERSION);
             crStopV;
         }
@@ -319,7 +319,7 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
                                   pn->input, data, 2));
             if (data[0] != SOCKS5_AUTH_CHAP_VERSION) {
                 pn->error = dupprintf(
-                    "SOCKS 5 CHAP reply had version number %d (expected "
+                    "SOCKS 5 CHAP 回复版本号为 %d（应为"
                     "%d)", (int)data[0], SOCKS5_AUTH_CHAP_VERSION);
                 crStopV;
             }
@@ -332,7 +332,7 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
                  * before, and can't make further progress.
                  */
                 pn->error = dupprintf(
-                    "SOCKS 5 CHAP reply sent no attributes");
+                    "SOCKS 5 CHAP 回复未发送任何属性");
                 crStopV;
             }
             while (s->n_chap_attrs-- > 0) {
@@ -445,14 +445,14 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
         crMaybeWaitUntilV(bufchain_try_fetch_consume(pn->input, data, 4));
 
         if (data[0] != SOCKS5_REPLY_VERSION) {
-            pn->error = dupprintf("SOCKS proxy returned unexpected "
-                                  "reply version %d (expected %d)",
+            pn->error = dupprintf("SOCKS 代理返回了意外的"
+                                  "回复版本 %d（应为 %d）",
                                   (int)data[0], SOCKS5_REPLY_VERSION);
             crStopV;
         }
 
         if (data[1] != SOCKS5_RESP_SUCCESS) {
-            pn->error = dupprintf("SOCKS proxy failed to connect, error %d "
+            pn->error = dupprintf("SOCKS 代理连接失败，错误 %d"
                                   "(%s)", (int)data[1],
                                   socks5_response_text(data[1]));
             crStopV;
@@ -475,8 +475,8 @@ static void proxy_socks5_process_queue(ProxyNegotiator *pn)
             s->response_addr_length = len;
             break;
         } else {
-            pn->error = dupprintf("SOCKS proxy response included unknown "
-                                  "address type %d", (int)data[3]);
+            pn->error = dupprintf("SOCKS 代理响应包含未知的"
+                                  "地址类型 %d", (int)data[3]);
             crStopV;
         }
 

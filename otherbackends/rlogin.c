@@ -281,7 +281,7 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
      * Try to find host.
      */
     addr = name_lookup(host, port, realhost, conf, addressfamily,
-                       rlogin->logctx, "rlogin connection");
+                       rlogin->logctx, "rlogin 连接");
     if ((err = sk_addr_error(addr)) != NULL) {
         sk_addr_free(addr);
         return dupstr(err);

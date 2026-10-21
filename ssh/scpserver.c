@@ -1154,7 +1154,7 @@ static void scp_sink_coroutine(ScpSink *scp)
 
                 if (scp->reply.err) {
                     scp->errmsg = dupprintf(
-                        "'%.*s': unable to create directory: %s",
+                        "'%.*s': 无法创建目录：%s",
                         PTRLEN_PRINTF(scp->filename), scp->reply.errmsg);
                     goto done;
                 }
@@ -1166,7 +1166,7 @@ static void scp_sink_coroutine(ScpSink *scp)
                              scp->attrs);
                 if (scp->reply.err) {
                     scp->errmsg = dupprintf(
-                        "'%.*s': unable to open file: %s",
+                        "'%.*s'：无法打开文件：%s",
                         PTRLEN_PRINTF(scp->filename), scp->reply.errmsg);
                     goto done;
                 }
@@ -1198,7 +1198,7 @@ static void scp_sink_coroutine(ScpSink *scp)
                                   make_ptrlen(data.ptr, this_len));
                     if (scp->reply.err) {
                         scp->errmsg = dupprintf(
-                            "'%.*s': unable to write to file: %s",
+                            "'%.*s'：无法写入文件：%s",
                             PTRLEN_PRINTF(scp->filename), scp->reply.errmsg);
                         goto done;
                     }
@@ -1234,7 +1234,7 @@ static void scp_sink_coroutine(ScpSink *scp)
              */
           parse_error:
             cmd_pl = ptrlen_from_strbuf(scp->command);
-            scp->errmsg = dupprintf("unrecognised scp command '%.*s'",
+            scp->errmsg = dupprintf("无法识别的 scp 命令 '%.*s'",
                                     PTRLEN_PRINTF(cmd_pl));
             goto done;
         }

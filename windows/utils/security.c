@@ -128,7 +128,7 @@ static bool getsids(char **error)
 
     if (!usersid) {
         if ((usersid = get_user_sid()) == NULL) {
-            *error = dupprintf("unable to construct SID for current user: %s",
+            *error = dupprintf("无法为当前用户构造 SID：%s",
                                win_strerror(GetLastError()));
             goto cleanup;
         }
@@ -137,7 +137,7 @@ static bool getsids(char **error)
     if (!worldsid) {
         if (!AllocateAndInitializeSid(&world_auth, 1, SECURITY_WORLD_RID,
                                       0, 0, 0, 0, 0, 0, 0, &worldsid)) {
-            *error = dupprintf("unable to construct SID for world: %s",
+            *error = dupprintf("无法为所有人构造 SID：%s",
                                win_strerror(GetLastError()));
             goto cleanup;
         }
@@ -146,8 +146,8 @@ static bool getsids(char **error)
     if (!networksid) {
         if (!AllocateAndInitializeSid(&nt_auth, 1, SECURITY_NETWORK_RID,
                                       0, 0, 0, 0, 0, 0, 0, &networksid)) {
-            *error = dupprintf("unable to construct SID for "
-                               "local same-user access only: %s",
+            *error = dupprintf("无法构造仅限本地同用户"
+                               "访问的 SID：%s",
                                win_strerror(GetLastError()));
             goto cleanup;
         }
@@ -196,7 +196,7 @@ bool make_private_security_descriptor(DWORD permissions,
 
     acl_err = p_SetEntriesInAclA(3, ea, NULL, acl);
     if (acl_err != ERROR_SUCCESS || *acl == NULL) {
-        *error = dupprintf("unable to construct ACL: %s",
+        *error = dupprintf("无法构造 ACL：%s",
                            win_strerror(acl_err));
         goto cleanup;
     }
@@ -204,25 +204,25 @@ bool make_private_security_descriptor(DWORD permissions,
     *psd = (PSECURITY_DESCRIPTOR)
         LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
     if (!*psd) {
-        *error = dupprintf("unable to allocate security descriptor: %s",
+        *error = dupprintf("无法分配安全描述符：%s",
                            win_strerror(GetLastError()));
         goto cleanup;
     }
 
     if (!InitializeSecurityDescriptor(*psd, SECURITY_DESCRIPTOR_REVISION)) {
-        *error = dupprintf("unable to initialise security descriptor: %s",
+        *error = dupprintf("无法初始化安全描述符：%s",
                            win_strerror(GetLastError()));
         goto cleanup;
     }
 
     if (!SetSecurityDescriptorOwner(*psd, usersid, false)) {
-        *error = dupprintf("unable to set owner in security descriptor: %s",
+        *error = dupprintf("无法在安全描述符中设置所有者：%s",
                            win_strerror(GetLastError()));
         goto cleanup;
     }
 
     if (!SetSecurityDescriptorDacl(*psd, true, *acl, false)) {
-        *error = dupprintf("unable to set DACL in security descriptor: %s",
+        *error = dupprintf("无法在安全描述符中设置 DACL：%s",
                            win_strerror(GetLastError()));
         goto cleanup;
     }
@@ -285,7 +285,7 @@ static bool really_restrict_process_acl(char **error)
     acl_err = p_SetEntriesInAclA(2, ea, NULL, &acl);
 
     if (acl_err != ERROR_SUCCESS || acl == NULL) {
-        *error = dupprintf("unable to construct ACL: %s",
+        *error = dupprintf("无法构造 ACL：%s",
                            win_strerror(acl_err));
         goto cleanup;
     }
@@ -294,7 +294,7 @@ static bool really_restrict_process_acl(char **error)
             GetCurrentProcess(), SE_KERNEL_OBJECT,
             OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
             usersid, NULL, acl, NULL)) {
-        *error = dupprintf("Unable to set process ACL: %s",
+        *error = dupprintf("无法设置进程 ACL：%s",
                            win_strerror(GetLastError()));
         goto cleanup;
     }

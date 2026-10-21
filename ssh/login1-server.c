@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Packet protocol layer for the SSH-1 login phase, from the server side.
  */
 
@@ -260,7 +260,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     }
     s->username = get_string(pktin);
     s->username.ptr = s->username_str = mkstr(s->username);
-    ppl_logevent("Received username '%.*s'", PTRLEN_PRINTF(s->username));
+    ppl_logevent("已收到用户名 '%.*s'", PTRLEN_PRINTF(s->username));
 
     if (auth_none(s->authpolicy, s->username))
         goto auth_success;
@@ -318,7 +318,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 continue;
 
             if (s->authkey && s->authkey->bytes < 32) {
-                ppl_logevent("Auth key far too small");
+                ppl_logevent("认证密钥过小");
                 continue;
             }
 
@@ -337,7 +337,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
 
                 if (!rsa_ssh1_encrypt(rsabuf, 32, s->authkey)) {
                     sfree(rsabuf);
-                    ppl_logevent("Failed to encrypt auth challenge");
+                    ppl_logevent("加密认证质询失败");
                     continue;
                 }
 
@@ -370,7 +370,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 ptrlen expected = make_ptrlen(
                     s->auth_rsa_expected_response, 16);
                 if (!ptrlen_eq_ptrlen(response, expected)) {
-                    ppl_logevent("Wrong response to auth challenge");
+                    ppl_logevent("对认证质询的响应错误");
                     continue;
                 }
             }

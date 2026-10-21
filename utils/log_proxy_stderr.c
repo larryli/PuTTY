@@ -79,7 +79,7 @@ void log_proxy_stderr(Plug *plug, Socket *sock, ProxyStderrBuf *psb,
          */
         if (pos == 0 && psb->size == lenof(psb->buf)) {
             char *msg = dupprintf(
-                "%s (partial line): %.*s", psb->prefix, (int)psb->size,
+                "%s（未完成行）: %.*s", psb->prefix, (int)psb->size,
                 psb->buf);
             plug_log(plug, sock, PLUGLOG_PROXY_MSG, NULL, 0, msg, 0);
             sfree(msg);

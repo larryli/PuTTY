@@ -95,10 +95,10 @@ static char *ssh2_channel_open_failure_error_text(PktIn *pktin)
 {
     static const char *const reasons[] = {
         NULL,
-        "Administratively prohibited",
-        "Connect failed",
-        "Unknown channel type",
-        "Resource shortage",
+        "已被管理员禁止",
+        "连接失败",
+        "未知的通道类型",
+        "资源不足",
     };
     unsigned reason_code;
     const char *reason_code_string;
@@ -110,7 +110,7 @@ static char *ssh2_channel_open_failure_error_text(PktIn *pktin)
         reason_code_string = reasons[reason_code];
     } else {
         reason_code_string = reason_code_buf;
-        sprintf(reason_code_buf, "unknown reason code %#x", reason_code);
+        sprintf(reason_code_buf, "未知的原因代码 %#x", reason_code);
     }
 
     reason = get_string(pktin);
@@ -362,7 +362,7 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
             if (!s->globreq_head) {
                 ssh_proto_error(
                     s->ppl.ssh,
-                    "Received %s with no outstanding global request",
+                    "收到 %s，但没有待处理的全局请求",
                     ssh2_pkt_type(s->ppl.bpp->pls->kctx, s->ppl.bpp->pls->actx,
                                   pktin->type));
                 return true;
@@ -395,7 +395,7 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 chanopen_result.u.failure.reason_code =
                     SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED;
                 chanopen_result.u.failure.wire_message = dupstr(
-                    "maximum packet size of 0 not permitted");
+                    "不允许最大数据包大小为 0");
             } else {
                 chanopen_result = ssh2_connection_parse_channel_open(
                     s, type, pktin, &c->sc);
@@ -426,7 +426,7 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 put_stringz(pktout, chanopen_result.u.failure.wire_message);
                 put_stringz(pktout, "en");      /* language tag */
                 pq_push(s->ppl.out_pq, pktout);
-                ppl_logevent("Rejected channel open: %s",
+                ppl_logevent("已拒绝打开通道: %s",
                              chanopen_result.u.failure.wire_message);
                 sfree(chanopen_result.u.failure.wire_message);
                 sfree(c);
@@ -486,12 +486,12 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
 
             if (!c || c->halfopen != expect_halfopen) {
                 ssh_proto_error(s->ppl.ssh,
-                                "Received %s for %s channel %u",
+                                "收到 %s，用于%s通道 %u",
                                 ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                               s->ppl.bpp->pls->actx,
                                               pktin->type),
-                                (!c ? "nonexistent" :
-                                 c->halfopen ? "half-open" : "open"),
+                                (!c ? "不存在的" :
+                                 c->halfopen ? "半开的" : "已打开的"),
                                 localid);
                 return true;
             }
@@ -508,8 +508,8 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 if (c->remmaxpkt == 0) {
                     ssh_proto_error(
                         s->ppl.ssh,
-                        "Received SSH2_MSG_CHANNEL_OPEN_CONFIRMATION for "
-                        "channel %u with zero maximum packet size", localid);
+                        "通道 %u 的 SSH2_MSG_CHANNEL_OPEN_CONFIRMATION "
+                        "消息中最大数据包大小为 0", localid);
                     return true;
                 }
 
@@ -724,7 +724,7 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                     BinarySource_BARE_INIT_PL(bs_modes, encoded_modes);
                     modes = read_ttymodes_from_packet(bs_modes, 2);
                     if (get_err(bs_modes) || get_avail(bs_modes) > 0) {
-                        ppl_logevent("Unable to decode terminal mode string");
+                        ppl_logevent("无法解码终端模式字符串");
                         reply_success = false;
                     } else {
                         reply_success = chan_allocate_pty(
@@ -767,8 +767,8 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 if (!ocr) {
                     ssh_proto_error(
                         s->ppl.ssh,
-                        "Received %s for channel %d with no outstanding "
-                        "channel request",
+                        "收到 %s（为通道 %d），但没有待处理的"
+                        "通道请求",
                         ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                       s->ppl.bpp->pls->actx, pktin->type),
                         c->localid);
@@ -1007,10 +1007,10 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
         s->antispoof_prompt = ssh_ppl_new_prompts(&s->ppl);
         s->antispoof_prompt->to_server = false;
         s->antispoof_prompt->from_server = false;
-        s->antispoof_prompt->name = dupstr("Authentication successful");
+        s->antispoof_prompt->name = dupstr("认证成功");
         add_prompt(
             s->antispoof_prompt,
-            dupstr("Access granted. Press Return to begin session. "), false);
+            dupstr("已授权访问。按回车键开始会话。"), false);
         s->antispoof_ret = seat_get_userpass_input(
             ppl_get_iseat(&s->ppl), s->antispoof_prompt);
         while (s->antispoof_ret.kind == SPRK_INCOMPLETE) {
@@ -1049,8 +1049,8 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
              * Anything that reaches here must be bogus.
              */
 
-            ssh_proto_error(s->ppl.ssh, "Received unexpected connection-layer "
-                            "packet, type %d (%s)", pktin->type,
+            ssh_proto_error(s->ppl.ssh, "收到意外的连接层"
+                            "数据包，类型 %d (%s)", pktin->type,
                             ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                           s->ppl.bpp->pls->actx,
                                           pktin->type));
@@ -1284,7 +1284,7 @@ static void ssh2_check_termination(struct ssh2_connection_state *s)
          * and indeed OpenSSH feels this is more polite than sending a
          * DISCONNECT. So now we don't.
          */
-        ssh_user_close(s->ppl.ssh, "All channels closed");
+        ssh_user_close(s->ppl.ssh, "所有通道已关闭");
         return;
     }
 }
@@ -1393,7 +1393,7 @@ static void ssh2channel_initiate_close(SshChannel *sc, const char *err)
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     char *reason;
 
-    reason = err ? dupprintf("due to local error: %s", err) : NULL;
+    reason = err ? dupprintf("由于本地错误: %s", err) : NULL;
     ssh2_channel_close_local(c, reason);
     sfree(reason);
     c->pending_eof = false;   /* this will confuse a zombie channel */

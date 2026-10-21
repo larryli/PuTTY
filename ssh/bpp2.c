@@ -124,7 +124,7 @@ void ssh2_bpp_new_outgoing_crypto(
             (ssh_cipher_alg(s->out.cipher)->flags & SSH_CIPHER_IS_CBC) &&
             !(s->bpp.remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE));
 
-        bpp_logevent("Initialised %s outbound encryption",
+        bpp_logevent("已初始化 %s 出站加密",
                      ssh_cipher_alg(s->out.cipher)->text_name);
     } else {
         s->out.cipher = NULL;
@@ -141,12 +141,12 @@ void ssh2_bpp_new_outgoing_crypto(
          */
         ssh2_mac_setkey(s->out.mac, make_ptrlen(mac_key, mac->keylen));
 
-        bpp_logevent("Initialised %s outbound MAC algorithm%s%s",
+        bpp_logevent("已初始化 %s 出站 MAC 算法%s%s",
                      ssh2_mac_text_name(s->out.mac),
-                     etm_mode ? " (in ETM mode)" : "",
+                     etm_mode ? "（处于 ETM 模式）" : "",
                      (s->out.cipher &&
                       ssh_cipher_alg(s->out.cipher)->required_mac ?
-                      " (required by cipher)" : ""));
+                      "（由加密算法要求）" : ""));
     } else {
         s->out.mac = NULL;
     }
@@ -158,7 +158,7 @@ void ssh2_bpp_new_outgoing_crypto(
         s->out.pending_compression = compression;
         s->out_comp = NULL;
 
-        bpp_logevent("Will enable %s compression after user authentication",
+        bpp_logevent("将在用户认证后启用 %s 压缩",
                      s->out.pending_compression->text_name);
     } else {
         s->out.pending_compression = NULL;
@@ -169,7 +169,7 @@ void ssh2_bpp_new_outgoing_crypto(
         s->out_comp = ssh_compressor_new(compression);
 
         if (s->out_comp)
-            bpp_logevent("Initialised %s compression",
+            bpp_logevent("已初始化 %s 压缩",
                          ssh_compressor_alg(s->out_comp)->text_name);
     }
 }
@@ -192,7 +192,7 @@ void ssh2_bpp_new_incoming_crypto(
         ssh_cipher_setkey(s->in.cipher, ckey);
         ssh_cipher_setiv(s->in.cipher, iv);
 
-        bpp_logevent("Initialised %s inbound encryption",
+        bpp_logevent("已初始化 %s 入站加密",
                      ssh_cipher_alg(s->in.cipher)->text_name);
     } else {
         s->in.cipher = NULL;
@@ -203,12 +203,12 @@ void ssh2_bpp_new_incoming_crypto(
         /* MAC setkey has to follow cipher, just as in outgoing_crypto above */
         ssh2_mac_setkey(s->in.mac, make_ptrlen(mac_key, mac->keylen));
 
-        bpp_logevent("Initialised %s inbound MAC algorithm%s%s",
+        bpp_logevent("已初始化 %s 入站 MAC 算法%s%s",
                      ssh2_mac_text_name(s->in.mac),
-                     etm_mode ? " (in ETM mode)" : "",
+                     etm_mode ? "（处于 ETM 模式）" : "",
                      (s->in.cipher &&
                       ssh_cipher_alg(s->in.cipher)->required_mac ?
-                      " (required by cipher)" : ""));
+                      "（由加密算法要求）" : ""));
     } else {
         s->in.mac = NULL;
     }
@@ -217,7 +217,7 @@ void ssh2_bpp_new_incoming_crypto(
         s->in.pending_compression = compression;
         s->in_decomp = NULL;
 
-        bpp_logevent("Will enable %s decompression after user authentication",
+        bpp_logevent("将在用户认证后启用 %s 解压",
                      s->in.pending_compression->text_name);
     } else {
         s->in.pending_compression = NULL;
@@ -228,7 +228,7 @@ void ssh2_bpp_new_incoming_crypto(
         s->in_decomp = ssh_decompressor_new(compression);
 
         if (s->in_decomp)
-            bpp_logevent("Initialised %s decompression",
+            bpp_logevent("已初始化 %s 解压",
                          ssh_decompressor_alg(s->in_decomp)->text_name);
     }
 
@@ -259,13 +259,13 @@ static void ssh2_bpp_enable_pending_compression(struct ssh2_bpp_state *s)
 
     if (s->in.pending_compression) {
         s->in_decomp = ssh_decompressor_new(s->in.pending_compression);
-        bpp_logevent("Initialised delayed %s decompression",
+        bpp_logevent("已初始化延迟 %s 解压缩",
                      ssh_decompressor_alg(s->in_decomp)->text_name);
         s->in.pending_compression = NULL;
     }
     if (s->out.pending_compression) {
         s->out_comp = ssh_compressor_new(s->out.pending_compression);
-        bpp_logevent("Initialised delayed %s compression",
+        bpp_logevent("已初始化延迟 %s 压缩",
                      ssh_compressor_alg(s->out_comp)->text_name);
         s->out.pending_compression = NULL;
     }

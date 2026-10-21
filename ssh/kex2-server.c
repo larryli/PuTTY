@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Server side of key exchange for the SSH-2 transport protocol (RFC 4253).
  */
 
@@ -66,7 +66,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
          * waiting for the group request.
          */
         if (dh_is_gex(s->kex_alg)) {
-            ppl_logevent("Doing Diffie-Hellman group exchange");
+            ppl_logevent("正在进行 Diffie-Hellman 组交换");
             s->ppl.bpp->pls->kctx = SSH2_PKTCTX_DHGEX;
 
             crMaybeWaitUntilV((pktin = ssh2_transport_pop(s)) != NULL);
@@ -118,11 +118,11 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             s->dh_ctx = dh_setup_group(s->kex_alg);
             s->kex_init_value = SSH2_MSG_KEXDH_INIT;
             s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
-            ppl_logevent("Using Diffie-Hellman with standard group \"%s\"",
+            ppl_logevent("使用 Diffie-Hellman 与标准组 \"%s\"",
                          s->kex_alg->groupname);
         }
 
-        ppl_logevent("Doing Diffie-Hellman key exchange with hash %s",
+        ppl_logevent("正在进行 Diffie-Hellman 密钥交换，哈希为 %s",
                      ssh_hash_alg(s->exhash)->text_name);
 
         /*
@@ -192,7 +192,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         }
     } else if (s->kex_alg->main_type == KEXTYPE_ECDH) {
         char *desc = ecdh_keyalg_description(s->kex_alg);
-        ppl_logevent("Doing %s, using hash %s", desc,
+        ppl_logevent("正在进行 %s，使用哈希 %s", desc,
                      ssh_hash_alg(s->exhash)->text_name);
         sfree(desc);
 
@@ -246,7 +246,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         ssh_sw_abort(s->ppl.ssh, "GSS key exchange not supported in server");
     } else {
         assert(s->kex_alg->main_type == KEXTYPE_RSA);
-        ppl_logevent("Doing RSA key exchange with hash %s",
+        ppl_logevent("正在进行 RSA 密钥交换，哈希为 %s",
                      ssh_hash_alg(s->exhash)->text_name);
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_RSAKEX;
 
@@ -256,16 +256,16 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         if (s->ssc && s->ssc->rsa_kex_key) {
             int klen = ssh_rsakex_klen(s->ssc->rsa_kex_key);
             if (klen >= extra->minklen) {
-                ppl_logevent("Using configured %d-bit RSA key", klen);
+                ppl_logevent("使用已配置的 %d 位 RSA 密钥", klen);
                 s->rsa_kex_key = s->ssc->rsa_kex_key;
             } else {
-                ppl_logevent("Configured %d-bit RSA key is too short (min %d)",
+                ppl_logevent("已配置的 %d 位 RSA 密钥过短（最小 %d）",
                              klen, extra->minklen);
             }
         }
 
         if (!s->rsa_kex_key) {
-            ppl_logevent("Generating a %d-bit RSA key", extra->minklen);
+            ppl_logevent("正在生成 %d 位 RSA 密钥", extra->minklen);
 
             s->rsa_kex_key = snew(RSAKey);
 

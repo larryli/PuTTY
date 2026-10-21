@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Client-specific parts of the SSH-2 connection layer.
  */
 
@@ -20,7 +20,7 @@ static ChanopenResult chan_open_x11(
     char *peeraddr_str;
     Channel *ch;
 
-    ppl_logevent("Received X11 connect request from %.*s:%d",
+    ppl_logevent("已收到来自 %.*s:%d 的 X11 连接请求",
                  PTRLEN_PRINTF(peeraddr), peerport);
 
     if (!s->X11_fwd_enabled && !s->connshare) {
@@ -33,7 +33,7 @@ static ChanopenResult chan_open_x11(
     ch = x11_new_channel(
         s->x11authtree, sc, peeraddr_str, peerport, s->connshare != NULL);
     sfree(peeraddr_str);
-    ppl_logevent("Opened X11 forward channel");
+    ppl_logevent("已打开 X11 转发通道");
     CHANOPEN_RETURN_SUCCESS(ch);
 }
 
@@ -46,7 +46,7 @@ static ChanopenResult chan_open_forwarded_tcpip(
     Channel *ch;
     char *err;
 
-    ppl_logevent("Received remote port %.*s:%d open request from %.*s:%d",
+    ppl_logevent("已收到远程端口 %.*s:%d 的打开请求，来源 %.*s:%d",
                  PTRLEN_PRINTF(fwdaddr), fwdport,
                  PTRLEN_PRINTF(peeraddr), peerport);
 
@@ -72,17 +72,17 @@ static ChanopenResult chan_open_forwarded_tcpip(
     err = portfwdmgr_connect(
         s->portfwdmgr, &ch, realpf->dhost, realpf->dport,
         sc, realpf->addressfamily);
-    ppl_logevent("Attempting to forward remote port to %s:%d",
+    ppl_logevent("尝试将远程端口转发到 %s:%d",
                  realpf->dhost, realpf->dport);
     if (err != NULL) {
-        ppl_logevent("Port open failed: %s", err);
+        ppl_logevent("端口打开失败: %s", err);
         sfree(err);
         CHANOPEN_RETURN_FAILURE(
             SSH2_OPEN_CONNECT_FAILED,
             ("Port open failed"));
     }
 
-    ppl_logevent("Forwarded port opened successfully");
+    ppl_logevent("转发端口已成功打开");
     CHANOPEN_RETURN_SUCCESS(ch);
 }
 
@@ -169,7 +169,7 @@ PktOut *ssh2_portfwd_chanopen(
      * connect _to_.
      */
 
-    ppl_logevent("Opening connection to %s:%d for %s",
+    ppl_logevent("打开到 %s:%d 的连接（%s）",
                  hostname, port, description);
 
     pktout = ssh2_chanopen_init(c, "direct-tcpip");
@@ -215,10 +215,10 @@ static void ssh2_rportfwd_globreq_response(struct ssh2_connection_state *s,
     struct ssh_rportfwd *rpf = (struct ssh_rportfwd *)ctx;
 
     if (pktin->type == SSH2_MSG_REQUEST_SUCCESS) {
-        ppl_logevent("Remote port forwarding from %s enabled",
+        ppl_logevent("已启用来自 %s 的远程端口转发",
                      rpf->log_description);
     } else {
-        ppl_logevent("Remote port forwarding from %s refused",
+        ppl_logevent("拒绝来自 %s 的远程端口转发",
                      rpf->log_description);
 
         struct ssh_rportfwd *realpf = del234(s->rportfwds, rpf);
@@ -312,7 +312,7 @@ SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan)
     c->halfopen = true;
     c->chan = chan;
 
-    ppl_logevent("Opening main session channel");
+    ppl_logevent("打开主会话通道");
 
     pktout = ssh2_chanopen_init(c, "session");
     pq_push(s->ppl.out_pq, pktout);

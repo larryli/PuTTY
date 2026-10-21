@@ -196,7 +196,7 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
      * Try to find host.
      */
     addr = name_lookup(host, port, realhost, conf, addressfamily,
-                       raw->logctx, "main connection");
+                       raw->logctx, "主连接");
     if ((err = sk_addr_error(addr)) != NULL) {
         sk_addr_free(addr);
         return dupstr(err);
@@ -372,9 +372,9 @@ const BackendVtable raw_backend = {
     .provide_ldisc = raw_provide_ldisc,
     .unthrottle = raw_unthrottle,
     .cfg_info = raw_cfg_info,
-    .id = "raw",
+    .id = "原始",
     .displayname_tc = "Raw",
-    .displayname_lc = "raw",
+    .displayname_lc = "原始",
     .protocol = PROT_RAW,
     .default_port = 0,
 };

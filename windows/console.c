@@ -402,7 +402,7 @@ SeatPromptResult console_confirm_ssh_host_key(
     ResponseType response;
 
     while (true) {
-        put_fmt(conio, "%s (y/n, Return cancels connection, i for more info) ",
+        put_fmt(conio, "%s (y/n，按回车取消连接，i 查看详情) ",
                 prompt);
 
         response = parse_and_free_response(console_read_line(conio, true));

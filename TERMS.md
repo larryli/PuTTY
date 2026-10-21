@@ -3,6 +3,8 @@
 ## 总则
 
 1. **专有名词不翻译**：协议、算法、产品名、文件名格式等保持英文原样
+   - **含下划线的标识符（函数名/符号名/阶段标签）一律保留原样**，如 `ssh_init`、`createkey`、`rsa_verify`、`winadj`；只译其后的描述部分（`rsa_verify 失败` ✓，`SSH 初始化` ✗）
+   - 协议常量与消息名（`SSH_MSG_*`、`FXP_*`、`PLUGIN_*`、`SSH2_MSG_*`、`REALPATH`）及命令行选项（`--help`、`-batch`、`-unsafe`）保留英文
 2. 快捷键助记符沿用英文原文的 `(&X)` 形式，勿随意更改加速键字母
 3. 同一概念全项目统一译法（见下表）
 4. 界面文案使用中文全角标点（，。：；？）；命令行 usage 文本保持原文风格
@@ -17,7 +19,9 @@
 | 算法 | RSA、DSA、ECDSA、EdDSA、Ed25519、AES、AES-GCM、ChaCha20、Arcfour、SHA-256、MD5 |
 | 密钥格式 | PPK、OpenSSH、PGP |
 | 产品/组件 | PuTTY、PuTTYgen、Pageant、PSCP、PSFTP、Plink、Pterm、WinSCP |
-| 其他 | X11、GSSAPI、IPv4、IPv6、CA、GSSAPI、API、URL、UTF-8、xterm |
+| 其他 | X11、GSSAPI、IPv4、IPv6、CA、API、URL、UTF-8、xterm、ssh.com |
+| 协议/数据包/参数 | TIS、CryptoCard、Kerberos、SSPI、SECUR32.DLL、DEK-Info、Proc-Type、bcrypt、kdf、KEXINIT、FXP_*、SSH_FXP_*、SSH_MSG_*、PLUGIN_*、REALPATH |
+| 攻击/缺陷名 | Terrapin、winadj、IGNORE bug |
 
 ## 通用界面词汇
 
@@ -136,6 +140,20 @@
 | Certificate | 证书 |
 | Certificate Authority (CA) | 证书颁发机构；“主机 CA”保留 CA |
 | Encryption | 加密 |
+| Group exchange | 组交换 |
+| Modulus | 模数 |
+| Rekey / key re-exchange | 密钥重交换 |
+| Strict kex | 严格 kex |
+| Auth helper plugin | 认证辅助插件 |
+| Keyboard-interactive | 键盘交互 |
+| Fallback host key | 回退主机密钥 |
+| Transient host key cache | 临时主机密钥缓存 |
+| Cross-certify | 交叉认证 |
+| Credentials | 凭据 |
+| Security context | 安全上下文 |
+| MIC (message integrity code) | MIC |
+| Banner message | 横幅消息 |
+| Camouflage packets | 伪装数据包 |
 
 ## 密钥生成（PuTTYgen）
 
@@ -180,3 +198,39 @@
 | verbose messages | 详细信息 |
 | version information | 版本信息 |
 | log file | 日志文件 |
+
+## 命令行与传输消息（CLI/协议层）
+
+| English | 中文 |
+|---|---|
+| wildcard | 通配符 |
+| multi-level wildcards | 多级通配符 |
+| home directory | 主目录 |
+| working directory | 工作目录 |
+| local / remote | 本地 / 远程 |
+| download / upload | 下载 / 上传 |
+| resume (reget/reput) | 续传 |
+| ETA | 剩余 |
+| unsorted | 未排序 |
+| compound pathname | 复合路径名 |
+| principal | 主体 |
+| critical options | 关键选项 |
+| set-user-ID / set-group-ID bit | set-user-ID / set-group-ID 位 |
+| sticky bit | sticky bit |
+| octal permission | 八进制权限 |
+| batch file | 批处理文件 |
+| end of file / EOF | 文件结束 |
+| short buffer | 缓冲区过短 |
+| truncated | 被截断 |
+| ill-formed / badly formatted | 格式错误 |
+| camouflage packets | 伪装数据包 |
+| length-padded | 长度填充后的 |
+| unsupported / not supported | 不支持 |
+| permission denied | 权限被拒绝 |
+| no such file or directory | 没有这样的文件或目录 |
+| FATAL ERROR | 致命错误 |
+| ERROR（前缀） | 错误 |
+| file format error | 文件格式错误 |
+| MAC failed | MAC 校验失败 |
+| wrong passphrase | 密钥密码错误 |
+| ssh_init（阶段标签） | SSH 初始化 |

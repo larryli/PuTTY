@@ -615,7 +615,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     }
 
     write_setting_i(sesskey, "Present", 1);
-    p = "raw";
+    p = "原始";
     {
         const struct BackendVtable *vt =
             backend_vt_from_proto(conf_get_int(conf, CONF_protocol));

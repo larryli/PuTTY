@@ -671,8 +671,8 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                         s->chunk_length = s->chunk_length*16 + (c-'a'+10);
                     } else {
                         pn->error = dupprintf(
-                            "Received bad character 0x%02X in chunk length "
-                            "during HTTP chunked transfer encoding",
+                            "在分块长度中收到错误字符 0x%02X"
+                            "（HTTP 分块传输编码期间）",
                             (unsigned)(unsigned char)c);
                         crStopV;
                     }
@@ -691,8 +691,8 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
                                           pn->input, buf, 2));
                     if (memcmp(buf, "\r\n", 2)) {
                         pn->error = dupprintf(
-                            "Missing CRLF after chunk "
-                            "during HTTP chunked transfer encoding");
+                            "分块后缺少 CRLF"
+                            "（HTTP 分块传输编码期间）");
                         crStopV;
                     }
                 }
@@ -740,8 +740,8 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
              * proceed from here if we have a way to ask the user
              * questions. */
             if (!pn->itr) {
-                pn->error = dupprintf("HTTP proxy requested authentication "
-                                      "which we do not have");
+                pn->error = dupprintf("HTTP 代理要求认证，"
+                                      "但我们没有");
                 crStopV;
             }
 
@@ -794,7 +794,7 @@ static void proxy_http_process_queue(ProxyNegotiator *pn)
             s->prompts = NULL;
         } else {
             /* Any other HTTP response is treated as permanent failure */
-            pn->error = dupprintf("HTTP response %s",
+            pn->error = dupprintf("HTTP 响应 %s",
                                   s->response->s + s->http_status_pos);
             crStopV;
         }

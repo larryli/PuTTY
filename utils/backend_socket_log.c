@@ -15,25 +15,25 @@ void backend_socket_log(Seat *seat, LogContext *logctx, Socket *sock,
       case PLUGLOG_CONNECT_TRYING:
         sk_getaddr(addr, addrbuf, lenof(addrbuf));
         if (sk_addr_needs_port(addr)) {
-            msg = dupprintf("Connecting to %s port %d", addrbuf, port);
+            msg = dupprintf("连接 %s 端口 %d", addrbuf, port);
         } else {
-            msg = dupprintf("Connecting to %s", addrbuf);
+            msg = dupprintf("连接 %s", addrbuf);
         }
         break;
       case PLUGLOG_CONNECT_FAILED:
         sk_getaddr(addr, addrbuf, lenof(addrbuf));
-        msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+        msg = dupprintf("连接 %s 失败: %s", addrbuf, error_msg);
         break;
       case PLUGLOG_CONNECT_SUCCESS:
         if (addr)
             sk_getaddr(addr, addrbuf, lenof(addrbuf));
         else /* fallback if address unavailable */
             sprintf(addrbuf, "remote host");
-        msg = dupprintf("Connected to %s", addrbuf);
+        msg = dupprintf("已连接到 %s", addrbuf);
         if (sock) {
             SocketEndpointInfo *local_end = sk_endpoint_info(sock, false);
             if (local_end) {
-                char *newmsg = dupprintf("%s (from %s)", msg,
+                char *newmsg = dupprintf("%s（来自 %s）", msg,
                                          local_end->log_text);
                 sfree(msg);
                 msg = newmsg;

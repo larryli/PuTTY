@@ -390,7 +390,7 @@ int main(int argc, char **argv)
             strbuf_free(cmdbuf);
             break;                     /* done with cmdline */
         } else {
-            fprintf(stderr, "plink: unknown option \"%s\"\n", p);
+            fprintf(stderr, "plink: 未知选项 \"%s\"\n", p);
             errors = true;
         }
     }
@@ -399,8 +399,8 @@ int main(int argc, char **argv)
         return 1;
 
     if (!cmdline_host_ok(conf)) {
-        fprintf(stderr, "plink: no valid host name provided\n"
-                "try \"plink --help\" for help\n");
+        fprintf(stderr, "plink: 未提供有效的主机名\n"
+                "尝试 \"plink --help\" 获取帮助\n");
         cmdline_arg_list_free(arglist);
         return 1;
     }
@@ -425,20 +425,20 @@ int main(int argc, char **argv)
     vt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
     if (vt == NULL) {
         fprintf(stderr,
-                "Internal fault: Unsupported protocol found\n");
+                "内部错误: 找到不支持的协议\n");
         return 1;
     }
 
     if (vt->flags & BACKEND_NEEDS_TERMINAL) {
         fprintf(stderr,
-                "Plink doesn't support %s, which needs terminal emulation\n",
+                "Plink 不支持 %s，因为它需要终端仿真\n",
                 vt->displayname_lc);
         return 1;
     }
 
     sk_init();
     if (p_WSAEventSelect == NULL) {
-        fprintf(stderr, "Plink requires WinSock 2\n");
+        fprintf(stderr, "Plink 需要 WinSock 2\n");
         return 1;
     }
 
@@ -457,8 +457,8 @@ int main(int argc, char **argv)
 
     if (just_test_share_exists) {
         if (!vt->test_for_upstream) {
-            fprintf(stderr, "Connection sharing not supported for this "
-                    "connection type (%s)'\n", vt->displayname_lc);
+            fprintf(stderr, "此连接类型 (%s) 不支持连接共享\n",
+                    vt->displayname_lc);
             return 1;
         }
         if (vt->test_for_upstream(conf_get_str(conf, CONF_host),
@@ -470,7 +470,7 @@ int main(int argc, char **argv)
 
     if (restricted_acl()) {
         lp_eventlog(console_cli_logpolicy,
-                    "Running with restricted process ACL");
+                    "正在使用受限的进程 ACL 运行");
     }
 
     inhandle = GetStdHandle(STD_INPUT_HANDLE);

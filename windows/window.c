@@ -2362,7 +2362,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           }
           case IDM_RESTART:
             if (!wgs->backend) {
-                lp_eventlog(&wgs->logpolicy, "----- Session restarted -----");
+                lp_eventlog(&wgs->logpolicy, "----- 会话已重启 -----");
                 term_pwron(wgs->term, false);
                 start_backend(wgs);
             }
@@ -4980,23 +4980,38 @@ void write_aclip(HWND hwnd, int clipboard, char *data, int len)
 {
     HGLOBAL clipdata;
     void *lock;
+    wchar_t *wbuf;
+    int wlen;
 
     if (clipboard != CLIP_SYSTEM)
         return;
 
-    clipdata = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, len + 1);
-    if (!clipdata)
+    wlen = MultiByteToWideChar(CP_UTF8, 0, data, len, NULL, 0);
+    if (wlen == 0)
         return;
+    wbuf = snewn(wlen + 1, wchar_t);
+    MultiByteToWideChar(CP_UTF8, 0, data, len, wbuf, wlen);
+    wbuf[wlen] = 0;
+
+    clipdata = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE,
+                           (wlen + 1) * sizeof(wchar_t));
+    if (!clipdata) {
+        sfree(wbuf);
+        return;
+    }
     lock = GlobalLock(clipdata);
-    if (!lock)
+    if (!lock) {
+        GlobalFree(clipdata);
+        sfree(wbuf);
         return;
-    memcpy(lock, data, len);
-    ((unsigned char *) lock)[len] = 0;
+    }
+    memcpy(lock, wbuf, (wlen + 1) * sizeof(wchar_t));
     GlobalUnlock(clipdata);
+    sfree(wbuf);
 
     if (OpenClipboard(hwnd)) {
         EmptyClipboard();
-        SetClipboardData(CF_TEXT, clipdata);
+        SetClipboardData(CF_UNICODETEXT, clipdata);
         CloseClipboard();
     } else
         GlobalFree(clipdata);

@@ -338,7 +338,7 @@ static SocketEndpointInfo *sk_handle_endpoint_info(Socket *s, bool peer)
         pi->addressfamily = ADDRTYPE_LOCAL;
         pi->addr_text = NULL;
         pi->port = -1;
-        pi->log_text = dupprintf("process id %lu", (unsigned long)pid);
+        pi->log_text = dupprintf("进程 ID %lu", (unsigned long)pid);
         return pi;
     }
 

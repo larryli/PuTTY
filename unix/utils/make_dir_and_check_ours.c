@@ -50,11 +50,11 @@ char *make_dir_and_check_ours(const char *dirname)
     if (stat(dirname, &st) < 0)
         return dupprintf("%s: stat: %s", dirname, strerror(errno));
     if (st.st_uid != getuid())
-        return dupprintf("%s: directory owned by uid %d, not by us",
+        return dupprintf("%s: 目录属于 uid %d，而非当前用户",
                          dirname, st.st_uid);
     if ((st.st_mode & 077) != 0)
-        return dupprintf("%s: directory has overgenerous permissions %03o"
-                         " (expected 700)", dirname, st.st_mode & 0777);
+        return dupprintf("%s: 目录权限过于宽松 %03o"
+                         "（应为 700）", dirname, st.st_mode & 0777);
 
     return NULL;
 }

@@ -220,7 +220,7 @@ static void log_option(Telnet *telnet, const char *sender, int cmd, int option)
      * trigraph - a double question mark followed by > maps to a
      * closing brace character!
      */
-    logeventf(telnet->logctx, "%s negotiation: %s %s", sender,
+    logeventf(telnet->logctx, "%s 协商: %s %s", sender,
               (cmd == WILL ? "WILL" : cmd == WONT ? "WONT" :
                cmd == DO ? "DO" : cmd == DONT ? "DONT" : "<?""?>"),
               telopt(option));
@@ -374,13 +374,13 @@ static void process_subneg(Telnet *telnet)
             put_byte(sb, IAC);
             put_byte(sb, SE);
             telnet->bufsize = sk_write(telnet->s, sb->s, sb->len);
-            logevent(telnet->logctx, "server subnegotiation: SB TSPEED SEND");
+            logevent(telnet->logctx, "服务器子协商: SB TSPEED 发送");
             logeventf(telnet->logctx,
-                      "client subnegotiation: SB TSPEED IS %s", termspeed);
+                      "客户端子协商: SB TSPEED 为 %s", termspeed);
             strbuf_free(sb);
         } else
             logevent(telnet->logctx,
-                     "server subnegotiation: SB TSPEED <something weird>");
+                     "服务器子协商: SB TSPEED <异常>");
         break;
       case TELOPT_TTYPE:
         if (telnet->sb_buf->len == 1 && telnet->sb_buf->u[0] == TELQUAL_SEND) {
@@ -399,13 +399,13 @@ static void process_subneg(Telnet *telnet)
             put_byte(sb, SE);
             telnet->bufsize = sk_write(telnet->s, sb->s, sb->len);
             strbuf_shrink_to(sb, tt_end);
-            logevent(telnet->logctx, "server subnegotiation: SB TTYPE SEND");
-            logeventf(telnet->logctx, "client subnegotiation: SB TTYPE IS %s",
+            logevent(telnet->logctx, "服务器子协商: SB TTYPE 发送");
+            logeventf(telnet->logctx, "客户端子协商: SB TTYPE 为 %s",
                       sb->s + tt_start);
             strbuf_free(sb);
         } else
             logevent(telnet->logctx,
-                     "server subnegotiation: SB TTYPE <something weird>\r\n");
+                     "服务器子协商: SB TTYPE <异常>\r\n");
         break;
       case TELOPT_OLD_ENVIRON:
       case TELOPT_NEW_ENVIRON:
@@ -413,7 +413,7 @@ static void process_subneg(Telnet *telnet)
         q = p + telnet->sb_buf->len;
         if (p < q && *p == TELQUAL_SEND) {
             p++;
-            logeventf(telnet->logctx, "server subnegotiation: SB %s SEND",
+            logeventf(telnet->logctx, "服务器子协商: SB %s 发送",
                       telopt(telnet->sb_opt));
             if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
                 if (conf_get_bool(telnet->conf, CONF_rfc_environ)) {
@@ -473,10 +473,10 @@ static void process_subneg(Telnet *telnet)
             telnet->bufsize = sk_write(telnet->s, sb->s, sb->len);
             if (sb->len == 6) {
                 logeventf(telnet->logctx,
-                          "client subnegotiation: SB %s IS <nothing>",
+                          "客户端子协商: SB %s 为 <空>",
                           telopt(telnet->sb_opt));
             } else {
-                logeventf(telnet->logctx, "client subnegotiation: SB %s IS:",
+                logeventf(telnet->logctx, "客户端子协商: SB %s 为：",
                           telopt(telnet->sb_opt));
                 for (eval = conf_get_str_strs(telnet->conf, CONF_environmt,
                                               NULL, &ekey);
@@ -750,7 +750,7 @@ static char *telnet_init(const BackendVtable *vt, Seat *seat,
      */
     addressfamily = conf_get_int(telnet->conf, CONF_addressfamily);
     addr = name_lookup(host, port, realhost, telnet->conf, addressfamily,
-                       telnet->logctx, "Telnet connection");
+                       telnet->logctx, "Telnet 连接");
     if ((err = sk_addr_error(addr)) != NULL) {
         sk_addr_free(addr);
         return dupstr(err);
@@ -916,7 +916,7 @@ static void telnet_size(Backend *be, int width, int height)
     b[n++] = IAC;
     b[n++] = SE;
     telnet->bufsize = sk_write(telnet->s, b, n);
-    logeventf(telnet->logctx, "client subnegotiation: SB NAWS %d,%d",
+    logeventf(telnet->logctx, "客户端子协商: SB NAWS %d,%d",
               telnet->term_width, telnet->term_height);
 }
 

@@ -16,7 +16,7 @@ char *default_description(const BackendVtable *backvt,
     const char *be_name = backvt->displayname_lc;
 
     if (backvt->default_port && port == backvt->default_port)
-        return dupprintf("%s connection to %s", be_name, host);
+        return dupprintf("%s 连接到 %s", be_name, host);
     else
-        return dupprintf("%s connection to %s port %d", be_name, host, port);
+        return dupprintf("%s 连接到 %s 端口 %d", be_name, host, port);
 }

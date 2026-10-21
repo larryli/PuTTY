@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Server-specific parts of the SSH-2 connection layer.
  */
 
@@ -28,7 +28,7 @@ static ChanopenResult chan_open_session(
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
 
-    ppl_logevent("Opened session channel");
+    ppl_logevent("已打开会话通道");
     CHANOPEN_RETURN_SUCCESS(sesschan_new(sc, s->ppl.logctx,
                                          s->sftpserver_vt, s->ssc));
 }
@@ -43,7 +43,7 @@ static ChanopenResult chan_open_direct_tcpip(
 
     dstaddr_str = mkstr(dstaddr);
 
-    ppl_logevent("Received request to connect to port %s:%d (from %.*s:%d)",
+    ppl_logevent("已收到连接到端口 %s:%d 的请求 (from %.*s:%d)",
                  dstaddr_str, dstport, PTRLEN_PRINTF(peeraddr), peerport);
     err = portfwdmgr_connect(
         s->portfwdmgr, &ch, dstaddr_str, dstport, sc, ADDRTYPE_UNSPEC);
@@ -51,13 +51,13 @@ static ChanopenResult chan_open_direct_tcpip(
     sfree(dstaddr_str);
 
     if (err != NULL) {
-        ppl_logevent("Port open failed: %s", err);
+        ppl_logevent("端口打开失败: %s", err);
         sfree(err);
         CHANOPEN_RETURN_FAILURE(
             SSH2_OPEN_CONNECT_FAILED, ("Connection failed"));
     }
 
-    ppl_logevent("Port opened successfully");
+    ppl_logevent("端口已成功打开");
     CHANOPEN_RETURN_SUCCESS(ch);
 }
 
@@ -123,10 +123,10 @@ PktOut *ssh2_portfwd_chanopen(
      */
 
     if (pi && pi->log_text)
-        ppl_logevent("Forwarding connection to listening port %s:%d from %s",
+        ppl_logevent("正在将连接转发到监听端口 %s:%d（来自 %s）",
                      hostname, port, pi->log_text);
     else
-        ppl_logevent("Forwarding connection to listening port %s:%d",
+        ppl_logevent("正在将连接转发到监听端口 %s:%d",
                      hostname, port);
 
     pktout = ssh2_chanopen_init(c, "forwarded-tcpip");
@@ -171,7 +171,7 @@ SshChannel *ssh2_serverside_x11_open(
     c->halfopen = true;
     c->chan = chan;
 
-    ppl_logevent("Forwarding X11 channel to client");
+    ppl_logevent("正在将 X11 通道转发到客户端");
 
     pktout = ssh2_chanopen_init(c, "x11");
     put_stringz(pktout, (pi && pi->addr_text ? pi->addr_text : "0.0.0.0"));
@@ -194,7 +194,7 @@ SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
     c->halfopen = true;
     c->chan = chan;
 
-    ppl_logevent("Forwarding SSH agent to client");
+    ppl_logevent("正在将 SSH 代理转发到客户端");
 
     pktout = ssh2_chanopen_init(c, "auth-agent@openssh.com");
     pq_push(s->ppl.out_pq, pktout);

@@ -108,8 +108,8 @@ static void preconn_cmdplug_closing(
       case PLUGCLOSE_ERROR:
       case PLUGCLOSE_BROKEN_PIPE:
         /* But if it terminates _confusedly_, at least log that. */
-        logeventf(wr->logctx, "Error reading output from "
-                  "pre-connect command: %s", error_msg);
+        logeventf(wr->logctx, "读取以下命令输出时出错: "
+                  "预连接命令: %s", error_msg);
         break;
 
       case PLUGCLOSE_USER_ABORT:
@@ -127,11 +127,11 @@ static void preconn_subproc_terminated(
     PreConnWrapper *wr = (PreConnWrapper *)vctx;
     switch (exittype) {
       case EXITTYPE_NORMAL:
-        logeventf(wr->logctx, "Pre-connect command exited with status %"PRIu32,
+        logeventf(wr->logctx, "预连接命令退出，状态为 %"PRIu32,
                   exitdata);
         break;
       case EXITTYPE_SIGNAL:
-        logeventf(wr->logctx, "Pre-connect command killed by signal %"PRIu32,
+        logeventf(wr->logctx, "预连接命令被信号 %"PRIu32" 终止",
                   exitdata);
         break;
     }
@@ -320,8 +320,8 @@ Socket *new_main_connection(
             template, addr, port, tmpconf, &flags);
         if (flags & (TELNET_CMD_MISSING_USERNAME |
                      TELNET_CMD_MISSING_PASSWORD)) {
-            logeventf(logctx, "Pre-connect command: references to %%user or "
-                      "%%pass not supported");
+            logeventf(logctx, "预连接命令：对 %%user 或"
+                      "%%pass 不支持");
             sfree(command);
             command = NULL;
         }
@@ -356,7 +356,7 @@ Socket *new_main_connection(
     wr->mainplugimpl.vt = &preconn_main_plugvt;
     wr->sockimpl.vt = &preconn_sockvt;
 
-    logeventf(logctx, "Running pre-connect command: %s", command);
+    logeventf(logctx, "运行预连接命令：%s", command);
     wr->preconn = platform_start_subprocess(
         command, &wr->cmdplugimpl, "pre-connect command stderr", &wr->waiter);
     subproc_waiter_set_callback(wr->waiter, preconn_subproc_terminated, wr);

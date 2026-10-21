@@ -322,7 +322,7 @@ static void ssh_server_free_callback(void *vsrv)
 {
     server *srv = (server *)vsrv;
 
-    logeventf(srv->logctx, "freeing server instance");
+    logeventf(srv->logctx, "正在释放服务端实例");
 
     bufchain_clear(&srv->in_raw);
     bufchain_clear(&srv->out_raw);
@@ -480,7 +480,7 @@ void ssh_proto_error(Ssh *ssh, const char *fmt, ...)
         ssh_bpp_queue_disconnect(srv->bpp, msg,
                                  SSH2_DISCONNECT_PROTOCOL_ERROR);
         server_initiate_connection_close(srv);
-        logeventf(srv->logctx, "Protocol error: %s", msg);
+        logeventf(srv->logctx, "协议错误: %s", msg);
         sfree(msg);
     }
 }
@@ -591,7 +591,7 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
         char *socketname;
         srv->stunt_agentfwd = agentfwd_new(srv->cl, &socketname);
         if (srv->stunt_agentfwd) {
-            logeventf(srv->logctx, "opened unconditional agent socket at %s\n",
+            logeventf(srv->logctx, "已在 %s 打开无条件代理套接字\n",
                       socketname);
             sfree(socketname);
         }

@@ -167,19 +167,19 @@ struct sftp_request *sftp_find_request(struct sftp_packet *pktin)
     struct sftp_request *req;
 
     if (!pktin) {
-        fxp_internal_error("did not receive a valid SFTP packet\n");
+        fxp_internal_error("没有收到有效的 SFTP 数据包\n");
         return NULL;
     }
 
     id = get_uint32(pktin);
     if (get_err(pktin)) {
-        fxp_internal_error("did not receive a valid SFTP packet\n");
+        fxp_internal_error("没有收到有效的 SFTP 数据包\n");
         return NULL;
     }
 
     req = find234(sftp_requests, &id, sftp_reqfind);
     if (!req || !req->registered) {
-        fxp_internal_error("request ID mismatch\n");
+        fxp_internal_error("请求 ID 不匹配\n");
         return NULL;
     }
 
@@ -203,28 +203,28 @@ static int fxp_got_status(struct sftp_packet *pktin)
         /* SSH_FX_OK. The only time we will display a _message_ for this
          * is if we were expecting something other than FXP_STATUS on
          * success, so this is actually an error message! */
-        "unexpected OK response",
-        "end of file",
-        "no such file or directory",
-        "permission denied",
-        "failure",
-        "bad message",
-        "no connection",
-        "connection lost",
-        "operation unsupported",
+        "意外的 OK 响应",
+        "文件结束",
+        "没有这样的文件或目录",
+        "权限被拒绝",
+        "失败",
+        "错误的消息",
+        "没有连接",
+        "连接已丢失",
+        "不支持的操作",
     };
 
     if (pktin->type != SSH_FXP_STATUS) {
-        fxp_error_message = "expected FXP_STATUS packet";
+        fxp_error_message = "期望 FXP_STATUS 数据包";
         fxp_errtype = -1;
     } else {
         fxp_errtype = get_uint32(pktin);
         if (get_err(pktin)) {
-            fxp_error_message = "malformed FXP_STATUS packet";
+            fxp_error_message = "格式错误的 FXP_STATUS 数据包";
             fxp_errtype = -1;
         } else {
             if (fxp_errtype < 0 || fxp_errtype >= lenof(messages))
-                fxp_error_message = "unknown error code";
+                fxp_error_message = "未知的错误代码";
             else
                 fxp_error_message = messages[fxp_errtype];
         }
@@ -268,22 +268,22 @@ bool fxp_init(void)
 
     pktin = sftp_recv();
     if (!pktin) {
-        fxp_internal_error("could not connect");
+        fxp_internal_error("无法连接");
         return false;
     }
     if (pktin->type != SSH_FXP_VERSION) {
-        fxp_internal_error("did not receive FXP_VERSION");
+        fxp_internal_error("没有收到 FXP_VERSION");
         sftp_pkt_free(pktin);
         return false;
     }
     remotever = get_uint32(pktin);
     if (get_err(pktin)) {
-        fxp_internal_error("malformed FXP_VERSION packet");
+        fxp_internal_error("格式错误的 FXP_VERSION 数据包");
         sftp_pkt_free(pktin);
         return false;
     }
     if (remotever > SFTP_PROTO_VERSION) {
-        fxp_internal_error("remote protocol is more advanced than we support");
+        fxp_internal_error("远程协议比我们支持的更新");
         sftp_pkt_free(pktin);
         return false;
     }
@@ -325,13 +325,13 @@ char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req)
 
         count = get_uint32(pktin);
         if (get_err(pktin) || count != 1) {
-            fxp_internal_error("REALPATH did not return name count of 1\n");
+            fxp_internal_error("REALPATH 返回的名称计数不是 1\n");
             sftp_pkt_free(pktin);
             return NULL;
         }
         name = get_string(pktin);
         if (get_err(pktin)) {
-            fxp_internal_error("REALPATH returned malformed FXP_NAME\n");
+            fxp_internal_error("REALPATH 返回了格式错误的 FXP_NAME\n");
             sftp_pkt_free(pktin);
             return NULL;
         }
@@ -371,7 +371,7 @@ static struct fxp_handle *fxp_got_handle(struct sftp_packet *pktin)
 
     id = get_string(pktin);
     if (get_err(pktin)) {
-        fxp_internal_error("received malformed FXP_HANDLE");
+        fxp_internal_error("收到了格式错误的 FXP_HANDLE");
         sftp_pkt_free(pktin);
         return NULL;
     }
@@ -565,7 +565,7 @@ static bool fxp_got_attrs(struct sftp_packet *pktin, struct fxp_attrs *attrs)
 {
     get_fxp_attrs(pktin, attrs);
     if (get_err(pktin)) {
-        fxp_internal_error("malformed SSH_FXP_ATTRS packet");
+        fxp_internal_error("格式错误的 SSH_FXP_ATTRS 数据包");
         sftp_pkt_free(pktin);
         return false;
     }
@@ -694,13 +694,13 @@ int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
 
         data = get_string(pktin);
         if (get_err(pktin)) {
-            fxp_internal_error("READ returned malformed SSH_FXP_DATA packet");
+            fxp_internal_error("READ 返回了格式错误的 SSH_FXP_DATA 数据包");
             sftp_pkt_free(pktin);
             return -1;
         }
 
         if (data.len > len) {
-            fxp_internal_error("READ returned more bytes than requested");
+            fxp_internal_error("READ 返回的字节数超过了请求");
             sftp_pkt_free(pktin);
             return -1;
         }
@@ -750,7 +750,7 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
          * no other attributes are supplied).
          */
         if (get_err(pktin) || i > get_avail(pktin) / 12) {
-            fxp_internal_error("malformed FXP_NAME packet");
+            fxp_internal_error("格式错误的 FXP_NAME 数据包");
             sftp_pkt_free(pktin);
             return NULL;
         }
@@ -761,7 +761,7 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
          * too little space.
          */
         if (i > INT_MAX / sizeof(struct fxp_name)) {
-            fxp_internal_error("unreasonably large FXP_NAME packet");
+            fxp_internal_error("FXP_NAME 数据包过大得不合理");
             sftp_pkt_free(pktin);
             return NULL;
         }
@@ -776,7 +776,7 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
         }
 
         if (get_err(pktin)) {
-            fxp_internal_error("malformed FXP_NAME packet");
+            fxp_internal_error("格式错误的 FXP_NAME 数据包");
             for (i = 0; i < (unsigned long)names->nnames; i++) {
                 sfree(names->names[i].filename);
                 sfree(names->names[i].longname);
@@ -979,7 +979,7 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
         return INT_MIN;            /* this packet doesn't even make sense */
     rr = (struct req *)fxp_get_userdata(rreq);
     if (!rr) {
-        fxp_internal_error("request ID is not part of the current download");
+        fxp_internal_error("请求 ID 不属于当前下载");
         return INT_MIN;                /* this packet isn't ours */
     }
     rr->retlen = fxp_read_recv(pktin, rreq, rr->buffer, rr->len);
@@ -1036,8 +1036,7 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
     }
 
     if (xfer->furthestdata > xfer->filesize) {
-        fxp_error_message = "received a short buffer from FXP_READ, but not"
-            " at EOF";
+        fxp_error_message = "从 FXP_READ 收到了短缓冲区，但不在 EOF";
         fxp_errtype = -1;
         xfer_set_error(xfer);
         return -1;
@@ -1161,7 +1160,7 @@ int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
         return INT_MIN;            /* this packet doesn't even make sense */
     rr = (struct req *)fxp_get_userdata(rreq);
     if (!rr) {
-        fxp_internal_error("request ID is not part of the current upload");
+        fxp_internal_error("请求 ID 不属于当前上传");
         return INT_MIN;                /* this packet isn't ours */
     }
     ret = fxp_write_recv(pktin, rreq);

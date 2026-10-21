@@ -25,7 +25,7 @@ HANDLE lock_interprocess_mutex(const char *mutexname, char **error)
 
     mutex = CreateMutex(&sa, false, mutexname);
     if (!mutex) {
-        *error = dupprintf("CreateMutex(\"%s\") failed: %s",
+        *error = dupprintf("CreateMutex(\"%s\") 失败：%s",
                            mutexname, win_strerror(GetLastError()));
         goto out;
     }

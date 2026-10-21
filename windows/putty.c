@@ -56,7 +56,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             const char *p = cmdline_arg_to_str(arg);
             int ret = cmdline_process_param(arg, nextarg, 1, conf);
             if (ret == -2) {
-                cmdline_error("option \"%s\" requires an argument", p);
+                cmdline_error("选项 \"%s\" 需要一个参数", p);
             } else if (ret == 2) {
                 arglistpos++;          /* skip next argument */
             } else if (ret == 1) {
@@ -95,7 +95,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                 exit(0);
             } else if (!strcmp(p, "-demo-config-box")) {
                 if (!arglist->args[arglistpos]) {
-                    cmdline_error("%s expects an output filename", p);
+                    cmdline_error("%s 需要一个输出文件名", p);
                 } else {
                     demo_config_box = true;
                     dialog_box_demo_screenshot_filename =
@@ -104,7 +104,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             } else if (!strcmp(p, "-demo-terminal")) {
                 if (!arglist->args[arglistpos] ||
                     !arglist->args[arglistpos+1]) {
-                    cmdline_error("%s expects input and output filenames", p);
+                    cmdline_error("%s 需要输入和输出文件名", p);
                 } else {
                     const char *infile =
                         cmdline_arg_to_str(arglist->args[arglistpos++]);
@@ -112,7 +112,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                         cmdline_arg_to_filename(arglist->args[arglistpos++]);
                     FILE *fp = fopen(infile, "rb");
                     if (!fp)
-                        cmdline_error("can't open input file '%s'", infile);
+                        cmdline_error("无法打开输入文件 '%s'", infile);
                     demo_terminal_data = strbuf_new();
                     char buf[4096];
                     int retd;
@@ -121,7 +121,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                     fclose(fp);
                 }
             } else if (*p != '-') {
-                cmdline_error("unexpected argument \"%s\"", p);
+                cmdline_error("意外的参数 \"%s\"", p);
             } else {
                 cmdline_error("未知选项 \"%s\"", p);
             }

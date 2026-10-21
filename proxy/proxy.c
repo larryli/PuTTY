@@ -213,7 +213,7 @@ static void proxy_negotiate(ProxySocket *ps)
     proxy_negotiator_process_queue(ps->pn);
 
     if (ps->pn->error) {
-        char *err = dupprintf("Proxy error: %s", ps->pn->error);
+        char *err = dupprintf("代理错误: %s", ps->pn->error);
         sfree(ps->pn->error);
         proxy_negotiator_cleanup(ps);
         plug_closing_error(ps->plug, err);
@@ -387,9 +387,9 @@ static bool proxy_for_destination(SockAddr *addr, const char *hostname,
 static char *dns_log_msg(const char *host, int addressfamily,
                          const char *reason)
 {
-    return dupprintf("Looking up host \"%s\"%s for %s", host,
-                     (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
-                      addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
+    return dupprintf("查找主机 \"%s\"%s以进行%s", host,
+                     (addressfamily == ADDRTYPE_IPV4 ? "（IPv4）" :
+                      addressfamily == ADDRTYPE_IPV6 ? "（IPv6）" :
                       ""), reason);
 }
 
@@ -402,8 +402,8 @@ SockAddr *name_lookup(const char *host, int port, char **canonicalname,
         proxy_for_destination(NULL, host, port, conf)) {
 
         if (logctx)
-            logeventf(logctx, "Leaving host lookup to proxy of \"%s\""
-                      " (for %s)", host, reason);
+            logeventf(logctx, "将 \"%s\" 的主机查找交由代理处理"
+                      "（用于 %s）", host, reason);
 
         *canonicalname = dupstr(host);
         return sk_nonamelookup(host);
@@ -452,7 +452,7 @@ static char *proxy_description(Interactor *itr)
 {
     ProxySocket *ps = container_of(itr, ProxySocket, interactor);
     assert(ps->pn);
-    return dupprintf("%s connection to %s port %d", ps->pn->vt->type,
+    return dupprintf("%s 连接到 %s 端口 %d", ps->pn->vt->type,
                      conf_get_str(ps->conf, CONF_proxy_host),
                      conf_get_int(ps->conf, CONF_proxy_port));
 }
@@ -593,8 +593,8 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         bufchain_sink_init(ps->pn->output, &ps->output_from_negotiator);
 
         {
-            char *logmsg = dupprintf("Will use %s proxy at %s:%d to connect"
-                                     " to %s:%d", vt->type,
+            char *logmsg = dupprintf("将使用 %s 代理（位于 %s:%d）连接到 %s:%d",
+                                     vt->type,
                                      conf_get_str(conf, CONF_proxy_host),
                                      conf_get_int(conf, CONF_proxy_port),
                                      hostname, port);
@@ -624,7 +624,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         {
             char addrbuf[256], *logmsg;
             sk_getaddr(proxy_addr, addrbuf, lenof(addrbuf));
-            logmsg = dupprintf("Connecting to %s proxy at %s port %d",
+            logmsg = dupprintf("连接 %s 代理，地址 %s 端口 %d",
                                vt->type, addrbuf,
                                conf_get_int(conf, CONF_proxy_port));
             plug_log(plug, &ps->sock, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);

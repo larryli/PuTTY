@@ -108,7 +108,7 @@ static inline bool lf_load_keyfile_helper(LoadFileStatus status,
       case LF_OK:
         return true;
       case LF_TOO_BIG:
-        error = "file is too large to be a key file";
+        error = "文件太大，不是密钥文件";
         break;
       case LF_ERROR:
         error = strerror(errno);
@@ -156,12 +156,12 @@ static int rsa1_load_s_internal(BinarySource *src, RSAKey *key, bool pub_only,
     int ret = 0;
     ptrlen comment;
 
-    *error = "not an SSH-1 RSA file";
+    *error = "不是 SSH-1 RSA 文件";
 
     if (!expect_signature(src, rsa1_signature))
         goto end;
 
-    *error = "file format error";
+    *error = "文件格式错误";
 
     /* One byte giving encryption type, and one reserved uint32. */
     ciphertype = get_byte(src);
@@ -219,7 +219,7 @@ static int rsa1_load_s_internal(BinarySource *src, RSAKey *key, bool pub_only,
         int b0b = get_byte(src);
         int b1b = get_byte(src);
         if (b0a != b0b || b1a != b1b) {
-            *error = "wrong passphrase";
+            *error = "密钥密码错误";
             ret = -1;
             goto end;
         }
@@ -236,7 +236,7 @@ static int rsa1_load_s_internal(BinarySource *src, RSAKey *key, bool pub_only,
     key->p = get_mp_ssh1(src);
 
     if (!rsa_verify(key)) {
-        *error = "rsa_verify failed";
+        *error = "rsa_verify 失败";
         freersakey(key);
         ret = 0;
     } else {
@@ -355,7 +355,7 @@ int rsa1_loadpub_s(BinarySource *src, BinarySink *bs,
             mp_free(key.exponent);
             mp_free(key.modulus);
             sfree(line);
-            error = "key bit count does not match in SSH-1 public key file";
+            error = "SSH-1 公钥文件中密钥位数不匹配";
             goto end;
         }
         if (commentptr)
@@ -367,7 +367,7 @@ int rsa1_loadpub_s(BinarySource *src, BinarySink *bs,
 
       not_public_either:
         sfree(line);
-        error = "not an SSH-1 RSA file";
+        error = "不是 SSH-1 RSA 文件";
     }
 
   end:
@@ -723,7 +723,7 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
 
     /* Read the first header line which contains the key type. */
     if (!read_header(src, header)) {
-        error = "no header line found in key file";
+        error = "密钥文件中没有找到头行";
         goto error;
     }
     if (0 == strcmp(header, "PuTTY-User-Key-File-3")) {
@@ -737,13 +737,13 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     } else if (0 == strncmp(header, "PuTTY-User-Key-File-", 20)) {
         /* this is a key file FROM THE FUTURE; refuse it, but with a
          * more specific error message than the generic one below */
-        error = "PuTTY key format too new";
+        error = "PuTTY 密钥格式过新";
         goto error;
     } else {
-        error = "not a PuTTY SSH-2 private key";
+        error = "不是 PuTTY SSH-2 私钥";
         goto error;
     }
-    error = "file format error";
+    error = "文件格式错误";
     if ((b = read_body(src)) == NULL)
         goto error;
     /* Select key algorithm structure. */
@@ -965,10 +965,10 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
             /* An incorrect MAC is an unconditional Error if the key is
              * unencrypted. Otherwise, it means Wrong Passphrase. */
             if (ciphertype->keylen != 0) {
-                error = "wrong passphrase";
+                error = "密钥密码错误";
                 ukey = SSH2_WRONG_PASSPHRASE;
             } else {
-                error = "MAC failed";
+                error = "MAC 校验失败";
                 ukey = NULL;
             }
             goto error;
@@ -987,7 +987,7 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     if (!ukey->key) {
         sfree(ukey);
         ukey = NULL;
-        error = "createkey failed";
+        error = "createkey 失败";
         goto error;
     }
     error = NULL;
@@ -1044,7 +1044,7 @@ static bool rfc4716_loadpub(BinarySource *src, char **algorithm,
 
     line = mkstr(get_chomped_line(src));
     if (!line || 0 != strcmp(line, "---- BEGIN SSH2 PUBLIC KEY ----")) {
-        error = "invalid begin line in SSH-2 public key file";
+        error = "SSH-2 公钥文件中的起始行无效";
         goto error;
     }
     sfree(line); line = NULL;
@@ -1052,7 +1052,7 @@ static bool rfc4716_loadpub(BinarySource *src, char **algorithm,
     while (1) {
         line = mkstr(get_chomped_line(src));
         if (!line) {
-            error = "truncated SSH-2 public key file";
+            error = "SSH-2 公钥文件被截断";
             goto error;
         }
         colon = strstr(line, ": ");
@@ -1086,7 +1086,7 @@ static bool rfc4716_loadpub(BinarySource *src, char **algorithm,
                    !strncmp(line, "x-", 2)) {
             /* Headers we recognise and ignore. Do nothing. */
         } else {
-            error = "unrecognised header in SSH-2 public key file";
+            error = "SSH-2 公钥文件中存在无法识别的头信息";
             goto error;
         }
 
@@ -1119,7 +1119,7 @@ static bool rfc4716_loadpub(BinarySource *src, char **algorithm,
      * Finally, check the END line makes sense.
      */
     if (!line || 0 != strcmp(line, "---- END SSH2 PUBLIC KEY ----")) {
-        error = "invalid end line in SSH-2 public key file";
+        error = "SSH-2 公钥文件中的结束行无效";
         goto error;
     }
     sfree(line); line = NULL;
@@ -1130,12 +1130,12 @@ static bool rfc4716_loadpub(BinarySource *src, char **algorithm,
      * start of the public blob.
      */
     if (pubblob->len < 4) {
-        error = "not enough data in SSH-2 public key file";
+        error = "SSH-2 公钥文件中的数据不足";
         goto error;
     }
     alglen = toint(GET_32BIT_MSB_FIRST(pubblob->u));
     if (alglen < 0 || alglen > pubblob->len-4) {
-        error = "invalid algorithm prefix in SSH-2 public key file";
+        error = "SSH-2 公钥文件中的算法前缀无效";
         goto error;
     }
     if (algorithm)
@@ -1173,7 +1173,7 @@ static bool openssh_loadpub(BinarySource *src, char **algorithm,
 
     base64 = strchr(line, ' ');
     if (!base64) {
-        error = "no key blob in OpenSSH public key file";
+        error = "OpenSSH 公钥文件中没有密钥块";
         goto error;
     }
     *base64++ = '\0';
@@ -1194,7 +1194,7 @@ static bool openssh_loadpub(BinarySource *src, char **algorithm,
         base64 += 4;
     }
     if (*base64) {
-        error = "invalid length for base64 data in OpenSSH public key file";
+        error = "OpenSSH 公钥文件中 base64 数据的长度无效";
         goto error;
     }
 
@@ -1207,7 +1207,7 @@ static bool openssh_loadpub(BinarySource *src, char **algorithm,
     if (pubbloblen < alglen + 4 ||
         GET_32BIT_MSB_FIRST(pubblob) != alglen ||
         0 != memcmp(pubblob + 4, line, alglen)) {
-        error = "key algorithms do not match in OpenSSH public key file";
+        error = "OpenSSH 公钥文件中的密钥算法不匹配";
         goto error;
     }
 
@@ -1253,7 +1253,7 @@ bool ppk_loadpub_s(BinarySource *src, char **algorithm, BinarySink *bs,
         bool ret = openssh_loadpub(src, algorithm, bs, commentptr, errorstr);
         return ret;
     } else if (type != SSH_KEYTYPE_SSH2) {
-        error = "not a public key or a PuTTY SSH-2 private key";
+        error = "不是公钥或 PuTTY SSH-2 私钥";
         goto error;
     }
 
@@ -1263,12 +1263,12 @@ bool ppk_loadpub_s(BinarySource *src, char **algorithm, BinarySink *bs,
             0 != strcmp(header, "PuTTY-User-Key-File-2") &&
             0 != strcmp(header, "PuTTY-User-Key-File-1"))) {
         if (0 == strncmp(header, "PuTTY-User-Key-File-", 20))
-            error = "PuTTY key format too new";
+            error = "PuTTY 密钥格式过新";
         else
-            error = "not a public key or a PuTTY SSH-2 private key";
+            error = "不是公钥或 PuTTY SSH-2 私钥";
         goto error;
     }
-    error = "file format error";
+    error = "文件格式错误";
     if ((b = read_body(src)) == NULL)
         goto error;
     /* Select key algorithm structure. */
@@ -1603,12 +1603,12 @@ char *ppk_params_bad(const ppk_save_parameters *params, bool encrypted,
 {
     if (params->fmt_version < 2)
         return dupprintf(
-            "PPK format version %u is lower than 2, the earliest "
-            "version supported by this code", params->fmt_version);
+            "PPK 格式版本 %u 低于本代码最早支持"
+            "的版本 2", params->fmt_version);
     if (params->fmt_version > 3)
         return dupprintf(
-            "PPK format version %u is higher than 3, the latest "
-            "version supported by this code", params->fmt_version);
+            "PPK 格式版本 %u 高于本代码最新支持"
+            "的版本 3", params->fmt_version);
     if (params->fmt_version == 3 && encrypted) {
         const struct ppk_cipher *ciphertype = &ppk_cipher_aes256_cbc;
         uint32_t taglen = ciphertype->keylen + ciphertype->ivlen + 32;
@@ -1847,7 +1847,7 @@ char *ssh2_double_fingerprint_blob(ptrlen blob, FingerprintType fptype)
     char *hashc = pc ? pc + 1 : fpc;
 
     if (strcmp(hash, hashc)) {
-        char *tmp = dupprintf("%s (with certificate: %s)", fp, hashc);
+        char *tmp = dupprintf("%s（含证书: %s）", fp, hashc);
         sfree(fp);
         fp = tmp;
     }

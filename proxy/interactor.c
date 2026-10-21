@@ -105,7 +105,7 @@ InteractionReadySeat interactor_announce(Interactor *itr)
         char *adjective = (level == 0 ? dupstr("primary") :
                            level == 1 ? dupstr("proxy") :
                            dupprintf("proxy^%u", level));
-        char *msg = dupprintf("%sMaking %s %s", prefix, adjective, desc);
+        char *msg = dupprintf("%s正在建立 %s %s", prefix, adjective, desc);
         sfree(adjective);
         sfree(desc);
 

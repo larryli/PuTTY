@@ -94,8 +94,8 @@ static void proxy_socks4_process_queue(ProxyNegotiator *pn)
          */
 
         if (data[0] != SOCKS4_REPLY_VERSION) {
-            pn->error = dupprintf("SOCKS proxy response contained reply "
-                                  "version number %d (expected %d)",
+            pn->error = dupprintf("SOCKS 代理响应包含回复"
+                                  "版本号 %d（应为 %d）",
                                   (int)data[0], SOCKS4_REPLY_VERSION);
             crStopV;
         }
@@ -118,8 +118,8 @@ static void proxy_socks4_process_queue(ProxyNegotiator *pn)
             break;
 
           default:
-            pn->error = dupprintf("SOCKS server sent unrecognised error "
-                                  "code %d", (int)data[1]);
+            pn->error = dupprintf("SOCKS 服务器发送了无法识别的错误"
+                                  "代码 %d", (int)data[1]);
             break;
         }
         crStopV;

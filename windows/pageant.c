@@ -1113,8 +1113,8 @@ static char *answer_filemapping_message(const char *mapname)
         if ((retd = p_GetSecurityInfo(
                  maphandle, SE_KERNEL_OBJECT, OWNER_SECURITY_INFORMATION,
                  &mapsid, NULL, NULL, NULL, &psd) != ERROR_SUCCESS)) {
-            err = dupprintf("unable to get owner of file mapping: "
-                            "GetSecurityInfo returned: %s",
+            err = dupprintf("无法获取文件映射的所有者："
+                            "GetSecurityInfo 返回：%s",
                             win_strerror(retd));
             goto cleanup;
         }
@@ -1146,7 +1146,7 @@ static char *answer_filemapping_message(const char *mapname)
 
     mapaddr = MapViewOfFile(maphandle, FILE_MAP_WRITE, 0, 0, 0);
     if (!mapaddr) {
-        err = dupprintf("unable to obtain view of file mapping: %s",
+        err = dupprintf("无法获取文件映射的视图：%s",
                         win_strerror(GetLastError()));
         goto cleanup;
     }
@@ -1159,7 +1159,7 @@ static char *answer_filemapping_message(const char *mapname)
         MEMORY_BASIC_INFORMATION mbi;
         size_t mbiSize = VirtualQuery(mapaddr, &mbi, sizeof(mbi));
         if (mbiSize == 0) {
-            err = dupprintf("unable to query view of file mapping: %s",
+            err = dupprintf("无法查询文件映射的视图：%s",
                             win_strerror(GetLastError()));
             goto cleanup;
         }

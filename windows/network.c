@@ -466,9 +466,9 @@ static inline const char *namelookup_strerror(DWORD err)
 {
     /* PuTTY has traditionally translated a few of the likely error
      * messages into more concise strings than the standard Windows ones */
-    return (err == WSAENETDOWN ? "Network is down" :
-            err == WSAHOST_NOT_FOUND ? "Host does not exist" :
-            err == WSATRY_AGAIN ? "Host not found" :
+    return (err == WSAENETDOWN ? "网络已断开" :
+            err == WSAHOST_NOT_FOUND ? "主机不存在" :
+            err == WSATRY_AGAIN ? "找不到主机" :
             win_strerror(err));
 }
 

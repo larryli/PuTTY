@@ -157,7 +157,7 @@ static int sshproxy_askappend(LogPolicy *lp, Filename *filename,
     /*
      * Otherwise, fall back to the safe noninteractive assumption.
      */
-    char *msg = dupprintf("Log file \"%s\" already exists; logging cancelled",
+    char *msg = dupprintf("日志文件 \"%s\" 已存在；已取消记录",
                           filename_to_str(filename));
     sshproxy_eventlog(lp, msg);
     sfree(msg);
@@ -181,7 +181,7 @@ static void sshproxy_logging_error(LogPolicy *lp, const char *event)
      * Otherwise, the best we can do is to put it in the outer SSH
      * connection's Event Log.
      */
-    char *msg = dupprintf("Logging error: %s", event);
+    char *msg = dupprintf("日志记录错误: %s", event);
     sshproxy_eventlog(lp, msg);
     sfree(msg);
 }
@@ -396,7 +396,7 @@ static void sshproxy_connection_fatal(Seat *seat, const char *message)
     SshProxy *sp = container_of(seat, SshProxy, seat);
     if (!sp->errmsg) {
         sp->errmsg = dupprintf(
-            "fatal error in proxy SSH connection: %s", message);
+            "代理 SSH 连接发生致命错误：%s", message);
         queue_toplevel_callback(sshproxy_connection_fatal_callback, sp);
     }
 }
@@ -621,7 +621,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
     const char *proxy_hostname = conf_get_str(clientconf, CONF_proxy_host);
     if (do_defaults(proxy_hostname, sp->conf)) {
         if (!conf_launchable(sp->conf)) {
-            sp->errmsg = dupprintf("saved session '%s' is not launchable",
+            sp->errmsg = dupprintf("保存的会话 '%s' 不可启动",
                                    proxy_hostname);
             return &sp->sock;
         }
@@ -657,7 +657,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
      * that it does.
      */
     if (!backvt || !(backvt->flags & BACKEND_SUPPORTS_NC_HOST)) {
-        sp->errmsg = dupprintf("saved session '%s' is not an SSH session",
+        sp->errmsg = dupprintf("保存的会话 '%s' 不是 SSH 会话",
                                proxy_hostname);
         return &sp->sock;
     }
@@ -749,7 +749,7 @@ Socket *sshproxy_new_connection(SockAddr *addr, const char *hostname,
                          &realhost, nodelay,
                          conf_get_bool(sp->conf, CONF_tcp_keepalives));
     if (error) {
-        sp->errmsg = dupprintf("unable to open SSH proxy connection: %s",
+        sp->errmsg = dupprintf("无法打开 SSH 代理连接：%s",
                                error);
         return &sp->sock;
     }

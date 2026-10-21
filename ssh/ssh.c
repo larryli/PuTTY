@@ -726,8 +726,8 @@ static char *ssh_close_warn_text(Backend *be)
     int ndowns = share_ndownstreams(ssh->connshare);
     if (ndowns == 0)
         return NULL;
-    char *msg = dupprintf("This will also close %d downstream connection%s.",
-                          ndowns, ndowns==1 ? "" : "s");
+    char *msg = dupprintf("这也将关闭 %d 个下游连接。",
+                          ndowns);
     return msg;
 }
 
@@ -829,7 +829,7 @@ static char *connect_to_host(
          */
         addressfamily = conf_get_int(ssh->conf, CONF_addressfamily);
         addr = name_lookup(host, port, realhost, ssh->conf, addressfamily,
-                           ssh->logctx, "SSH connection");
+                           ssh->logctx, "SSH 连接");
         if ((err = sk_addr_error(addr)) != NULL) {
             sk_addr_free(addr);
             return dupstr(err);

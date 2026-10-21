@@ -51,7 +51,7 @@ char *save_screenshot(HWND hwnd, Filename *outfile)
 
     dcSave = CreateCompatibleDC(dcWindow);
     if (!dcSave) {
-        err = dupprintf("CreateCompatibleDC(desktop window dc): %s",
+        err = dupprintf("CreateCompatibleDC（桌面窗口 DC）：%s",
                         win_strerror(GetLastError()));
         goto out;
     }
@@ -86,12 +86,12 @@ char *save_screenshot(HWND hwnd, Filename *outfile)
     buffer = snewn(bmBytes, uint8_t);
 
     if (!GetDIBits(dcWindow, bmSave, 0, h, buffer, &bmInfo, DIB_RGB_COLORS))
-        err = dupprintf("GetDIBits (get data): %s",
+        err = dupprintf("GetDIBits（获取数据）：%s",
                         win_strerror(GetLastError()));
 
     FILE *fp = f_open(outfile, "wb", false);
     if (!fp) {
-        err = dupprintf("'%s': unable to open file", filename_to_str(outfile));
+        err = dupprintf("'%s'：无法打开文件", filename_to_str(outfile));
         goto out;
     }
 

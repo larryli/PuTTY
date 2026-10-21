@@ -64,7 +64,7 @@ const char *win_strerror(int error)
             if (len > 0 && msgtext[len-1] == '\n')
                 msgtext[len-1] = '\0';
         }
-        es->text = dupprintf("Error %d: %s", error, msgtext);
+        es->text = dupprintf("错误 %d：%s", error, msgtext);
         add234(errstrings, es);
     }
 

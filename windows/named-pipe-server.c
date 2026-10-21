@@ -168,7 +168,7 @@ static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
             }
         }
 
-        errmsg = dupprintf("Error while listening to named pipe: %s",
+        errmsg = dupprintf("监听命名管道时出错：%s",
                            win_strerror(error));
         plug_log(ps->plug, &ps->sock, 1, sk_namedpipe_addr(ps->pipename), 0,
                  errmsg, error);
@@ -214,7 +214,7 @@ Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
     }
 
     if (!create_named_pipe(ps, true)) {
-        ps->error = dupprintf("unable to create named pipe '%s': %s",
+        ps->error = dupprintf("无法创建命名管道 '%s'：%s",
                                pipename, win_strerror(GetLastError()));
         goto cleanup;
     }

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Packet protocol layer for the SSH-1 'connection protocol', i.e.
  * everything after authentication finishes.
  */
@@ -587,7 +587,7 @@ static void ssh1channel_initiate_close(SshChannel *sc, const char *err)
     struct ssh1_channel *c = container_of(sc, struct ssh1_channel, sc);
     char *reason;
 
-    reason = err ? dupprintf("due to local error: %s", err) : NULL;
+    reason = err ? dupprintf("由于本地错误: %s", err) : NULL;
     ssh1_channel_close_local(c, reason);
     sfree(reason);
     c->pending_eof = false;   /* this will confuse a zombie channel */
@@ -654,7 +654,7 @@ static SshChannel *ssh1_lportfwd_open(
     c->halfopen = true;
     c->chan = chan;
 
-    ppl_logevent("Opening connection to %s:%d for %s",
+    ppl_logevent("打开到 %s:%d 的连接（%s）",
                  hostname, port, description);
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_MSG_PORT_OPEN);

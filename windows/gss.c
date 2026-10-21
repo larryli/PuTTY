@@ -40,7 +40,7 @@ const int ngsslibs = 3;
 const char *const gsslibnames[3] = {
     "MIT Kerberos GSSAPI"MIT_KERB_SUFFIX".DLL",
     "Microsoft SSPI SECUR32.DLL",
-    "User-specified GSSAPI DLL",
+    "用户指定的 GSSAPI DLL",
 };
 const struct keyvalwhere gsslibkeywords[] = {
     { "gssapi32", 0, -1, -1 },
@@ -182,7 +182,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
             &list->libraries[list->nlibraries++];
 
         lib->id = 0;
-        lib->gsslogmsg = "Using GSSAPI from GSSAPI"MIT_KERB_SUFFIX".DLL";
+        lib->gsslogmsg = "使用 GSSAPI"MIT_KERB_SUFFIX".DLL 提供的 GSSAPI";
         lib->handle = (void *)module;
 
 #define BIND_GSS_FN(name) \
@@ -212,7 +212,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
             &list->libraries[list->nlibraries++];
 
         lib->id = 1;
-        lib->gsslogmsg = "Using SSPI from SECUR32.DLL";
+        lib->gsslogmsg = "使用 SECUR32.DLL 提供的 SSPI";
         lib->handle = (void *)module;
 
         /* No typecheck because Winelib thinks one PVOID is a PLUID */
@@ -268,8 +268,8 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
             &list->libraries[list->nlibraries++];
 
         lib->id = 2;
-        lib->gsslogmsg = dupprintf("Using GSSAPI from user-specified"
-                                   " library '%s'", customlib->cpath);
+        lib->gsslogmsg = dupprintf("使用用户指定的库 '%s' 提供的 GSSAPI",
+                                   customlib->cpath);
         lib->handle = (void *)module;
 
 #define BIND_GSS_FN(name) \
@@ -543,38 +543,35 @@ static Ssh_gss_stat ssh_sspi_display_status(struct ssh_gss_library *lib,
 
     /* decode the error code */
     switch (winctx->maj_stat) {
-      case SEC_E_OK: msg="SSPI status OK"; break;
-      case SEC_E_INVALID_HANDLE: msg="The handle passed to the function"
-            " is invalid.";
+      case SEC_E_OK: msg="SSPI 状态正常"; break;
+      case SEC_E_INVALID_HANDLE: msg="传递给函数的句柄无效。";
         break;
-      case SEC_E_TARGET_UNKNOWN: msg="The target was not recognized."; break;
-      case SEC_E_LOGON_DENIED: msg="The logon failed."; break;
-      case SEC_E_INTERNAL_ERROR: msg="The Local Security Authority cannot"
-            " be contacted.";
+      case SEC_E_TARGET_UNKNOWN: msg="无法识别目标。"; break;
+      case SEC_E_LOGON_DENIED: msg="登录失败。"; break;
+      case SEC_E_INTERNAL_ERROR: msg="无法联系本地安全机构。";
         break;
-      case SEC_E_NO_CREDENTIALS: msg="No credentials are available in the"
-            " security package.";
+      case SEC_E_NO_CREDENTIALS: msg="安全包中没有可用的凭据。";
         break;
       case SEC_E_NO_AUTHENTICATING_AUTHORITY:
-        msg="No authority could be contacted for authentication."
-            "The domain name of the authenticating party could be wrong,"
-            " the domain could be unreachable, or there might have been"
-            " a trust relationship failure.";
+        msg="无法联系认证机构进行认证。"
+            "认证方的域名可能不正确，"
+            " 域可能不可达，或者可能存在"
+            " 信任关系失败。";
         break;
       case SEC_E_INSUFFICIENT_MEMORY:
-        msg="One or more of the SecBufferDesc structures passed as"
-            " an OUT parameter has a buffer that is too small.";
+        msg="作为 OUT 参数传递的一个或多个 SecBufferDesc "
+            "结构的缓冲区太小。";
         break;
       case SEC_E_INVALID_TOKEN:
-        msg="The error is due to a malformed input token, such as a"
-            " token corrupted in transit, a token"
-            " of incorrect size, or a token passed into the wrong"
-            " security package. Passing a token to"
-            " the wrong package can happen if client and server did not"
-            " negotiate the proper security package.";
+        msg="该错误是由格式错误的输入令牌引起的，例如"
+            " 传输中损坏的令牌、大小"
+            " 不正确的令牌，或传递到错误"
+            " 安全包的令牌。如果客户端和服务器未"
+            " 协商正确的安全包，就可能发生把令牌"
+            " 传递到错误包的情况。";
         break;
       default:
-        msg = "Internal SSPI error";
+        msg = "内部 SSPI 错误";
         break;
     }
 

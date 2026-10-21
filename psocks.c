@@ -259,7 +259,7 @@ static void psocks_connection_establish(void *vctx)
 
     const char *err = sk_addr_error(conn->addr);
     if (err) {
-        char *msg = dupprintf("name lookup failed: %s", err);
+        char *msg = dupprintf("域名查找失败: %s", err);
         chan_open_failed(conn->chan, msg);
         sfree(msg);
 

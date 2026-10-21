@@ -180,8 +180,8 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
     memset(&si, 0, sizeof(si));
 
     if (!init_conpty_api()) {
-        err = dupprintf("Pseudo-console API is not available on this "
-                        "Windows system");
+        err = dupprintf("伪控制台 API 在此"
+                        "Windows 系统上不可用");
         goto out;
     }
 
@@ -204,7 +204,7 @@ static char *conpty_init(const BackendVtable *vt, Seat *seat,
             err = dupprintf("CreatePseudoConsole: %s",
                             win_strerror(HRESULT_CODE(result)));
         else
-            err = dupprintf("CreatePseudoConsole failed: HRESULT=0x%08x",
+            err = dupprintf("CreatePseudoConsole 失败：HRESULT=0x%08x",
                             (unsigned)result);
         goto out;
     }

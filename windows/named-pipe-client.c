@@ -74,7 +74,7 @@ HANDLE connect_to_named_pipe(const char *pipename, char **err)
         CloseHandle(pipehandle);
         LocalFree(psd);
         *err = dupprintf(
-            "Owner of named pipe '%s' is not us", pipename);
+            "命名管道 '%s' 的所有者不是本进程", pipename);
         return INVALID_HANDLE_VALUE;
     }
 

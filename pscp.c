@@ -173,7 +173,7 @@ static bool pscp_eof(Seat *seat)
      */
     if ((using_sftp || uploading) && !sent_eof) {
         seat_connection_fatal(
-            pscp_seat, "Received unexpected end-of-file from server");
+            pscp_seat, "从服务器收到意外的文件结束符");
     }
     return false;
 }
@@ -219,9 +219,9 @@ static void ssh_scp_init(void)
 
     if (verbose) {
         if (using_sftp)
-            tell_user(stderr, "Using SFTP");
+            tell_user(stderr, "使用 SFTP");
         else
-            tell_user(stderr, "Using SCP1");
+            tell_user(stderr, "使用 SCP1");
     }
 }
 
@@ -277,13 +277,13 @@ struct sftp_packet *sftp_wait_for_reply(struct sftp_request *req)
     pktin = sftp_recv();
     if (pktin == NULL) {
         seat_connection_fatal(
-            pscp_seat, "did not receive SFTP response packet from server");
+            pscp_seat, "没有从服务器收到 SFTP 响应包");
     }
     rreq = sftp_find_request(pktin);
     if (rreq != req) {
         seat_connection_fatal(
             pscp_seat,
-            "unable to understand SFTP response packet from server: %s",
+            "无法理解来自服务器的 SFTP 响应包: %s",
             fxp_error());
     }
     return pktin;
@@ -299,7 +299,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     LogContext *logctx;
 
     if (host == NULL || host[0] == '\0')
-        bump("Empty host name");
+        bump("主机名为空");
 
     /*
      * Remove a colon suffix.
@@ -394,10 +394,10 @@ static void do_cmd(char *host, char *user, char *cmd)
     } else if (conf_get_str_ambi(conf, CONF_username, NULL)[0] == '\0') {
         user = get_username();
         if (!user)
-            bump("Empty user name");
+            bump("用户名为空");
         else {
             if (verbose)
-                tell_user(stderr, "Guessing user name: %s", user);
+                tell_user(stderr, "猜测用户名: %s", user);
             conf_set_str(conf, CONF_username, user);
             sfree(user);
         }
@@ -482,7 +482,7 @@ static void do_cmd(char *host, char *user, char *cmd)
         bump("ssh_init: %s", err);
     ssh_scp_init();
     if (verbose && realhost != NULL && errs == 0)
-        tell_user(stderr, "Connected to %s", realhost);
+        tell_user(stderr, "已连接到 %s", realhost);
     sfree(realhost);
 }
 
@@ -518,8 +518,8 @@ static void print_stats(const char *name, uint64_t size, uint64_t done,
 
     {
         /* divide by 1024 to provide kB */
-        len = printf("\r%-25.25s | %"PRIu64" kB | %5.1f kB/s | "
-                     "ETA: %8s | %3d%%", name, done >> 10,
+        len = printf("\r%-25.25s | %"PRIu64" KB | %5.1f KB/s | "
+                     "剩余: %8s | %3d%%", name, done >> 10,
                      ratebs / 1024.0, etastr, pct);
         if (len < prev_stats_len)
             printf("%*s", prev_stats_len - len, "");
@@ -581,7 +581,7 @@ static int response(void)
     int p;
 
     if (!ssh_scp_recv(&resp, 1))
-        bump("Lost connection");
+        bump("连接已丢失");
 
     p = 0;
     switch (resp) {
@@ -594,7 +594,7 @@ static int response(void)
       case 2:                          /* fatal error */
         do {
             if (!ssh_scp_recv(&ch, 1))
-                bump("Protocol error: Lost connection");
+                bump("协议错误: 连接已丢失");
             rbuf[p++] = ch;
         } while (p < sizeof(rbuf) && ch != '\n');
         rbuf[p - 1] = '\0';
@@ -627,7 +627,7 @@ size_t sftp_sendbuffer(void)
 void list_directory_from_sftp_warn_unsorted(void)
 {
     fprintf(stderr,
-            "Directory is too large to sort; writing file names unsorted\n");
+            "目录太大无法排序；将按未排序写出文件名\n");
 }
 
 void list_directory_from_sftp_print(struct fxp_name *name)
@@ -644,19 +644,19 @@ void scp_sftp_listdir(const char *dirname)
     struct sftp_request *req;
 
     if (!fxp_init()) {
-        tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
+        tell_user(stderr, "无法初始化 SFTP: %s", fxp_error());
         errs++;
         return;
     }
 
-    printf("Listing directory %s\n", dirname);
+    printf("列出目录 %s\n", dirname);
 
     req = fxp_opendir_send(dirname);
     pktin = sftp_wait_for_reply(req);
     dirh = fxp_opendir_recv(pktin, req);
 
     if (dirh == NULL) {
-        tell_user(stderr, "Unable to open %s: %s\n", dirname, fxp_error());
+        tell_user(stderr, "无法打开 %s: %s\n", dirname, fxp_error());
         errs++;
     } else {
         struct list_directory_from_sftp_ctx *ctx =
@@ -671,7 +671,7 @@ void scp_sftp_listdir(const char *dirname)
             if (names == NULL) {
                 if (fxp_error_type() == SSH_FX_EOF)
                     break;
-                printf("Reading directory %s: %s\n", dirname, fxp_error());
+                printf("读取目录 %s 出错: %s\n", dirname, fxp_error());
                 break;
             }
             if (names->nnames == 0) {
@@ -729,7 +729,7 @@ int scp_source_setup(const char *target, bool shouldbedir)
         bool ret;
 
         if (!fxp_init()) {
-            tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
+            tell_user(stderr, "无法初始化 SFTP: %s", fxp_error());
             errs++;
             return 1;
         }
@@ -744,7 +744,7 @@ int scp_source_setup(const char *target, bool shouldbedir)
             scp_sftp_targetisdir = (attrs.permissions & 0040000) != 0;
 
         if (shouldbedir && !scp_sftp_targetisdir) {
-            bump("pscp: remote filespec %s: not a directory\n", target);
+            bump("pscp: 远程文件描述符 %s: 不是目录\n", target);
         }
 
         scp_sftp_remotepath = dupstr(target);
@@ -806,7 +806,7 @@ int scp_send_filename(const char *name, uint64_t size, int permissions)
         scp_sftp_filehandle = fxp_open_recv(pktin, req);
 
         if (!scp_sftp_filehandle) {
-            tell_user(stderr, "pscp: unable to open %s: %s",
+            tell_user(stderr, "pscp: 无法打开 %s: %s",
                       fullname, fxp_error());
             sfree(fullname);
             errs++;
@@ -853,7 +853,7 @@ int scp_send_filedata(char *data, int len)
             pktin = sftp_recv();
             ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
             if (ret <= 0) {
-                tell_user(stderr, "error while writing: %s", fxp_error());
+                tell_user(stderr, "写入时出错: %s", fxp_error());
                 if (ret == INT_MIN)        /* pktin not even freed */
                     sfree(pktin);
                 errs++;
@@ -896,7 +896,7 @@ int scp_send_finish(void)
             pktin = sftp_recv();
             int ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
             if (ret <= 0) {
-                tell_user(stderr, "error while writing: %s", fxp_error());
+                tell_user(stderr, "写入时出错: %s", fxp_error());
                 if (ret == INT_MIN)        /* pktin not even freed */
                     sfree(pktin);
                 errs++;
@@ -916,7 +916,7 @@ int scp_send_finish(void)
             pktin = sftp_wait_for_reply(req);
             bool ret = fxp_fsetstat_recv(pktin, req);
             if (!ret) {
-                tell_user(stderr, "unable to set file times: %s", fxp_error());
+                tell_user(stderr, "无法设置文件时间: %s", fxp_error());
                 errs++;
             }
         }
@@ -975,7 +975,7 @@ int scp_send_dirname(const char *name, int modes)
         if (!ret)
             err = fxp_error();
         else
-            err = "server reported no error";
+            err = "服务器报告无错误";
 
         req = fxp_stat_send(fullname);
         pktin = sftp_wait_for_reply(req);
@@ -983,7 +983,7 @@ int scp_send_dirname(const char *name, int modes)
 
         if (!ret || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
             !(attrs.permissions & 0040000)) {
-            tell_user(stderr, "unable to create directory %s: %s",
+            tell_user(stderr, "无法创建目录 %s: %s",
                       fullname, err);
             sfree(fullname);
             errs++;
@@ -1026,7 +1026,7 @@ int scp_sink_setup(const char *source, bool preserve, bool recursive)
         char *newsource;
 
         if (!fxp_init()) {
-            tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
+            tell_user(stderr, "无法初始化 SFTP: %s", fxp_error());
             errs++;
             return 1;
         }
@@ -1075,7 +1075,7 @@ int scp_sink_setup(const char *source, bool preserve, bool recursive)
              */
             dirpart = snewn(1+strlen(dupsource), char);
             if (!wc_unescape(dirpart, dupsource)) {
-                tell_user(stderr, "%s: multiple-level wildcards unsupported",
+                tell_user(stderr, "%s: 不支持多级通配符",
                           source);
                 errs++;
                 sfree(dirpart);
@@ -1178,8 +1178,8 @@ int scp_get_sink_action(struct scp_sink_action *act)
                 if (head->wildcard) {
                     act->action = SCP_SINK_RETRY;
                     if (!head->matched_something) {
-                        tell_user(stderr, "pscp: wildcard '%s' matched "
-                                  "no files", head->wildcard);
+                        tell_user(stderr, "pscp: 通配符 '%s' 没有匹配到"
+                                  "任何文件", head->wildcard);
                         errs++;
                     }
                     sfree(head->wildcard);
@@ -1207,8 +1207,8 @@ int scp_get_sink_action(struct scp_sink_action *act)
 
         if (!ret || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
             with_stripctrl(san, fname)
-                tell_user(stderr, "unable to identify %s: %s", san,
-                          ret ? "file type not supplied" : fxp_error());
+                tell_user(stderr, "无法识别 %s: %s", san,
+                          ret ? "未提供文件类型" : fxp_error());
             if (must_free_fname) sfree(fname);
             errs++;
             return 1;
@@ -1235,7 +1235,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
              */
             if (!scp_sftp_recursive && !scp_sftp_wildcard) {
                 with_stripctrl(san, fname)
-                    tell_user(stderr, "pscp: %s: is a directory", san);
+                    tell_user(stderr, "pscp: %s: 是目录", san);
                 errs++;
                 if (must_free_fname) sfree(fname);
                 if (scp_sftp_dirstack_head) {
@@ -1265,7 +1265,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 
             if (!dirhandle) {
                 with_stripctrl(san, fname)
-                    tell_user(stderr, "pscp: unable to open directory %s: %s",
+                    tell_user(stderr, "pscp: 无法打开目录 %s: %s",
                               san, fxp_error());
                 if (must_free_fname) sfree(fname);
                 errs++;
@@ -1284,7 +1284,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
                     if (fxp_error_type() == SSH_FX_EOF)
                         break;
                     with_stripctrl(san, fname)
-                        tell_user(stderr, "pscp: reading directory %s: %s",
+                        tell_user(stderr, "pscp: 读取目录 %s 出错: %s",
                                   san, fxp_error());
 
                     req = fxp_close_send(dirhandle);
@@ -1311,8 +1311,8 @@ int scp_get_sink_action(struct scp_sink_action *act)
                          */
                     } else if (!vet_filename(names->names[i].filename)) {
                         with_stripctrl(san, names->names[i].filename)
-                            tell_user(stderr, "ignoring potentially dangerous "
-                                      "server-supplied filename '%s'", san);
+                            tell_user(stderr, "忽略具有潜在危险的服务器"
+                                      "提供的文件名 '%s'", san);
                     } else
                         ournames[nnames++] = names->names[i];
                 }
@@ -1399,11 +1399,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
             if (!ssh_scp_recv(&ch, 1))
                 return 1;
             if (ch == '\n')
-                bump("Protocol error: Unexpected newline");
+                bump("协议错误: 意外的换行");
             action = ch;
             while (1) {
                 if (!ssh_scp_recv(&ch, 1))
-                    bump("Lost connection");
+                    bump("连接已丢失");
                 if (ch == '\n')
                     break;
                 put_byte(act->buf, ch);
@@ -1429,17 +1429,17 @@ int scp_get_sink_action(struct scp_sink_action *act)
                     strbuf_clear(act->buf);
                     continue;          /* go round again */
                 }
-                bump("Protocol error: Illegal time format");
+                bump("协议错误: 非法的时间格式");
               case 'C':
               case 'D':
                 act->action = (action == 'C' ? SCP_SINK_FILE : SCP_SINK_DIR);
                 if (act->action == SCP_SINK_DIR && !recursive) {
-                    bump("security violation: remote host attempted to create "
-                         "a subdirectory in a non-recursive copy!");
+                    bump("安全违规: 远程主机试图在非递归拷贝中"
+                         "创建子目录！");
                 }
                 break;
               default:
-                bump("Protocol error: Expected control record");
+                bump("协议错误: 期望控制记录");
             }
             /*
              * We will go round this loop only once, unless we hit
@@ -1456,7 +1456,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
             int i;
             if (sscanf(act->buf->s, "%lo %"SCNu64" %n", &act->permissions,
                        &act->size, &i) != 2)
-                bump("Protocol error: Illegal file descriptor format");
+                bump("协议错误: 非法的文件描述符格式");
             act->name = act->buf->s + i;
             return 0;
         }
@@ -1475,7 +1475,7 @@ int scp_accept_filexfer(void)
 
         if (!scp_sftp_filehandle) {
             with_stripctrl(san, scp_sftp_currentname)
-                tell_user(stderr, "pscp: unable to open %s: %s",
+                tell_user(stderr, "pscp: 无法打开 %s: %s",
                           san, fxp_error());
             errs++;
             return 1;
@@ -1502,7 +1502,7 @@ int scp_recv_filedata(char *data, int len)
         pktin = sftp_recv();
         ret = xfer_download_gotpkt(scp_sftp_xfer, pktin);
         if (ret <= 0) {
-            tell_user(stderr, "pscp: error while reading: %s", fxp_error());
+            tell_user(stderr, "pscp: 读取时出错: %s", fxp_error());
             if (ret == INT_MIN)        /* pktin not even freed */
                 sfree(pktin);
             errs++;
@@ -1511,7 +1511,7 @@ int scp_recv_filedata(char *data, int len)
 
         if (xfer_download_data(scp_sftp_xfer, &vbuf, &actuallen)) {
             if (actuallen <= 0) {
-                tell_user(stderr, "pscp: end of file while reading");
+                tell_user(stderr, "pscp: 读取时遇到文件结束");
                 errs++;
                 sfree(vbuf);
                 return -1;
@@ -1555,7 +1555,7 @@ int scp_finish_filerecv(void)
             pktin = sftp_recv();
             ret = xfer_download_gotpkt(scp_sftp_xfer, pktin);
             if (ret <= 0) {
-                tell_user(stderr, "pscp: error while reading: %s", fxp_error());
+                tell_user(stderr, "pscp: 读取时出错: %s", fxp_error());
                 if (ret == INT_MIN)        /* pktin not even freed */
                     sfree(pktin);
                 errs++;
@@ -1614,8 +1614,8 @@ static void source(const char *src)
     attr = file_type(src);
     if (attr == FILE_TYPE_NONEXISTENT ||
         attr == FILE_TYPE_WEIRD) {
-        run_err("%s: %s file or directory", src,
-                (attr == FILE_TYPE_WEIRD ? "Not a" : "No such"));
+        run_err("%s: %s 文件或目录", src,
+                (attr == FILE_TYPE_WEIRD ? "不是" : "不存在的"));
         return;
     }
 
@@ -1637,7 +1637,7 @@ static void source(const char *src)
             else
                 rsource(src);
         } else {
-            run_err("%s: not a regular file", src);
+            run_err("%s: 不是普通文件", src);
         }
         return;
     }
@@ -1653,7 +1653,7 @@ static void source(const char *src)
 
     f = open_existing_file(src, &size, &mtime, &atime, &permissions);
     if (f == NULL) {
-        run_err("%s: Cannot open file", src);
+        run_err("%s: 无法打开文件", src);
         return;
     }
     if (preserve) {
@@ -1664,7 +1664,7 @@ static void source(const char *src)
     }
 
     if (verbose) {
-        tell_user(stderr, "Sending file %s, size=%"PRIu64, last, size);
+        tell_user(stderr, "发送文件 %s，大小=%"PRIu64, last, size);
     }
     if (scp_send_filename(last, size, permissions)) {
         close_rfile(f);
@@ -1683,10 +1683,10 @@ static void source(const char *src)
         if (i + k > size)
             k = size - i;
         if ((j = read_from_file(f, transbuf, k)) != k) {
-            bump("%s: Read error", src);
+            bump("%s: 读取错误", src);
         }
         if (scp_send_filedata(transbuf, k))
-            bump("%s: Network error occurred", src);
+            bump("%s: 发生网络错误", src);
 
         if (statistics) {
             stat_bytes += k;
@@ -1726,7 +1726,7 @@ static void rsource(const char *src)
     save_target = scp_save_remotepath();
 
     if (verbose)
-        tell_user(stderr, "Entering directory: %s", last);
+        tell_user(stderr, "进入目录: %s", last);
     if (scp_send_dirname(last, 0755))
         return;
 
@@ -1742,7 +1742,7 @@ static void rsource(const char *src)
         }
         close_directory(dir);
     } else {
-        tell_user(stderr, "Error opening directory %s: %s", src, opendir_err);
+        tell_user(stderr, "打开目录 %s 出错: %s", src, opendir_err);
     }
 
     (void) scp_send_enddir();
@@ -1771,7 +1771,7 @@ static void sink(const char *targ, const char *src)
         targisdir = true;
 
     if (targetshouldbedirectory && !targisdir)
-        bump("%s: Not a directory", targ);
+        bump("%s: 不是目录", targ);
 
     scp_sink_init();
 
@@ -1826,10 +1826,10 @@ static void sink(const char *targ, const char *src)
             if (striptarget != act.name) {
                 with_stripctrl(sanname, act.name) {
                     with_stripctrl(santarg, striptarget) {
-                        tell_user(stderr, "warning: remote host sent a"
-                                  " compound pathname '%s'", sanname);
-                        tell_user(stderr, "         renaming local"
-                                  " file to '%s'", santarg);
+                        tell_user(stderr, "警告: 远程主机发送了"
+                                  "复合路径名 '%s'", sanname);
+                        tell_user(stderr, "         将本地文件重命名"
+                                  "为 '%s'", santarg);
                     }
                 }
             }
@@ -1840,8 +1840,8 @@ static void sink(const char *targ, const char *src)
              * appears to interpret those like '..'.
              */
             if (is_dots(striptarget)) {
-                bump("security violation: remote host attempted to write to"
-                     " a '.' or '..' path!");
+                bump("安全违规: 远程主机试图写入"
+                     " '.' 或 '..' 路径！");
             }
 
             if (src) {
@@ -1849,14 +1849,14 @@ static void sink(const char *targ, const char *src)
                 if (strcmp(striptarget, stripsrc) &&
                     !using_sftp && !scp_unsafe_mode) {
                     with_stripctrl(san, striptarget)
-                        tell_user(stderr, "warning: remote host tried to "
-                                  "write to a file called '%s'", san);
-                    tell_user(stderr, "         when we requested a file "
-                              "called '%s'.", stripsrc);
-                    tell_user(stderr, "         If this is a wildcard, "
-                              "consider upgrading to SSH-2 or using");
-                    tell_user(stderr, "         the '-unsafe' option. Renaming"
-                              " of this file has been disallowed.");
+                        tell_user(stderr, "警告: 远程主机试图写入名为 "
+                                  "'%s' 的文件", san);
+                    tell_user(stderr, "         而我们请求的文件名为 "
+                              "'%s'。", stripsrc);
+                    tell_user(stderr, "         如果这是通配符，请考虑"
+                              "升级到 SSH-2 或使用");
+                    tell_user(stderr, "         '-unsafe' 选项。已禁止"
+                              "对该文件重命名。");
                     /* Override the name the server provided with our own. */
                     striptarget = stripsrc;
                 }
@@ -1880,14 +1880,14 @@ static void sink(const char *targ, const char *src)
         if (act.action == SCP_SINK_DIR) {
             if (exists && attr != FILE_TYPE_DIRECTORY) {
                 with_stripctrl(san, destfname)
-                    run_err("%s: Not a directory", san);
+                    run_err("%s: 不是目录", san);
                 sfree(destfname);
                 continue;
             }
             if (!exists) {
                 if (!create_directory(destfname)) {
                     with_stripctrl(san, destfname)
-                        run_err("%s: Cannot create directory", san);
+                        run_err("%s: 无法创建目录", san);
                     sfree(destfname);
                     continue;
                 }
@@ -1901,7 +1901,7 @@ static void sink(const char *targ, const char *src)
         f = open_new_file(destfname, act.permissions);
         if (f == NULL) {
             with_stripctrl(san, destfname)
-                run_err("%s: Cannot create file", san);
+                run_err("%s: 无法创建文件", san);
             sfree(destfname);
             continue;
         }
@@ -1928,7 +1928,7 @@ static void sink(const char *targ, const char *src)
                 blksize = act.size - received;
             read = scp_recv_filedata(transbuf, (int)blksize);
             if (read <= 0)
-                bump("Lost connection");
+                bump("连接已丢失");
             if (wrerror) {
                 received += read;
                 continue;
@@ -1939,7 +1939,7 @@ static void sink(const char *targ, const char *src)
                 if (statistics)
                     printf("\r%-25.25s | %50s\n",
                            stat_name,
-                           "Write error.. waiting for end of file");
+                           "写入错误.. 正在等待文件结束");
                 received += read;
                 continue;
             }
@@ -1961,7 +1961,7 @@ static void sink(const char *targ, const char *src)
         close_wfile(f);
         if (wrerror) {
             with_stripctrl(san, destfname)
-                run_err("%s: Write error", san);
+                run_err("%s: 写入错误", san);
             sfree(destfname);
             continue;
         }
@@ -2014,11 +2014,11 @@ static void toremote(CmdlineArg **args, size_t nargs)
     if (nargs == 2) {
         const char *arg0 = cmdline_arg_to_str(args[0]);
         if (colon(arg0) != NULL)
-            bump("%s: Remote to remote not supported", arg0);
+            bump("%s: 不支持远程到远程的拷贝", arg0);
 
         wc_type = test_wildcard(arg0, true);
         if (wc_type == WCTYPE_NONEXISTENT)
-            bump("%s: No such file or directory\n", arg0);
+            bump("%s: 不存在的文件或目录\n", arg0);
         else if (wc_type == WCTYPE_WILDCARD)
             targetshouldbedirectory = true;
     }
@@ -2037,14 +2037,14 @@ static void toremote(CmdlineArg **args, size_t nargs)
     for (size_t i = 0; i < nargs - 1; i++) {
         src = cmdline_arg_to_str(args[i]);
         if (colon(src) != NULL) {
-            tell_user(stderr, "%s: Remote to remote not supported\n", src);
+            tell_user(stderr, "%s: 不支持远程到远程的拷贝\n", src);
             errs++;
             continue;
         }
 
         wc_type = test_wildcard(src, true);
         if (wc_type == WCTYPE_NONEXISTENT) {
-            run_err("%s: No such file or directory", src);
+            run_err("%s: 不存在的文件或目录", src);
             continue;
         } else if (wc_type == WCTYPE_FILENAME) {
             source(src);
@@ -2055,7 +2055,7 @@ static void toremote(CmdlineArg **args, size_t nargs)
 
             wc = begin_wildcard_matching(src);
             if (wc == NULL) {
-                run_err("%s: No such file or directory", src);
+                run_err("%s: 不存在的文件或目录", src);
                 continue;
             }
 
@@ -2081,7 +2081,7 @@ static void tolocal(CmdlineArg **args, size_t nargs)
     uploading = false;
 
     if (nargs != 2)
-        bump("More than one remote source not supported");
+        bump("不支持多个远程源");
 
     wsrc = wsrc_orig = dupstr(cmdline_arg_to_str(args[0]));
     targ = cmdline_arg_to_str(args[1]);
@@ -2090,7 +2090,7 @@ static void tolocal(CmdlineArg **args, size_t nargs)
     host = wsrc;
     wsrc = colon(wsrc);
     if (wsrc == NULL)
-        bump("Local to local copy not supported");
+        bump("不支持本地到本地的拷贝");
     *wsrc++ = '\0';
     /* Substitute "." for empty filename */
     if (*wsrc == '\0')
@@ -2141,7 +2141,7 @@ static void get_dir_list(CmdlineArg **args, size_t nargs)
     host = wsrc;
     wsrc = colon(wsrc);
     if (wsrc == NULL)
-        bump("Local file listing not supported");
+        bump("不支持本地文件列表");
     *wsrc++ = '\0';
     /* Substitute "." for empty filename */
     if (*wsrc == '\0')
@@ -2254,7 +2254,7 @@ void cmdline_error(const char *p, ...)
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
-    fprintf(stderr, "\n      try typing \"pscp -h\" for help\n");
+    fprintf(stderr, "\n      请尝试输入 \"pscp -h\" 获取帮助\n");
     exit(1);
 }
 
@@ -2292,7 +2292,7 @@ int psftp_main(CmdlineArgList *arglist)
         }
         int ret = cmdline_process_param(arg, nextarg, 1, conf);
         if (ret == -2) {
-            cmdline_error("option \"%s\" requires an argument", argstr);
+            cmdline_error("选项 \"%s\" 需要一个参数", argstr);
         } else if (ret == 2) {
             arglistpos++;              /* skip next argument */
         } else if (ret == 1) {
@@ -2332,7 +2332,7 @@ int psftp_main(CmdlineArgList *arglist)
             arglistpos++;
             break;
         } else {
-            cmdline_error("unknown option \"%s\"", argstr);
+            cmdline_error("未知选项 \"%s\"", argstr);
         }
     }
     backend = NULL;
@@ -2353,12 +2353,12 @@ int psftp_main(CmdlineArgList *arglist)
 
     if (list) {
         if (nscpargs != 1)
-            cmdline_error("expected a single argument with -ls");
+            cmdline_error("-ls 需要一个单独的参数");
         get_dir_list(scpargs, nscpargs);
 
     } else {
         if (nscpargs < 2)
-            cmdline_error("expected at least two arguments");
+            cmdline_error("至少需要两个参数");
         if (nscpargs > 2)
             targetshouldbedirectory = true;
 

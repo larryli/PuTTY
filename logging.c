@@ -116,16 +116,17 @@ static void logfopen_callback(void *vctx, int mode)
                   " =~=~=~=~=~=~=~=~=~=~=~=\r\n", buf);
     }
 
-    event = dupprintf("%s session log (%s mode) to file: %s",
+    event = dupprintf("%s会话日志（%s模式）到文件: %s%s",
                       ctx->state == L_ERROR ?
-                      (mode == 0 ? "Disabled writing" : "Error writing") :
-                      (mode == 1 ? "Appending" : "Writing new"),
-                      (ctx->logtype == LGTYP_ASCII ? "ASCII" :
-                       ctx->logtype == LGTYP_DEBUG ? "raw" :
-                       ctx->logtype == LGTYP_PACKETS ? "SSH packets" :
-                       ctx->logtype == LGTYP_SSHRAW ? "SSH raw data" :
-                       "unknown"),
-                      filename_to_str(ctx->currlogfilename));
+                      (mode == 0 ? "禁止写入" : "写入") :
+                      (mode == 1 ? "追加写入" : "新文件写入"),
+                      (ctx->logtype == LGTYP_ASCII ? "ASCII " :
+                       ctx->logtype == LGTYP_DEBUG ? "原始" :
+                       ctx->logtype == LGTYP_PACKETS ? "SSH 数据包" :
+                       ctx->logtype == LGTYP_SSHRAW ? "SSH 原始数据" :
+                       "未知"),
+                      filename_to_str(ctx->currlogfilename),
+                      (ctx->state == L_ERROR && mode == 1) ? " 出错" : "");
     lp_eventlog(ctx->lp, event);
     if (shout) {
         /*

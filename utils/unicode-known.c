@@ -44,14 +44,14 @@ char *utf8_unknown_char(ptrlen input)
         unsigned c = decode_utf8(src, &err);
         if (err != DUTF8_SUCCESS)
             return dupprintf(
-                "cannot normalise this string: UTF-8 decoding error "
-                "at character position %"SIZEu", byte position %"SIZEu": %s",
+                "无法规范化此字符串: UTF-8 解码错误"
+                "（字符位置 %"SIZEu"，字节位置 %"SIZEu": %s",
                 nchars, src->pos, decode_utf8_error_strings[err]);
         if (!known(c))
             return dupprintf(
-                "cannot stably normalise this string: code point %04X "
-                "(at character position %"SIZEu", byte position %"SIZEu") "
-                "is not in Unicode %s", c, nchars, src->pos,
+                "无法稳定规范化此字符串: 码点 %04X"
+                "（字符位置 %"SIZEu"，字节位置 %"SIZEu") "
+                "不在 Unicode %s 中", c, nchars, src->pos,
                 UNICODE_VERSION_SHORT);
     }
 

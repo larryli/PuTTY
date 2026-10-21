@@ -914,7 +914,7 @@ SeatPromptResult verify_ssh_host_key(
             sfree(base64blob);
         }
 
-        return SPR_SW_ABORT("Host key not in manually configured list");
+        return SPR_SW_ABORT("主机密钥不在手动配置的列表中");
     }
 
     /*
@@ -954,11 +954,11 @@ SeatPromptResult verify_ssh_host_key(
                 appname);
             if (storage_status == 2) {
                 seat_dialog_text_append(
-                    text, SDT_PARA, "**此外**ALSO，此服务器密钥与 "
+                    text, SDT_PARA, "**此外**，此服务器密钥与 "
                     "%s 此前缓存的密钥不匹配。", appname);
                 seat_dialog_text_append(
                     text, SDT_PARA, "这说明有其他证书颁发机构在此网络提供服务，"
-                    "**并且*可能是该服务器管理员更新了主机密钥，"
+                    "**并且**可能是该服务器管理员更新了主机密钥，"
                     "或者更可能是连接到了一台伪装成该服务器的其他计算机系统。");
             } else {
                 seat_dialog_text_append(
@@ -1017,7 +1017,7 @@ SeatPromptResult verify_ssh_host_key(
     if (storage_status == 1) {
         seat_dialog_text_append(
             text, SDT_PARA, "如果信任该主机，请%s增加密钥到"
-            "%s 缓存中，并继续连接。",
+            " %s 缓存中，并继续连接。",
             pds->hk_accept_action, appname);
         if (key && ssh_key_alg(key)->is_certificate) {
             seat_dialog_text_append(
@@ -1091,7 +1091,7 @@ SeatPromptResult confirm_weak_crypto_primitive(
         seat_dialog_text_append(
             text, SDT_PARA,
             "服务器支持的第一个 %s 为 %s，"
-            "其低于配置的警告阀值。",
+            "其低于配置的警告阈值。",
             algtype, algname);
         break;
       case WCR_TERRAPIN:
@@ -1109,7 +1109,7 @@ SeatPromptResult confirm_weak_crypto_primitive(
             seat_dialog_text_append(
                 text, SDT_PARA,
                 "另外还可以放弃此连接来避免此漏洞，"
-                "在 PuTTY SSH 密钥配置种将 ChaCha20 移动到"
+                "在 PuTTY SSH 密钥配置中将 ChaCha20 移动到"
                 "“下面为警告选项” 线下（以便选择没有漏洞的算法），"
                 "然后打开新的连接。");
         }
@@ -1127,7 +1127,7 @@ SeatPromptResult confirm_weak_crypto_primitive(
         "放弃连接，%s。",
         pds->weak_accept_action, pds->weak_cancel_action);
 
-    seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接?");
+    seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接？");
 
     SeatPromptResult toret = seat_confirm_weak_crypto_primitive(
         iseat, text, callback, ctx);
@@ -1148,7 +1148,7 @@ SeatPromptResult confirm_weak_cached_hostkey(
     seat_dialog_text_append(
         text, SDT_PARA,
         "此服务器要存储的第一个主机密钥类型"
-        "为 %s，其低于配置的警告阀值。", algname);
+        "为 %s，其低于配置的警告阈值。", algname);
 
     seat_dialog_text_append(
         text, SDT_PARA,
@@ -1167,7 +1167,7 @@ SeatPromptResult confirm_weak_cached_hostkey(
         "放弃连接，%s。",
         pds->weak_accept_action, pds->weak_cancel_action);
 
-    seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接?");
+    seat_dialog_text_append(text, SDT_PROMPT, "是否继续连接？");
 
     SeatPromptResult toret = seat_confirm_weak_cached_hostkey(
         iseat, text, callback, ctx);
@@ -1205,14 +1205,14 @@ bool ssh1_common_filter_queue(PacketProtocolLayer *ppl)
           case SSH1_MSG_DISCONNECT:
             msg = get_string(pktin);
             ssh_remote_error(ppl->ssh,
-                             "Remote side sent disconnect message:\n\"%.*s\"",
+                             "远端发送了断开连接消息:\n\"%.*s\"",
                              PTRLEN_PRINTF(msg));
             /* don't try to pop the queue, because we've been freed! */
             return true;               /* indicate that we've been freed */
 
           case SSH1_MSG_DEBUG:
             msg = get_string(pktin);
-            ppl_logevent("Remote debug message: %.*s", PTRLEN_PRINTF(msg));
+            ppl_logevent("远端调试消息: %.*s", PTRLEN_PRINTF(msg));
             pq_pop(ppl->in_pq);
             break;
 
@@ -1253,7 +1253,7 @@ void ssh1_compute_session_id(
 void ssh_spr_close(Ssh *ssh, SeatPromptResult spr, const char *context)
 {
     if (spr.kind == SPRK_USER_ABORT) {
-        ssh_user_close(ssh, "User aborted at %s", context);
+        ssh_user_close(ssh, "用户在 %s 中止操作", context);
     } else {
         assert(spr.kind == SPRK_SW_ABORT);
         char *err = spr_get_error_message(spr);

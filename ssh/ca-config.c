@@ -259,7 +259,7 @@ static void ca_save_handler(dlgcontrol *ctrl, dlgparam *dp,
         char *error_msg;
         ptrlen error_loc;
         if (!cert_expr_valid(st->validity, &error_msg, &error_loc)) {
-            char *error_full = dupprintf("Error in expression: %s", error_msg);
+            char *error_full = dupprintf("表达式错误: %s", error_msg);
             dlg_error_msg(dp, error_full);
             dlg_set_focus(st->ca_validity_edit, dp);
             dlg_editbox_select_range(

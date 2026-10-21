@@ -58,8 +58,8 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf,
 
         colon = host_strrchr(localcopy, ':');
         if (!colon) {
-            *error_msg = dupprintf("display name '%s' has no ':number'"
-                                   " suffix", localcopy);
+            *error_msg = dupprintf("显示名称 '%s' 缺少 ':number'"
+                                   " 后缀", localcopy);
 
             sfree(disp);
             sfree(localcopy);
@@ -119,8 +119,8 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf,
                                  NULL, NULL);
 
         if ((err = sk_addr_error(disp->addr)) != NULL) {
-            *error_msg = dupprintf("unable to resolve host name '%s' in "
-                                   "display name", disp->hostname);
+            *error_msg = dupprintf("无法解析主机名 '%s' 于"
+                                   "显示名称", disp->hostname);
 
             sk_addr_free(disp->addr);
             sfree(disp->hostname);
